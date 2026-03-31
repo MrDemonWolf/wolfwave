@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import ServiceManagement
 
 /// App visibility settings interface for controlling dock and menu bar presence.
 struct AppVisibilitySettingsView: View {

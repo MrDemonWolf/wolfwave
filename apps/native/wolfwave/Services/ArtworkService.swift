@@ -55,8 +55,8 @@ final class ArtworkService: @unchecked Sendable {
 
     /// Fetches album artwork URL from the iTunes Search API.
     ///
-    /// Returns a cached result immediately if available. On cache miss, queries the
-    /// iTunes Search API and caches the result for future calls.
+    /// Delegates to `fetchTrackLinks` so all three fields (artwork, Apple Music URL,
+    /// song.link URL) are populated from a single API call and shared cache.
     ///
     /// - Parameters:
     ///   - track: Song title.
@@ -64,50 +64,9 @@ final class ArtworkService: @unchecked Sendable {
     ///   - completion: Called with the artwork URL (512×512), or nil if not found or on error.
     ///     Called on an arbitrary URLSession queue.
     func fetchArtworkURL(track: String, artist: String, completion: @escaping (String?) -> Void) {
-        let cacheKey = "\(artist)|\(track)"
-
-        // Check cache first
-        let cached: String? = cacheQueue.sync { cache[cacheKey] }
-        if let cached {
-            completion(cached)
-            return
+        fetchTrackLinks(track: track, artist: artist) { links in
+            completion(links.artworkURL)
         }
-
-        // Query iTunes Search API
-        let query = "\(track) \(artist)"
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?media=music&entity=song&limit=1&term=\(encoded)")
-        else {
-            completion(nil)
-            return
-        }
-
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let data, error == nil,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = json["results"] as? [[String: Any]],
-                  let first = results.first,
-                  let artworkUrl = first["artworkUrl100"] as? String
-            else {
-                Log.debug("Artwork: iTunes lookup failed for \"\(track)\" by \(artist)", category: "Artwork")
-                completion(nil)
-                return
-            }
-
-            // Upscale from 100×100 to 512×512 for better quality
-            let highRes = artworkUrl.replacingOccurrences(of: "100x100", with: "512x512")
-            let trackViewURL = first["trackViewUrl"] as? String
-            let songLinkURL = (first["trackId"] as? Int).map { "https://song.link/i/\($0)" }
-
-            self?.cacheQueue.sync {
-                self?.cache[cacheKey] = highRes
-                if let trackViewURL { self?.trackViewURLCache[cacheKey] = trackViewURL }
-                if let songLinkURL { self?.songLinkURLCache[cacheKey] = songLinkURL }
-            }
-
-            Log.debug("Artwork: Found artwork for \"\(track)\"", category: "Artwork")
-            completion(highRes)
-        }.resume()
     }
 
     /// Returns the cached artwork URL for a track if available, without making a network request.
