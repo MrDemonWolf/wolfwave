@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: MrDemonWolf/homebrew-den
-          token: ${{ secrets.HOMEBREW_DEN_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-den
 
       - name: Update cask file
@@ -51,7 +51,7 @@ jobs:
       - name: Open PR against homebrew-den
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          GH_TOKEN: ${{ secrets.HOMEBREW_DEN_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           cd homebrew-den
           git config user.name "github-actions[bot]"
