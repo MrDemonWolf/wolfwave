@@ -15,7 +15,7 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     /// The currently active playback mode.
     private(set) var currentMode: PlaybackSourceMode
 
-    private let appleMusicSource = AppleMusicSource()
+    private lazy var appleMusicSource = AppleMusicSource()
     private lazy var systemNowPlayingSource = SystemNowPlayingSource()
     private var activeSource: (any PlaybackSource)?
     private var isTracking = false
