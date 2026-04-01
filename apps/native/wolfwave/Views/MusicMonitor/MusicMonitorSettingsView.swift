@@ -23,6 +23,8 @@ struct MusicMonitorSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
+    @AppStorage("playbackSourceMode") private var playbackSourceMode: String = "appleMusic"
+
     @State private var permissionDenied = false
     @State private var currentTrack: String?
     @State private var currentArtist: String?
@@ -48,8 +50,44 @@ struct MusicMonitorSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Music Source picker
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Music Source")
+                    .font(.headline)
+
+                Picker("", selection: $playbackSourceMode) {
+                    Text("Apple Music").tag("appleMusic")
+                    Text("Any App (System)").tag("systemNowPlaying")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: playbackSourceMode) { _, newValue in
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name(AppConstants.Notifications.playbackSourceModeChanged),
+                        object: nil,
+                        userInfo: ["mode": newValue]
+                    )
+                }
+
+                Text(playbackSourceMode == "appleMusic"
+                    ? "Connects directly to Apple Music for accurate track info."
+                    : "Picks up whatever's playing — Spotify, browsers, anything.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if playbackSourceMode == "systemNowPlaying" {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                        Text("Uses macOS system media info. No Apple Music access needed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.bottom, 4)
+
             // Permission warning
-            if permissionDenied {
+            if permissionDenied && playbackSourceMode == "appleMusic" {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 14))

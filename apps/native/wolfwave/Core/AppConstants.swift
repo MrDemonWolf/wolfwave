@@ -65,6 +65,9 @@ enum AppConstants {
 
         /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool.
         static let twitchConnectionStateChanged = "TwitchChatConnectionStateChanged"
+
+        /// Posted when the user changes the playback source mode.
+        static let playbackSourceModeChanged = "PlaybackSourceModeChanged"
     }
     
     // MARK: - UserDefaults Keys
@@ -151,6 +154,9 @@ enum AppConstants {
 
         /// Whether the widget HTTP server is enabled (Bool, default: false)
         static let widgetHTTPEnabled = "widgetHTTPEnabled"
+
+        /// The user's chosen playback source mode: "appleMusic" or "systemNowPlaying" (String, default: "appleMusic")
+        static let playbackSourceMode = "playbackSourceMode"
     }
     
     // MARK: - Dock Visibility Modes
@@ -388,6 +394,8 @@ enum AppConstants {
 
         /// Queue for WebSocket server operations
         static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
+
+        static let systemNowPlaying = "com.mrdemonwolf.wolfwave.systemnowplaying"
     }
     
     // MARK: - UI Dimensions
@@ -474,6 +482,14 @@ enum AppConstants {
 
         /// WebSocket progress broadcast interval in reduced-power mode (3s vs normal 1s)
         static let reducedProgressBroadcastInterval: TimeInterval = 3.0
+    }
+
+    // MARK: - System Now Playing
+
+    /// Constants for the System Now Playing (MediaRemote) source.
+    enum SystemNowPlaying {
+        static let frameworkPath = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
+        static let nowPlayingInfoDidChangeNotification = "kMRMediaRemoteNowPlayingInfoDidChangeNotification"
     }
 
     // MARK: - Onboarding UI

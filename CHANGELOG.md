@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-01
+
+### Added
+
+- **Multi-source music support** — choose between Apple Music (direct ScriptingBridge connection) and Any App (System), which uses the macOS system Now Playing API to capture playback from Spotify, browsers, and any other app. Setting lives in Music Monitor preferences.
+
 ## [1.1.0] - 2026-03-31
 
 ### Added
