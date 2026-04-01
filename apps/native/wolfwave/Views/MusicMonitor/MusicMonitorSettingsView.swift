@@ -23,7 +23,7 @@ struct MusicMonitorSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
-    @AppStorage("playbackSourceMode") private var playbackSourceMode: String = "appleMusic"
+    @AppStorage(AppConstants.UserDefaults.playbackSourceMode) private var playbackSourceMode: String = "appleMusic"
 
     @State private var permissionDenied = false
     @State private var currentTrack: String?
@@ -60,6 +60,8 @@ struct MusicMonitorSettingsView: View {
                     Text("Any App (System)").tag("systemNowPlaying")
                 }
                 .pickerStyle(.segmented)
+                .accessibilityLabel("Music Source")
+                .accessibilityIdentifier("musicSourcePicker")
                 .onChange(of: playbackSourceMode) { _, newValue in
                     NotificationCenter.default.post(
                         name: NSNotification.Name(AppConstants.Notifications.playbackSourceModeChanged),
@@ -82,6 +84,8 @@ struct MusicMonitorSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Uses macOS system media info. No Apple Music access needed.")
                 }
             }
             .padding(.bottom, 4)

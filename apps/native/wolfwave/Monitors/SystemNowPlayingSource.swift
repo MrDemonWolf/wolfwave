@@ -10,9 +10,9 @@ class SystemNowPlayingSource: PlaybackSource {
     // MARK: - Constants
 
     private enum Constants {
-        static let frameworkPath = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
-        static let nowPlayingChangedNotification = "kMRMediaRemoteNowPlayingInfoDidChangeNotification"
-        static let queueLabel = "com.mrdemonwolf.wolfwave.systemnowplaying"
+        static let frameworkPath = AppConstants.SystemNowPlaying.frameworkPath
+        static let nowPlayingChangedNotification = AppConstants.SystemNowPlaying.nowPlayingInfoDidChangeNotification
+        static let queueLabel = AppConstants.DispatchQueues.systemNowPlaying
         static let checkInterval: TimeInterval = 5.0
         static let notificationDedupWindow: TimeInterval = 0.75
         static let idleGraceWindow: TimeInterval = 2.0
@@ -56,14 +56,12 @@ class SystemNowPlayingSource: PlaybackSource {
             Log.warn("SystemNowPlayingSource: MediaRemote framework unavailable", category: "Music")
             return
         }
-        getNowPlayingInfo = unsafeBitCast(
-            dlsym(handle, "MRMediaRemoteGetNowPlayingInfo"),
-            to: MRMediaRemoteGetNowPlayingInfoFunction.self
-        )
-        registerForNotifications = unsafeBitCast(
-            dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications"),
-            to: MRMediaRemoteRegisterForNowPlayingNotificationsFunction.self
-        )
+        if let sym = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo") {
+            getNowPlayingInfo = unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
+        }
+        if let sym = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications") {
+            registerForNotifications = unsafeBitCast(sym, to: MRMediaRemoteRegisterForNowPlayingNotificationsFunction.self)
+        }
         frameworkLoaded = getNowPlayingInfo != nil
         if !frameworkLoaded {
             Log.warn("SystemNowPlayingSource: Failed to resolve MediaRemote symbols", category: "Music")
@@ -78,7 +76,7 @@ class SystemNowPlayingSource: PlaybackSource {
     func startTracking() {
         guard !isTracking else { return }
         guard frameworkLoaded else {
-            delegate?.playbackSource(self, didUpdateStatus: "System Now Playing unavailable")
+            notifyDelegate(status: "System Now Playing unavailable")
             return
         }
         isTracking = true

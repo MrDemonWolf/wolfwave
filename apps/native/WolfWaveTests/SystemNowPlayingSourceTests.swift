@@ -58,14 +58,12 @@ final class SystemNowPlayingSourceTests: XCTestCase {
 
     // MARK: - Graceful Degradation
 
-    func testDelegateIsNotifiedIfFrameworkUnavailable() {
-        // We can't force dlopen to fail, but we can verify the delegate interface works
+    func testDelegateWiringDoesNotCrash() {
         let source = SystemNowPlayingSource()
         let spy = StatusSpy()
         source.delegate = spy
-        // If framework loaded, startTracking works silently.
-        // If it didn't load, delegate should have been called with an error status synchronously in init (not tested here).
-        // Just verify no crash.
+        // If framework unavailable, delegate receives "System Now Playing unavailable" on main thread.
+        // If available, startTracking proceeds silently. Either way, no crash.
         source.startTracking()
         source.stopTracking()
     }

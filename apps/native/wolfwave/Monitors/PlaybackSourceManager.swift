@@ -23,7 +23,7 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     // MARK: - Init
 
     init() {
-        let stored = UserDefaults.standard.string(forKey: "playbackSourceMode")
+        let stored = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.playbackSourceMode)
         currentMode = PlaybackSourceMode(rawValue: stored ?? "") ?? .appleMusic
     }
 
@@ -55,7 +55,7 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
         let wasTracking = isTracking
         stopTracking()
         currentMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: "playbackSourceMode")
+        UserDefaults.standard.set(mode.rawValue, forKey: AppConstants.UserDefaults.playbackSourceMode)
         if wasTracking { startTracking() }
     }
 
