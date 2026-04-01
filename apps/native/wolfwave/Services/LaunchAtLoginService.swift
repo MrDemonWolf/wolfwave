@@ -29,7 +29,9 @@ enum LaunchAtLoginService {
     /// Registers or unregisters the app as a login item.
     ///
     /// - Parameter enabled: Pass `true` to register, `false` to unregister.
-    static func setEnabled(_ enabled: Bool) {
+    /// - Returns: `true` if the operation succeeded, `false` if `SMAppService` threw an error.
+    @discardableResult
+    static func setEnabled(_ enabled: Bool) -> Bool {
         do {
             if enabled {
                 try SMAppService.mainApp.register()
@@ -38,8 +40,10 @@ enum LaunchAtLoginService {
                 try SMAppService.mainApp.unregister()
                 Log.info("LaunchAtLogin: Unregistered from login items", category: "App")
             }
+            return true
         } catch {
             Log.error("LaunchAtLogin: Failed to \(enabled ? "register" : "unregister"): \(error.localizedDescription)", category: "App")
+            return false
         }
     }
 }

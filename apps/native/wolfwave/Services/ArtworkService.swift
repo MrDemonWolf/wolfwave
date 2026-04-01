@@ -107,10 +107,14 @@ final class ArtworkService: @unchecked Sendable {
             return
         }
 
-        let query = "\(track) \(artist)"
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?media=music&entity=song&limit=1&term=\(encoded)")
-        else {
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "media", value: "music"),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "1"),
+            URLQueryItem(name: "term", value: "\(track) \(artist)"),
+        ]
+        guard let url = components.url else {
             completion(TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
             return
         }

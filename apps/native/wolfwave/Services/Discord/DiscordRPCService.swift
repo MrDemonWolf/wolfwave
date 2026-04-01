@@ -230,21 +230,27 @@ final class DiscordRPCService: @unchecked Sendable {
             // Fetch track links asynchronously on cache miss
             if cached.artworkURL == nil {
                 ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
-                    guard let self, let artworkURL = links.artworkURL else { return }
+                    guard let self else { return }
+                    // Re-send if any link resolved — buttons can appear even without artwork
+                    let hasNewData = links.artworkURL != nil
+                        || links.trackViewURL != nil
+                        || links.songLinkURL != nil
+                    guard hasNewData else { return }
                     self.ipcQueue.async {
                         guard self.state == .connected else { return }
-                        // Re-send presence with artwork and buttons
                         self.sendPresenceActivity(
                             track: track, artist: artist, album: album,
-                            artworkURL: artworkURL,
+                            artworkURL: links.artworkURL,
                             duration: duration, elapsed: elapsed,
                             appleMusicURL: links.trackViewURL,
                             songLinkURL: links.songLinkURL
                         )
                     }
-                    // Notify listeners (e.g., WebSocket server) of the resolved artwork
-                    DispatchQueue.main.async { [weak self] in
-                        self?.onArtworkResolved?(artworkURL, track, artist)
+                    // Notify listeners (e.g., WebSocket server) only when artwork is resolved
+                    if let artworkURL = links.artworkURL {
+                        DispatchQueue.main.async { [weak self] in
+                            self?.onArtworkResolved?(artworkURL, track, artist)
+                        }
                     }
                 }
             }

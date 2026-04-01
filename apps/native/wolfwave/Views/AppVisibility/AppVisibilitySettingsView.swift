@@ -44,8 +44,9 @@ struct AppVisibilitySettingsView: View {
                 Toggle("Launch at Login", isOn: Binding(
                     get: { launchAtLogin },
                     set: { newValue in
+                        // Revert toggle immediately if SMAppService fails
+                        guard LaunchAtLoginService.setEnabled(newValue) else { return }
                         launchAtLogin = newValue
-                        LaunchAtLoginService.setEnabled(newValue)
                         // Dock Only is incompatible with launch at login —
                         // switch to Menu Bar + Dock so the app is always reachable.
                         if newValue && dockVisibility == AppConstants.DockVisibility.dockOnly {
@@ -59,6 +60,7 @@ struct AppVisibilitySettingsView: View {
                 .pointerCursor()
                 .accessibilityLabel("Launch at Login")
                 .accessibilityHint("Starts WolfWave automatically when you log in to your Mac")
+                .accessibilityIdentifier("launchAtLoginToggle")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppConstants.SettingsUI.cardPadding)
@@ -80,20 +82,23 @@ struct AppVisibilitySettingsView: View {
                         label: "Dock and Menu Bar",
                         tag: AppConstants.DockVisibility.default,
                         selection: $dockVisibility,
-                        onChange: applyDockVisibility
+                        onChange: applyDockVisibility,
+                        accessibilityID: "dockVisibility_both"
                     )
                     RadioOption(
                         label: "Menu Bar Only",
                         tag: AppConstants.DockVisibility.menuOnly,
                         selection: $dockVisibility,
-                        onChange: applyDockVisibility
+                        onChange: applyDockVisibility,
+                        accessibilityID: "dockVisibility_menuOnly"
                     )
                     RadioOption(
                         label: "Dock Only",
                         tag: AppConstants.DockVisibility.dockOnly,
                         selection: $dockVisibility,
                         onChange: applyDockVisibility,
-                        disabled: launchAtLogin
+                        disabled: launchAtLogin,
+                        accessibilityID: "dockVisibility_dockOnly"
                     )
                 }
                 .accessibilityLabel("Display Mode")
@@ -144,8 +149,11 @@ struct AppVisibilitySettingsView: View {
         .onAppear {
             // Sync toggle with actual SMAppService state on appear
             let actual = LaunchAtLoginService.isEnabled
-            if launchAtLogin != actual {
-                launchAtLogin = actual
+            if launchAtLogin != actual { launchAtLogin = actual }
+            // If launch at login is on but dockOnly was persisted externally, correct it
+            if launchAtLogin && dockVisibility == AppConstants.DockVisibility.dockOnly {
+                dockVisibility = AppConstants.DockVisibility.default
+                applyDockVisibility(AppConstants.DockVisibility.default)
             }
         }
     }
@@ -170,6 +178,7 @@ private struct RadioOption: View {
     @Binding var selection: String
     let onChange: (String) -> Void
     var disabled: Bool = false
+    var accessibilityID: String = ""
 
     var body: some View {
         Button {
@@ -201,6 +210,7 @@ private struct RadioOption: View {
         .accessibilityLabel(label)
         .accessibilityAddTraits(selection == tag ? .isSelected : [])
         .accessibilityHint(disabled ? "Unavailable while Launch at Login is enabled" : "")
+        .accessibilityIdentifier(accessibilityID)
     }
 }
 
