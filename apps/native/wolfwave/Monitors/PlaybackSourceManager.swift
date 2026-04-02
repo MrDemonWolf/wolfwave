@@ -74,6 +74,10 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
         delegate?.playbackSource(source, didUpdateStatus: status)
     }
 
+    func playbackSource(_ source: any PlaybackSource, didDetectSourceApp bundleIdentifier: String?) {
+        delegate?.playbackSource(source, didDetectSourceApp: bundleIdentifier)
+    }
+
     // MARK: - Private Helpers
 
     private func clearActiveSourceDelegate() {

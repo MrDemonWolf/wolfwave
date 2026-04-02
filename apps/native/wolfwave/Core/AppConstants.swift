@@ -492,6 +492,58 @@ enum AppConstants {
         static let nowPlayingInfoDidChangeNotification = "kMRMediaRemoteNowPlayingInfoDidChangeNotification"
     }
 
+    // MARK: - Known Music Apps
+
+    /// Maps source app bundle IDs to display names and Discord asset names.
+    enum KnownMusicApps {
+        private static let browserBundleIDs: Set<String> = [
+            "com.google.Chrome",
+            "org.mozilla.firefox",
+            "com.brave.Browser",
+            "com.microsoft.edgemac",
+            "com.apple.Safari",
+        ]
+
+        /// Human-readable name for the given source app bundle ID.
+        static func displayName(for bundleID: String?) -> String {
+            switch bundleID {
+            case "com.apple.Music": return "Apple Music"
+            case "com.spotify.client": return "Spotify"
+            case "com.apple.iTunes": return "iTunes"
+            case "com.google.Chrome": return "Chrome"
+            case "org.mozilla.firefox": return "Firefox"
+            case "com.brave.Browser": return "Brave"
+            case "com.microsoft.edgemac": return "Edge"
+            case "tv.plex.plexamp": return "Plexamp"
+            case "com.tidal.desktop": return "TIDAL"
+            case "com.amazon.music": return "Amazon Music"
+            default: return "Music"
+            }
+        }
+
+        /// Discord Developer Portal asset name for the given source app bundle ID.
+        static func discordAssetName(for bundleID: String?) -> String {
+            switch bundleID {
+            case "com.apple.Music", "com.apple.iTunes": return "apple_music"
+            case "com.spotify.client": return "spotify"
+            default:
+                if let id = bundleID, browserBundleIDs.contains(id) { return "youtube" }
+                return "music_generic"
+            }
+        }
+
+        /// Returns `true` when the bundle ID is Apple Music.
+        static func isAppleMusic(_ bundleID: String?) -> Bool {
+            bundleID == "com.apple.Music"
+        }
+
+        /// Returns `true` when the bundle ID belongs to a known browser.
+        static func isBrowser(_ bundleID: String?) -> Bool {
+            guard let id = bundleID else { return false }
+            return browserBundleIDs.contains(id)
+        }
+    }
+
     // MARK: - Onboarding UI
 
     /// Onboarding wizard window configuration.

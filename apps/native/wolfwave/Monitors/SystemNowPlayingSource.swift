@@ -44,9 +44,12 @@ class SystemNowPlayingSource: PlaybackSource {
         @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
     private typealias MRMediaRemoteRegisterForNowPlayingNotificationsFunction =
         @convention(c) (DispatchQueue) -> Void
+    private typealias MRMediaRemoteGetNowPlayingApplicationPIDFunction =
+        @convention(c) (DispatchQueue, @escaping (Int32) -> Void) -> Void
 
     private var getNowPlayingInfo: MRMediaRemoteGetNowPlayingInfoFunction?
     private var registerForNotifications: MRMediaRemoteRegisterForNowPlayingNotificationsFunction?
+    private var getNowPlayingApplicationPID: MRMediaRemoteGetNowPlayingApplicationPIDFunction?
     private var frameworkLoaded = false
 
     // MARK: - Lifecycle
@@ -61,6 +64,9 @@ class SystemNowPlayingSource: PlaybackSource {
         }
         if let sym = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications") {
             registerForNotifications = unsafeBitCast(sym, to: MRMediaRemoteRegisterForNowPlayingNotificationsFunction.self)
+        }
+        if let sym = dlsym(handle, "MRMediaRemoteGetNowPlayingApplicationPID") {
+            getNowPlayingApplicationPID = unsafeBitCast(sym, to: MRMediaRemoteGetNowPlayingApplicationPIDFunction.self)
         }
         frameworkLoaded = getNowPlayingInfo != nil
         if !frameworkLoaded {
@@ -128,6 +134,15 @@ class SystemNowPlayingSource: PlaybackSource {
             guard let self = self else { return }
             self.processNowPlayingInfo(info)
         }
+        fetchNowPlayingApplicationBundleID()
+    }
+
+    private func fetchNowPlayingApplicationBundleID() {
+        getNowPlayingApplicationPID?(backgroundQueue) { [weak self] pid in
+            guard let self = self, pid > 0 else { return }
+            let bundleID = NSRunningApplication(processIdentifier: pid_t(pid))?.bundleIdentifier
+            self.notifyDelegateSourceApp(bundleID)
+        }
     }
 
     private func processNowPlayingInfo(_ info: [String: Any]) {
@@ -162,6 +177,13 @@ class SystemNowPlayingSource: PlaybackSource {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.delegate?.playbackSource(self, didUpdateStatus: status)
+        }
+    }
+
+    private func notifyDelegateSourceApp(_ bundleID: String?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.delegate?.playbackSource(self, didDetectSourceApp: bundleID)
         }
     }
 

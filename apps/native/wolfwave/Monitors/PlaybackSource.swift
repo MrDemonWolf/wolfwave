@@ -21,6 +21,13 @@ protocol PlaybackSourceDelegate: AnyObject {
         elapsed: TimeInterval
     )
     func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String)
+    /// Called when the source detects which app is currently playing media.
+    /// - Parameter bundleIdentifier: The bundle ID of the playing app, or `nil` if unknown.
+    func playbackSource(_ source: any PlaybackSource, didDetectSourceApp bundleIdentifier: String?)
+}
+
+extension PlaybackSourceDelegate {
+    func playbackSource(_ source: any PlaybackSource, didDetectSourceApp bundleIdentifier: String?) {}
 }
 
 // MARK: - PlaybackSource
