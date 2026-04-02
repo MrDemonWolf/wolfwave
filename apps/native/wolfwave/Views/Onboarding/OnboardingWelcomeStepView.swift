@@ -27,7 +27,7 @@ struct OnboardingWelcomeStepView: View {
         Feature(
             icon: .brand(name: "AppleMusicLogo", renderOriginal: true),
             title: "Music Sync",
-            description: "Detects what's playing in Apple Music, Spotify, or any app."
+            description: "Detects what's playing in Apple Music."
         ),
         Feature(
             icon: .brand(name: "TwitchLogo", renderOriginal: true),

@@ -16,15 +16,13 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     private(set) var currentMode: PlaybackSourceMode
 
     private lazy var appleMusicSource = AppleMusicSource()
-    private lazy var systemNowPlayingSource = SystemNowPlayingSource()
     private var activeSource: (any PlaybackSource)?
     private var isTracking = false
 
     // MARK: - Init
 
     init() {
-        let stored = UserDefaults.standard.string(forKey: AppConstants.UserDefaults.playbackSourceMode)
-        currentMode = PlaybackSourceMode(rawValue: stored ?? "") ?? .appleMusic
+        currentMode = .appleMusic
     }
 
     // MARK: - Public Methods
@@ -32,31 +30,18 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     /// Starts tracking with the current mode's source.
     func startTracking() {
         stopTracking()
-        let source: any PlaybackSource = (currentMode == .appleMusic) ? appleMusicSource : systemNowPlayingSource
-        source.delegate = self  // NOTE: this requires a workaround — see below
-        activeSource = source
+        appleMusicSource.delegate = self
+        activeSource = appleMusicSource
         isTracking = true
-        source.startTracking()
+        appleMusicSource.startTracking()
     }
 
     /// Stops the active source.
     func stopTracking() {
         activeSource?.stopTracking()
-        // Clear delegate to avoid retain issues
-        // (set via the concrete type helpers below)
-        clearActiveSourceDelegate()
+        appleMusicSource.delegate = nil
         activeSource = nil
         isTracking = false
-    }
-
-    /// Switches to a new mode. If currently tracking, restarts with the new source.
-    func switchMode(_ mode: PlaybackSourceMode) {
-        guard mode != currentMode else { return }
-        let wasTracking = isTracking
-        stopTracking()
-        currentMode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: AppConstants.UserDefaults.playbackSourceMode)
-        if wasTracking { startTracking() }
     }
 
     /// Updates the fallback polling interval on the active source.
@@ -72,19 +57,5 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
 
     func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String) {
         delegate?.playbackSource(source, didUpdateStatus: status)
-    }
-
-    func playbackSource(_ source: any PlaybackSource, didDetectSourceApp bundleIdentifier: String?) {
-        delegate?.playbackSource(source, didDetectSourceApp: bundleIdentifier)
-    }
-
-    // MARK: - Private Helpers
-
-    private func clearActiveSourceDelegate() {
-        if let source = activeSource as? AppleMusicSource {
-            source.delegate = nil
-        } else if let source = activeSource as? SystemNowPlayingSource {
-            source.delegate = nil
-        }
     }
 }

@@ -7,27 +7,11 @@ import XCTest
 
 final class PlaybackSourceManagerTests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-        UserDefaults.standard.removeObject(forKey: "playbackSourceMode")
-    }
-
-    override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: "playbackSourceMode")
-        super.tearDown()
-    }
-
     // MARK: - Default Mode
 
     func testDefaultModeIsAppleMusic() {
         let manager = PlaybackSourceManager()
         XCTAssertEqual(manager.currentMode, .appleMusic)
-    }
-
-    func testDefaultModePersistedModeIsRestored() {
-        UserDefaults.standard.set("systemNowPlaying", forKey: "playbackSourceMode")
-        let manager = PlaybackSourceManager()
-        XCTAssertEqual(manager.currentMode, .systemNowPlaying)
     }
 
     func testInvalidPersistedModeFallsBackToAppleMusic() {
@@ -37,26 +21,6 @@ final class PlaybackSourceManagerTests: XCTestCase {
     }
 
     // MARK: - Mode Switching
-
-    func testSwitchModeUpdatesCurrentMode() {
-        let manager = PlaybackSourceManager()
-        manager.switchMode(.systemNowPlaying)
-        XCTAssertEqual(manager.currentMode, .systemNowPlaying)
-    }
-
-    func testSwitchModeToSameModeIsNoOp() {
-        let manager = PlaybackSourceManager()
-        // Should not crash or change anything
-        manager.switchMode(.appleMusic)
-        XCTAssertEqual(manager.currentMode, .appleMusic)
-    }
-
-    func testSwitchModePersistsToUserDefaults() {
-        let manager = PlaybackSourceManager()
-        manager.switchMode(.systemNowPlaying)
-        let stored = UserDefaults.standard.string(forKey: "playbackSourceMode")
-        XCTAssertEqual(stored, "systemNowPlaying")
-    }
 
     // MARK: - Delegate Forwarding
 

@@ -212,8 +212,7 @@ final class DiscordRPCService: @unchecked Sendable {
         artist: String,
         album: String,
         duration: TimeInterval = 0,
-        elapsed: TimeInterval = 0,
-        sourceAppBundleID: String? = nil
+        elapsed: TimeInterval = 0
     ) {
         ipcQueue.async { [weak self] in
             guard let self, self.state == .connected else { return }
@@ -225,8 +224,7 @@ final class DiscordRPCService: @unchecked Sendable {
                 artworkURL: cached.artworkURL,
                 duration: duration, elapsed: elapsed,
                 appleMusicURL: cached.trackViewURL,
-                songLinkURL: cached.songLinkURL,
-                sourceAppBundleID: sourceAppBundleID
+                songLinkURL: cached.songLinkURL
             )
 
             // Fetch track links asynchronously on cache miss
@@ -245,8 +243,7 @@ final class DiscordRPCService: @unchecked Sendable {
                             artworkURL: links.artworkURL,
                             duration: duration, elapsed: elapsed,
                             appleMusicURL: links.trackViewURL,
-                            songLinkURL: links.songLinkURL,
-                            sourceAppBundleID: sourceAppBundleID
+                            songLinkURL: links.songLinkURL
                         )
                     }
                     // Notify listeners (e.g., WebSocket server) only when artwork is resolved
@@ -303,7 +300,6 @@ final class DiscordRPCService: @unchecked Sendable {
     ///     asset uploaded in the Discord Developer Portal.
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
-    ///   - sourceAppBundleID: Bundle ID of the playing app for source-aware branding.
     private func sendPresenceActivity(
         track: String,
         artist: String,
@@ -312,28 +308,22 @@ final class DiscordRPCService: @unchecked Sendable {
         duration: TimeInterval,
         elapsed: TimeInterval,
         appleMusicURL: String? = nil,
-        songLinkURL: String? = nil,
-        sourceAppBundleID: String? = nil
+        songLinkURL: String? = nil
     ) {
-        let sourceAsset = AppConstants.KnownMusicApps.discordAssetName(for: sourceAppBundleID)
-        let sourceName = AppConstants.KnownMusicApps.displayName(for: sourceAppBundleID)
-        let isAppleMusic = AppConstants.KnownMusicApps.isAppleMusic(sourceAppBundleID)
-
         var activity: [String: Any] = [
             "type": AppConstants.Discord.listeningActivityType,
             "details": track,
             "state": "by \(artist)",
         ]
 
-        // Assets — prefer dynamic artwork URL, fall back to source-specific Discord asset
-        let largeImage = artworkURL ?? sourceAsset
+        // Assets — prefer dynamic artwork URL, fall back to Apple Music Discord asset
+        let largeImage = artworkURL ?? "apple_music"
         var assets: [String: Any] = [
             "large_image": largeImage,
             "large_text": album,
         ]
-        // Always show the source app logo as small overlay icon
-        assets["small_image"] = sourceAsset
-        assets["small_text"] = sourceName
+        assets["small_image"] = "apple_music"
+        assets["small_text"] = "Apple Music"
         activity["assets"] = assets
 
         // Timestamps — show a progress bar if duration is known
@@ -347,9 +337,9 @@ final class DiscordRPCService: @unchecked Sendable {
             ]
         }
 
-        // Buttons — "Open in Apple Music" only for Apple Music source; song.link when available
+        // Buttons — "Open in Apple Music" and song.link when available
         var buttons: [[String: String]] = []
-        if isAppleMusic, let appleMusicURL {
+        if let appleMusicURL {
             buttons.append(["label": "Open in Apple Music", "url": appleMusicURL])
         }
         if let songLinkURL {

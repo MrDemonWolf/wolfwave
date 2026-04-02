@@ -57,8 +57,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
     private var currentElapsed: TimeInterval = 0
     private var lastSong: String?
     private var lastArtist: String?
-    private(set) var currentSourceBundleID: String?
-
     private var currentDockVisibilityMode: String {
         UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
             ?? AppConstants.DockVisibility.default
@@ -372,36 +370,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
     /// Returns a formatted string with the current track for Twitch bot commands.
     func getCurrentSongInfo() -> String {
-        let isSystemMode = playbackSourceManager?.currentMode == .systemNowPlaying
-        if !isSystemMode {
-            guard isMusicAppOpen() else {
-                return "🐺 Please open Apple Music"
-            }
+        guard isMusicAppOpen() else {
+            return "🐺 Please open Apple Music"
         }
         guard let song = currentSong, let artist = currentArtist else {
             return "🐺 No music playing"
-        }
-        if isSystemMode && !AppConstants.KnownMusicApps.isAppleMusic(currentSourceBundleID) {
-            let name = AppConstants.KnownMusicApps.displayName(for: currentSourceBundleID)
-            return "🐺 Playing: \(song) by \(artist) via \(name)"
         }
         return "🐺 Playing: \(song) by \(artist)"
     }
 
     /// Returns a formatted string with the previously played track for Twitch bot commands.
     func getLastSongInfo() -> String {
-        let isSystemMode = playbackSourceManager?.currentMode == .systemNowPlaying
-        if !isSystemMode {
-            guard isMusicAppOpen() else {
-                return "🐺 Please open Apple Music"
-            }
+        guard isMusicAppOpen() else {
+            return "🐺 Please open Apple Music"
         }
         guard let song = lastSong, let artist = lastArtist else {
             return "🐺 No previous tracks yet, keep the music flowing!"
-        }
-        if isSystemMode && !AppConstants.KnownMusicApps.isAppleMusic(currentSourceBundleID) {
-            let name = AppConstants.KnownMusicApps.displayName(for: currentSourceBundleID)
-            return "🐺 Previous: \(song) by \(artist) via \(name)"
         }
         return "🐺 Previous: \(song) by \(artist)"
     }
@@ -732,21 +716,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
 
         twitchService?.getCurrentSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return self?.getCurrentSongInfo() ?? "Nothing playing right now"
+                return MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
             }
             var result = "Nothing playing right now"
             DispatchQueue.main.sync {
-                result = self?.getCurrentSongInfo() ?? "Nothing playing right now"
+                result = MainActor.assumeIsolated { self?.getCurrentSongInfo() ?? "Nothing playing right now" }
             }
             return result
         }
         twitchService?.getLastSongInfo = { [weak self] in
             if Thread.isMainThread {
-                return self?.getLastSongInfo() ?? "No previous track yet"
+                return MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
             }
             var result = "No previous track yet"
             DispatchQueue.main.sync {
-                result = self?.getLastSongInfo() ?? "No previous track yet"
+                result = MainActor.assumeIsolated { self?.getLastSongInfo() ?? "No previous track yet" }
             }
             return result
         }
@@ -935,23 +919,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDele
             }
         )
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.playbackSourceModeChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                guard let modeString = notification.userInfo?["mode"] as? String,
-                      let mode = PlaybackSourceMode(rawValue: modeString) else { return }
-                self?.playbackSourceManager?.switchMode(mode)
-                // Reset source bundle ID when switching modes
-                if mode == .appleMusic {
-                    self?.currentSourceBundleID = AppConstants.Music.bundleIdentifier
-                } else {
-                    self?.currentSourceBundleID = nil
-                }
-            }
-        )
     }
 
     // MARK: - Tracking State
@@ -1244,23 +1211,13 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         fetchArtworkForWidget(track: track, artist: artist)
 
-        // For Apple Music mode the source never calls didDetectSourceApp, so set it here.
-        if playbackSourceManager?.currentMode == .appleMusic {
-            currentSourceBundleID = AppConstants.Music.bundleIdentifier
-        }
-
         discordService?.updatePresence(
             track: track,
             artist: artist,
             album: album,
             duration: duration,
-            elapsed: elapsed,
-            sourceAppBundleID: currentSourceBundleID
+            elapsed: elapsed
         )
-    }
-
-    func playbackSource(_ source: any PlaybackSource, didDetectSourceApp bundleIdentifier: String?) {
-        currentSourceBundleID = bundleIdentifier
     }
 
     /// Clears track state and notifies services when playback stops.

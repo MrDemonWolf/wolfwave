@@ -4,11 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-04-01
+### Fixed
 
-### Added
-
-- **Multi-source music support** — choose between Apple Music (direct ScriptingBridge connection) and Any App (System), which uses the macOS Now Playing API to capture playback from Spotify, browsers, and any other app. Setting lives in Music Monitor preferences.
+- `@MainActor` isolation for `getCurrentSongInfo()` / `getLastSongInfo()` Twitch bot callbacks — replaced `DispatchQueue.main.sync` with `MainActor.assumeIsolated` to satisfy Swift strict concurrency.
 
 ## [1.1.0] - 2026-03-31
 
