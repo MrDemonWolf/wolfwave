@@ -1,3 +1,10 @@
+//
+//  PlaybackSourceManager.swift
+//  wolfwave
+//
+//  Created by MrDemonWolf, Inc. on 3/28/26.
+//
+
 import Foundation
 
 /// Manages the active music playback source and switches between them based on user preference.

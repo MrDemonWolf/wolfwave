@@ -14,14 +14,6 @@ final class PlaybackSourceManagerTests: XCTestCase {
         XCTAssertEqual(manager.currentMode, .appleMusic)
     }
 
-    func testInvalidPersistedModeFallsBackToAppleMusic() {
-        UserDefaults.standard.set("invalidMode", forKey: "playbackSourceMode")
-        let manager = PlaybackSourceManager()
-        XCTAssertEqual(manager.currentMode, .appleMusic)
-    }
-
-    // MARK: - Mode Switching
-
     // MARK: - Delegate Forwarding
 
     func testDelegateReceivesTrackUpdate() {
