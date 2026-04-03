@@ -161,15 +161,13 @@ extension AppDelegate {
         let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         guard hasCompletedOnboarding else { return }
 
-        UserDefaults.standard.set(currentVersion, forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.showWhatsNew()
+            self?.showWhatsNew(version: currentVersion)
         }
     }
 
-    /// Presents the What's New window.
-    private func showWhatsNew() {
+    /// Presents the What's New window and marks this version as seen.
+    private func showWhatsNew(version: String) {
         let whatsNewView = WhatsNewView()
         let hostingController = NSHostingController(rootView: whatsNewView)
         let window = NSWindow(contentViewController: hostingController)
@@ -182,6 +180,7 @@ extension AppDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         whatsNewWindow = window
+        UserDefaults.standard.set(version, forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
     }
 }
 

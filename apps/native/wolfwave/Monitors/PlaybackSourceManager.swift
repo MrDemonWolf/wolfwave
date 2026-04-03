@@ -24,7 +24,6 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
 
     private lazy var appleMusicSource = AppleMusicSource()
     private var activeSource: (any PlaybackSource)?
-    private var isTracking = false
 
     // MARK: - Init
 
@@ -39,7 +38,6 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
         stopTracking()
         appleMusicSource.delegate = self
         activeSource = appleMusicSource
-        isTracking = true
         appleMusicSource.startTracking()
     }
 
@@ -48,7 +46,6 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
         activeSource?.stopTracking()
         appleMusicSource.delegate = nil
         activeSource = nil
-        isTracking = false
     }
 
     /// Updates the fallback polling interval on the active source.

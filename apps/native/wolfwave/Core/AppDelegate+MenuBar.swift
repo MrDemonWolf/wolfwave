@@ -243,19 +243,15 @@ extension AppDelegate {
     }
 
     @objc func toggleWebSocket() {
-        toggleBoolSetting(
-            key: AppConstants.UserDefaults.websocketEnabled,
-            notification: AppConstants.Notifications.websocketServerChanged,
-            includeEnabledInUserInfo: false
-        )
-
+        let current = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
+        let newValue = !current
+        UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.websocketEnabled)
         // Keep widgetHTTPEnabled in sync with the tray toggle
-        let newValue = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaults.widgetHTTPEnabled)
         NotificationCenter.default.post(
             name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
             object: nil,
-            userInfo: ["widgetHTTPEnabled": newValue]
+            userInfo: ["enabled": newValue, "widgetHTTPEnabled": newValue]
         )
         websocketServer?.setWidgetHTTPEnabled(newValue)
     }

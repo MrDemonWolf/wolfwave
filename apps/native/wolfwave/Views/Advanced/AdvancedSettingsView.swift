@@ -118,7 +118,7 @@ struct AdvancedSettingsView: View {
                     Text("Setup Wizard")
                         .font(.system(size: 13, weight: .semibold))
 
-                    Text("Walk through the initial setup steps again to set up your connections again.")
+                    Text("Walk through the setup steps again to review your connections.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
