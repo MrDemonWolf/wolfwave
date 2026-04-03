@@ -391,6 +391,7 @@ enum AppConstants {
         /// Queue for WebSocket server operations
         static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
 
+        static let systemNowPlaying = "com.mrdemonwolf.wolfwave.systemnowplaying"
     }
     
     // MARK: - UI Dimensions

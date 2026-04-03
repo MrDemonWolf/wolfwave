@@ -53,7 +53,16 @@ Ship multiple pre-built WebSocket overlay themes (minimal, retro, neon, glassmor
 Global keyboard shortcuts to toggle tracking, skip song, or show/hide the overlay — even when WolfWave is in the background. Configurable in Settings → Advanced.
 
 **Complexity**: Low–Medium
-**Approach**: `CGEvent` tap or a lightweight hotkey library (e.g. HotKey by github/soffes)
+**Approach**: `CGEvent` tap or a lightweight hotkey library (e.g. HotKey by GitHub/soffes)
+
+---
+
+## Last.fm Scrobbling
+
+Optional Last.fm integration to automatically scrobble tracks as they play. Uses Last.fm API with OAuth device flow (same pattern as Twitch auth).
+
+**Complexity**: Medium
+**Builds on**: `TwitchDeviceAuth` OAuth pattern, `KeychainService`
 
 ---
 
@@ -109,3 +118,11 @@ Let Twitch chat vote on the next song from the request queue. Streamer posts the
 **Complexity**: Medium
 **Builds on**: Song Request Queue feature, existing `TwitchChatService`
 
+---
+
+## Multi-Platform Chat Support
+
+Extend the bot beyond Twitch to YouTube Live chat and Kick. Same `BotCommand` protocol, different transport layer per platform.
+
+**Complexity**: High
+**Builds on**: `BotCommand` protocol, `BotCommandDispatcher`
