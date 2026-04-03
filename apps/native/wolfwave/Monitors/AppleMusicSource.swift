@@ -64,6 +64,7 @@ class AppleMusicSource: PlaybackSource {
         DistributedNotificationCenter.default().removeObserver(self)
         timer?.cancel()
         timer = nil
+        backgroundQueue.sync {}
     }
 
     func updateCheckInterval(_ interval: TimeInterval) {
