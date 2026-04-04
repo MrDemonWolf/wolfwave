@@ -23,7 +23,7 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     private(set) var currentMode: PlaybackSourceMode
 
     private lazy var appleMusicSource = AppleMusicSource()
-    private var activeSource: (any PlaybackSource)?
+    private var isStarted = false
 
     // MARK: - Init
 
@@ -35,22 +35,24 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
 
     /// Starts tracking with the current mode's source.
     func startTracking() {
-        stopTracking()
+        guard !isStarted else { return }
+        isStarted = true
         appleMusicSource.delegate = self
-        activeSource = appleMusicSource
         appleMusicSource.startTracking()
     }
 
     /// Stops the active source.
     func stopTracking() {
-        activeSource?.stopTracking()
+        guard isStarted else { return }
+        isStarted = false
+        appleMusicSource.stopTracking()
         appleMusicSource.delegate = nil
-        activeSource = nil
     }
 
     /// Updates the fallback polling interval on the active source.
     func updateCheckInterval(_ interval: TimeInterval) {
-        activeSource?.updateCheckInterval(interval)
+        guard isStarted else { return }
+        appleMusicSource.updateCheckInterval(interval)
     }
 
     // MARK: - PlaybackSourceDelegate (forwarding)
