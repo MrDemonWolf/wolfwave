@@ -57,11 +57,11 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
 
     // MARK: - PlaybackSourceDelegate (forwarding)
 
-    func playbackSource(_ source: any PlaybackSource, didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
-        delegate?.playbackSource(source, didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
+    func playbackSource(didUpdateTrack track: String, artist: String, album: String, duration: TimeInterval, elapsed: TimeInterval) {
+        delegate?.playbackSource(didUpdateTrack: track, artist: artist, album: album, duration: duration, elapsed: elapsed)
     }
 
-    func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String) {
-        delegate?.playbackSource(source, didUpdateStatus: status)
+    func playbackSource(didUpdateStatus status: String) {
+        delegate?.playbackSource(didUpdateStatus: status)
     }
 }

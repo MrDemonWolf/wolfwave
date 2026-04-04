@@ -19,14 +19,13 @@ enum PlaybackSourceMode: String {
 /// Delegate protocol for receiving playback updates from any music source.
 protocol PlaybackSourceDelegate: AnyObject {
     func playbackSource(
-        _ source: any PlaybackSource,
         didUpdateTrack track: String,
         artist: String,
         album: String,
         duration: TimeInterval,
         elapsed: TimeInterval
     )
-    func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String)
+    func playbackSource(didUpdateStatus status: String)
 }
 
 // MARK: - PlaybackSource

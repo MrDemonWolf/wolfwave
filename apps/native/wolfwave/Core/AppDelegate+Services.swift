@@ -399,7 +399,6 @@ extension AppDelegate: PlaybackSourceDelegate {
 
     /// Updates track history, broadcasts to all services, and fetches artwork.
     func playbackSource(
-        _ source: any PlaybackSource,
         didUpdateTrack track: String,
         artist: String,
         album: String,
@@ -439,7 +438,7 @@ extension AppDelegate: PlaybackSourceDelegate {
     }
 
     /// Clears track state and notifies services when playback stops.
-    func playbackSource(_ source: any PlaybackSource, didUpdateStatus status: String) {
+    func playbackSource(didUpdateStatus status: String) {
         if status == "No track playing" {
             currentSong = nil
             currentArtist = nil
