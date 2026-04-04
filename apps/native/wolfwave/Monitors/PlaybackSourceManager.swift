@@ -22,7 +22,7 @@ class PlaybackSourceManager: PlaybackSourceDelegate {
     /// The currently active playback mode.
     private(set) var currentMode: PlaybackSourceMode
 
-    private lazy var appleMusicSource = AppleMusicSource()
+    private let appleMusicSource = AppleMusicSource()
     private var isStarted = false
 
     // MARK: - Init
