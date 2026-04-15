@@ -175,7 +175,9 @@ final class SongRequestServiceTests: XCTestCase {
         queue.dequeue()
 
         _ = await service.skip()
-        XCTAssertTrue(mockController.skipCalled)
+        // Test SongRequestItems are built with `song: nil`, so SongRequestService.skip()
+        // falls through to musicController.clearPlayerQueue() rather than playNow().
+        XCTAssertTrue(mockController.clearCalled)
     }
 
     // MARK: - ClearQueue
