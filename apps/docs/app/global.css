@@ -418,7 +418,7 @@
 }
 .kinetic-headline .outline {
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 2px currentColor;
+  -webkit-text-stroke: 2px currentcolor;
   color: #fff;
 }
 .light .kinetic-headline .outline { color: #1a1a2e; }
