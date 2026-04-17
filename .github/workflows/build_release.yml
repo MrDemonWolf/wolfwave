@@ -21,6 +21,8 @@ jobs:
   test:
     name: Run Tests
     runs-on: macos-26
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -168,6 +170,16 @@ jobs:
           xcrun stapler staple "builds/$DMG_NAME"
           echo "Notarization ticket stapled"
 
+      - name: Verify Gatekeeper acceptance
+        env:
+          DMG_NAME: ${{ steps.version.outputs.dmg_name }}
+          APP_PATH: ${{ steps.app.outputs.path }}
+        run: |
+          spctl --assess --type install -vv "builds/$DMG_NAME"
+          spctl --assess --type exec -vv "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          echo "Gatekeeper + codesign verified"
+
       - name: Generate Sparkle appcast
         env:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
@@ -181,7 +193,7 @@ jobs:
             echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
             "$GENERATE_APPCAST" \
               --ed-key-file "$RUNNER_TEMP/sparkle_key" \
-              --download-url-prefix "https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/" \
+              --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/" \
               -o builds/appcast.xml builds/
             rm -f "$RUNNER_TEMP/sparkle_key"
           elif [ -n "$SIGN_UPDATE" ]; then
@@ -191,7 +203,7 @@ jobs:
             rm -f "$RUNNER_TEMP/sparkle_key"
             if [ -z "$SIGNATURE" ]; then echo "Failed to sign"; exit 1; fi
             DMG_SIZE=$(stat -f%z "builds/$DMG_NAME")
-            printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>WolfWave</title>\n    <item>\n      <title>WolfWave v%s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure url="https://github.com/MrDemonWolf/wolfwave/releases/download/v%s/%s" length="%s" type="application/octet-stream" sparkle:edSignature="%s" />\n    </item>\n  </channel>\n</rss>\n' "$VERSION" "$VERSION" "$VERSION" "$(date -R)" "$VERSION" "$DMG_NAME" "$DMG_SIZE" "$SIGNATURE" > builds/appcast.xml
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>WolfWave</title>\n    <item>\n      <title>WolfWave v%s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure url="https://github.com/${{ github.repository }}/releases/download/v%s/%s" length="%s" type="application/octet-stream" sparkle:edSignature="%s" />\n    </item>\n  </channel>\n</rss>\n' "$VERSION" "$VERSION" "$VERSION" "$(date -R)" "$VERSION" "$DMG_NAME" "$DMG_SIZE" "$SIGNATURE" > builds/appcast.xml
           else
             echo "Neither generate_appcast nor sign_update found"; exit 1
           fi

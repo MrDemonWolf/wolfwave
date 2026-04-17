@@ -56,6 +56,10 @@ enum Log {
     /// Subsystem identifier used for all OSLog entries.
     private static let subsystem = "com.mrdemonwolf.wolfwave"
 
+    /// Bootstrap logger used only for file-I/O failures inside `Log` itself.
+    /// Must not call back into `Log.*` (would recurse through writeToFile).
+    nonisolated private static let fileIOLogger = os.Logger(subsystem: subsystem, category: "Logger.FileIO")
+
     /// Returns a cached `os.Logger` for the given category.
     ///
     /// Logs appear in Console.app and Instruments — filter by subsystem
@@ -102,7 +106,11 @@ enum Log {
         }
         let logsDir = appSupport.appendingPathComponent("WolfWave/Logs", isDirectory: true)
 
-        try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        } catch {
+            fileIOLogger.error("Failed to create logs directory at \(logsDir.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
 
         let url = logsDir.appendingPathComponent("wolfwave.log")
         _logFileURL = url
@@ -147,8 +155,18 @@ enum Log {
 
         let backupURL = url.deletingLastPathComponent()
             .appendingPathComponent("wolfwave.log.1")
-        try? FileManager.default.removeItem(at: backupURL)
-        try? FileManager.default.moveItem(at: url, to: backupURL)
+        if FileManager.default.fileExists(atPath: backupURL.path) {
+            do {
+                try FileManager.default.removeItem(at: backupURL)
+            } catch {
+                fileIOLogger.error("Failed to remove old backup log: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        do {
+            try FileManager.default.moveItem(at: url, to: backupURL)
+        } catch {
+            fileIOLogger.error("Failed to rotate log file: \(error.localizedDescription, privacy: .public)")
+        }
         FileManager.default.createFile(atPath: url.path, contents: nil)
 
         // Clean up old log files (keep only the most recent backup)
@@ -172,7 +190,11 @@ enum Log {
 
         // Delete old log files
         for file in logFiles {
-            try? fileManager.removeItem(at: file)
+            do {
+                try fileManager.removeItem(at: file)
+            } catch {
+                fileIOLogger.error("Failed to remove old log \(file.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

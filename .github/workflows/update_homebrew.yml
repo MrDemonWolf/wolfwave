@@ -9,10 +9,15 @@ on:
         description: "Version to release (e.g. 1.1.0)"
         required: true
 
+env:
+  TAP_REPO: MrDemonWolf/homebrew-den
+
 jobs:
   update-cask:
     name: Update wolfwave cask in homebrew-den
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Extract version
         id: version
@@ -32,7 +37,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
         run: |
-          URL="https://github.com/MrDemonWolf/wolfwave/releases/download/v${VERSION}/${DMG_NAME}"
+          URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${DMG_NAME}"
           echo "Downloading $URL"
           curl -fsSL -o "$DMG_NAME" "$URL"
           SHA256=$(sha256sum "$DMG_NAME" | awk '{print $1}')
@@ -42,7 +47,7 @@ jobs:
       - name: Checkout homebrew-den
         uses: actions/checkout@v6
         with:
-          repository: MrDemonWolf/homebrew-den
+          repository: ${{ env.TAP_REPO }}
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-den
 
@@ -76,10 +81,10 @@ jobs:
             "Automated cask update for WolfWave v${VERSION}." \
             "- Version: \`${VERSION}\`" \
             "- SHA256 updated from released DMG" \
-            "Triggered by [wolfwave release v${VERSION}](https://github.com/MrDemonWolf/wolfwave/releases/tag/v${VERSION}).")
+            "Triggered by [wolfwave release v${VERSION}](https://github.com/${{ github.repository }}/releases/tag/v${VERSION}).")
 
           gh pr create \
-            --repo MrDemonWolf/homebrew-den \
+            --repo "${TAP_REPO}" \
             --title "chore: bump wolfwave cask to v${VERSION}" \
             --body "$BODY" \
             --base main \
