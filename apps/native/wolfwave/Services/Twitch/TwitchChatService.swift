@@ -765,10 +765,7 @@ final class TwitchChatService: @unchecked Sendable {
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        let request = TwitchAPIRequest.helix(url: url, token: token, clientID: clientID)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -876,10 +873,7 @@ final class TwitchChatService: @unchecked Sendable {
             return false
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        // Per Twitch docs, use "OAuth <token>" for the validate endpoint
-        request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
+        let request = TwitchAPIRequest.validate(url: url, token: token)
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -1265,20 +1259,22 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
+        var jsonBody: Data?
         if let body = body {
             do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                jsonBody = try JSONSerialization.data(withJSONObject: body)
             } catch {
                 Log.error("TwitchChatService: Failed to serialize request body - \(error.localizedDescription)", category: "Twitch")
                 completion(.failure(ConnectionError.networkError("Failed to serialize request body")))
                 return
             }
+        }
+
+        var request = TwitchAPIRequest.helix(
+            url: url, method: method, token: token, clientID: clientID, jsonBody: jsonBody)
+        if jsonBody == nil {
+            // Preserve prior behavior: always advertise JSON content-type even without body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
@@ -1663,17 +1659,15 @@ final class TwitchChatService: @unchecked Sendable {
             return
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let jsonBody: Data
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: subscriptionBody)
+            jsonBody = try JSONSerialization.data(withJSONObject: subscriptionBody)
         } catch {
             Log.error("TwitchChatService: Failed to serialize EventSub subscription body - \(error.localizedDescription)", category: "Twitch")
             return
         }
+        let request = TwitchAPIRequest.helix(
+            url: url, method: "POST", token: token, clientID: clientID, jsonBody: jsonBody)
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error = error {
@@ -1778,10 +1772,7 @@ final class TwitchChatService: @unchecked Sendable {
             throw ConnectionError.networkError("Invalid users endpoint")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(clientID, forHTTPHeaderField: "Client-ID")
+        var request = TwitchAPIRequest.helix(url: url, token: token, clientID: clientID)
         request.timeoutInterval = 15
 
         do {
