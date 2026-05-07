@@ -196,7 +196,7 @@ final class SongRequestCommandTests: XCTestCase {
     // MARK: - Blocklist
 
     func testBlocklistAddAndCheck() {
-        let blocklist = SongBlocklist()
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let songItem = BlocklistItem(value: "Bad Song", type: .song)
@@ -215,7 +215,7 @@ final class SongRequestCommandTests: XCTestCase {
     }
 
     func testBlocklistRemove() {
-        let blocklist = SongBlocklist()
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let item = BlocklistItem(value: "Remove Me", type: .song)
@@ -229,7 +229,7 @@ final class SongRequestCommandTests: XCTestCase {
     }
 
     func testBlocklistNoDuplicates() {
-        let blocklist = SongBlocklist()
+        let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
         let item1 = BlocklistItem(value: "Duplicate", type: .song)
