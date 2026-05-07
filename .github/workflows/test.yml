@@ -55,7 +55,6 @@ jobs:
             ARCHS="arm64" \
             -configuration Debug test \
             -parallel-testing-enabled NO \
-            -test-iterations 1 \
             -disable-concurrent-destination-testing \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
