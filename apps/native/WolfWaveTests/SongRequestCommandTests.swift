@@ -9,15 +9,6 @@ import XCTest
 
 @testable import WolfWave
 
-// Skipped under CI (compiled with `-D SKIP_OBSERVATION_TESTS` from
-// .github/workflows/test.yml). The macos-26 GitHub runner reproducibly
-// aborts the xctest host with `malloc: *** error for object … pointer being
-// freed was not allocated` whenever any `@Observable`-decorated SongRequest
-// type (SongRequestQueue, SongRequestService) is instantiated — even simple
-// trigger tests in this suite take the host down. Local `make test` runs
-// the full suite. Drop the `#if` once the runner image / Observation beta
-// bug is resolved.
-#if !SKIP_OBSERVATION_TESTS
 final class SongRequestCommandTests: XCTestCase {
 
     override func setUp() {
@@ -204,16 +195,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Blocklist
 
-    func testBlocklistAddAndCheck() throws {
-        // Skipped on GitHub Actions macos-26 runner: the xctest host crashes in
-        // malloc ("pointer being freed was not allocated") on the first
-        // SongBlocklist instantiation. Appears to be a runner-image/Observation
-        // framework beta issue — passes reliably in local `make test`.
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
+    func testBlocklistAddAndCheck() {
         let blocklist = SongBlocklist()
         blocklist.clearAll()
 
@@ -232,12 +214,7 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistRemove() throws {
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
+    func testBlocklistRemove() {
         let blocklist = SongBlocklist()
         blocklist.clearAll()
 
@@ -251,12 +228,7 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistNoDuplicates() throws {
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (malloc crash); runs locally."
-        )
-
+    func testBlocklistNoDuplicates() {
         let blocklist = SongBlocklist()
         blocklist.clearAll()
 
@@ -406,4 +378,3 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertFalse(replyCalled)
     }
 }
-#endif

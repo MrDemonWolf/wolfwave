@@ -23,6 +23,11 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
       - name: Detect native changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -49,10 +54,12 @@ jobs:
             -destination 'platform=macOS' \
             ARCHS="arm64" \
             -configuration Debug test \
+            -parallel-testing-enabled NO \
+            -test-iterations 1 \
+            -disable-concurrent-destination-testing \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) SKIP_OBSERVATION_TESTS' \
             -resultBundlePath TestResults.xcresult
 
       - name: Upload Test Results
