@@ -9,22 +9,19 @@ import XCTest
 
 @testable import WolfWave
 
+// Skipped under CI (compiled with `-D SKIP_OBSERVATION_TESTS` from
+// .github/workflows/test.yml). The macos-26 GitHub runner reproducibly
+// aborts the xctest host with `malloc: *** error for object … pointer being
+// freed was not allocated` whenever any `@Observable`-decorated SongRequest
+// type (SongRequestQueue, SongRequestService) is instantiated — even simple
+// trigger tests in this suite take the host down. Local `make test` runs
+// the full suite. Drop the `#if` once the runner image / Observation beta
+// bug is resolved.
+#if !SKIP_OBSERVATION_TESTS
 final class SongRequestCommandTests: XCTestCase {
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-        // Skipped on GitHub Actions macos-26 runner: the xctest host crashes
-        // with a `malloc: *** error for object … pointer being freed was not
-        // allocated` whenever any `@Observable`-decorated SongRequest type
-        // (SongRequestQueue, SongRequestService) is instantiated, taking the
-        // surrounding test process down with it. Appears to be a runner-image
-        // / Observation-framework beta issue. Suite passes reliably under
-        // local `make test`. Re-enable once macos-26 runners stop reproducing
-        // the malloc abort.
-        try XCTSkipIf(
-            ProcessInfo.processInfo.environment["CI"] != nil,
-            "Skipped on CI macos-26 runner (Observation malloc crash); runs locally."
-        )
+    override func setUp() {
+        super.setUp()
         // Reset alias and enabled keys
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandAliases)
@@ -409,3 +406,4 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertFalse(replyCalled)
     }
 }
+#endif

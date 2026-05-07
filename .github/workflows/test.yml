@@ -52,6 +52,7 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) SKIP_OBSERVATION_TESTS' \
             -resultBundlePath TestResults.xcresult
 
       - name: Upload Test Results
