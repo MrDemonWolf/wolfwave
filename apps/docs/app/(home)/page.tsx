@@ -127,7 +127,7 @@ export default function HomePage() {
                 <div className="mono-kicker flex flex-wrap items-center gap-3 text-violet-300 dark:text-violet-300 mb-8">
                   <span className="inline-flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                    V1.2.0
+                    V2.0.0
                   </span>
                   <span className="opacity-40">/</span>
                   <span>MACOS 26+</span>
