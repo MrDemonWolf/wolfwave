@@ -85,6 +85,12 @@ extension AppDelegate {
 
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
+        // Warm the LAN IP cache so the Now-Playing Server settings can render the
+        // Network Address row instantly on first open instead of waiting on `getifaddrs`.
+        Task.detached(priority: .utility) {
+            await NetworkInfoService.shared.refreshIPv4()
+        }
+
         let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
