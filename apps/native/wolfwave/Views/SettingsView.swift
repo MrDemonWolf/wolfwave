@@ -45,8 +45,8 @@ struct SettingsView: View {
         case general = "General"
         case songRequests = "Song Requests"
         case websocket = "Now-Playing Server"
-        case twitchIntegration = "Twitch Integration"
-        case discord = "Discord Integration"
+        case twitchIntegration = "Twitch"
+        case discord = "Discord"
         case advanced = "Advanced"
 
         var id: String { rawValue }

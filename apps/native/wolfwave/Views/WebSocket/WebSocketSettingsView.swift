@@ -31,7 +31,7 @@ struct WebSocketSettingsView: View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             SectionHeaderWithStatus(
                 title: "Now-Playing Server",
-                subtitle: "Stream your current song to overlays and widgets over WebSocket.",
+                subtitle: "Stream your current song to overlays and widgets.",
                 statusText: serverStatusText,
                 statusColor: serverStatusColor
             )
@@ -77,7 +77,7 @@ struct WebSocketSettingsView: View {
         case .starting:
             return "Starting"
         case .error:
-            return "Error"
+            return "Connection error"
         case .stopped:
             return "Stopped"
         }
@@ -157,7 +157,7 @@ fileprivate struct WebSocketServerCard: View {
         VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
                 title: "Enable Now-Playing Widget",
-                subtitle: "Lets your widget show live song updates",
+                subtitle: "Show live song updates in the widget",
                 isOn: $websocketEnabled,
                 accessibilityLabel: "Toggle Now-Playing Widget",
                 accessibilityIdentifier: "websocketEnabledToggle",
