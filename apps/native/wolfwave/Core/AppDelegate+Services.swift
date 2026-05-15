@@ -85,8 +85,13 @@ extension AppDelegate {
 
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
-        // Warm the LAN IP cache so the Now-Playing Server settings can render the
-        // Network Address row instantly on first open instead of waiting on `getifaddrs`.
+        // Warm the LAN IP cache on a background queue so the Now-Playing Server settings
+        // can render the Network Address row instantly on first open instead of waiting
+        // on `getifaddrs`. Sync work runs off-main; cache becomes visible to the next
+        // view init. Also schedule an async refresh that picks up later interface changes.
+        DispatchQueue.global(qos: .userInitiated).async {
+            NetworkInfoService.warmCache()
+        }
         Task.detached(priority: .utility) {
             await NetworkInfoService.shared.refreshIPv4()
         }

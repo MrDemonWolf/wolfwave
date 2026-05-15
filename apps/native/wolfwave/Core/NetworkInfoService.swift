@@ -26,6 +26,15 @@ actor NetworkInfoService {
         cacheLock.withLock { $0 }
     }
 
+    /// Synchronously walks `getifaddrs` and primes the cache. Call once at app launch on a
+    /// background thread so the first Settings open always finds a hot cache.
+    @discardableResult
+    static func warmCache() -> String? {
+        let value = computePrimaryIPv4()
+        cacheLock.withLock { $0 = value }
+        return value
+    }
+
     // MARK: - Public API
 
     /// Returns the cached IPv4 address if available, otherwise walks `getifaddrs` and caches the result.
