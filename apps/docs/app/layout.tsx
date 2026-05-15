@@ -31,10 +31,11 @@ const jetbrainsMono = JetBrains_Mono({
 
 const siteUrl = "https://mrdemonwolf.github.io/wolfwave";
 const basePath = (() => {
-  const envValue = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  if (!envValue) return "";
-  let path = "";
-  try { path = new URL(envValue).pathname; } catch { path = envValue; }
+  const envValue = process.env.NEXT_PUBLIC_BASE_PATH;
+  if (envValue === undefined) return "/wolfwave";
+  if (envValue === "" || envValue === "/") return "";
+  let path = envValue;
+  try { path = new URL(envValue).pathname; } catch {}
   if (!path || path === "/") return "";
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
@@ -86,7 +87,7 @@ export const metadata: Metadata = {
       "WolfWave is a free, open-source macOS menu bar app that broadcasts your Apple Music to Twitch chat, Discord Rich Presence, and stream overlays via WebSocket. No account required.",
     images: [
       {
-        url: "/og-image.png",
+        url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
         alt: "WolfWave — free macOS app connecting Apple Music to Twitch, Discord, and stream overlays",
