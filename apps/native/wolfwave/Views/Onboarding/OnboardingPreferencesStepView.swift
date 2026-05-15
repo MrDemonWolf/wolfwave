@@ -18,7 +18,6 @@ struct OnboardingPreferencesStepView: View {
     @Binding var launchAtLogin: Bool
 
     @State private var notificationsStatus: UNAuthorizationStatus = .notDetermined
-    @State private var notificationsRequesting = false
 
     // MARK: - Body
 
@@ -178,14 +177,12 @@ struct OnboardingPreferencesStepView: View {
     }
 
     private func requestNotificationAuthorization() {
-        notificationsRequesting = true
         Task {
             _ = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
             let settings = await UNUserNotificationCenter.current().notificationSettings()
             await MainActor.run {
                 notificationsStatus = settings.authorizationStatus
-                notificationsRequesting = false
             }
         }
     }
