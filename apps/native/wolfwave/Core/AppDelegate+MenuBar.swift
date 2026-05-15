@@ -184,7 +184,7 @@ extension AppDelegate: NSMenuDelegate {
 
         // Quick Toggles
         let trackingItem = NSMenuItem(
-            title: "Music Sync",
+            title: "Sync Music",
             action: #selector(toggleTracking),
             keyEquivalent: ""
         )
@@ -214,7 +214,7 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(discordItem)
 
         let overlayItem = NSMenuItem(
-            title: "Now-Playing Widget",
+            title: "Stream Widgets",
             action: #selector(toggleWebSocket),
             keyEquivalent: ""
         )

@@ -44,7 +44,7 @@ struct SettingsView: View {
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
         case songRequests = "Song Requests"
-        case websocket = "Now-Playing Server"
+        case websocket = "Stream Widgets"
         case twitchIntegration = "Twitch"
         case discord = "Discord"
         case advanced = "Advanced"

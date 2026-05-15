@@ -65,7 +65,7 @@ struct IntegrationDashboardView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 22)
                     ),
-                    name: "Stream overlay",
+                    name: "Stream Widgets",
                     chip: widgetChip,
                     subtitle: widgetSubtitle,
                     action: { configure(.obs) }

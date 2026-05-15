@@ -61,10 +61,10 @@ struct MusicMonitorSettingsView: View {
             // Master toggle + permission row
             VStack(alignment: .leading, spacing: 0) {
                 ToggleSettingRow(
-                    title: "Music Sync",
+                    title: "Sync Music",
                     subtitle: "When this is on, your Apple Music shows up in chat, on Discord, and in your stream.",
                     isOn: $trackingEnabled,
-                    accessibilityLabel: "Toggle Music Sync",
+                    accessibilityLabel: "Toggle Sync Music",
                     accessibilityIdentifier: "musicTrackingToggle",
                     onChange: { newValue in
                         notifyTrackingSettingChanged(enabled: newValue)

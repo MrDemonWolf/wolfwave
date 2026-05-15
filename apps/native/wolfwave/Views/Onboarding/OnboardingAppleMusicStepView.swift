@@ -79,7 +79,7 @@ struct OnboardingAppleMusicStepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 18))
                     .foregroundStyle(.green)
-                Text("Access granted. Music Sync is on.")
+                Text("Access granted. Sync Music is on.")
                     .font(.system(size: 13))
                     .foregroundStyle(.primary)
             }
