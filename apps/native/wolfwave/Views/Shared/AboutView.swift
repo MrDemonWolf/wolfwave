@@ -109,6 +109,14 @@ struct AboutView: View {
         }
     }
 
+    /// Builds a single bordered grid button for the action grid (Open Logs,
+    /// Website, Send Feedback, Check for Updates).
+    ///
+    /// - Parameters:
+    ///   - title: Visible label.
+    ///   - systemImage: SF Symbol name displayed beside the title.
+    ///   - action: Closure invoked on press.
+    /// - Returns: A grid-friendly bordered button.
     private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
@@ -162,7 +170,8 @@ struct AboutView: View {
         pasteboard.setString(payload, forType: .string)
 
         withAnimation(.easeInOut(duration: 0.15)) { versionCopied = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1500))
             withAnimation(.easeInOut(duration: 0.2)) { versionCopied = false }
         }
     }
@@ -173,11 +182,13 @@ struct AboutView: View {
         AppDelegate.shared?.sparkleUpdater?.checkForUpdates()
     }
 
+    /// Opens the GitHub Releases page in the user's default browser.
     private func openReleaseNotes() {
         guard let url = URL(string: AppConstants.URLs.githubReleases) else { return }
         NSWorkspace.shared.open(url)
     }
 
+    /// Opens the WolfWave documentation site in the user's default browser.
     private func openWebsite() {
         guard let url = URL(string: AppConstants.URLs.docs) else { return }
         NSWorkspace.shared.open(url)
