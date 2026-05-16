@@ -156,7 +156,7 @@ Native app (Make):
 
 ## Project Structure
 
-```
+```text
 wolfwave/
 ├── apps/
 │   ├── native/                 # Native macOS app (Swift, SwiftUI, AppKit)
