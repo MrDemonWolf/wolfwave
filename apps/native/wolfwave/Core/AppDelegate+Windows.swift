@@ -348,7 +348,11 @@ extension AppDelegate {
         window.canHide = true
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.toolbar = nil
+        // Leave window.toolbar nil — NSHostingController materializes a real
+        // NSToolbar when SwiftUI declares a .toolbar { } block, which is what
+        // lets the SwiftUI-owned sidebar toggle land in the titlebar instead
+        // of falling back to the floating reveal chevron.
+        window.toolbarStyle = .unified
         window.center()
         return window
     }

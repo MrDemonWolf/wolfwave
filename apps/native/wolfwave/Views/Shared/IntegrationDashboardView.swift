@@ -43,7 +43,7 @@ struct IntegrationDashboardView: View {
 
             VStack(spacing: 0) {
                 row(
-                    icon: brandIcon("TwitchLogo", fallback: "bubble.left.fill", color: Color(red: 0.57, green: 0.27, blue: 1.0)),
+                    icon: brandIcon("TwitchLogo", fallback: "bubble.left.fill", color: AppConstants.Brand.twitch),
                     name: "Twitch chat",
                     chip: twitchChip,
                     subtitle: twitchSubtitle,
@@ -51,7 +51,7 @@ struct IntegrationDashboardView: View {
                 )
                 Divider().padding(.leading, 44)
                 row(
-                    icon: brandIcon("DiscordLogo", fallback: "headphones", color: Color(red: 0.35, green: 0.40, blue: 0.95)),
+                    icon: brandIcon("DiscordLogo", fallback: "headphones", color: AppConstants.Brand.discord),
                     name: "Discord profile",
                     chip: discordChip,
                     subtitle: discordSubtitle,
@@ -160,32 +160,23 @@ struct IntegrationDashboardView: View {
     }
 
     /// Returns a brand-asset icon if the named asset exists, falling back to
-    /// a colored SF Symbol otherwise. Template-rendered assets adopt the
-    /// foreground style automatically.
+    /// a colored SF Symbol otherwise. Assets render as template images so they
+    /// adopt the foreground style automatically.
     ///
     /// - Parameters:
     ///   - asset: Asset-catalog name to try first.
     ///   - fallback: SF Symbol used when the asset is missing.
-    ///   - color: Tint applied to both the asset (when template) and the fallback.
-    ///   - isTemplate: When `true`, renders the asset as a template image.
-    private func brandIcon(_ asset: String, fallback: String, color: Color, isTemplate: Bool = false) -> AnyView {
+    ///   - color: Tint applied to both the asset and the fallback.
+    private func brandIcon(_ asset: String, fallback: String, color: Color) -> AnyView {
         AnyView(
             Group {
                 if Self.brandIconExists(asset) {
-                    if isTemplate {
-                        Image(asset)
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 16, height: 16)
-                            .foregroundStyle(AnyShapeStyle(.primary))
-                    } else {
-                        Image(asset)
-                            .renderingMode(.original)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 16, height: 16)
-                    }
+                    Image(asset)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                        .foregroundStyle(color)
                 } else {
                     Image(systemName: fallback)
                         .font(.system(size: 14, weight: .medium))
