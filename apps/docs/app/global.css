@@ -265,32 +265,15 @@
   border-bottom-color: var(--hairline);
 }
 
-.ww-nav-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-.ww-nav-brand img {
-  height: 1.75rem;
-  width: auto;
-}
-.ww-nav-wordmark {
-  font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
-  color: var(--txt-1);
-}
-
-/* Brand link wrapper — strip default link chrome */
-#nd-nav a:has(.ww-nav-brand) {
+/* Brand link wrapper — strip default link chrome (Tailwind handles brand inner) */
+#nd-nav a:has([data-ww-brand]) {
   padding: 0 !important;
   background: transparent !important;
   border-radius: 0 !important;
 }
 
 /* Nav links — pill hover, refined typography */
-#nd-nav a[href]:not(:has(.ww-nav-brand)):not([aria-label]) {
+#nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]) {
   font-family: var(--font-instrument), -apple-system, system-ui, sans-serif;
   font-size: 0.9rem;
   font-weight: 500;
@@ -300,7 +283,7 @@
   border-radius: 980px;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-#nd-nav a[href]:not(:has(.ww-nav-brand)):not([aria-label]):hover {
+#nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]):hover {
   background-color: var(--bg-surface);
   color: var(--txt-1);
 }

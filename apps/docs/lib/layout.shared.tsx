@@ -5,9 +5,16 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
-        <span className="ww-nav-brand">
-          <img src={getAssetPath("/logo.svg")} alt="" aria-hidden="true" />
-          <span className="ww-nav-wordmark">WolfWave</span>
+        <span data-ww-brand className="inline-flex items-center gap-2.5">
+          <img
+            src={getAssetPath("/logo.svg")}
+            alt=""
+            aria-hidden="true"
+            className="h-7 w-auto"
+          />
+          <span className="font-[var(--font-unbounded)] text-[1.05rem] font-semibold tracking-tight text-[var(--txt-1)]">
+            WolfWave
+          </span>
         </span>
       ),
       url: "/",
