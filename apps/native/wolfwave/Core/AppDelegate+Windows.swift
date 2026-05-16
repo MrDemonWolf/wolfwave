@@ -46,7 +46,8 @@ extension AppDelegate {
         }
     }
 
-    /// Shows the About panel with documentation and legal links.
+    /// Shows the custom About window. Brings the existing window forward
+    /// if already open, otherwise creates and centers a new one.
     @objc func showAbout() {
         statusItem?.menu?.cancelTracking()
 
@@ -54,56 +55,27 @@ extension AppDelegate {
             NSApp.setActivationPolicy(.regular)
         }
 
-        let credits = buildAboutCredits()
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: appName,
-            .credits: credits,
-        ])
-        NSApp.activate(ignoringOtherApps: true)
-    }
+        if let existing = aboutWindow {
+            if existing.isMiniaturized { existing.deminiaturize(nil) }
+            showWindow(existing)
+            return
+        }
 
-    /// Builds the About panel credits with linked documentation and legal pages.
-    private func buildAboutCredits() -> NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
-        paragraphStyle.lineSpacing = 4
+        let hosting = NSHostingController(rootView: AboutView())
+        let window = NSWindow(contentViewController: hosting)
+        window.title = "About \(appName)"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.setContentSize(NSSize(width: 360, height: 480))
+        window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.moveToActiveSpace]
+        window.delegate = self
+        window.center()
 
-        let baseAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraphStyle,
-        ]
-
-        let linkAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .paragraphStyle: paragraphStyle,
-        ]
-
-        let credits = NSMutableAttributedString()
-
-        let docsLink = NSMutableAttributedString(string: "Documentation", attributes: linkAttributes)
-        docsLink.addAttribute(.link, value: AppConstants.URLs.docs, range: NSRange(location: 0, length: docsLink.length))
-        credits.append(docsLink)
-
-        credits.append(NSAttributedString(string: "  ·  ", attributes: baseAttributes))
-
-        let ppLink = NSMutableAttributedString(string: "Privacy Policy", attributes: linkAttributes)
-        ppLink.addAttribute(.link, value: AppConstants.URLs.privacyPolicy, range: NSRange(location: 0, length: ppLink.length))
-        credits.append(ppLink)
-
-        credits.append(NSAttributedString(string: "  ·  ", attributes: baseAttributes))
-
-        let tosLink = NSMutableAttributedString(string: "Terms", attributes: linkAttributes)
-        tosLink.addAttribute(.link, value: AppConstants.URLs.termsOfService, range: NSRange(location: 0, length: tosLink.length))
-        credits.append(tosLink)
-
-        credits.append(NSAttributedString(string: "\n\n", attributes: baseAttributes))
-        credits.append(NSAttributedString(
-            string: "Twitch, Discord, OBS, and Apple Music are trademarks of their respective owners. WolfWave is not affiliated with or endorsed by any of them.",
-            attributes: baseAttributes
-        ))
-
-        return credits
+        aboutWindow = window
+        showWindow(window)
     }
 }
 
@@ -142,10 +114,7 @@ extension AppDelegate {
         guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
 
         let hasVisibleWindows = NSApp.windows.contains { window in
-            guard window.isVisible, window.canBecomeKey, window.level == .normal else { return false }
-            // Exclude the system About panel — it is owned by AppKit and closes asynchronously
-            guard window.className != "NSAboutPanel" else { return false }
-            return true
+            window.isVisible && window.canBecomeKey && window.level == .normal
         }
 
         if !hasVisibleWindows {
@@ -314,6 +283,11 @@ extension AppDelegate: NSWindowDelegate {
         } else if window === whatsNewWindow {
             DispatchQueue.main.async { [weak self] in
                 self?.whatsNewWindow = nil
+                self?.restoreMenuOnlyIfNeeded()
+            }
+        } else if window === aboutWindow {
+            DispatchQueue.main.async { [weak self] in
+                self?.aboutWindow = nil
                 self?.restoreMenuOnlyIfNeeded()
             }
         }
