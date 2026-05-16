@@ -20,12 +20,13 @@ extension AppDelegate {
     @objc func openSettings() {
         statusItem?.menu?.cancelTracking()
 
-        let needsActivationSwitch = currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly
-        if needsActivationSwitch {
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
             NSApp.setActivationPolicy(.regular)
         }
 
-        let show: () -> Void = { [weak self] in
+        // Defer past the current AppKit layout / menu-tracking pass to avoid
+        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
+        RunLoop.main.perform { [weak self] in
             guard let self else { return }
             if let window = self.settingsWindow {
                 if window.isMiniaturized {
@@ -36,13 +37,6 @@ extension AppDelegate {
                 self.settingsWindow = self.createSettingsWindow()
                 self.showWindow(self.settingsWindow)
             }
-        }
-
-        // Defer to next run-loop tick so the activation policy change takes effect first
-        if needsActivationSwitch {
-            DispatchQueue.main.async(execute: show)
-        } else {
-            show()
         }
     }
 
@@ -55,12 +49,27 @@ extension AppDelegate {
             NSApp.setActivationPolicy(.regular)
         }
 
-        if let existing = aboutWindow {
-            if existing.isMiniaturized { existing.deminiaturize(nil) }
-            showWindow(existing)
-            return
-        }
+        // Defer past the current AppKit layout / menu-tracking pass to avoid
+        // "layoutSubtreeIfNeeded on a view already being laid out" warnings.
+        RunLoop.main.perform { [weak self] in
+            guard let self else { return }
 
+            if let existing = self.aboutWindow {
+                if existing.isMiniaturized { existing.deminiaturize(nil) }
+                self.showWindow(existing)
+                return
+            }
+
+            self.aboutWindow = self.createAboutWindow()
+            self.showWindow(self.aboutWindow)
+        }
+    }
+
+    /// Builds the About window. Mirrors `createSettingsWindow()` so that
+    /// `NSWindowDelegate` conformance is established inside MainActor-isolated
+    /// context (avoids actor-isolation warnings when the caller is a
+    /// nonisolated closure such as `RunLoop.main.perform`).
+    private func createAboutWindow() -> NSWindow {
         let hosting = NSHostingController(rootView: AboutView())
         let window = NSWindow(contentViewController: hosting)
         window.title = "About \(appName)"
@@ -73,9 +82,7 @@ extension AppDelegate {
         window.collectionBehavior = [.moveToActiveSpace]
         window.delegate = self
         window.center()
-
-        aboutWindow = window
-        showWindow(window)
+        return window
     }
 }
 
@@ -345,6 +352,12 @@ extension AppDelegate {
         return window
     }
 
+    /// Activates the app and brings the window forward.
+    ///
+    /// - Important: Callers invoked from `NSStatusItem` menu tracking or any other
+    ///   AppKit layout pass must defer to the next runloop tick (e.g. via
+    ///   `RunLoop.main.perform`) before calling this — otherwise AppKit logs
+    ///   "layoutSubtreeIfNeeded on a view already being laid out".
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal
         NSApp.activate(ignoringOtherApps: true)
