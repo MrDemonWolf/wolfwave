@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Chat Vote-Skip** — viewers can vote to skip the current song with `!voteskip` / `!vs`. A passed vote skips the now-playing request, or advances the Apple Music track when the queue is idle. Chat-tally mode counts unique voters within a configurable window against a minimum-vote threshold; opt-in Twitch Polls mode (Affiliate/Partner) opens a native poll instead. Configurable minimum votes, vote window, cooldown, and subscriber-only voting in Settings → Song Requests → Chat Vote-Skip.
 - **Song Requests** — viewers can request songs in Twitch chat via `!sr <song>`; plays through Music.app via AppleScript with no focus-steal on the streamer's screen.
 - **`!queue` / `!myqueue`** — show the full request queue or a viewer's own requests in chat.
 - **`!skip` / `!next`** — mod/broadcaster-only command to skip the current request.
