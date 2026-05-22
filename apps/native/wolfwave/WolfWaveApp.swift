@@ -64,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var websocketServer: WebSocketServerService?
     var songRequestService: SongRequestService?
     var skipVoteManager: SkipVoteManager?
+    var historyService: ListeningHistoryService?
     var notificationObservers: [Any] = []
 
     var currentSong: String?
@@ -73,6 +74,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var currentElapsed: TimeInterval = 0
     var lastSong: String?
     var lastArtist: String?
+
+    /// Whether a track has been seen since launch. The first track represents
+    /// music that was already playing, so its song-change notification is
+    /// suppressed; every change thereafter notifies.
+    var hasSeenInitialTrack = false
 
     var currentDockVisibilityMode: String {
         UserDefaults.standard.string(forKey: AppConstants.UserDefaults.dockVisibility)
@@ -107,6 +113,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupPowerStateMonitor()
         setupSparkleUpdater()
         setupSongRequestService()
+        setupHistoryService()
+        setupDiagnostics()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()
@@ -128,6 +136,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Removes all stored notification observers and tears down services.
     func applicationWillTerminate(_ notification: Notification) {
+        flushCurrentPlayToHistory()
+        historyService?.shutdown()
         notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
         notificationObservers.removeAll()
     }
@@ -183,5 +193,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return "🐺 No previous tracks yet, keep the music flowing!"
         }
         return "🐺 Previous: \(song) by \(artist)"
+    }
+
+    /// Returns a formatted listening-stats string for the `!stats` Twitch command.
+    func getStatsInfo() -> String {
+        historyService?.statsChatLine() ?? "🐺 Listening stats aren't turned on right now"
+    }
+
+    /// Records the currently-playing track to history if it crossed the
+    /// scrobble threshold. Called when playback stops or the app terminates.
+    ///
+    /// `currentElapsed` holds the track's last polled playhead position, which
+    /// `ListeningHistoryService` uses as the played duration.
+    func flushCurrentPlayToHistory() {
+        guard let song = currentSong, let artist = currentArtist else { return }
+        historyService?.recordTrackChange(
+            track: song,
+            artist: artist,
+            album: currentAlbum ?? "",
+            duration: currentDuration,
+            playedSeconds: currentElapsed
+        )
     }
 }

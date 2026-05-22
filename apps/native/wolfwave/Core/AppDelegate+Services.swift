@@ -47,6 +47,16 @@ extension AppDelegate {
             }
             return result
         }
+        twitchService?.getStatsInfo = { [weak self] in
+            if Thread.isMainThread {
+                return MainActor.assumeIsolated { self?.getStatsInfo() ?? "No listening stats yet" }
+            }
+            var result = "No listening stats yet"
+            DispatchQueue.main.sync {
+                result = MainActor.assumeIsolated { self?.getStatsInfo() ?? "No listening stats yet" }
+            }
+            return result
+        }
     }
 
     /// Creates the Discord RPC service, registers state callbacks, and enables if configured.
@@ -124,6 +134,12 @@ extension AppDelegate {
         Log.info("AppDelegate: Sparkle updater initialized", category: "Update")
     }
 
+    /// Records the app launch and applies the on-device diagnostics opt-in.
+    func setupDiagnostics() {
+        DiagnosticsService.shared.recordAppLaunch()
+        DiagnosticsService.shared.applyEnabledState()
+    }
+
     /// Creates the song request service and wires up playback monitoring + chat replies.
     func setupSongRequestService() {
         let queue = SongRequestQueue()
@@ -182,6 +198,18 @@ extension AppDelegate {
         twitchService?.onSkipPollEnded = { [weak self] skipVotes, keepVotes in
             Task { await self?.skipVoteManager?.handlePollEnded(skipVotes: skipVotes, keepVotes: keepVotes) }
         }
+    }
+
+    /// Creates the listening history service and loads existing history if the
+    /// feature is enabled.
+    func setupHistoryService() {
+        let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.listeningHistoryEnabled)
+        historyService = ListeningHistoryService(enabled: enabled)
+        historyService?.start()
+        Log.info(
+            "AppDelegate: Listening history service initialized (enabled: \(enabled))",
+            category: AppConstants.History.logCategory
+        )
     }
 }
 
@@ -317,6 +345,16 @@ extension AppDelegate {
                 self?.songRequestSettingChanged(notification)
             }
         )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.listeningHistorySettingChanged(notification)
+            }
+        )
     }
 }
 
@@ -383,6 +421,18 @@ extension AppDelegate {
             songRequestService?.startPlaybackMonitoring()
         } else {
             songRequestService?.stopPlaybackMonitoring()
+        }
+    }
+
+    /// Enables or disables listening-history recording when the toggle changes.
+    @objc func listeningHistorySettingChanged(_ notification: Notification) {
+        guard let enabled = notification.userInfo?["enabled"] as? Bool else { return }
+        if enabled {
+            historyService?.enable()
+        } else {
+            // Capture the in-progress play before recording stops.
+            flushCurrentPlayToHistory()
+            historyService?.disable()
         }
     }
 
@@ -503,8 +553,27 @@ extension AppDelegate: PlaybackSourceDelegate {
         elapsed: TimeInterval
     ) {
         if currentSong != track {
+            // The outgoing track's last polled playhead position (`currentElapsed`)
+            // is how far it actually played — hand it to history before we
+            // overwrite the now-playing state.
+            if let outgoing = currentSong, let outgoingArtist = currentArtist {
+                historyService?.recordTrackChange(
+                    track: outgoing,
+                    artist: outgoingArtist,
+                    album: currentAlbum ?? "",
+                    duration: currentDuration,
+                    playedSeconds: currentElapsed
+                )
+            }
             lastSong = currentSong
             lastArtist = currentArtist
+
+            // Suppress the first track after launch (it was already playing);
+            // notify on every genuine change thereafter.
+            if hasSeenInitialTrack {
+                maybePostSongChangeNotification(track: track, artist: artist, album: album)
+            }
+            hasSeenInitialTrack = true
         }
 
         currentSong = track
@@ -534,9 +603,24 @@ extension AppDelegate: PlaybackSourceDelegate {
         )
     }
 
+    /// Posts a macOS song-change notification when the user has enabled the
+    /// setting. Called only on a genuine track change, never on the first
+    /// track seen after launch.
+    private func maybePostSongChangeNotification(track: String, artist: String, album: String) {
+        guard UserDefaults.standard.bool(
+            forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled
+        ) else { return }
+
+        Task {
+            await NotificationService.shared.postSongChange(track: track, artist: artist, album: album)
+        }
+    }
+
     /// Clears track state and notifies services when playback stops.
     func playbackSource(didUpdateStatus status: String) {
         if status == "No track playing" {
+            // Record the track that was playing before it stopped.
+            flushCurrentPlayToHistory()
             currentSong = nil
             currentArtist = nil
             currentAlbum = nil

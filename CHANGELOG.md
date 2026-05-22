@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Chat Vote-Skip** — viewers can vote to skip the current song with `!voteskip` / `!vs`. A passed vote skips the now-playing request, or advances the Apple Music track when the queue is idle. Chat-tally mode counts unique voters within a configurable window against a minimum-vote threshold; opt-in Twitch Polls mode (Affiliate/Partner) opens a native poll instead. Configurable minimum votes, vote window, cooldown, and subscriber-only voting in Settings → Song Requests → Chat Vote-Skip.
+- **Listening History** — opt-in, on-device log of the tracks you play (append-only NDJSON, never uploaded). Off by default; turn it on in Settings → History & Stats or during onboarding. A track is recorded once it has played past half its length (or 4 minutes), so skips don't count.
+- **Stats & Charts** — top artists, listening time, a 7-day play trend, and a listening-by-hour breakdown in the new History & Stats settings section, built on SwiftUI Charts. Requires Listening History.
+- **Monthly Wrap** — a personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **`!stats` command** — viewers can ask for today's top track in Twitch chat; replies only while the stream is live (via `stream.online` / `stream.offline` EventSub).
 - **Song Requests** — viewers can request songs in Twitch chat via `!sr <song>`; plays through Music.app via AppleScript with no focus-steal on the streamer's screen.
 - **`!queue` / `!myqueue`** — show the full request queue or a viewer's own requests in chat.
 - **`!skip` / `!next`** — mod/broadcaster-only command to skip the current request.
@@ -29,6 +33,8 @@ All notable changes to this project will be documented in this file.
 - **Branded About panel** — replaced the default `NSAboutPanelOptionKey` sheet with a native SwiftUI About window built around WolfWave's identity (#55).
 - **Dynamic docs SEO + section-aware OG cards** — every docs page now ships its own OG image; the changelog page generates a live OG card per release (#43, #56).
 - **Apple Music logo on Music access row** — granted-state row now shows the Apple Music brand mark instead of a generic icon (#38).
+- **Widget themes** — six selectable overlay-widget themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`, `WolfWave`) and three layouts (`Horizontal`, `Vertical`, `Compact`), served to `widget.html` via `window.WW_TOKENS` (#76).
+- **Discord presence polish** — friendlier presence buttons, a live presence preview in Discord settings, and cleaner connection-state handling (#73).
 
 ### Changed
 
@@ -46,13 +52,21 @@ All notable changes to this project will be documented in this file.
 - **OBS branding in settings** — swapped the bespoke OBS logo for the `tv.badge.wifi` SF Symbol so the chip respects template tinting (#46).
 - **AdvancedSettingsView** — refactored to use the shared `cardStyle()` helper for consistent material + corner radii (#52).
 - **User-facing wording** — tightened copy across onboarding, settings, and the menu bar for fewer words and clearer verbs (#47).
-- **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 879 tests across 26 files, all passing.
+- **Test suite consolidation** — merged `SongCommandTests` + `LastSongCommandTests` into a single parameterised `TrackInfoCommandTests`; renamed `MusicPlaybackMonitorTests` → `AppleMusicSourceTests` to match the post-refactor class names. 408 tests across 30 files, all passing.
 
 ### Performance
 
 - **Settings page switch latency** — eliminated jank when navigating between settings sections (#51).
 - **Font enumeration deferred off main** — Widget Setup network row no longer blocks the main thread on first paint (#54).
 - **Now-Playing Server row** — renders instantly thanks to the cached LAN IP lookup (#39).
+
+### Developer
+
+> Developer-facing changes — not visible to end users.
+
+- **Unified design system** — a single `design-system/tokens.json` source feeds `generate.ts`, which emits four platform outputs (Swift `Tokens.generated.swift`, docs CSS, widget JS, and marketing TS). A Turbo `tokens` task runs as a build prerequisite (#72, #76).
+- **Component catalog** — `design-system/components/` gains one markdown entry per reusable view, tracked against a shared template (#76).
+- **DEBUG-only Debug settings tab** — a developer tooling tab (inspectors, service controls, log/event views, UI previews) plus What's New preview controls, available only in DEBUG builds (#66, #69).
 
 ### Fixed
 
@@ -71,6 +85,9 @@ All notable changes to this project will be documented in this file.
 - **Menu bar pointer arrow** — anchored to the `TrayIcon` center in the onboarding preview (#41).
 - **Brand icons in menu bar** — render as templates with refreshed logo SVGs (#40).
 - **CI** — skip `TrackInfoCommandTests` on the `macos-26` runner where MusicKit isn't available (#42).
+- **Settings window sidebar toggle** — removed the duplicate titlebar toggle, restored the toolbar sidebar toggle, and eliminated the floating `>>` reveal control (#59, #61, #77).
+- **About panel** — removed the spacer that left a gap between the legal links and the footer (#60).
+- **Brand icon cutouts** — app icon logo cutouts preserved by switching to the `evenodd` fill-rule (#62).
 
 ### Removed
 
