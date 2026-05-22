@@ -84,7 +84,7 @@ extension AppDelegate {
         }
 
         discordService?.onArtworkResolved = { [weak self] url, _, _ in
-            self?.websocketServer?.updateArtworkURL(url)
+            Task { [weak self] in await self?.websocketServer?.updateArtworkURL(url) }
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
@@ -116,15 +116,19 @@ extension AppDelegate {
         let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
-        websocketServer = WebSocketServerService(port: port)
+        let server = WebSocketServerService(port: port)
+        websocketServer = server
 
-        websocketServer?.onStateChange = { newState, clientCount in
-            Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+        let stateChanges = server.stateChanges
+        Task.detached {
+            for await (newState, clientCount) in stateChanges {
+                Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+            }
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         if enabled {
-            websocketServer?.setEnabled(true)
+            Task { await server.setEnabled(true) }
         }
     }
 
@@ -248,10 +252,10 @@ extension AppDelegate {
             reduced ? AppConstants.PowerManagement.reducedDiscordPollInterval
                     : AppConstants.Discord.availabilityPollInterval
         )
-        websocketServer?.updateProgressInterval(
-            reduced ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
-                    : AppConstants.WebSocketServer.progressBroadcastInterval
-        )
+        let interval: TimeInterval = reduced
+            ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
+            : AppConstants.WebSocketServer.progressBroadcastInterval
+        Task { [weak self] in await self?.websocketServer?.updateProgressInterval(interval) }
 
         Log.debug("AppDelegate: Power state changed: reduced=\(reduced)", category: "App")
     }
@@ -406,10 +410,12 @@ extension AppDelegate {
     @objc func websocketServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
             ?? UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
-        websocketServer?.setEnabled(enabled)
-
-        if let port = notification.userInfo?["port"] as? UInt16 {
-            websocketServer?.updatePort(port)
+        let portChange = notification.userInfo?["port"] as? UInt16
+        Task { [weak self] in
+            await self?.websocketServer?.setEnabled(enabled)
+            if let portChange {
+                await self?.websocketServer?.updatePort(portChange)
+            }
         }
     }
 
@@ -417,7 +423,7 @@ extension AppDelegate {
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
             ?? UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
-        websocketServer?.setWidgetHTTPEnabled(enabled)
+        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(enabled) }
     }
 
     /// Starts or stops the song request playback monitor when the setting changes.
@@ -482,7 +488,7 @@ extension AppDelegate {
     func fetchArtworkForWidget(track: String, artist: String) {
         ArtworkService.shared.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
             guard let url else { return }
-            self?.websocketServer?.updateArtworkURL(url)
+            Task { [weak self] in await self?.websocketServer?.updateArtworkURL(url) }
         }
     }
 }
@@ -592,13 +598,15 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist)
 
-        websocketServer?.updateNowPlaying(
-            track: track,
-            artist: artist,
-            album: album,
-            duration: duration,
-            elapsed: elapsed
-        )
+        Task { [weak self] in
+            await self?.websocketServer?.updateNowPlaying(
+                track: track,
+                artist: artist,
+                album: album,
+                duration: duration,
+                elapsed: elapsed
+            )
+        }
 
         fetchArtworkForWidget(track: track, artist: artist)
 
@@ -640,7 +648,7 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         if currentSong == nil {
             discordService?.clearPresence()
-            websocketServer?.clearNowPlaying()
+            Task { [weak self] in await self?.websocketServer?.clearNowPlaying() }
         }
     }
 }

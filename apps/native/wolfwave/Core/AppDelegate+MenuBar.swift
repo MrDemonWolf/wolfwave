@@ -324,7 +324,7 @@ extension AppDelegate {
             object: nil,
             userInfo: ["enabled": newValue, "widgetHTTPEnabled": newValue]
         )
-        websocketServer?.setWidgetHTTPEnabled(newValue)
+        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(newValue) }
     }
 
     /// Flips a boolean UserDefaults value and broadcasts a notification.
