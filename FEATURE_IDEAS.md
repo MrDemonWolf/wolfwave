@@ -111,15 +111,6 @@ Show the current playlist name in Discord Rich Presence when playing from a name
 
 ---
 
-## Chat Voting
-
-Let Twitch chat vote on the next song from the request queue. Streamer posts the top 2–3 pending requests; chat types `!vote 1`, `!vote 2`, etc. Highest vote wins.
-
-**Complexity**: Medium
-**Builds on**: Song Request Queue feature, existing `TwitchChatService`
-
----
-
 ## Multi-Platform Chat Support
 
 Extend the bot beyond Twitch to YouTube Live chat and Kick. Same `BotCommand` protocol, different transport layer per platform.

@@ -38,6 +38,7 @@ final class BotCommandDispatcher {
     let skipCommand = SkipCommand()
     let clearQueueCommand = ClearQueueCommand()
     let holdCommand = HoldCommand()
+    let voteSkipCommand = VoteSkipCommand()
 
     /// Creates a dispatcher pre-loaded with every built-in command.
     init() {
@@ -45,7 +46,7 @@ final class BotCommandDispatcher {
     }
 
     /// Registers the built-in command suite (`!song`, `!last`, `!sr`, `!queue`,
-    /// `!myqueue`, `!skip`, `!clearqueue`, `!hold`). Called once from `init`.
+    /// `!myqueue`, `!skip`, `!clearqueue`, `!hold`, `!voteskip`). Called once from `init`.
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
@@ -55,6 +56,7 @@ final class BotCommandDispatcher {
         register(skipCommand)
         register(clearQueueCommand)
         register(holdCommand)
+        register(voteSkipCommand)
     }
 
     /// Adds a `BotCommand` to the dispatch table. Thread-safe.
@@ -122,6 +124,13 @@ final class BotCommandDispatcher {
         lock.withLock {
             queueCommand.getQueue = callback
             myQueueCommand.getQueue = callback
+        }
+    }
+
+    /// Injects the live `SkipVoteManager` reference into the `!voteskip` command.
+    func setSkipVoteManager(callback: @escaping () -> SkipVoteManager?) {
+        lock.withLock {
+            voteSkipCommand.skipVoteManager = callback
         }
     }
 
