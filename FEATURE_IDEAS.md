@@ -17,19 +17,6 @@ Let Twitch viewers request songs via `!request <song name>` or `!sr <song name>`
 
 ---
 
-## Listening History & Stats
-
-Track play counts, listening time, and most-played artists/tracks locally in a SQLite database. Add a "Stats" section to the settings sidebar with SwiftUI Charts visualizations.
-
-**Monthly Wrap**: Auto-generate a monthly summary (top tracks, top artists, total listening time, genre breakdown) — like a personal Spotify Unwrapped, but for your Apple Music library. Shareable as an image export.
-
-**Twitch Integration**: New `!stats` bot command — e.g. "Most played today: Blinding Lights by The Weeknd (12 plays)".
-
-**Complexity**: Medium–High
-**Builds on**: `PlaybackSourceDelegate` callbacks, existing settings sidebar pattern, SwiftUI Charts framework
-
----
-
 ## Custom Bot Commands
 
 Let users define their own Twitch bot command responses via the settings UI. For example: `!dj` → "DJ WolfWave in the house 🎧". Stored in UserDefaults as a key-value map.
