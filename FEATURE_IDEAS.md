@@ -4,19 +4,6 @@ Future feature ideas for WolfWave. These are not committed to any release — ju
 
 ---
 
-## Song Request Queue
-
-Let Twitch viewers request songs via `!request <song name>` or `!sr <song name>`. Requests appear in a queue visible from the menu bar or a dedicated settings view. The streamer can approve, skip, or clear requests.
-
-**URL Support**: Accepts Spotify track URLs (`open.spotify.com/track/...`) and YouTube URLs (`youtube.com/watch?v=...`) — resolves them to Apple Music via the song.link API so the streamer can play the right track.
-
-**Apple Music Search**: Plain-text requests use the iTunes Search API to find the best match, with a confidence threshold to avoid bad guesses.
-
-**Complexity**: Medium–High
-**Builds on**: Existing `BotCommand` protocol, `TwitchChatService`, `ArtworkService` (already calls iTunes Search API)
-
----
-
 ## Listening History & Stats
 
 Track play counts, listening time, and most-played artists/tracks locally in a SQLite database. Add a "Stats" section to the settings sidebar with SwiftUI Charts visualizations.
@@ -36,15 +23,6 @@ Let users define their own Twitch bot command responses via the settings UI. For
 
 **Complexity**: Low
 **Builds on**: `BotCommand` protocol, `BotCommandDispatcher.registerDefaultCommands()`
-
----
-
-## Overlay Themes
-
-Ship multiple pre-built WebSocket overlay themes (minimal, retro, neon, glassmorphism). Users pick a theme in settings. Overlay clients receive the theme name and render accordingly.
-
-**Complexity**: Medium
-**Builds on**: Existing WebSocket server, browser source overlay
 
 ---
 
