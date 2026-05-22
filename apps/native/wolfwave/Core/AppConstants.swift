@@ -99,7 +99,17 @@ enum AppConstants {
             songRequestHoldChanged,
         ]
     }
-    
+
+    // MARK: - User Notifications
+
+    /// Identifiers for macOS User Notifications posted via `NotificationService`.
+    enum UserNotification {
+        /// Stable identifier for the song-change notification. Reused on every
+        /// track change so a new song replaces the previous notification in
+        /// Notification Center rather than stacking.
+        static let songChangeIdentifier = "com.mrdemonwolf.wolfwave.notification.songChange"
+    }
+
     // MARK: - UserDefaults Keys
     
     /// Keys for persisting user preferences in UserDefaults.
@@ -265,6 +275,9 @@ enum AppConstants {
         /// Local count of app launches — anonymous, never transmitted (Int, default: 0)
         static let diagnosticsLaunchCount = "diagnosticsLaunchCount"
 
+        /// Whether a macOS notification is posted when the song changes (Bool, default: false)
+        static let songChangeNotificationsEnabled = "songChangeNotificationsEnabled"
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -316,6 +329,7 @@ enum AppConstants {
             songRequestUserCooldown,
             songRequestFallbackPlaylist,
             songRequestHoldEnabled,
+            songChangeNotificationsEnabled,
         ]
     }
     
