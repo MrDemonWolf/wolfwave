@@ -8,14 +8,13 @@ Future feature ideas for WolfWave. These are not committed to any release — ju
 - [ ] Listening History & Stats
 - [ ] Custom Bot Commands
 - [x] Overlay Themes
-- [ ] Global Hotkeys
 - [ ] WebSocket Authentication
 - [ ] Notification Center Integration
 - [ ] Stream Deck Plugin
 - [ ] Playlist Detection
 - [ ] Chat Voting
 
-**2 of 10 shipped.**
+**2 of 9 shipped.**
 
 ---
 
@@ -64,16 +63,6 @@ Ship multiple pre-built WebSocket overlay themes (minimal, retro, neon, glassmor
 **Status**: ✅ Done
 **Complexity**: Medium
 **Builds on**: Existing WebSocket server, browser source overlay
-
----
-
-## Global Hotkeys
-
-Global keyboard shortcuts to toggle tracking, skip song, or show/hide the overlay — even when WolfWave is in the background. Configurable in Settings → Advanced.
-
-**Status**: ⬜ Not started
-**Complexity**: Low–Medium
-**Approach**: `CGEvent` tap or a lightweight hotkey library (e.g. HotKey by GitHub/soffes)
 
 ---
 
