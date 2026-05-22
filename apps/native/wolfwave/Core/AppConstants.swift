@@ -259,6 +259,12 @@ enum AppConstants {
         /// Whether song request auto-play is paused — requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
+        static let shareDiagnosticsEnabled = "shareDiagnosticsEnabled"
+
+        /// Local count of app launches — anonymous, never transmitted (Int, default: 0)
+        static let diagnosticsLaunchCount = "diagnosticsLaunchCount"
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -271,6 +277,8 @@ enum AppConstants {
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             hasCompletedOnboarding,
+            shareDiagnosticsEnabled,
+            diagnosticsLaunchCount,
             discordPresenceEnabled,
             launchAtLogin,
             websocketServerPort,

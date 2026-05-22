@@ -106,6 +106,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupPowerStateMonitor()
         setupSparkleUpdater()
         setupSongRequestService()
+        setupDiagnostics()
         setupNotificationObservers()
         initializeTrackingState()
         applyInitialDockVisibility()
