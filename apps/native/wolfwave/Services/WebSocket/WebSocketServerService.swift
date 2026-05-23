@@ -16,6 +16,24 @@ import Network
 /// connect and receive JSON messages for track changes, progress ticks, and playback state.
 /// State is actor-confined; a small snapshot is exposed for synchronous `nonisolated` reads
 /// from SwiftUI views, and a `stateChanges` `AsyncStream` replaces the legacy callback.
+///
+/// ## Security model
+///
+/// - The listener binds to `.ipv4(.loopback)` so connections must originate on the
+///   same Mac. Localhost is **not** treated as an authentication boundary on its own:
+///   any browser tab or sibling process on the host could still reach this port.
+/// - Every accepted connection must present the `wolfwave.token.<hex>` WebSocket
+///   subprotocol (`Sec-WebSocket-Protocol`) on the handshake. The token is minted on
+///   first launch by `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS
+///   Keychain via `KeychainService.saveToken(_:)`, and never logged in full —
+///   redacted log lines only carry the first 4 characters.
+/// - Connections without the subprotocol, or with a mismatched value, are
+///   `connection.cancel()`'d before they are added to the active set; the snapshot
+///   count is not bumped and no playback frames are sent.
+/// - Rotating the token (e.g. from the debug menu) requires the server to be
+///   restarted to evict already-authorized clients.
+/// - The init that omits `authToken` exists for unit tests that exercise the pure
+///   lifecycle / state machine without standing up Keychain.
 actor WebSocketServerService {
 
     // MARK: - Types
@@ -63,6 +81,10 @@ actor WebSocketServerService {
     // MARK: - Properties
 
     private var port: UInt16
+    /// Token a client must echo back as the `wolfwave.token.<hex>` subprotocol on
+    /// the WebSocket handshake. `nil` disables auth — used only by lifecycle tests
+    /// that construct the service via `init(port:)`.
+    private var authToken: String?
     private var listener: NWListener?
     private var connections: [NWConnection] = []
     /// Dispatch queue used only for Network.framework callbacks. All state is actor-confined.
@@ -91,6 +113,18 @@ actor WebSocketServerService {
 
     init(port: UInt16 = AppConstants.WebSocketServer.defaultPort) {
         self.port = port
+        self.authToken = nil
+        let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
+            bufferingPolicy: .bufferingNewest(64)
+        )
+        self.stateChanges = stream
+        self.stateContinuation = continuation
+    }
+
+    /// Production initializer — enforces the supplied token on every handshake.
+    init(port: UInt16, authToken: String) {
+        self.port = port
+        self.authToken = authToken
         let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
             bufferingPolicy: .bufferingNewest(64)
         )
@@ -123,7 +157,7 @@ actor WebSocketServerService {
             let widgetPort: UInt16 = storedWidgetPort > 0
                 ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
                 : AppConstants.WebSocketServer.widgetDefaultPort
-            widgetHTTP = WidgetHTTPService(port: widgetPort)
+            widgetHTTP = WidgetHTTPService(port: widgetPort, authToken: authToken)
             widgetHTTP?.start()
             Log.info("WebSocketServerService: Widget HTTP server started", category: "WebSocket")
         } else {
@@ -131,6 +165,17 @@ actor WebSocketServerService {
             widgetHTTP = nil
             Log.info("WebSocketServerService: Widget HTTP server stopped", category: "WebSocket")
         }
+    }
+
+    /// Swaps the auth token. Restarts the listener if it was running so every
+    /// already-connected client is dropped and forced to re-handshake with the
+    /// new credential. Caller is responsible for persisting the token to
+    /// Keychain before invoking this.
+    func updateAuthToken(_ newToken: String) {
+        authToken = newToken
+        guard listener != nil else { return }
+        stopServer()
+        startServer()
     }
 
     /// Changes the listening port. Restarts the server if it was already running.
@@ -223,6 +268,39 @@ actor WebSocketServerService {
         let parameters = NWParameters.tcp
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
+
+        // Gate the handshake on the auth token. Network.framework invokes this
+        // closure on `networkQueue` for every inbound upgrade request, *before*
+        // the connection transitions to `.ready`. Rejected clients never reach
+        // `handleNewConnection`, so they can't pollute the active connection set.
+        let expectedToken = authToken
+        wsOptions.setClientRequestHandler(networkQueue) { subprotocols, _ in
+            guard let expected = expectedToken else {
+                return NWProtocolWebSocket.Response(
+                    status: .accept,
+                    subprotocol: subprotocols.first,
+                    additionalHeaders: nil
+                )
+            }
+            let expectedProtocol = WebSocketAuthToken.expectedSubprotocol(for: expected)
+            if subprotocols.contains(expectedProtocol) {
+                return NWProtocolWebSocket.Response(
+                    status: .accept,
+                    subprotocol: expectedProtocol,
+                    additionalHeaders: nil
+                )
+            }
+            Log.info(
+                "WebSocketServerService: Rejecting unauthenticated client (offered \(subprotocols.count) subprotocol(s))",
+                category: "WebSocket"
+            )
+            return NWProtocolWebSocket.Response(
+                status: .reject,
+                subprotocol: nil,
+                additionalHeaders: nil
+            )
+        }
+
         parameters.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
 
         do {
@@ -258,7 +336,7 @@ actor WebSocketServerService {
             let widgetPort: UInt16 = storedWidgetPort > 0
                 ? (UInt16(exactly: storedWidgetPort) ?? AppConstants.WebSocketServer.widgetDefaultPort)
                 : AppConstants.WebSocketServer.widgetDefaultPort
-            widgetHTTP = WidgetHTTPService(port: widgetPort)
+            widgetHTTP = WidgetHTTPService(port: widgetPort, authToken: authToken)
             widgetHTTP?.start()
         }
     }
