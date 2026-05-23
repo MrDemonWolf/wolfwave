@@ -72,6 +72,7 @@ extension AppDelegate {
 
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
+                self?.discordCachedState = newState
                 let stateString: String
                 switch newState {
                 case .connected: stateString = "connected"
@@ -231,14 +232,11 @@ extension AppDelegate {
     func setupPowerStateMonitor() {
         _ = PowerStateMonitor.shared
 
-        notificationObservers.append(
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.powerStateChanged(notification)
-            }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(powerStateChanged(_:)),
+            name: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+            object: nil
         )
     }
 
@@ -272,102 +270,24 @@ extension AppDelegate {
     func setupNotificationObservers() {
         let nc = NotificationCenter.default
 
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.trackingSettingChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.dockVisibilityChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSWindow.willCloseNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                guard let self,
-                      let window = notification.object as? NSWindow,
-                      window !== self.settingsWindow,
-                      window !== self.onboardingWindow else { return }
-                Task { @MainActor [weak self] in
-                    self?.restoreMenuOnlyIfNeeded()
-                }
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.discordPresenceSettingChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.websocketServerSettingChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.widgetHTTPServerSettingChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.handleUpdateStateChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.songRequestSettingChanged(notification)
-            }
-        )
-
-        notificationObservers.append(
-            nc.addObserver(
-                forName: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged),
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.listeningHistorySettingChanged(notification)
-            }
-        )
+        nc.addObserver(self, selector: #selector(trackingSettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged), object: nil)
+        nc.addObserver(self, selector: #selector(dockVisibilityChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged), object: nil)
+        nc.addObserver(self, selector: #selector(discordPresenceSettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged), object: nil)
+        nc.addObserver(self, selector: #selector(websocketServerSettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged), object: nil)
+        nc.addObserver(self, selector: #selector(widgetHTTPServerSettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged), object: nil)
+        nc.addObserver(self, selector: #selector(handleUpdateStateChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.updateStateChanged), object: nil)
+        nc.addObserver(self, selector: #selector(songRequestSettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged), object: nil)
+        nc.addObserver(self, selector: #selector(listeningHistorySettingChanged(_:)),
+                       name: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged), object: nil)
     }
+
 }
 
 // MARK: - Notification Handlers

@@ -1500,7 +1500,7 @@ final class TwitchChatService: @unchecked Sendable {
     }
 
     /// Cancels the session welcome timeout timer.
-    private func cancelSessionWelcomeTimeout() {
+    nonisolated private func cancelSessionWelcomeTimeout() {
         sessionTimerLock.withLock {
             sessionWelcomeTimer?.invalidate()
             sessionWelcomeTimer = nil

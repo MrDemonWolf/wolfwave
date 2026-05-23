@@ -492,7 +492,7 @@ extension AppDelegate: NSMenuDelegate {
 
         let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         let discordState: MenuStatusFormatter.DiscordState = {
-            switch discordService?.state {
+            switch discordCachedState {
             case .connected: return .connected
             case .connecting: return .connecting
             default: return .disconnected
@@ -886,9 +886,11 @@ extension AppDelegate {
         // Discord: setEnabled(false) → setEnabled(true) tears down and
         // re-opens the IPC socket with fresh state.
         if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) {
-            discordService?.setEnabled(false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                self?.discordService?.setEnabled(true)
+            let service = discordService
+            Task {
+                await service?.setEnabled(false)
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                await service?.setEnabled(true)
             }
         }
 

@@ -20,12 +20,12 @@ import Network
 /// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
 /// - `GET /favicon.ico` / `GET /favicon.png` → `200 OK` with app icon PNG
 /// - All other requests → `404 Not Found`
-final class WidgetHTTPService {
+final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Properties
 
     private let port: UInt16
-    private var listener: NWListener?
+    nonisolated(unsafe) private var listener: NWListener?
     private let queue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.widget-http",
         qos: .utility
@@ -37,11 +37,11 @@ final class WidgetHTTPService {
     ///
     /// - Parameter port: TCP port to listen on. Caller is responsible for
     ///   choosing a free port (typically `AppConstants.WebSocketServer.widgetDefaultPort`).
-    init(port: UInt16) {
+    nonisolated init(port: UInt16) {
         self.port = port
     }
 
-    deinit {
+    nonisolated deinit {
         stop()
     }
 
@@ -49,7 +49,7 @@ final class WidgetHTTPService {
 
     /// Brings up the loopback listener and begins accepting connections.
     /// Idempotent — a second call while already running is a no-op.
-    func start() {
+    nonisolated func start() {
         guard listener == nil else { return }
 
         let parameters = NWParameters.tcp
@@ -92,7 +92,7 @@ final class WidgetHTTPService {
 
     /// Cancels the listener and tears down the bound port. Safe to call when
     /// the service was never started or has already stopped.
-    func stop() {
+    nonisolated func stop() {
         listener?.cancel()
         listener = nil
         Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
@@ -102,7 +102,7 @@ final class WidgetHTTPService {
 
     /// Accepts an inbound TCP connection and reads up to 8 KiB of the request
     /// before dispatching to `serveResponse`.
-    private func handleConnection(_ connection: NWConnection) {
+    nonisolated private func handleConnection(_ connection: NWConnection) {
         connection.start(queue: queue)
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, error in
             guard let self else { connection.cancel(); return }
@@ -117,7 +117,7 @@ final class WidgetHTTPService {
     /// - `GET /` (or empty path, with or without query) → `serveWidget`
     /// - `GET /favicon.ico` / `GET /favicon.png` → `serveFavicon`
     /// - Anything else → `send404`
-    private func serveResponse(to connection: NWConnection, requestData: Data) {
+    nonisolated private func serveResponse(to connection: NWConnection, requestData: Data) {
         let requestString = String(data: requestData, encoding: .utf8) ?? ""
         let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
         let parts = firstLine.components(separatedBy: " ")
@@ -140,7 +140,7 @@ final class WidgetHTTPService {
 
     /// Writes the bundled `widget.html` as an HTTP/1.1 200 response and
     /// closes the connection. Falls back to a 404 when the asset is missing.
-    private func serveWidget(to connection: NWConnection) {
+    nonisolated private func serveWidget(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget", withExtension: "html"),
               let body = try? Data(contentsOf: url) else {
             Log.error("WidgetHTTPService: widget.html not found in bundle", category: "WebSocket")
@@ -163,7 +163,7 @@ final class WidgetHTTPService {
     /// Writes the bundled `widget-tokens.generated.js` as an HTTP/1.1 200 response.
     /// Sourced from `design-system/tokens.json` via the token generator and bundled
     /// alongside `widget.html`. Falls back to 404 when the asset is missing.
-    private func serveTokensJS(to connection: NWConnection) {
+    nonisolated private func serveTokensJS(to connection: NWConnection) {
         guard let url = Bundle.main.url(forResource: "widget-tokens.generated", withExtension: "js"),
               let body = try? Data(contentsOf: url) else {
             Log.error("WidgetHTTPService: widget-tokens.generated.js not found in bundle", category: "WebSocket")
@@ -186,7 +186,7 @@ final class WidgetHTTPService {
 
     /// Encodes the app icon as PNG and serves it with a one-day cache header.
     /// Used so browser tabs displaying the widget show a recognizable icon.
-    private func serveFavicon(to connection: NWConnection) {
+    nonisolated private func serveFavicon(to connection: NWConnection) {
         guard let image = NSImage(named: "AppIcon"),
               let tiffData = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
@@ -210,7 +210,7 @@ final class WidgetHTTPService {
 
     /// Writes a minimal `404 Not Found` plain-text response and closes the
     /// connection.
-    private func send404(to connection: NWConnection) {
+    nonisolated private func send404(to connection: NWConnection) {
         let body = "Not Found"
         let response = "HTTP/1.1 404 Not Found\r\n" +
             "Content-Type: text/plain\r\n" +
