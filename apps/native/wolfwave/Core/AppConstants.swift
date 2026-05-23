@@ -778,6 +778,9 @@ enum AppConstants {
 
         /// GitHub Sponsors page URL (resolved from FUNDING.yml)
         static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
+
+        /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
+        static let communityDiscord = "https://mrdwolf.net/discord"
     }
 
     // MARK: - WebSocket Server
@@ -845,6 +848,14 @@ enum AppConstants {
     enum MenuLabels {
         static let settings = "Settings\u{2026}"
         static let quit = "Quit WolfWave"
+    }
+
+    // MARK: - Recently Played
+
+    /// Configuration for the tray menu's "Recently Played" submenu.
+    enum RecentlyPlayed {
+        /// Maximum number of recent tracks retained in the in-memory ring buffer.
+        static let maxEntries = 5
     }
 
     // MARK: - Settings UI
