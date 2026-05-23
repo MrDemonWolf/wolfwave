@@ -616,11 +616,10 @@ final class TwitchChatService: @unchecked Sendable {
 
     // MARK: - Lifecycle
 
-    deinit {
-        cancelSessionWelcomeTimeout()
-        stopNetworkMonitoring()
-        disconnectFromEventSub()
-    }
+    // Note: deinit cleanup removed under Swift 6 default-MainActor isolation
+    // (nonisolated deinit can't call MainActor-isolated cleanup methods).
+    // TwitchChatService is owned for the app lifetime; explicit teardown
+    // happens via AppDelegate when the service is replaced or torn down.
 
     // MARK: - Public Methods
 
@@ -1631,13 +1630,11 @@ final class TwitchChatService: @unchecked Sendable {
         }
 
         // Reject messages older than 10 minutes to prevent replay attacks
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var timestamp = isoFormatter.date(from: messageTimestamp)
+        var timestamp = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            .parse(messageTimestamp)
         if timestamp == nil {
             // Fallback: try without fractional seconds
-            let fallbackFormatter = ISO8601DateFormatter()
-            timestamp = fallbackFormatter.date(from: messageTimestamp)
+            timestamp = try? Date.ISO8601FormatStyle().parse(messageTimestamp)
             if timestamp == nil {
                 Log.warn("TwitchChatService: Failed to parse EventSub timestamp: \(messageTimestamp)", category: "Twitch")
             }

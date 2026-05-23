@@ -236,7 +236,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.powerStateChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.powerStateChanged(n) }
             }
         )
     }
@@ -275,7 +276,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.trackingSettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.trackingSettingChanged(n) }
             }
         )
 
@@ -285,7 +287,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.dockVisibilityChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.dockVisibilityChanged(n) }
             }
         )
 
@@ -311,7 +314,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.discordPresenceSettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.discordPresenceSettingChanged(n) }
             }
         )
 
@@ -321,7 +325,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.websocketServerSettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.websocketServerSettingChanged(n) }
             }
         )
 
@@ -331,7 +336,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.widgetHTTPServerSettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.widgetHTTPServerSettingChanged(n) }
             }
         )
 
@@ -341,7 +347,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.handleUpdateStateChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.handleUpdateStateChanged(n) }
             }
         )
 
@@ -351,7 +358,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.songRequestSettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.songRequestSettingChanged(n) }
             }
         )
 
@@ -361,7 +369,8 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                self?.listeningHistorySettingChanged(notification)
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.listeningHistorySettingChanged(n) }
             }
         )
     }
@@ -580,6 +589,11 @@ extension AppDelegate: PlaybackSourceDelegate {
             }
             lastSong = currentSong
             lastArtist = currentArtist
+
+            // Push the incoming track onto the tray-menu recents buffer.
+            // De-dup happens inside the buffer so Music.app's resume
+            // re-broadcasts don't pollute the list.
+            recentTracks.push(RecentTrack(title: track, artist: artist, playedAt: Date()))
 
             // Suppress the first track after launch (it was already playing);
             // notify on every genuine change thereafter.

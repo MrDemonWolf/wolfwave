@@ -56,6 +56,10 @@ actor WebSocketServerService {
     nonisolated let stateChanges: AsyncStream<(ServerState, Int)>
     private nonisolated let stateContinuation: AsyncStream<(ServerState, Int)>.Continuation
 
+    /// Number of currently-connected overlay clients. Safe to call from any
+    /// thread. Used by the tray menu's "Stream Widgets" status subtitle.
+    nonisolated var connectedClientCount: Int { connectionCount }
+
     // MARK: - Properties
 
     private var port: UInt16

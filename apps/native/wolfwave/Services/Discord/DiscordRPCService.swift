@@ -197,16 +197,10 @@ final class DiscordRPCService: @unchecked Sendable {
         }
     }
 
-    deinit {
-        if let settingsObserver {
-            NotificationCenter.default.removeObserver(settingsObserver)
-        }
-        ipcQueue.sync {
-            disconnect()
-            pollTimer?.cancel()
-            pollTimer = nil
-        }
-    }
+    // Note: deinit cleanup removed under Swift 6 default-MainActor isolation
+    // (nonisolated deinit can't access MainActor / non-Sendable stored state).
+    // DiscordRPCService is owned for the app lifetime; explicit teardown
+    // happens via AppDelegate when the service is replaced or the app exits.
 
     // MARK: - Public API
 
@@ -236,7 +230,7 @@ final class DiscordRPCService: @unchecked Sendable {
     /// Reports back via the completion handler (on the main thread) whether the
     /// connection is active. If already connected, returns immediately with `true`.
     /// Otherwise triggers a connection attempt and waits briefly for the result.
-    func testConnection(completion: @escaping (Bool) -> Void) {
+    func testConnection(completion: @escaping @Sendable (Bool) -> Void) {
         ipcQueue.async { [weak self] in
             guard let self else {
                 DispatchQueue.main.async { completion(false) }
@@ -825,9 +819,9 @@ final class DiscordRPCService: @unchecked Sendable {
             Log.debug("DiscordRPCService: Searching for IPC socket in \(basePath)", category: "Discord")
 
             for slot in 0..<AppConstants.Discord.ipcSocketSlots {
-                let socketPath = (basePath as NSString).appendingPathComponent(
-                    "\(AppConstants.Discord.ipcSocketPrefix)\(slot)"
-                )
+                let socketPath = URL(filePath: basePath)
+                    .appending(path: "\(AppConstants.Discord.ipcSocketPrefix)\(slot)")
+                    .path(percentEncoded: false)
 
                 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
                 guard fd >= 0 else { continue }
