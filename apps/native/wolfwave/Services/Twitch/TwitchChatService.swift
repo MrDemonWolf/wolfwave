@@ -204,11 +204,17 @@ actor TwitchChatService {
 
     // MARK: - Connection State
 
-    private var _connected = false
+    private var _connected = false {
+        didSet { isConnectedSnapshot.set(_connected) }
+    }
     private var hasSentConnectionMessage = false
     private var streamLive = false {
         didSet { streamLiveSnapshot.set(streamLive) }
     }
+
+    /// Nonisolated mirror of `_connected` so MainActor UI code (status chips,
+    /// menu bar enable state) can read it without `await`.
+    nonisolated let isConnectedSnapshot = AtomicBool()
 
     /// Nonisolated mirror of `streamLive` so the synchronous dispatcher bridge
     /// (`!stats` enable check) can read it without re-entering the actor.
@@ -338,6 +344,11 @@ actor TwitchChatService {
     /// Toggle whether bot commands are processed.
     func setCommandsEnabled(_ enabled: Bool) {
         self.commandsEnabled = enabled
+    }
+
+    /// Toggle verbose debug logging.
+    func setDebugLoggingEnabled(_ enabled: Bool) {
+        self.debugLoggingEnabled = enabled
     }
 
     /// Toggle whether the connection confirmation message is sent on subscribe.
