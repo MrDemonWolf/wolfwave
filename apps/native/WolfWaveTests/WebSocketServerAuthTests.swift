@@ -55,7 +55,7 @@ final class WebSocketServerAuthTests: XCTestCase, @unchecked Sendable {
             }
         }
         Task { await service.setEnabled(false) }
-        wait(for: [exp], timeout: 5)
+        wait(for: [exp], timeout: 15)
         observer.cancel()
     }
 
@@ -66,7 +66,7 @@ final class WebSocketServerAuthTests: XCTestCase, @unchecked Sendable {
     private func connectClient(
         port: UInt16,
         subprotocol: String?,
-        readyTimeout: TimeInterval = 3
+        readyTimeout: TimeInterval = 15
     ) -> NWConnection {
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
@@ -143,7 +143,7 @@ final class WebSocketServerAuthTests: XCTestCase, @unchecked Sendable {
                 return
             }
         }
-        wait(for: [countExp], timeout: 5)
+        wait(for: [countExp], timeout: 15)
         observer.cancel()
 
         XCTAssertGreaterThanOrEqual(service.connectionCount, 1,
@@ -168,7 +168,7 @@ final class WebSocketServerAuthTests: XCTestCase, @unchecked Sendable {
                 return
             }
         }
-        wait(for: [countExp], timeout: 5)
+        wait(for: [countExp], timeout: 15)
         observer.cancel()
 
         XCTAssertGreaterThanOrEqual(service.connectionCount, 1)

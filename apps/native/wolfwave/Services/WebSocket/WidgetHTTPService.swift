@@ -160,9 +160,18 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
 
         let rendered: String
-        if let token = authToken {
+        if let token = authToken, WebSocketAuthToken.isValid(token) {
+            // `isValid` gates the substitution on hex-only / bounded length so a
+            // corrupted or hand-edited token can't inject `</script>` or other
+            // characters that would break out of the JS string context.
             rendered = raw.replacingOccurrences(of: Self.tokenPlaceholder, with: token)
         } else {
+            if authToken != nil {
+                Log.warn(
+                    "WidgetHTTPService: Refusing to inject non-hex auth token into widget.html",
+                    category: "WebSocket"
+                )
+            }
             rendered = raw
         }
         let body = Data(rendered.utf8)

@@ -400,9 +400,22 @@ fileprivate struct WebSocketServerCard: View {
 
     /// Persists `tokenDraft` to Keychain, swaps the token on the live service,
     /// and refreshes the displayed URL row. No-op when nothing changed.
+    ///
+    /// Tokens are gated through `WebSocketAuthToken.isValid` (hex-only, 16–128
+    /// chars) so a user-supplied string can never contain `</script>` or other
+    /// characters that would break out of the JS string context when
+    /// `WidgetHTTPService` substitutes the token into the served `widget.html`.
     private func saveTokenEdit() {
         let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != currentToken else {
+            tokenDraft = currentToken
+            return
+        }
+        guard WebSocketAuthToken.isValid(trimmed) else {
+            Log.warn(
+                "WebSocketSettings: Rejected custom token — must be hex characters (16–128).",
+                category: "WebSocket"
+            )
             tokenDraft = currentToken
             return
         }

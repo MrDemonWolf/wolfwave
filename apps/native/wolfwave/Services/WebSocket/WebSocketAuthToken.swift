@@ -56,6 +56,20 @@ nonisolated enum WebSocketAuthToken {
         subprotocolPrefix + token
     }
 
+    /// Returns `true` when `candidate` is a non-empty hex string (`[0-9a-fA-F]+`)
+    /// between 16 and 128 characters. Custom tokens entered by the user are
+    /// gated through this check before they are persisted or substituted into
+    /// the served `widget.html`, so a token can never contain `</script>` or
+    /// other characters that would break out of the JS string context.
+    static func isValid(_ candidate: String) -> Bool {
+        guard (16...128).contains(candidate.count) else { return false }
+        return candidate.unicodeScalars.allSatisfy { scalar in
+            (scalar >= "0" && scalar <= "9")
+                || (scalar >= "a" && scalar <= "f")
+                || (scalar >= "A" && scalar <= "F")
+        }
+    }
+
     /// Redacts a token for safe logging — keeps the first 4 chars and an ellipsis.
     static func redact(_ token: String) -> String {
         guard token.count > 4 else { return "…" }
