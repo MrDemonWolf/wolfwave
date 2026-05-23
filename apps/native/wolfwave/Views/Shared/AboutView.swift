@@ -52,7 +52,7 @@ struct AboutView: View {
             legalLinksRow
             footer
         }
-        .padding(24)
+        .padding(DSSpace.s8)
         .frame(width: 360, height: 520)
         .accessibilityIdentifier("about.root")
     }
@@ -68,7 +68,7 @@ struct AboutView: View {
                 .accessibilityHidden(true)
 
             Text(appName)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: DSFont.Size.x2xl, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
         }
     }
@@ -79,9 +79,9 @@ struct AboutView: View {
         Button(action: copyVersion) {
             HStack(spacing: 6) {
                 Text(versionString)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DSFont.Size.body, weight: .medium))
                 Image(systemName: versionCopied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
                     .foregroundStyle(versionCopied ? .green : .secondary)
             }
         }
@@ -123,13 +123,14 @@ struct AboutView: View {
     private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DSFont.Size.body, weight: .medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 2)
+                .padding(.vertical, DSSpace.s0)
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)
         .pointerCursor()
+        .accessibilityLabel(title)
         .accessibilityIdentifier("about.action.\(title)")
     }
 
@@ -139,17 +140,23 @@ struct AboutView: View {
         HStack(spacing: 10) {
             if let url = URL(string: AppConstants.URLs.docs) {
                 Link("Documentation", destination: url)
+                    .accessibilityLabel("Open WolfWave documentation")
+                    .accessibilityIdentifier("about.link.docs")
             }
             Text("·").foregroundStyle(.tertiary)
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {
                 Link("Privacy", destination: url)
+                    .accessibilityLabel("Open privacy policy")
+                    .accessibilityIdentifier("about.link.privacy")
             }
             Text("·").foregroundStyle(.tertiary)
             if let url = URL(string: AppConstants.URLs.termsOfService) {
                 Link("Terms", destination: url)
+                    .accessibilityLabel("Open terms of service")
+                    .accessibilityIdentifier("about.link.terms")
             }
         }
-        .font(.system(size: 11))
+        .font(.system(size: DSFont.Size.sm))
         .accessibilityElement(children: .contain)
     }
 
@@ -158,13 +165,13 @@ struct AboutView: View {
     private var footer: some View {
         VStack(spacing: 6) {
             Text("Twitch, Discord, OBS, and Apple Music are trademarks of their respective owners. WolfWave is not affiliated with or endorsed by any of them.")
-                .font(.system(size: 10))
+                .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("© 2026 MrDemonWolf, Inc. All rights reserved.")
-                .font(.system(size: 10))
+                .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
     }

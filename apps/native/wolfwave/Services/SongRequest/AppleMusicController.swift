@@ -343,7 +343,7 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Escapes backslashes and double quotes, then strips ASCII control characters
     /// (U+0000–U+001F, U+007F) which could break out of AppleScript string literals.
-    private func sanitizeForAppleScript(_ input: String) -> String {
+    func sanitizeForAppleScript(_ input: String) -> String {
         let escaped = input
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
@@ -361,7 +361,8 @@ final class AppleMusicController: AppleMusicControlling {
     private func runAppleScriptPreservingFocus(_ source: String) {
         let previousFrontApp = NSWorkspace.shared.frontmostApplication
         runAppleScript(source)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
             previousFrontApp?.activate()
         }
     }

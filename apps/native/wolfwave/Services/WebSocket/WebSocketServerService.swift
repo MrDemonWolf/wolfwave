@@ -27,11 +27,12 @@ import Network
 ///   first launch by `WebSocketAuthToken.currentOrCreate()`, persisted in the macOS
 ///   Keychain via `KeychainService.saveToken(_:)`, and never logged in full —
 ///   redacted log lines only carry the first 4 characters.
-/// - Connections without the subprotocol, or with a mismatched value, are
-///   `connection.cancel()`'d before they are added to the active set; the snapshot
-///   count is not bumped and no playback frames are sent.
-/// - Rotating the token (e.g. from the debug menu) requires the server to be
-///   restarted to evict already-authorized clients.
+/// - Connections without the subprotocol, or with a mismatched value, are rejected
+///   by the `NWProtocolWebSocket` client-request handler before the connection
+///   transitions to `.ready`; the snapshot count is not bumped and no playback
+///   frames are sent.
+/// - Rotating the token via `updateAuthToken(_:)` restarts the listener so every
+///   already-authorized client is dropped.
 /// - The init that omits `authToken` exists for unit tests that exercise the pure
 ///   lifecycle / state machine without standing up Keychain.
 actor WebSocketServerService {

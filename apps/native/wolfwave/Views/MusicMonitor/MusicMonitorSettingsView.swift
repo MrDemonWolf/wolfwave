@@ -173,16 +173,16 @@ struct MusicMonitorSettingsView: View {
     private var permissionStatusRow: some View {
         HStack(spacing: 12) {
             Image(systemName: permissionIconName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(permissionIconColor)
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(permissionTitle)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
                 if let subtitle = permissionSubtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -202,6 +202,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Recheck Apple Music access")
+                .accessibilityHint("Re-queries macOS for the current automation permission state")
+                .accessibilityIdentifier("musicMonitor.recheckButton")
 
         case .denied:
             Button("Open System Settings") {
@@ -209,6 +212,9 @@ struct MusicMonitorSettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .accessibilityLabel("Open System Settings")
+            .accessibilityHint("Opens Privacy and Security to grant Apple Music access")
+            .accessibilityIdentifier("musicMonitor.openSystemSettingsButton")
 
         case .unknown:
             HStack(spacing: 6) {
@@ -225,6 +231,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(isRequesting)
+                .accessibilityLabel("Allow Apple Music access")
+                .accessibilityHint("Prompts macOS for automation permission so the current track can be read")
+                .accessibilityIdentifier("musicMonitor.allowButton")
 
                 Button("Open Settings") {
                     MusicPermissionChecker.openAutomationSettings()
@@ -232,6 +241,9 @@ struct MusicMonitorSettingsView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Open System Settings")
+                .accessibilityHint("Opens Privacy and Security to grant Apple Music access manually")
+                .accessibilityIdentifier("musicMonitor.openSettingsButton")
             }
         }
     }
