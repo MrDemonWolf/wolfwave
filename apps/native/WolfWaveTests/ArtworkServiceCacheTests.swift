@@ -8,24 +8,25 @@
 import XCTest
 @testable import WolfWave
 
-final class ArtworkServiceCacheTests: XCTestCase {
+nonisolated final class ArtworkServiceCacheTests: XCTestCase {
     var service = ArtworkService()
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         service = ArtworkService()
     }
 
     // MARK: - Cache Miss Tests
 
-    func testCacheMissReturnsNilForUnknownTrack() {
+    @MainActor func testCacheMissReturnsNilForUnknownTrack() {
         let result = service.cachedArtworkURL(track: "UnknownTrack123", artist: "UnknownArtist456")
         XCTAssertNil(result)
     }
 
     // MARK: - Case Sensitivity Tests
 
-    func testCacheIsCaseSensitive() {
+    @MainActor func testCacheIsCaseSensitive() {
         // Pre-populate the cache with a known URL for the uppercase key
         let expectation = expectation(description: "fetch completes")
         let testTrack = "UniqueTestTrack_\(UUID().uuidString)"
@@ -52,7 +53,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
 
     // MARK: - Concurrent Access Tests
 
-    func testConcurrentCacheAccessIsThreadSafe() {
+    @MainActor func testConcurrentCacheAccessIsThreadSafe() {
         let iterations = 100
         let expectation = expectation(description: "concurrent access")
         expectation.expectedFulfillmentCount = iterations
@@ -70,7 +71,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
     // MARK: - Edge Case Input Tests
     // fetchArtworkURL tests are integration-style (hit network)
 
-    func testFetchWithEmptyStringsCallsCompletion() {
+    @MainActor func testFetchWithEmptyStringsCallsCompletion() {
         let expectation = expectation(description: "completion called")
         service.fetchArtworkURL(track: "", artist: "") { _ in
             expectation.fulfill()
@@ -78,7 +79,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func testFetchWithSpecialCharsCallsCompletion() {
+    @MainActor func testFetchWithSpecialCharsCallsCompletion() {
         let expectation = expectation(description: "completion called")
         service.fetchArtworkURL(track: "Test & Track </>", artist: "Ar!@#$%^&*()tist") { _ in
             expectation.fulfill()
@@ -86,7 +87,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func testFetchWithUnicodeCallsCompletion() {
+    @MainActor func testFetchWithUnicodeCallsCompletion() {
         let expectation = expectation(description: "completion called")
         service.fetchArtworkURL(track: "日本語テスト", artist: "アーティスト") { _ in
             expectation.fulfill()
@@ -96,7 +97,7 @@ final class ArtworkServiceCacheTests: XCTestCase {
 
     // MARK: - Performance Tests
 
-    func testCachedArtworkURLLookupPerformance() {
+    @MainActor func testCachedArtworkURLLookupPerformance() {
         measure {
             for i in 0..<1000 {
                 _ = service.cachedArtworkURL(track: "Track\(i)", artist: "Artist\(i)")

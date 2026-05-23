@@ -9,7 +9,7 @@ import XCTest
 @testable import WolfWave
 
 // Integration tests using fixed ports (59001-59008) for WebSocket server lifecycle
-final class WebSocketServerIntegrationTests: XCTestCase {
+nonisolated final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Helpers
 
@@ -17,7 +17,7 @@ final class WebSocketServerIntegrationTests: XCTestCase {
     /// on the service's `stateChanges` stream, then fulfills `expectation`.
     /// Returns the consumer Task so the caller can cancel it after the wait.
     @discardableResult
-    private func observe(
+    @MainActor private func observe(
         _ service: WebSocketServerService,
         fulfilling expectation: XCTestExpectation,
         on predicate: @escaping @Sendable (WebSocketServerService.ServerState, Int) -> Bool
@@ -35,7 +35,7 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Server Lifecycle Tests
 
-    func testServerStartReachesListeningState() {
+    @MainActor func testServerStartReachesListeningState() {
         let service = WebSocketServerService(port: 59001)
         let exp = expectation(description: "server listening")
 
@@ -47,7 +47,7 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         Task { await service.setEnabled(false) }
     }
 
-    func testServerStopReachesStoppedState() {
+    @MainActor func testServerStopReachesStoppedState() {
         let service = WebSocketServerService(port: 59002)
         let listeningExpectation = expectation(description: "server listening")
         let stoppedExpectation = expectation(description: "server stopped")
@@ -66,7 +66,7 @@ final class WebSocketServerIntegrationTests: XCTestCase {
         stopObs.cancel()
     }
 
-    func testServerRestartCycle() {
+    @MainActor func testServerRestartCycle() {
         let service = WebSocketServerService(port: 59003)
         let firstListen = expectation(description: "first listen")
         let stopped = expectation(description: "stopped")
@@ -92,7 +92,7 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Port Conflict Tests
 
-    func testTwoServersOnSamePortHandledGracefully() {
+    @MainActor func testTwoServersOnSamePortHandledGracefully() {
         let service1 = WebSocketServerService(port: 59004)
         let service2 = WebSocketServerService(port: 59004)
 
@@ -117,12 +117,12 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Connection Count Tests
 
-    func testConnectionCountStartsAtZero() {
+    @MainActor func testConnectionCountStartsAtZero() {
         let service = WebSocketServerService(port: 59005)
         XCTAssertEqual(service.connectionCount, 0)
     }
 
-    func testConnectionCountIsZeroAfterStart() {
+    @MainActor func testConnectionCountIsZeroAfterStart() {
         let service = WebSocketServerService(port: 59006)
         let exp = expectation(description: "server listening")
         let obs = observe(service, fulfilling: exp) { state, count in
@@ -141,12 +141,12 @@ final class WebSocketServerIntegrationTests: XCTestCase {
 
     // MARK: - Initial State Tests
 
-    func testServiceInitialStateIsStopped() {
+    @MainActor func testServiceInitialStateIsStopped() {
         let service = WebSocketServerService(port: 59007)
         XCTAssertEqual(service.state, .stopped)
     }
 
-    func testStateChangesStreamIsAvailable() {
+    @MainActor func testStateChangesStreamIsAvailable() {
         let service = WebSocketServerService(port: 59008)
         // Stream is a non-optional `let`; just confirm we can subscribe without
         // crashing and that no events are emitted before `setEnabled(true)`.

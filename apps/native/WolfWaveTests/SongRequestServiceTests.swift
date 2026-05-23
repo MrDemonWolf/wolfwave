@@ -17,7 +17,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     var isPaused = false
     var isAuthorized = true
     var isMusicAppRunning = true
-    var authStatus: AppleMusicController.AuthStatus = .authorized
+    nonisolated(unsafe) var authStatus: AppleMusicController.AuthStatus = .authorized
 
     var playNowCalled = false
     var enqueueCalled = false
@@ -25,26 +25,26 @@ final class MockAppleMusicController: AppleMusicControlling {
     var clearCalled = false
     var rebuildCalled = false
     var playFallbackCalled = false
-    var fallbackPlaylistName: String?
-    var enqueuedSongs: [Song] = []
+    nonisolated(unsafe) var fallbackPlaylistName: String?
+    nonisolated(unsafe) var enqueuedSongs: [Song] = []
     var shouldThrowMusicAppNotRunning = false
 
-    func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
-    func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
-    func playNow(song: Song) async throws {
+    @MainActor func search(query: String) async -> AppleMusicController.SearchResult { .notFound }
+    @MainActor func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
+    @MainActor func playNow(song: Song) async throws {
         if shouldThrowMusicAppNotRunning { throw PlaybackError.musicAppNotRunning }
         playNowCalled = true
     }
-    func enqueue(song: Song) async throws {
+    @MainActor func enqueue(song: Song) async throws {
         enqueueCalled = true
         enqueuedSongs.append(song)
     }
-    func skipToNext() async throws { skipCalled = true }
-    func previousTrack() async throws { /* no-op for tests */ }
-    func playPause() async throws { /* no-op for tests */ }
-    func clearPlayerQueue() async { clearCalled = true }
-    func rebuildPlayerQueue(from songs: [Song]) async throws { rebuildCalled = true }
-    func playFallbackPlaylist(name: String) async throws {
+    @MainActor func skipToNext() async throws { skipCalled = true }
+    @MainActor func previousTrack() async throws { /* no-op for tests */ }
+    @MainActor func playPause() async throws { /* no-op for tests */ }
+    @MainActor func clearPlayerQueue() async { clearCalled = true }
+    @MainActor func rebuildPlayerQueue(from songs: [Song]) async throws { rebuildCalled = true }
+    @MainActor func playFallbackPlaylist(name: String) async throws {
         playFallbackCalled = true
         fallbackPlaylistName = name
     }
@@ -52,14 +52,14 @@ final class MockAppleMusicController: AppleMusicControlling {
 
 // MARK: - SongRequestServiceTests
 
-final class SongRequestServiceTests: XCTestCase {
+nonisolated final class SongRequestServiceTests: XCTestCase {
 
-    var queue: SongRequestQueue!
-    var mockController: MockAppleMusicController!
-    var service: SongRequestService!
+    nonisolated(unsafe) var queue: SongRequestQueue!
+    nonisolated(unsafe) var mockController: MockAppleMusicController!
+    nonisolated(unsafe) var service: SongRequestService!
 
     /// Builds a chat-command request source with sensible defaults.
-    private func chatSource(
+    @MainActor private func chatSource(
         username: String = "viewer",
         isModerator: Bool = false,
         isBroadcaster: Bool = false,
@@ -75,7 +75,7 @@ final class SongRequestServiceTests: XCTestCase {
         )
     }
 
-    private func clearAccessDefaults() {
+    @MainActor private func clearAccessDefaults() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -84,8 +84,9 @@ final class SongRequestServiceTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
     }
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         queue = SongRequestQueue()
         mockController = MockAppleMusicController()
         service = SongRequestService(
@@ -95,18 +96,19 @@ final class SongRequestServiceTests: XCTestCase {
         clearAccessDefaults()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         service.stopPlaybackMonitoring()
         service = nil
         mockController = nil
         queue = nil
         clearAccessDefaults()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Audience Gate
 
-    func testProcessRequestSubscriberAudienceBlocksViewer() async {
+    @MainActor func testProcessRequestSubscriberAudienceBlocksViewer() async {
         UserDefaults.standard.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -120,7 +122,7 @@ final class SongRequestServiceTests: XCTestCase {
         }
     }
 
-    func testProcessRequestSubscriberAudienceAllowsSubscriber() async {
+    @MainActor func testProcessRequestSubscriberAudienceAllowsSubscriber() async {
         UserDefaults.standard.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -134,7 +136,7 @@ final class SongRequestServiceTests: XCTestCase {
         }
     }
 
-    func testProcessRequestSubscriberAudienceAllowsModerator() async {
+    @MainActor func testProcessRequestSubscriberAudienceAllowsModerator() async {
         UserDefaults.standard.set(
             RequestAudience.subscribers.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -148,7 +150,7 @@ final class SongRequestServiceTests: XCTestCase {
         }
     }
 
-    func testProcessRequestVipAudienceBlocksRegularViewer() async {
+    @MainActor func testProcessRequestVipAudienceBlocksRegularViewer() async {
         UserDefaults.standard.set(
             RequestAudience.vipsAndSubs.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -161,7 +163,7 @@ final class SongRequestServiceTests: XCTestCase {
         }
     }
 
-    func testProcessRequestVipAudienceAllowsVIP() async {
+    @MainActor func testProcessRequestVipAudienceAllowsVIP() async {
         UserDefaults.standard.set(
             RequestAudience.vipsAndSubs.rawValue,
             forKey: AppConstants.UserDefaults.songRequestChatAudience)
@@ -174,7 +176,7 @@ final class SongRequestServiceTests: XCTestCase {
         }
     }
 
-    func testProcessRequestRedemptionSourcesBypassAudienceGate() async {
+    @MainActor func testProcessRequestRedemptionSourcesBypassAudienceGate() async {
         // Even with the strictest audience, points/bits sources are not gated here.
         UserDefaults.standard.set(
             RequestAudience.modsOnly.rawValue,
@@ -196,7 +198,7 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Access Migration
 
-    func testMigrateAccessSettingsConvertsLegacySubscriberOnly() {
+    @MainActor func testMigrateAccessSettingsConvertsLegacySubscriberOnly() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
@@ -208,7 +210,7 @@ final class SongRequestServiceTests: XCTestCase {
             RequestAudience.subscribers.rawValue)
     }
 
-    func testMigrateAccessSettingsDefaultsToEveryone() {
+    @MainActor func testMigrateAccessSettingsDefaultsToEveryone() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
         defaults.set(false, forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
@@ -222,7 +224,7 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Auth Check
 
-    func testProcessRequestNotAuthorizedReturnsError() async {
+    @MainActor func testProcessRequestNotAuthorizedReturnsError() async {
         mockController.isAuthorized = false
         mockController.authStatus = .denied
 
@@ -236,12 +238,12 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Skip
 
-    func testSkipEmptyQueueReturnsNil() async {
+    @MainActor func testSkipEmptyQueueReturnsNil() async {
         let result = await service.skip()
         XCTAssertNil(result)
     }
 
-    func testSkipWithQueueItemsAdvancesInternalQueue() async {
+    @MainActor func testSkipWithQueueItemsAdvancesInternalQueue() async {
         queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song B", artist: "Artist", requesterUsername: "user2"))
         queue.dequeue()
@@ -251,7 +253,7 @@ final class SongRequestServiceTests: XCTestCase {
         XCTAssertEqual(queue.nowPlaying?.title, "Song B")
     }
 
-    func testSkipCallsNativeSkip() async {
+    @MainActor func testSkipCallsNativeSkip() async {
         queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue()
 
@@ -261,12 +263,12 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - ClearQueue
 
-    func testClearQueueReturnsZeroWhenEmpty() async {
+    @MainActor func testClearQueueReturnsZeroWhenEmpty() async {
         let count = await service.clearQueue()
         XCTAssertEqual(count, 0)
     }
 
-    func testClearQueueReturnsClearedCount() async {
+    @MainActor func testClearQueueReturnsClearedCount() async {
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
 
@@ -275,7 +277,7 @@ final class SongRequestServiceTests: XCTestCase {
         XCTAssertTrue(queue.isEmpty)
     }
 
-    func testClearQueueAlsoClearsPlayerQueue() async {
+    @MainActor func testClearQueueAlsoClearsPlayerQueue() async {
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
 
         _ = await service.clearQueue()
@@ -284,7 +286,7 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Buffered Mode (Music.app closed)
 
-    func testRequestWhileMusicAppClosedBuffers() async {
+    @MainActor func testRequestWhileMusicAppClosedBuffers() async {
         mockController.isMusicAppRunning = false
 
         _ = await service.processRequest(
@@ -292,7 +294,7 @@ final class SongRequestServiceTests: XCTestCase {
         XCTAssertFalse(mockController.playNowCalled, "playNow should not fire when Music.app is closed")
     }
 
-    func testPlayNextInQueueRequeuesItemWhenMusicAppNotRunning() async {
+    @MainActor func testPlayNextInQueueRequeuesItemWhenMusicAppNotRunning() async {
         mockController.shouldThrowMusicAppNotRunning = true
 
         queue.add(SongRequestItem(title: "Buffered Song", artist: "Artist", requesterUsername: "user1"))
@@ -308,7 +310,7 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Fallback Playlist
 
-    func testFallbackPlaylistPlaysWhenQueueEmpties() async {
+    @MainActor func testFallbackPlaylistPlaysWhenQueueEmpties() async {
         UserDefaults.standard.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         mockController.isMusicAppRunning = true
@@ -322,7 +324,7 @@ final class SongRequestServiceTests: XCTestCase {
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
-    func testClearQueueDoesNotStartFallback() async {
+    @MainActor func testClearQueueDoesNotStartFallback() async {
         UserDefaults.standard.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
@@ -339,7 +341,7 @@ final class SongRequestServiceTests: XCTestCase {
 
     // MARK: - Hold Mode
 
-    func testHoldBlocksAutoPlayOnRequest() async {
+    @MainActor func testHoldBlocksAutoPlayOnRequest() async {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         mockController.isMusicAppRunning = true
         mockController.isPlaying = false
@@ -350,14 +352,14 @@ final class SongRequestServiceTests: XCTestCase {
         XCTAssertFalse(mockController.playNowCalled, "Hold should block auto-play on new requests")
     }
 
-    func testSetHoldTogglesFlag() async {
+    @MainActor func testSetHoldTogglesFlag() async {
         await service.setHold(true)
         XCTAssertTrue(service.isHoldEnabled)
         await service.setHold(false)
         XCTAssertFalse(service.isHoldEnabled)
     }
 
-    func testHoldBlocksFallbackStart() async {
+    @MainActor func testHoldBlocksFallbackStart() async {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         UserDefaults.standard.set(
             "Gaming Vibes", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
@@ -370,7 +372,7 @@ final class SongRequestServiceTests: XCTestCase {
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
-    func testAutoAdvanceDoesNotFireWhenPaused() async {
+    @MainActor func testAutoAdvanceDoesNotFireWhenPaused() async {
         queue.add(SongRequestItem(title: "Next Song", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Current", artist: "B", requesterUsername: "user2"))
         queue.dequeue()

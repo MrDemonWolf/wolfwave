@@ -10,85 +10,87 @@ import XCTest
 
 @testable import WolfWave
 
-final class SongRequestQueueTests: XCTestCase {
-    var queue: SongRequestQueue!
+nonisolated final class SongRequestQueueTests: XCTestCase {
+    nonisolated(unsafe) var queue: SongRequestQueue!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         queue = SongRequestQueue()
         // Reset UserDefaults for test isolation
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         queue = nil
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Basic Operations
 
-    func testQueueStartsEmpty() {
+    @MainActor func testQueueStartsEmpty() {
         XCTAssertTrue(queue.isEmpty)
         XCTAssertEqual(queue.count, 0)
         XCTAssertFalse(queue.isFull)
         XCTAssertNil(queue.nowPlaying)
     }
 
-    func testDequeueEmptyReturnsNil() {
+    @MainActor func testDequeueEmptyReturnsNil() {
         XCTAssertNil(queue.dequeue())
     }
 
-    func testSkipWithEmptyQueue() {
+    @MainActor func testSkipWithEmptyQueue() {
         XCTAssertNil(queue.skip())
     }
 
-    func testClearEmptyQueue() {
+    @MainActor func testClearEmptyQueue() {
         let count = queue.clear()
         XCTAssertEqual(count, 0)
     }
 
     // MARK: - User Position Lookup
 
-    func testPositionsForUnknownUser() {
+    @MainActor func testPositionsForUnknownUser() {
         let positions = queue.positions(for: "unknownuser")
         XCTAssertTrue(positions.isEmpty)
     }
 
     // MARK: - Default Limits
 
-    func testDefaultMaxQueueSize() {
+    @MainActor func testDefaultMaxQueueSize() {
         XCTAssertEqual(queue.maxQueueSize, 10)
     }
 
-    func testDefaultPerUserLimit() {
+    @MainActor func testDefaultPerUserLimit() {
         XCTAssertEqual(queue.perUserLimit, 2)
     }
 
     // MARK: - Custom Limits via UserDefaults
 
-    func testCustomMaxQueueSize() {
+    @MainActor func testCustomMaxQueueSize() {
         UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         XCTAssertEqual(queue.maxQueueSize, 5)
     }
 
-    func testCustomPerUserLimit() {
+    @MainActor func testCustomPerUserLimit() {
         UserDefaults.standard.set(3, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         XCTAssertEqual(queue.perUserLimit, 3)
     }
 
     // MARK: - Clear Now Playing
 
-    func testClearNowPlaying() {
+    @MainActor func testClearNowPlaying() {
         queue.clearNowPlaying()
         XCTAssertNil(queue.nowPlaying)
     }
 
     // MARK: - Move Operations
 
-    func testMoveWithEmptyQueue() {
+    @MainActor func testMoveWithEmptyQueue() {
         // Should not crash
         queue.move(from: IndexSet(), to: 0)
         XCTAssertTrue(queue.isEmpty)
@@ -96,7 +98,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Remove by ID
 
-    func testRemoveByNonExistentID() {
+    @MainActor func testRemoveByNonExistentID() {
         let fakeID = UUID()
         queue.remove(id: fakeID)
         XCTAssertTrue(queue.isEmpty)
@@ -104,7 +106,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Add Operations
 
-    func testAddSingleItem() {
+    @MainActor func testAddSingleItem() {
         let item = SongRequestItem(title: "Bohemian Rhapsody", artist: "Queen", requesterUsername: "user1")
         let result = queue.add(item)
         guard case .added(let position) = result else {
@@ -116,7 +118,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertFalse(queue.isEmpty)
     }
 
-    func testAddMultipleItemsIncrementsPosition() {
+    @MainActor func testAddMultipleItemsIncrementsPosition() {
         let item1 = SongRequestItem(title: "Song A", artist: "Artist A", requesterUsername: "user1")
         let item2 = SongRequestItem(title: "Song B", artist: "Artist B", requesterUsername: "user2")
         let r1 = queue.add(item1)
@@ -130,7 +132,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertEqual(queue.count, 2)
     }
 
-    func testAddQueueFull() {
+    @MainActor func testAddQueueFull() {
         UserDefaults.standard.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
@@ -143,7 +145,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertEqual(max, 2)
     }
 
-    func testAddUserLimitReached() {
+    @MainActor func testAddUserLimitReached() {
         UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         let result = queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user1"))
@@ -154,7 +156,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertEqual(max, 1)
     }
 
-    func testAddDuplicateRejected() {
+    @MainActor func testAddDuplicateRejected() {
         let item1 = SongRequestItem(title: "Duplicate Song", artist: "Same Artist", requesterUsername: "user1")
         let item2 = SongRequestItem(title: "duplicate song", artist: "SAME ARTIST", requesterUsername: "USER1")
         queue.add(item1)
@@ -166,7 +168,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertEqual(queue.count, 1)
     }
 
-    func testAddDifferentUserSameSongAllowed() {
+    @MainActor func testAddDifferentUserSameSongAllowed() {
         let item1 = SongRequestItem(title: "Same Song", artist: "Artist", requesterUsername: "user1")
         let item2 = SongRequestItem(title: "Same Song", artist: "Artist", requesterUsername: "user2")
         let r1 = queue.add(item1)
@@ -180,7 +182,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Dequeue / Skip / Clear with Items
 
-    func testDequeueSetsNowPlaying() {
+    @MainActor func testDequeueSetsNowPlaying() {
         let item = SongRequestItem(title: "Test Song", artist: "Test Artist", requesterUsername: "user1")
         queue.add(item)
         let dequeued = queue.dequeue()
@@ -190,7 +192,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertTrue(queue.isEmpty)
     }
 
-    func testSkipAdvancesNowPlaying() {
+    @MainActor func testSkipAdvancesNowPlaying() {
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
         queue.dequeue() // sets nowPlaying to Song 1
@@ -200,7 +202,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertTrue(queue.isEmpty)
     }
 
-    func testClearReturnsItemCount() {
+    @MainActor func testClearReturnsItemCount() {
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
         let removed = queue.clear()
@@ -209,7 +211,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertNil(queue.nowPlaying)
     }
 
-    func testClearAlsoClearsNowPlaying() {
+    @MainActor func testClearAlsoClearsNowPlaying() {
         let item = SongRequestItem(title: "Test", artist: "A", requesterUsername: "user1")
         queue.add(item)
         queue.dequeue() // sets nowPlaying
@@ -220,7 +222,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Remove by ID
 
-    func testRemoveExistingItem() {
+    @MainActor func testRemoveExistingItem() {
         let item = SongRequestItem(title: "Remove Me", artist: "Artist", requesterUsername: "user1")
         queue.add(item)
         XCTAssertEqual(queue.count, 1)
@@ -231,7 +233,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Move
 
-    func testMoveReordersItems() {
+    @MainActor func testMoveReordersItems() {
         queue.add(SongRequestItem(title: "Song A", artist: "A", requesterUsername: "user1"))
         queue.add(SongRequestItem(title: "Song B", artist: "B", requesterUsername: "user2"))
         queue.add(SongRequestItem(title: "Song C", artist: "C", requesterUsername: "user3"))
@@ -243,7 +245,7 @@ final class SongRequestQueueTests: XCTestCase {
 
     // MARK: - Positions
 
-    func testPositionsForUser() {
+    @MainActor func testPositionsForUser() {
         let user = "testuser"
         queue.add(SongRequestItem(title: "Song 1", artist: "A", requesterUsername: user))
         queue.add(SongRequestItem(title: "Song X", artist: "B", requesterUsername: "other"))
@@ -256,7 +258,7 @@ final class SongRequestQueueTests: XCTestCase {
         XCTAssertEqual(positions[1].item.title, "Song 2")
     }
 
-    func testIsFull() {
+    @MainActor func testIsFull() {
         UserDefaults.standard.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         UserDefaults.standard.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         XCTAssertFalse(queue.isFull)

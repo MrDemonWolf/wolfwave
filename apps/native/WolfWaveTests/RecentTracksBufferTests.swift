@@ -8,20 +8,20 @@
 import XCTest
 @testable import WolfWave
 
-final class RecentTracksBufferTests: XCTestCase {
+nonisolated final class RecentTracksBufferTests: XCTestCase {
 
-    private func makeTrack(_ title: String, _ artist: String = "Artist") -> RecentTrack {
+    @MainActor private func makeTrack(_ title: String, _ artist: String = "Artist") -> RecentTrack {
         RecentTrack(title: title, artist: artist, playedAt: Date())
     }
 
-    func testStartsEmpty() {
+    @MainActor func testStartsEmpty() {
         let buffer = RecentTracksBuffer(maxEntries: 5)
         XCTAssertTrue(buffer.isEmpty)
         XCTAssertEqual(buffer.count, 0)
         XCTAssertEqual(buffer.entries, [])
     }
 
-    func testPushAddsToFront() {
+    @MainActor func testPushAddsToFront() {
         var buffer = RecentTracksBuffer(maxEntries: 5)
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("B"))
@@ -29,7 +29,7 @@ final class RecentTracksBufferTests: XCTestCase {
         XCTAssertEqual(buffer.entries.map(\.title), ["C", "B", "A"])
     }
 
-    func testHeadDuplicateIsIgnored() {
+    @MainActor func testHeadDuplicateIsIgnored() {
         var buffer = RecentTracksBuffer(maxEntries: 5)
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("A"))
@@ -37,7 +37,7 @@ final class RecentTracksBufferTests: XCTestCase {
         XCTAssertEqual(buffer.count, 1)
     }
 
-    func testNonHeadDuplicateMovesToFront() {
+    @MainActor func testNonHeadDuplicateMovesToFront() {
         var buffer = RecentTracksBuffer(maxEntries: 5)
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("B"))
@@ -46,7 +46,7 @@ final class RecentTracksBufferTests: XCTestCase {
         XCTAssertEqual(buffer.entries.map(\.title), ["A", "C", "B"])
     }
 
-    func testMaxEntriesTrimsTail() {
+    @MainActor func testMaxEntriesTrimsTail() {
         var buffer = RecentTracksBuffer(maxEntries: 3)
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("B"))
@@ -56,23 +56,23 @@ final class RecentTracksBufferTests: XCTestCase {
         XCTAssertEqual(buffer.entries.map(\.title), ["E", "D", "C"])
     }
 
-    func testEqualityIgnoresPlayedAt() {
+    @MainActor func testEqualityIgnoresPlayedAt() {
         let a = RecentTrack(title: "Song", artist: "Artist", playedAt: Date(timeIntervalSince1970: 0))
         let b = RecentTrack(title: "Song", artist: "Artist", playedAt: Date(timeIntervalSince1970: 999))
         XCTAssertEqual(a, b)
     }
 
-    func testDisplayLabelWithArtist() {
+    @MainActor func testDisplayLabelWithArtist() {
         let track = RecentTrack(title: "Bohemian Rhapsody", artist: "Queen", playedAt: Date())
         XCTAssertEqual(track.displayLabel, "Bohemian Rhapsody — Queen")
     }
 
-    func testDisplayLabelWithoutArtist() {
+    @MainActor func testDisplayLabelWithoutArtist() {
         let track = RecentTrack(title: "Untitled", artist: "", playedAt: Date())
         XCTAssertEqual(track.displayLabel, "Untitled")
     }
 
-    func testDefaultCapacityUsesAppConstant() {
+    @MainActor func testDefaultCapacityUsesAppConstant() {
         let buffer = RecentTracksBuffer()
         XCTAssertEqual(buffer.maxEntries, AppConstants.RecentlyPlayed.maxEntries)
     }

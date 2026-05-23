@@ -8,11 +8,11 @@
 import XCTest
 @testable import WolfWave
 
-final class BugReportURLTests: XCTestCase {
+nonisolated final class BugReportURLTests: XCTestCase {
 
     private let base = "https://github.com/mrdemonwolf/wolfwave/issues/new"
 
-    func testReturnsNonNilURLForValidBase() {
+    @MainActor func testReturnsNonNilURLForValidBase() {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.2.0",
@@ -24,7 +24,7 @@ final class BugReportURLTests: XCTestCase {
         XCTAssertNotNil(url)
     }
 
-    func testReturnsNilForMalformedBase() {
+    @MainActor func testReturnsNilForMalformedBase() {
         let url = BugReportURL.make(
             base: "not a url",
             appVersion: "1.0",
@@ -39,7 +39,7 @@ final class BugReportURLTests: XCTestCase {
         }
     }
 
-    func testQueryItemsIncludeTemplateAndLabel() {
+    @MainActor func testQueryItemsIncludeTemplateAndLabel() {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.2.0",
@@ -65,7 +65,7 @@ final class BugReportURLTests: XCTestCase {
         XCTAssertEqual(labels, "bug")
     }
 
-    func testBodyContainsEnvironmentFields() {
+    @MainActor func testBodyContainsEnvironmentFields() {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.2.3",
@@ -85,17 +85,17 @@ final class BugReportURLTests: XCTestCase {
         XCTAssertTrue(body.contains("Homebrew"), "body should contain install method")
     }
 
-    func testInstallMethodRawValues() {
+    @MainActor func testInstallMethodRawValues() {
         XCTAssertEqual(BugReportURL.InstallMethod.dmg.rawValue, "DMG")
         XCTAssertEqual(BugReportURL.InstallMethod.homebrew.rawValue, "Homebrew")
     }
 
-    func testCurrentArchIsKnownValue() {
+    @MainActor func testCurrentArchIsKnownValue() {
         let arch = BugReportURL.currentArch()
         XCTAssertTrue(["arm64", "x86_64", "unknown"].contains(arch))
     }
 
-    func testURLPathPointsToIssuesNew() {
+    @MainActor func testURLPathPointsToIssuesNew() {
         let url = BugReportURL.make(
             base: base,
             appVersion: "1.0",

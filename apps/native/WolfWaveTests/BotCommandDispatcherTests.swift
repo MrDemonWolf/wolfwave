@@ -8,28 +8,30 @@
 import XCTest
 @testable import WolfWave
 
-final class BotCommandDispatcherTests: XCTestCase {
-    var dispatcher: BotCommandDispatcher!
+nonisolated final class BotCommandDispatcherTests: XCTestCase {
+    nonisolated(unsafe) var dispatcher: BotCommandDispatcher!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         dispatcher = BotCommandDispatcher()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         dispatcher = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Default Command Tests
 
-    func testDefaultSongCommandRegistered() {
+    @MainActor func testDefaultSongCommandRegistered() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         let result = dispatcher.processMessage("!song")
         XCTAssertEqual(result, "Artist - Song")
     }
 
-    func testDefaultLastCommandRegistered() {
+    @MainActor func testDefaultLastCommandRegistered() {
         dispatcher.setLastSongInfo { "Previous Artist - Song" }
         let result = dispatcher.processMessage("!last")
         XCTAssertEqual(result, "Previous Artist - Song")
@@ -37,56 +39,56 @@ final class BotCommandDispatcherTests: XCTestCase {
 
     // MARK: - Non-Command Messages
 
-    func testNonCommandReturnsNil() {
+    @MainActor func testNonCommandReturnsNil() {
         let result = dispatcher.processMessage("hello")
         XCTAssertNil(result)
     }
 
-    func testEmptyStringReturnsNil() {
+    @MainActor func testEmptyStringReturnsNil() {
         let result = dispatcher.processMessage("")
         XCTAssertNil(result)
     }
 
-    func testOverLengthMessageReturnsNil() {
+    @MainActor func testOverLengthMessageReturnsNil() {
         let longMessage = String(repeating: "a", count: 501)
         let result = dispatcher.processMessage(longMessage)
         XCTAssertNil(result)
     }
 
-    func testExactly500CharsProcessed() {
+    @MainActor func testExactly500CharsProcessed() {
         let message = "!song" + String(repeating: "x", count: 495)
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         let result = dispatcher.processMessage(message)
         XCTAssertNotNil(result)
     }
 
-    func testWhitespaceOnlyReturnsNil() {
+    @MainActor func testWhitespaceOnlyReturnsNil() {
         let result = dispatcher.processMessage("   ")
         XCTAssertNil(result)
     }
 
     // MARK: - Callback Wiring Tests
 
-    func testSetCurrentSongInfoCallback() {
+    @MainActor func testSetCurrentSongInfoCallback() {
         dispatcher.setCurrentSongInfo { "Test Track" }
         let result = dispatcher.processMessage("!song")
         XCTAssertEqual(result, "Test Track")
     }
 
-    func testSetLastSongInfoCallback() {
+    @MainActor func testSetLastSongInfoCallback() {
         dispatcher.setLastSongInfo { "Previous Track" }
         let result = dispatcher.processMessage("!last")
         XCTAssertEqual(result, "Previous Track")
     }
 
-    func testDisableCurrentSongCommand() {
+    @MainActor func testDisableCurrentSongCommand() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         dispatcher.setCurrentSongCommandEnabled { false }
         let result = dispatcher.processMessage("!song")
         XCTAssertNil(result)
     }
 
-    func testDisableLastSongCommand() {
+    @MainActor func testDisableLastSongCommand() {
         dispatcher.setLastSongInfo { "Artist - Song" }
         dispatcher.setLastSongCommandEnabled { false }
         let result = dispatcher.processMessage("!last")
@@ -95,13 +97,13 @@ final class BotCommandDispatcherTests: XCTestCase {
 
     // MARK: - Whitespace Handling
 
-    func testLeadingWhitespaceTrimmed() {
+    @MainActor func testLeadingWhitespaceTrimmed() {
         dispatcher.setCurrentSongInfo { "Track" }
         let result = dispatcher.processMessage("  !song")
         XCTAssertEqual(result, "Track")
     }
 
-    func testTrailingWhitespaceTrimmed() {
+    @MainActor func testTrailingWhitespaceTrimmed() {
         dispatcher.setCurrentSongInfo { "Track" }
         let result = dispatcher.processMessage("!song  ")
         XCTAssertEqual(result, "Track")
@@ -109,7 +111,7 @@ final class BotCommandDispatcherTests: XCTestCase {
 
     // MARK: - Alias Cooldown Grouping Tests
 
-    func testSongAliasesShareCooldown() {
+    @MainActor func testSongAliasesShareCooldown() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         // Set a non-zero cooldown so the second call is blocked
@@ -131,7 +133,7 @@ final class BotCommandDispatcherTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
     }
 
-    func testBroadcasterAlwaysBypassesCooldown() {
+    @MainActor func testBroadcasterAlwaysBypassesCooldown() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -150,7 +152,7 @@ final class BotCommandDispatcherTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
     }
 
-    func testLastSongAliasesShareCooldown() {
+    @MainActor func testLastSongAliasesShareCooldown() {
         dispatcher.setLastSongInfo { "Previous Artist - Song" }
 
         let defaults = UserDefaults.standard

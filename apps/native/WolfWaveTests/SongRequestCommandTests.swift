@@ -9,10 +9,11 @@ import XCTest
 
 @testable import WolfWave
 
-final class SongRequestCommandTests: XCTestCase {
+nonisolated final class SongRequestCommandTests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         // Reset alias and enabled keys
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandAliases)
@@ -23,7 +24,8 @@ final class SongRequestCommandTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.myQueueCommandEnabled)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.srCommandAliases)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.queueCommandEnabled)
@@ -31,28 +33,28 @@ final class SongRequestCommandTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.skipCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.clearQueueCommandEnabled)
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.myQueueCommandEnabled)
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - SongRequestCommand Triggers
 
-    func testSongRequestCommandTriggers() {
+    @MainActor func testSongRequestCommandTriggers() {
         let command = SongRequestCommand()
         XCTAssertEqual(command.triggers, ["!sr", "!request", "!songrequest"])
     }
 
-    func testSongRequestCommandDefaultEnabled() {
+    @MainActor func testSongRequestCommandDefaultEnabled() {
         let command = SongRequestCommand()
         XCTAssertTrue(command.isCommandEnabled)
     }
 
-    func testSongRequestCommandDisabled() {
+    @MainActor func testSongRequestCommandDisabled() {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.srCommandEnabled)
         let command = SongRequestCommand()
         XCTAssertFalse(command.isCommandEnabled)
     }
 
-    func testSongRequestCommandSyncExecuteReturnsNil() {
+    @MainActor func testSongRequestCommandSyncExecuteReturnsNil() {
         let command = SongRequestCommand()
         // AsyncBotCommand sync execute should return nil
         XCTAssertNil(command.execute(message: "!sr test"))
@@ -60,12 +62,12 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - QueueCommand Triggers
 
-    func testQueueCommandTriggers() {
+    @MainActor func testQueueCommandTriggers() {
         let command = QueueCommand()
         XCTAssertEqual(command.triggers, ["!queue", "!songlist", "!requests"])
     }
 
-    func testQueueCommandEmptyResponse() {
+    @MainActor func testQueueCommandEmptyResponse() {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -75,28 +77,28 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - SkipCommand
 
-    func testSkipCommandTriggers() {
+    @MainActor func testSkipCommandTriggers() {
         let command = SkipCommand()
         XCTAssertEqual(command.triggers, ["!skip", "!next"])
     }
 
     // MARK: - ClearQueueCommand
 
-    func testClearQueueCommandTriggers() {
+    @MainActor func testClearQueueCommandTriggers() {
         let command = ClearQueueCommand()
         XCTAssertEqual(command.triggers, ["!clearqueue", "!cq"])
     }
 
     // MARK: - MyQueueCommand
 
-    func testMyQueueCommandTriggers() {
+    @MainActor func testMyQueueCommandTriggers() {
         let command = MyQueueCommand()
         XCTAssertEqual(command.triggers, ["!myqueue", "!mysongs"])
     }
 
     // MARK: - Custom Aliases
 
-    func testCustomAliasesAdded() {
+    @MainActor func testCustomAliasesAdded() {
         UserDefaults.standard.set("play, add", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         let allTriggers = command.allTriggers
@@ -107,7 +109,7 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertTrue(allTriggers.contains("!request"))
     }
 
-    func testCustomAliasesWithBangPrefix() {
+    @MainActor func testCustomAliasesWithBangPrefix() {
         UserDefaults.standard.set("!play", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         let allTriggers = command.allTriggers
@@ -116,7 +118,7 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertFalse(allTriggers.contains("!!play"))
     }
 
-    func testEmptyAliases() {
+    @MainActor func testEmptyAliases() {
         UserDefaults.standard.set("", forKey: AppConstants.UserDefaults.srCommandAliases)
         let command = SongRequestCommand()
         // Should just have original triggers
@@ -125,7 +127,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Enable/Disable via Dispatcher
 
-    func testDispatcherSkipsDisabledCommand() {
+    @MainActor func testDispatcherSkipsDisabledCommand() {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.queueCommandEnabled)
         let dispatcher = BotCommandDispatcher()
         let result = dispatcher.processMessage("!queue")
@@ -134,7 +136,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - BotCommandContext
 
-    func testContextPrivileged() {
+    @MainActor func testContextPrivileged() {
         let modContext = BotCommandContext(
             userID: "123", username: "moduser",
             isModerator: true, isBroadcaster: false,
@@ -159,33 +161,33 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Link Detection
 
-    func testSpotifyLinkDetection() {
+    @MainActor func testSpotifyLinkDetection() {
         XCTAssertTrue(LinkResolverService.isSpotifyLink("https://open.spotify.com/track/abc123"))
         XCTAssertFalse(LinkResolverService.isSpotifyLink("bohemian rhapsody"))
         XCTAssertFalse(LinkResolverService.isSpotifyLink("https://youtube.com/watch?v=abc"))
     }
 
-    func testYouTubeLinkDetection() {
+    @MainActor func testYouTubeLinkDetection() {
         XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtube.com/watch?v=abc123"))
         XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtu.be/abc123"))
         XCTAssertTrue(LinkResolverService.isYouTubeLink("https://music.youtube.com/watch?v=abc"))
         XCTAssertFalse(LinkResolverService.isYouTubeLink("bohemian rhapsody"))
     }
 
-    func testAppleMusicLinkDetection() {
+    @MainActor func testAppleMusicLinkDetection() {
         XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/song/123"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("bohemian rhapsody"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://open.spotify.com/track/abc"))
     }
 
-    func testMusicLinkDetection() {
+    @MainActor func testMusicLinkDetection() {
         XCTAssertTrue(LinkResolverService.isMusicLink("https://open.spotify.com/track/abc123"))
         XCTAssertTrue(LinkResolverService.isMusicLink("https://youtu.be/abc123"))
         XCTAssertTrue(LinkResolverService.isMusicLink("https://music.apple.com/us/album/song/123"))
         XCTAssertFalse(LinkResolverService.isMusicLink("just a song name"))
     }
 
-    func testExtractURL() {
+    @MainActor func testExtractURL() {
         XCTAssertEqual(
             LinkResolverService.extractURL(from: "!sr https://open.spotify.com/track/abc123"),
             "https://open.spotify.com/track/abc123"
@@ -195,7 +197,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Blocklist
 
-    func testBlocklistAddAndCheck() {
+    @MainActor func testBlocklistAddAndCheck() {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
@@ -214,7 +216,7 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistRemove() {
+    @MainActor func testBlocklistRemove() {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
@@ -228,7 +230,7 @@ final class SongRequestCommandTests: XCTestCase {
         blocklist.clearAll()
     }
 
-    func testBlocklistNoDuplicates() {
+    @MainActor func testBlocklistNoDuplicates() {
         let blocklist = SongBlocklist(storage: InMemoryBlocklistStorage())
         blocklist.clearAll()
 
@@ -243,7 +245,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - QueueCommand Output
 
-    func testQueueCommandWithNowPlayingAndItems() {
+    @MainActor func testQueueCommandWithNowPlayingAndItems() {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -261,7 +263,7 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertTrue(response!.contains("Queue (1):"))
     }
 
-    func testQueueCommandShowsUpToFiveItems() {
+    @MainActor func testQueueCommandShowsUpToFiveItems() {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -280,7 +282,7 @@ final class SongRequestCommandTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
-    func testQueueCommandExactlyFiveItemsNoOverflow() {
+    @MainActor func testQueueCommandExactlyFiveItemsNoOverflow() {
         let command = QueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -301,7 +303,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - MyQueueCommand Output
 
-    func testMyQueueCommandWithItems() {
+    @MainActor func testMyQueueCommandWithItems() {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -330,7 +332,7 @@ final class SongRequestCommandTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
     }
 
-    func testMyQueueCommandNoItemsPrompt() {
+    @MainActor func testMyQueueCommandNoItemsPrompt() {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()
         command.getQueue = { queue }
@@ -350,7 +352,7 @@ final class SongRequestCommandTests: XCTestCase {
 
     // MARK: - Privilege Checks (silent ignore)
 
-    func testSkipCommandSilentlyIgnoresNonPrivileged() {
+    @MainActor func testSkipCommandSilentlyIgnoresNonPrivileged() {
         let command = SkipCommand()
         var replyCalled = false
         command.execute(
@@ -364,7 +366,7 @@ final class SongRequestCommandTests: XCTestCase {
         XCTAssertFalse(replyCalled)
     }
 
-    func testClearQueueCommandSilentlyIgnoresNonPrivileged() {
+    @MainActor func testClearQueueCommandSilentlyIgnoresNonPrivileged() {
         let command = ClearQueueCommand()
         var replyCalled = false
         command.execute(

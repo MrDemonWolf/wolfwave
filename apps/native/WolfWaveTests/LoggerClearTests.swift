@@ -8,19 +8,19 @@
 import XCTest
 @testable import WolfWave
 
-final class LoggerClearTests: XCTestCase {
+nonisolated final class LoggerClearTests: XCTestCase {
 
-    func testLogFileSizeIsNonNegative() {
+    @MainActor func testLogFileSizeIsNonNegative() {
         let size = Log.logFileSize()
         XCTAssertGreaterThanOrEqual(size, 0)
     }
 
-    func testLogLineCountIsNonNegative() {
+    @MainActor func testLogLineCountIsNonNegative() {
         let count = Log.logLineCount()
         XCTAssertGreaterThanOrEqual(count, 0)
     }
 
-    func testClearLogFileTruncatesAndWritesHeader() {
+    @MainActor func testClearLogFileTruncatesAndWritesHeader() {
         // Write some content first
         Log.info("Pre-clear marker", category: "Test")
         Log.info("Another line", category: "Test")

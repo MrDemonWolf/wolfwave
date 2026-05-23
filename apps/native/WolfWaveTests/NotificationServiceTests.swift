@@ -17,7 +17,7 @@ struct NotificationServiceTests {
     // MARK: - Song Change Content
 
     @Test("Song change content uses track as title and artist + album as body")
-    func testSongChangeContentFull() async throws {
+    @MainActor func testSongChangeContentFull() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Blinding Lights",
             artist: "The Weeknd",
@@ -28,7 +28,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content falls back to artist only when album is empty")
-    func testSongChangeContentNoAlbum() async throws {
+    @MainActor func testSongChangeContentNoAlbum() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Some Song",
             artist: "Some Artist",
@@ -39,7 +39,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content falls back to album only when artist is empty")
-    func testSongChangeContentNoArtist() async throws {
+    @MainActor func testSongChangeContentNoArtist() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Some Song",
             artist: "",
@@ -49,7 +49,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content uses a default title when the track is empty")
-    func testSongChangeContentEmptyTrack() async throws {
+    @MainActor func testSongChangeContentEmptyTrack() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "",
             artist: "Artist",
@@ -59,7 +59,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content trims surrounding whitespace")
-    func testSongChangeContentTrimsWhitespace() async throws {
+    @MainActor func testSongChangeContentTrimsWhitespace() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "  Track  ",
             artist: "  Artist  ",
@@ -70,7 +70,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content preserves unusual characters")
-    func testSongChangeContentUnusualCharacters() async throws {
+    @MainActor func testSongChangeContentUnusualCharacters() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Café — naïve 🎧",
             artist: "Sigur Rós",
@@ -81,7 +81,7 @@ struct NotificationServiceTests {
     }
 
     @Test("Song change content carries no sound")
-    func testSongChangeContentSilent() async throws {
+    @MainActor func testSongChangeContentSilent() async throws {
         let content = NotificationService.makeSongChangeContent(
             track: "Track",
             artist: "Artist",
@@ -93,7 +93,7 @@ struct NotificationServiceTests {
     // MARK: - Identifier
 
     @Test("Song change notification identifier is stable and non-empty")
-    func testSongChangeIdentifier() async throws {
+    @MainActor func testSongChangeIdentifier() async throws {
         #expect(!AppConstants.UserNotification.songChangeIdentifier.isEmpty)
         #expect(AppConstants.UserNotification.songChangeIdentifier
             == "com.mrdemonwolf.wolfwave.notification.songChange")
@@ -102,7 +102,7 @@ struct NotificationServiceTests {
     // MARK: - UserDefaults Key
 
     @Test("Song change notifications key is registered for reset")
-    func testSongChangeKeyInAllKeys() async throws {
+    @MainActor func testSongChangeKeyInAllKeys() async throws {
         #expect(!AppConstants.UserDefaults.songChangeNotificationsEnabled.isEmpty)
         #expect(AppConstants.UserDefaults.allKeys
             .contains(AppConstants.UserDefaults.songChangeNotificationsEnabled))

@@ -9,9 +9,9 @@ import XCTest
 
 @testable import WolfWave
 
-final class SkipVoteManagerTests: XCTestCase {
+nonisolated final class SkipVoteManagerTests: XCTestCase {
 
-    private let keys: [String] = [
+    private nonisolated(unsafe) let keys: [String] = [
         AppConstants.UserDefaults.voteSkipEnabled,
         AppConstants.UserDefaults.voteSkipMinVotes,
         AppConstants.UserDefaults.voteSkipWindowSeconds,
@@ -21,19 +21,21 @@ final class SkipVoteManagerTests: XCTestCase {
         AppConstants.UserDefaults.voteSkipPollDuration,
     ]
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Helpers
 
-    private func context(
+    @MainActor private func context(
         userID: String,
         isSubscriber: Bool = false,
         isModerator: Bool = false,
@@ -50,7 +52,7 @@ final class SkipVoteManagerTests: XCTestCase {
         )
     }
 
-    private func enableFeature(minVotes: Int = 3, cooldown: Double = 0, window: Int = 60) {
+    @MainActor private func enableFeature(minVotes: Int = 3, cooldown: Double = 0, window: Int = 60) {
         let d = UserDefaults.standard
         d.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         d.set(minVotes, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
@@ -60,7 +62,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Disabled
 
-    func testDisabledWhenFeatureOff() async {
+    @MainActor func testDisabledWhenFeatureOff() async {
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1"))
         XCTAssertEqual(outcome, .disabled)
@@ -68,7 +70,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Chat-tally Threshold
 
-    func testFirstVoteStartsSession() async {
+    @MainActor func testFirstVoteStartsSession() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         let outcome = await manager.recordVote(context: context(userID: "1"))
@@ -76,7 +78,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(manager.currentVoteState()?.count, 1)
     }
 
-    func testSecondVoterIsCounted() async {
+    @MainActor func testSecondVoterIsCounted() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         _ = await manager.recordVote(context: context(userID: "1"))
@@ -84,7 +86,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .counted(count: 2, needed: 3))
     }
 
-    func testThresholdReachedSkipsAndPasses() async {
+    @MainActor func testThresholdReachedSkipsAndPasses() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         var skipCount = 0
@@ -99,7 +101,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertNil(manager.currentVoteState(), "Session should reset after passing")
     }
 
-    func testMinVotesOnePassesImmediately() async {
+    @MainActor func testMinVotesOnePassesImmediately() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
         var skipped = false
@@ -112,7 +114,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Duplicate Voter
 
-    func testDuplicateVoteIsRejected() async {
+    @MainActor func testDuplicateVoteIsRejected() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         _ = await manager.recordVote(context: context(userID: "1"))
@@ -120,7 +122,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .alreadyVoted(count: 1, needed: 3))
     }
 
-    func testDuplicateVoteDoesNotCrossThreshold() async {
+    @MainActor func testDuplicateVoteDoesNotCrossThreshold() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
         var skipCount = 0
@@ -133,7 +135,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Subscriber-only
 
-    func testSubscriberOnlyRejectsNonSubscriber() async {
+    @MainActor func testSubscriberOnlyRejectsNonSubscriber() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
@@ -141,7 +143,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .subscriberOnly)
     }
 
-    func testSubscriberOnlyAllowsSubscriber() async {
+    @MainActor func testSubscriberOnlyAllowsSubscriber() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
@@ -149,7 +151,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .started(count: 1, needed: 3))
     }
 
-    func testSubscriberOnlyAllowsModerator() async {
+    @MainActor func testSubscriberOnlyAllowsModerator() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
         let manager = SkipVoteManager()
@@ -159,7 +161,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Cooldown
 
-    func testCooldownBlocksRapidReVote() async {
+    @MainActor func testCooldownBlocksRapidReVote() async {
         enableFeature(minVotes: 1, cooldown: 60)
         let manager = SkipVoteManager()
         manager.performSkip = {}
@@ -177,7 +179,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Window Expiry
 
-    func testWindowExpiryFailsSession() async throws {
+    @MainActor func testWindowExpiryFailsSession() async throws {
         enableFeature(minVotes: 5, window: 1)
         let manager = SkipVoteManager()
         var chatMessage: String?
@@ -195,7 +197,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Reset
 
-    func testResetClearsSession() async {
+    @MainActor func testResetClearsSession() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         _ = await manager.recordVote(context: context(userID: "1"))
@@ -205,7 +207,7 @@ final class SkipVoteManagerTests: XCTestCase {
 
     // MARK: - Polls Mode
 
-    func testPollsModeRejectsNonModerator() async {
+    @MainActor func testPollsModeRejectsNonModerator() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
@@ -213,7 +215,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .pollNotAllowed)
     }
 
-    func testPollsModeStartsPollForModerator() async {
+    @MainActor func testPollsModeStartsPollForModerator() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
@@ -222,7 +224,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .pollStarted)
     }
 
-    func testPollsModeFallsBackToChatTallyOnFailure() async {
+    @MainActor func testPollsModeFallsBackToChatTallyOnFailure() async {
         enableFeature(minVotes: 3)
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
         let manager = SkipVoteManager()
@@ -231,7 +233,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertEqual(outcome, .started(count: 1, needed: 3), "Failed poll should fall back to a chat tally")
     }
 
-    func testPollEndedSkipsWhenSkipWins() async {
+    @MainActor func testPollEndedSkipsWhenSkipWins() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
         var skipped = false
@@ -240,7 +242,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertTrue(skipped)
     }
 
-    func testPollEndedDoesNotSkipBelowMinimum() async {
+    @MainActor func testPollEndedDoesNotSkipBelowMinimum() async {
         enableFeature(minVotes: 10)
         let manager = SkipVoteManager()
         var skipped = false
@@ -249,7 +251,7 @@ final class SkipVoteManagerTests: XCTestCase {
         XCTAssertFalse(skipped, "Skip wins but is below the minimum vote threshold")
     }
 
-    func testPollEndedDoesNotSkipWhenKeepWins() async {
+    @MainActor func testPollEndedDoesNotSkipWhenKeepWins() async {
         enableFeature(minVotes: 1)
         let manager = SkipVoteManager()
         var skipped = false

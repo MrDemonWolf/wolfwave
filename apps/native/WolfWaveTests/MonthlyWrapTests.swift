@@ -15,13 +15,13 @@ struct MonthlyWrapTests {
 
     // MARK: - Helpers
 
-    private var calendar: Calendar {
+    private nonisolated(unsafe) var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "UTC")!
         return cal
     }
 
-    private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+    @MainActor private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
         var components = DateComponents()
         components.year = year
         components.month = month
@@ -30,7 +30,7 @@ struct MonthlyWrapTests {
         return calendar.date(from: components)!
     }
 
-    private func record(track: String, artist: String, at date: Date) -> PlayRecord {
+    @MainActor private func record(track: String, artist: String, at date: Date) -> PlayRecord {
         PlayRecord(timestamp: date, track: track, artist: artist, album: "Album",
                    duration: 200, playedSeconds: 180)
     }
@@ -38,7 +38,7 @@ struct MonthlyWrapTests {
     // MARK: - Tests
 
     @Test("Only plays within the target month are counted")
-    func testMonthFiltering() {
+    @MainActor func testMonthFiltering() {
         let records = [
             record(track: "May A", artist: "X", at: date(2026, 5, 3)),
             record(track: "May B", artist: "X", at: date(2026, 5, 20)),
@@ -52,7 +52,7 @@ struct MonthlyWrapTests {
     }
 
     @Test("A month with no plays has no data")
-    func testEmptyMonth() {
+    @MainActor func testEmptyMonth() {
         let records = [record(track: "April", artist: "X", at: date(2026, 4, 10))]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(!wrap.hasData)
@@ -61,7 +61,7 @@ struct MonthlyWrapTests {
     }
 
     @Test("Top artist and track reflect the busiest entries")
-    func testTopEntries() {
+    @MainActor func testTopEntries() {
         let records = [
             record(track: "Hit", artist: "Star", at: date(2026, 5, 1)),
             record(track: "Hit", artist: "Star", at: date(2026, 5, 2)),
@@ -77,7 +77,7 @@ struct MonthlyWrapTests {
     }
 
     @Test("Busiest day is the day with the most plays")
-    func testBusiestDay() {
+    @MainActor func testBusiestDay() {
         let records = [
             record(track: "A", artist: "X", at: date(2026, 5, 10)),
             record(track: "B", artist: "X", at: date(2026, 5, 10)),

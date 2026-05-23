@@ -8,7 +8,7 @@
 import XCTest
 @testable import WolfWave
 
-final class TrackInfoCommandTests: XCTestCase {
+nonisolated final class TrackInfoCommandTests: XCTestCase {
 
     // MARK: - Fixtures
 
@@ -39,7 +39,7 @@ final class TrackInfoCommandTests: XCTestCase {
         trackText: "Daft Punk - One More Time"
     )
 
-    private func makeCommand(_ fixture: Fixture) -> TrackInfoCommand {
+    @MainActor private func makeCommand(_ fixture: Fixture) -> TrackInfoCommand {
         TrackInfoCommand(
             triggers: fixture.triggers,
             description: fixture.description,
@@ -49,7 +49,7 @@ final class TrackInfoCommandTests: XCTestCase {
 
     // MARK: - Shared assertions
 
-    private func assertAllTriggersMatch(_ fixture: Fixture) {
+    @MainActor private func assertAllTriggersMatch(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         for trigger in fixture.triggers {
@@ -57,7 +57,7 @@ final class TrackInfoCommandTests: XCTestCase {
         }
     }
 
-    private func assertCaseInsensitive(_ fixture: Fixture) {
+    @MainActor private func assertCaseInsensitive(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         for trigger in fixture.altCaseTriggers {
@@ -65,44 +65,44 @@ final class TrackInfoCommandTests: XCTestCase {
         }
     }
 
-    private func assertNonMatchingReturnsNil(_ fixture: Fixture) {
+    @MainActor private func assertNonMatchingReturnsNil(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         XCTAssertNil(cmd.execute(message: "hello world"))
     }
 
-    private func assertDefaultMessageWhenNoCallback(_ fixture: Fixture) {
+    @MainActor private func assertDefaultMessageWhenNoCallback(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         XCTAssertEqual(cmd.execute(message: fixture.primaryTrigger), fixture.defaultMessage)
     }
 
-    private func assertCallbackValueReturned(_ fixture: Fixture) {
+    @MainActor private func assertCallbackValueReturned(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { fixture.trackText }
         XCTAssertEqual(cmd.execute(message: fixture.primaryTrigger), fixture.trackText)
     }
 
-    private func assertDisabledReturnsNil(_ fixture: Fixture) {
+    @MainActor private func assertDisabledReturnsNil(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         cmd.isEnabled = { false }
         XCTAssertNil(cmd.execute(message: fixture.primaryTrigger))
     }
 
-    private func assertEnabledReturnsResponse(_ fixture: Fixture) {
+    @MainActor private func assertEnabledReturnsResponse(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         cmd.isEnabled = { true }
         XCTAssertNotNil(cmd.execute(message: fixture.primaryTrigger))
     }
 
-    private func assertDefaultsToEnabled(_ fixture: Fixture) {
+    @MainActor private func assertDefaultsToEnabled(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(cmd.execute(message: fixture.primaryTrigger))
     }
 
-    private func assertLongResponseTruncatedTo500(_ fixture: Fixture) throws {
+    @MainActor private func assertLongResponseTruncatedTo500(_ fixture: Fixture) throws {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { String(repeating: "a", count: 600) }
         let result = try XCTUnwrap(cmd.execute(message: fixture.primaryTrigger))
@@ -110,7 +110,7 @@ final class TrackInfoCommandTests: XCTestCase {
         XCTAssertTrue(result.hasSuffix("..."))
     }
 
-    private func assertExactly500NotTruncated(_ fixture: Fixture) throws {
+    @MainActor private func assertExactly500NotTruncated(_ fixture: Fixture) throws {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { String(repeating: "a", count: 500) }
         let result = try XCTUnwrap(cmd.execute(message: fixture.primaryTrigger))
@@ -118,7 +118,7 @@ final class TrackInfoCommandTests: XCTestCase {
         XCTAssertFalse(result.hasSuffix("..."))
     }
 
-    private func assertBoundary501Truncates(_ fixture: Fixture) throws {
+    @MainActor private func assertBoundary501Truncates(_ fixture: Fixture) throws {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { String(repeating: "b", count: 501) }
         let result = try XCTUnwrap(cmd.execute(message: fixture.primaryTrigger))
@@ -126,40 +126,40 @@ final class TrackInfoCommandTests: XCTestCase {
         XCTAssertTrue(result.hasSuffix("..."))
     }
 
-    private func assertTrailingTextStillMatches(_ fixture: Fixture) {
+    @MainActor private func assertTrailingTextStillMatches(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         cmd.getTrackInfo = { "Artist - Song" }
         XCTAssertNotNil(cmd.execute(message: "\(fixture.primaryTrigger) extra stuff"))
     }
 
-    private func assertTriggersArrayContents(_ fixture: Fixture) {
+    @MainActor private func assertTriggersArrayContents(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         XCTAssertEqual(cmd.triggers, fixture.triggers)
     }
 
-    private func assertDescriptionValue(_ fixture: Fixture) {
+    @MainActor private func assertDescriptionValue(_ fixture: Fixture) {
         let cmd = makeCommand(fixture)
         XCTAssertEqual(cmd.description, fixture.description)
     }
 
     // MARK: - Current Track tests (!song / !currentsong / !nowplaying)
 
-    func testCurrent_allTriggersMatch() { assertAllTriggersMatch(Self.current) }
-    func testCurrent_caseInsensitive() { assertCaseInsensitive(Self.current) }
-    func testCurrent_nonMatchingReturnsNil() { assertNonMatchingReturnsNil(Self.current) }
-    func testCurrent_defaultMessageWhenNoCallback() { assertDefaultMessageWhenNoCallback(Self.current) }
-    func testCurrent_callbackValueReturned() { assertCallbackValueReturned(Self.current) }
-    func testCurrent_disabledReturnsNil() { assertDisabledReturnsNil(Self.current) }
-    func testCurrent_enabledReturnsResponse() { assertEnabledReturnsResponse(Self.current) }
-    func testCurrent_defaultsToEnabled() { assertDefaultsToEnabled(Self.current) }
-    func testCurrent_longResponseTruncatedTo500() throws { try assertLongResponseTruncatedTo500(Self.current) }
-    func testCurrent_exactly500NotTruncated() throws { try assertExactly500NotTruncated(Self.current) }
-    func testCurrent_boundary501Truncates() throws { try assertBoundary501Truncates(Self.current) }
-    func testCurrent_trailingTextStillMatches() { assertTrailingTextStillMatches(Self.current) }
-    func testCurrent_triggersArrayContents() { assertTriggersArrayContents(Self.current) }
-    func testCurrent_descriptionValue() { assertDescriptionValue(Self.current) }
+    @MainActor func testCurrent_allTriggersMatch() { assertAllTriggersMatch(Self.current) }
+    @MainActor func testCurrent_caseInsensitive() { assertCaseInsensitive(Self.current) }
+    @MainActor func testCurrent_nonMatchingReturnsNil() { assertNonMatchingReturnsNil(Self.current) }
+    @MainActor func testCurrent_defaultMessageWhenNoCallback() { assertDefaultMessageWhenNoCallback(Self.current) }
+    @MainActor func testCurrent_callbackValueReturned() { assertCallbackValueReturned(Self.current) }
+    @MainActor func testCurrent_disabledReturnsNil() { assertDisabledReturnsNil(Self.current) }
+    @MainActor func testCurrent_enabledReturnsResponse() { assertEnabledReturnsResponse(Self.current) }
+    @MainActor func testCurrent_defaultsToEnabled() { assertDefaultsToEnabled(Self.current) }
+    @MainActor func testCurrent_longResponseTruncatedTo500() throws { try assertLongResponseTruncatedTo500(Self.current) }
+    @MainActor func testCurrent_exactly500NotTruncated() throws { try assertExactly500NotTruncated(Self.current) }
+    @MainActor func testCurrent_boundary501Truncates() throws { try assertBoundary501Truncates(Self.current) }
+    @MainActor func testCurrent_trailingTextStillMatches() { assertTrailingTextStillMatches(Self.current) }
+    @MainActor func testCurrent_triggersArrayContents() { assertTriggersArrayContents(Self.current) }
+    @MainActor func testCurrent_descriptionValue() { assertDescriptionValue(Self.current) }
 
-    func testCurrent_defaultCooldownValues() throws {
+    @MainActor func testCurrent_defaultCooldownValues() throws {
         let cmd = makeCommand(Self.current)
         XCTAssertEqual(cmd.globalCooldown, 15.0)
         XCTAssertEqual(cmd.userCooldown, 15.0)
@@ -167,16 +167,16 @@ final class TrackInfoCommandTests: XCTestCase {
 
     // MARK: - Last Track tests (!last / !lastsong / !prevsong)
 
-    func testLast_allTriggersMatch() { assertAllTriggersMatch(Self.last) }
-    func testLast_caseInsensitive() { assertCaseInsensitive(Self.last) }
-    func testLast_nonMatchingReturnsNil() { assertNonMatchingReturnsNil(Self.last) }
-    func testLast_defaultMessageWhenNoCallback() { assertDefaultMessageWhenNoCallback(Self.last) }
-    func testLast_callbackValueReturned() { assertCallbackValueReturned(Self.last) }
-    func testLast_disabledReturnsNil() { assertDisabledReturnsNil(Self.last) }
-    func testLast_enabledReturnsResponse() { assertEnabledReturnsResponse(Self.last) }
-    func testLast_defaultsToEnabled() { assertDefaultsToEnabled(Self.last) }
-    func testLast_longResponseTruncatedTo500() throws { try assertLongResponseTruncatedTo500(Self.last) }
-    func testLast_exactly500NotTruncated() throws { try assertExactly500NotTruncated(Self.last) }
-    func testLast_trailingTextStillMatches() { assertTrailingTextStillMatches(Self.last) }
-    func testLast_triggersArrayContents() { assertTriggersArrayContents(Self.last) }
+    @MainActor func testLast_allTriggersMatch() { assertAllTriggersMatch(Self.last) }
+    @MainActor func testLast_caseInsensitive() { assertCaseInsensitive(Self.last) }
+    @MainActor func testLast_nonMatchingReturnsNil() { assertNonMatchingReturnsNil(Self.last) }
+    @MainActor func testLast_defaultMessageWhenNoCallback() { assertDefaultMessageWhenNoCallback(Self.last) }
+    @MainActor func testLast_callbackValueReturned() { assertCallbackValueReturned(Self.last) }
+    @MainActor func testLast_disabledReturnsNil() { assertDisabledReturnsNil(Self.last) }
+    @MainActor func testLast_enabledReturnsResponse() { assertEnabledReturnsResponse(Self.last) }
+    @MainActor func testLast_defaultsToEnabled() { assertDefaultsToEnabled(Self.last) }
+    @MainActor func testLast_longResponseTruncatedTo500() throws { try assertLongResponseTruncatedTo500(Self.last) }
+    @MainActor func testLast_exactly500NotTruncated() throws { try assertExactly500NotTruncated(Self.last) }
+    @MainActor func testLast_trailingTextStillMatches() { assertTrailingTextStillMatches(Self.last) }
+    @MainActor func testLast_triggersArrayContents() { assertTriggersArrayContents(Self.last) }
 }

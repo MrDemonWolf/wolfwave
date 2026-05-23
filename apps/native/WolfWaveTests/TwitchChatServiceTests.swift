@@ -22,7 +22,7 @@ struct TwitchChatServiceTests {
     // MARK: - Initialization Tests
 
     @Test("Service initializes with default values")
-    func testServiceInitialization() async throws {
+    @MainActor func testServiceInitialization() async throws {
         let service = TwitchChatService()
 
         #expect(await service.commandsEnabled == true)
@@ -35,7 +35,7 @@ struct TwitchChatServiceTests {
     // MARK: - Client ID Resolution Tests
     
     @Test("Resolves client ID from Info.plist")
-    func testClientIDResolution() async throws {
+    @MainActor func testClientIDResolution() async throws {
         // This will return nil in test environment, but shouldn't crash
         let clientID = TwitchChatService.resolveClientID()
         
@@ -49,7 +49,7 @@ struct TwitchChatServiceTests {
     // MARK: - Connection Error Tests
     
     @Test("Connection error has correct descriptions")
-    func testConnectionErrorDescriptions() async throws {
+    @MainActor func testConnectionErrorDescriptions() async throws {
         let invalidCreds = TwitchChatService.ConnectionError.invalidCredentials
         #expect(invalidCreds.errorDescription == "Invalid Twitch credentials")
         
@@ -66,7 +66,7 @@ struct TwitchChatServiceTests {
     // MARK: - Bot Identity Tests
     
     @Test("BotIdentity structure stores values correctly")
-    func testBotIdentityStructure() async throws {
+    @MainActor func testBotIdentityStructure() async throws {
         let identity = TwitchChatService.BotIdentity(
             userID: "12345",
             login: "testbot",
@@ -81,7 +81,7 @@ struct TwitchChatServiceTests {
     // MARK: - Chat Message Tests
     
     @Test("ChatMessage structure stores message data correctly")
-    func testChatMessageStructure() async throws {
+    @MainActor func testChatMessageStructure() async throws {
         let badge = TwitchChatService.ChatMessage.Badge(
             setID: "moderator",
             id: "1",
@@ -118,7 +118,7 @@ struct TwitchChatServiceTests {
     // MARK: - Channel Validation Tests
     
     @Test("ChannelValidationResult enum works correctly")
-    func testChannelValidationResult() async throws {
+    @MainActor func testChannelValidationResult() async throws {
         // Test all cases exist and are equatable
         let exists = TwitchChatService.ChannelValidationResult.exists
         let notFound = TwitchChatService.ChannelValidationResult.notFound
@@ -152,7 +152,7 @@ struct TwitchChatServiceTests {
     // MARK: - UserDefaults Integration Tests
     
     @Test("Current song command enabled reads from UserDefaults")
-    func testCurrentSongCommandEnabledUserDefaults() async throws {
+    @MainActor func testCurrentSongCommandEnabledUserDefaults() async throws {
         let service = TwitchChatService()
         
         // Clear any existing value
@@ -178,7 +178,7 @@ struct TwitchChatServiceTests {
     }
     
     @Test("Last song command enabled reads from UserDefaults")
-    func testLastSongCommandEnabledUserDefaults() async throws {
+    @MainActor func testLastSongCommandEnabledUserDefaults() async throws {
         let service = TwitchChatService()
 
         // Clear any existing value
@@ -206,7 +206,7 @@ struct TwitchChatServiceTests {
     // MARK: - Toggle Tests
 
     @Test("Commands enabled toggle works")
-    func testCommandsEnabledToggle() async throws {
+    @MainActor func testCommandsEnabledToggle() async throws {
         let service = TwitchChatService()
         #expect(await service.commandsEnabled == true)
         await service.setCommandsEnabled(false)
@@ -216,7 +216,7 @@ struct TwitchChatServiceTests {
     }
 
     @Test("Debug logging enabled toggle works")
-    func testDebugLoggingEnabledToggle() async throws {
+    @MainActor func testDebugLoggingEnabledToggle() async throws {
         let service = TwitchChatService()
         #expect(await service.debugLoggingEnabled == false)
         await service.setDebugLoggingEnabled(true)
@@ -228,7 +228,7 @@ struct TwitchChatServiceTests {
     // MARK: - Re-initialization Tests
 
     @Test("Service re-initialization does not crash")
-    func testServiceReInitialization() async throws {
+    @MainActor func testServiceReInitialization() async throws {
         var service: TwitchChatService? = TwitchChatService()
         #expect(service != nil)
         service = nil
@@ -239,7 +239,7 @@ struct TwitchChatServiceTests {
     // MARK: - Connection Error Distinctness Tests
 
     @Test("Connection error cases are distinct")
-    func testConnectionErrorCasesAreDistinct() async throws {
+    @MainActor func testConnectionErrorCasesAreDistinct() async throws {
         let errors: [TwitchChatService.ConnectionError] = [
             .invalidCredentials,
             .missingClientID,
@@ -258,7 +258,7 @@ struct TwitchChatServiceTests {
     // MARK: - ChatMessage Edge Case Tests
 
     @Test("ChatMessage with empty badges and nil reply")
-    func testChatMessageEmptyBadgesNilReply() async throws {
+    @MainActor func testChatMessageEmptyBadgesNilReply() async throws {
         let message = TwitchChatService.ChatMessage(
             messageID: "msg-001",
             username: "TestUser",

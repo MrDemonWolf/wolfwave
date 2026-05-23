@@ -8,16 +8,16 @@
 import XCTest
 @testable import WolfWave
 
-final class PowerStateMonitorTests: XCTestCase {
+nonisolated final class PowerStateMonitorTests: XCTestCase {
 
     // MARK: - Initial State Tests
 
-    func testSharedInstanceExists() {
+    @MainActor func testSharedInstanceExists() {
         let monitor = PowerStateMonitor.shared
         XCTAssertNotNil(monitor)
     }
 
-    func testSharedInstanceIsSingleton() {
+    @MainActor func testSharedInstanceIsSingleton() {
         let a = PowerStateMonitor.shared
         let b = PowerStateMonitor.shared
         XCTAssertTrue(a === b)
@@ -25,12 +25,12 @@ final class PowerStateMonitorTests: XCTestCase {
 
     // MARK: - State Property Tests
 
-    func testIsReducedModePropertyAccessible() {
+    @MainActor func testIsReducedModePropertyAccessible() {
         // isReducedMode should be readable without crashing
         let _ = PowerStateMonitor.shared.isReducedMode
     }
 
-    func testIsReducedModeDefaultsToFalse() {
+    @MainActor func testIsReducedModeDefaultsToFalse() {
         // On CI/test runners without Low Power Mode, isReducedMode should be false
         let value = PowerStateMonitor.shared.isReducedMode
         XCTAssertFalse(value, "Expected isReducedMode to be false in test environment")

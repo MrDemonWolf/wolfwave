@@ -8,68 +8,68 @@
 import XCTest
 @testable import WolfWave
 
-final class AppConstantsEdgeCaseTests: XCTestCase {
+nonisolated final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - GitHub URL Resolution Tests
 
-    func testRepoOwnerReturnsFallback() {
+    @MainActor func testRepoOwnerReturnsFallback() {
         // In test environment without Info.plist keys, should fall back to "mrdemonwolf"
         let owner = AppConstants.URLs.repoOwner
         XCTAssertFalse(owner.isEmpty)
         XCTAssertNotEqual(owner, "$(GITHUB_REPO_OWNER)")
     }
 
-    func testRepoNameReturnsFallback() {
+    @MainActor func testRepoNameReturnsFallback() {
         let name = AppConstants.URLs.repoName
         XCTAssertFalse(name.isEmpty)
         XCTAssertNotEqual(name, "$(GITHUB_REPO_NAME)")
     }
 
-    func testGitHubURLIsValidAndParseable() {
+    @MainActor func testGitHubURLIsValidAndParseable() {
         let url = URL(string: AppConstants.URLs.github)
         XCTAssertNotNil(url)
         XCTAssertEqual(url?.scheme, "https")
         XCTAssertEqual(url?.host, "github.com")
     }
 
-    func testGitHubReleasesAPIIsValidAndParseable() throws {
+    @MainActor func testGitHubReleasesAPIIsValidAndParseable() throws {
         let url = try XCTUnwrap(URL(string: AppConstants.URLs.githubReleasesAPI))
         XCTAssertEqual(url.scheme, "https")
         XCTAssertEqual(url.host, "api.github.com")
         XCTAssertTrue(url.path.contains("releases/latest"))
     }
 
-    func testGitHubReleasesURLIsValidAndParseable() throws {
+    @MainActor func testGitHubReleasesURLIsValidAndParseable() throws {
         let url = try XCTUnwrap(URL(string: AppConstants.URLs.githubReleases))
         XCTAssertTrue(url.path.contains("releases"))
     }
 
     // MARK: - Widget Themes & Layouts Tests
 
-    func testWidgetThemesArrayIsNonEmpty() {
+    @MainActor func testWidgetThemesArrayIsNonEmpty() {
         XCTAssertFalse(AppConstants.Widget.themes.isEmpty)
     }
 
-    func testWidgetThemesContainsDefault() {
+    @MainActor func testWidgetThemesContainsDefault() {
         XCTAssertTrue(AppConstants.Widget.themes.contains("Default"))
     }
 
-    func testWidgetLayoutsArrayIsNonEmpty() {
+    @MainActor func testWidgetLayoutsArrayIsNonEmpty() {
         XCTAssertFalse(AppConstants.Widget.layouts.isEmpty)
     }
 
-    func testWidgetLayoutsContainsHorizontal() {
+    @MainActor func testWidgetLayoutsContainsHorizontal() {
         XCTAssertTrue(AppConstants.Widget.layouts.contains("Horizontal"))
     }
 
     // MARK: - SettingsUI Dimensions Tests
 
-    func testSettingsUIDimensionsMinLessOrEqualToIdeal() {
+    @MainActor func testSettingsUIDimensionsMinLessOrEqualToIdeal() {
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, AppConstants.SettingsUI.idealWidth)
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minHeight, AppConstants.SettingsUI.idealHeight)
     }
 
-    func testSettingsUIDimensionsFit720pWithDock() {
+    @MainActor func testSettingsUIDimensionsFit720pWithDock() {
         // Usable height on a 1280x720 display with the Dock visible is ~626pt
         // (720 − 24pt menu bar − ~70pt Dock). Min and ideal must both fit.
         XCTAssertLessThanOrEqual(AppConstants.SettingsUI.minWidth, 1280)
@@ -80,7 +80,7 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - Power Management Tests
 
-    func testReducedIntervalsGreaterThanNormalCounterparts() {
+    @MainActor func testReducedIntervalsGreaterThanNormalCounterparts() {
         // Music: reduced 15s vs normal polling (implied ~5s)
         XCTAssertGreaterThan(AppConstants.PowerManagement.reducedMusicCheckInterval, 5.0)
 
@@ -99,24 +99,24 @@ final class AppConstantsEdgeCaseTests: XCTestCase {
 
     // MARK: - Twitch Constants Edge Cases
 
-    func testMaxReconnectionAttemptsPositive() {
+    @MainActor func testMaxReconnectionAttemptsPositive() {
         XCTAssertGreaterThan(AppConstants.Twitch.maxReconnectionAttempts, 0)
     }
 
-    func testMaxMessageRetriesPositive() {
+    @MainActor func testMaxMessageRetriesPositive() {
         XCTAssertGreaterThan(AppConstants.Twitch.maxMessageRetries, 0)
     }
 
     // MARK: - Discord Constants Edge Cases
 
-    func testReconnectBaseDelayLessThanMaxDelay() {
+    @MainActor func testReconnectBaseDelayLessThanMaxDelay() {
         XCTAssertLessThan(
             AppConstants.Discord.reconnectBaseDelay,
             AppConstants.Discord.reconnectMaxDelay
         )
     }
 
-    func testDiscordIpcSocketSlotsPositive() {
+    @MainActor func testDiscordIpcSocketSlotsPositive() {
         XCTAssertGreaterThan(AppConstants.Discord.ipcSocketSlots, 0)
     }
 }

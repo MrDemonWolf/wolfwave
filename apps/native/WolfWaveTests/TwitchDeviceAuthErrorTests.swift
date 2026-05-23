@@ -8,11 +8,11 @@
 import XCTest
 @testable import WolfWave
 
-final class TwitchDeviceAuthErrorTests: XCTestCase {
+nonisolated final class TwitchDeviceAuthErrorTests: XCTestCase {
 
     // MARK: - LocalizedError Conformance Tests
 
-    func testAllErrorCasesConformToLocalizedError() {
+    @MainActor func testAllErrorCasesConformToLocalizedError() {
         let errors: [TwitchDeviceAuthError] = [
             .invalidResponse,
             .accessDenied,
@@ -32,44 +32,44 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
         }
     }
 
-    func testUnknownEmptyStringReturnsEmptyDescription() {
+    @MainActor func testUnknownEmptyStringReturnsEmptyDescription() {
         let error = TwitchDeviceAuthError.unknown("")
         XCTAssertEqual(error.errorDescription, "")
     }
 
     // MARK: - Error Description Content Tests
 
-    func testInvalidResponseDescription() {
+    @MainActor func testInvalidResponseDescription() {
         let error = TwitchDeviceAuthError.invalidResponse
         XCTAssertEqual(error.errorDescription, "Invalid response from Twitch")
     }
 
-    func testAccessDeniedDescription() {
+    @MainActor func testAccessDeniedDescription() {
         let error = TwitchDeviceAuthError.accessDenied
         XCTAssertEqual(error.errorDescription, "Access denied by user")
     }
 
-    func testExpiredTokenDescription() {
+    @MainActor func testExpiredTokenDescription() {
         let error = TwitchDeviceAuthError.expiredToken
         XCTAssertEqual(error.errorDescription, "Device code expired")
     }
 
-    func testAuthorizationPendingDescription() {
+    @MainActor func testAuthorizationPendingDescription() {
         let error = TwitchDeviceAuthError.authorizationPending
         XCTAssertEqual(error.errorDescription, "Waiting for user authorization")
     }
 
-    func testSlowDownDescription() {
+    @MainActor func testSlowDownDescription() {
         let error = TwitchDeviceAuthError.slowDown
         XCTAssertEqual(error.errorDescription, "Polling too quickly")
     }
 
-    func testInvalidClientDescription() {
+    @MainActor func testInvalidClientDescription() {
         let error = TwitchDeviceAuthError.invalidClient
         XCTAssertEqual(error.errorDescription, "Invalid client credentials")
     }
 
-    func testUnknownCustomMessageDescription() {
+    @MainActor func testUnknownCustomMessageDescription() {
         let msg = "Something went wrong"
         let error = TwitchDeviceAuthError.unknown(msg)
         XCTAssertEqual(error.errorDescription, msg)
@@ -77,7 +77,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
 
     // MARK: - Human Readability Tests
 
-    func testErrorDescriptionsAreHumanReadable() {
+    @MainActor func testErrorDescriptionsAreHumanReadable() {
         let errors: [TwitchDeviceAuthError] = [
             .invalidResponse,
             .accessDenied,
@@ -102,7 +102,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
 
     // MARK: - TwitchDeviceCodeResponse Boundary Tests
 
-    func testDeviceCodeResponseWithZeroExpiresIn() {
+    @MainActor func testDeviceCodeResponseWithZeroExpiresIn() {
         let response = TwitchDeviceCodeResponse(
             deviceCode: "device123",
             userCode: "ABCD-1234",
@@ -114,7 +114,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
         XCTAssertEqual(response.expiresIn, 0)
     }
 
-    func testDeviceCodeResponseWithMinimalInterval() {
+    @MainActor func testDeviceCodeResponseWithMinimalInterval() {
         let response = TwitchDeviceCodeResponse(
             deviceCode: "device123",
             userCode: "ABCD-1234",
@@ -126,7 +126,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
         XCTAssertEqual(response.interval, 1)
     }
 
-    func testDeviceCodeResponseWithEmptyUserCode() {
+    @MainActor func testDeviceCodeResponseWithEmptyUserCode() {
         let response = TwitchDeviceCodeResponse(
             deviceCode: "device123",
             userCode: "",

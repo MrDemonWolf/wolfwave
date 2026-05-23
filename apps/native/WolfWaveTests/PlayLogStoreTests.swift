@@ -16,14 +16,14 @@ struct PlayLogStoreTests {
     // MARK: - Helpers
 
     /// Creates a fresh, unique temporary directory for an isolated store.
-    private func makeTempDirectory() -> URL {
+    @MainActor private func makeTempDirectory() -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("playlog-test-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
-    private func sampleRecord(track: String, artist: String = "The Weeknd") -> PlayRecord {
+    @MainActor private func sampleRecord(track: String, artist: String = "The Weeknd") -> PlayRecord {
         PlayRecord(
             timestamp: Date(timeIntervalSince1970: 1_716_000_000),
             track: track,
@@ -37,7 +37,7 @@ struct PlayLogStoreTests {
     // MARK: - Append & Load
 
     @Test("Appended records are loaded back in order")
-    func testAppendAndLoad() async throws {
+    @MainActor func testAppendAndLoad() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
 
@@ -54,7 +54,7 @@ struct PlayLogStoreTests {
     }
 
     @Test("Loading an absent log returns an empty array")
-    func testLoadEmpty() async throws {
+    @MainActor func testLoadEmpty() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
         #expect(store.loadAll().isEmpty)
@@ -62,7 +62,7 @@ struct PlayLogStoreTests {
     }
 
     @Test("Record fields survive an encode/decode round trip")
-    func testRoundTrip() async throws {
+    @MainActor func testRoundTrip() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
 
@@ -84,7 +84,7 @@ struct PlayLogStoreTests {
     // MARK: - Malformed Lines
 
     @Test("Malformed lines are skipped, valid lines survive")
-    func testMalformedLinesSkipped() async throws {
+    @MainActor func testMalformedLinesSkipped() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
         store.append(sampleRecord(track: "Good Line"))
@@ -107,7 +107,7 @@ struct PlayLogStoreTests {
     // MARK: - Replace & Clear
 
     @Test("replaceAll rewrites the log with exactly the given records")
-    func testReplaceAll() async throws {
+    @MainActor func testReplaceAll() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
         store.append(sampleRecord(track: "Old 1"))
@@ -123,7 +123,7 @@ struct PlayLogStoreTests {
     }
 
     @Test("clear empties the log")
-    func testClear() async throws {
+    @MainActor func testClear() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
         store.append(sampleRecord(track: "Doomed"))
@@ -136,7 +136,7 @@ struct PlayLogStoreTests {
     }
 
     @Test("Appends still work after a replaceAll")
-    func testAppendAfterReplace() async throws {
+    @MainActor func testAppendAfterReplace() async throws {
         let dir = makeTempDirectory()
         let store = PlayLogStore(directory: dir)
         store.append(sampleRecord(track: "First"))

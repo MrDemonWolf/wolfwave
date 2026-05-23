@@ -9,11 +9,11 @@ import XCTest
 
 @testable import WolfWave
 
-final class TwitchBitsParsingTests: XCTestCase {
+nonisolated final class TwitchBitsParsingTests: XCTestCase {
 
     // MARK: - cleanBitsMessage with fragments
 
-    func testCleanBitsMessageJoinsTextFragments() {
+    @MainActor func testCleanBitsMessageJoinsTextFragments() {
         let message: [String: Any] = [
             "text": "Cheer100 Bohemian Rhapsody",
             "fragments": [
@@ -25,7 +25,7 @@ final class TwitchBitsParsingTests: XCTestCase {
             TwitchChatService.cleanBitsMessage(message), "Bohemian Rhapsody")
     }
 
-    func testCleanBitsMessageHandlesMultipleTextFragments() {
+    @MainActor func testCleanBitsMessageHandlesMultipleTextFragments() {
         let message: [String: Any] = [
             "text": "Cheer50 take Cheer100 on me",
             "fragments": [
@@ -39,11 +39,11 @@ final class TwitchBitsParsingTests: XCTestCase {
             TwitchChatService.cleanBitsMessage(message), "take  on me")
     }
 
-    func testCleanBitsMessageReturnsEmptyForNil() {
+    @MainActor func testCleanBitsMessageReturnsEmptyForNil() {
         XCTAssertEqual(TwitchChatService.cleanBitsMessage(nil), "")
     }
 
-    func testCleanBitsMessageFallsBackToStrippingWhenFragmentsMissing() {
+    @MainActor func testCleanBitsMessageFallsBackToStrippingWhenFragmentsMissing() {
         let message: [String: Any] = ["text": "Cheer250 Africa by Toto"]
         XCTAssertEqual(
             TwitchChatService.cleanBitsMessage(message), "Africa by Toto")
@@ -51,28 +51,28 @@ final class TwitchBitsParsingTests: XCTestCase {
 
     // MARK: - stripLeadingCheermotes
 
-    func testStripLeadingCheermotesRemovesSingleToken() {
+    @MainActor func testStripLeadingCheermotesRemovesSingleToken() {
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("Cheer100 Bohemian Rhapsody"),
             "Bohemian Rhapsody")
     }
 
-    func testStripLeadingCheermotesRemovesMultipleTokens() {
+    @MainActor func testStripLeadingCheermotesRemovesMultipleTokens() {
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("Cheer100 Cheer50 Africa"), "Africa")
     }
 
-    func testStripLeadingCheermotesIsCaseInsensitive() {
+    @MainActor func testStripLeadingCheermotesIsCaseInsensitive() {
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("cheer250 Wonderwall"), "Wonderwall")
     }
 
-    func testStripLeadingCheermotesLeavesNonCheermoteTextUnchanged() {
+    @MainActor func testStripLeadingCheermotesLeavesNonCheermoteTextUnchanged() {
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("Bohemian Rhapsody"), "Bohemian Rhapsody")
     }
 
-    func testStripLeadingCheermotesDoesNotStripMidString() {
+    @MainActor func testStripLeadingCheermotesDoesNotStripMidString() {
         // "U2 One" should NOT be treated as a cheermote — the strip only matches at the start.
         XCTAssertEqual(
             TwitchChatService.stripLeadingCheermotes("Beautiful Day by U2"), "Beautiful Day by U2")

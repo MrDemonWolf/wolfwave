@@ -14,37 +14,39 @@ import XCTest
 /// Covers `DiagnosticsService` opt-in state and the anonymous launch counter.
 /// Each test uses an isolated `UserDefaults` suite; the MetricKit subscription
 /// itself is not exercised (it has process-wide side effects).
-final class DiagnosticsServiceTests: XCTestCase {
+nonisolated final class DiagnosticsServiceTests: XCTestCase {
 
-    private var suiteName: String!
-    private var defaults: UserDefaults!
-    private var service: DiagnosticsService!
+    private nonisolated(unsafe) var suiteName: String!
+    private nonisolated(unsafe) var defaults: UserDefaults!
+    private nonisolated(unsafe) var service: DiagnosticsService!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         suiteName = "DiagnosticsServiceTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         service = DiagnosticsService(defaults: defaults)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suiteName)
         service = nil
         defaults = nil
         suiteName = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
-    func testDiagnosticsAreDisabledByDefault() {
+    @MainActor func testDiagnosticsAreDisabledByDefault() {
         XCTAssertFalse(service.isEnabled, "Diagnostics opt-in must default to off")
     }
 
-    func testIsEnabledReflectsStoredPreference() {
+    @MainActor func testIsEnabledReflectsStoredPreference() {
         defaults.set(true, forKey: AppConstants.UserDefaults.shareDiagnosticsEnabled)
         XCTAssertTrue(service.isEnabled)
     }
 
-    func testRecordAppLaunchIncrementsCounter() {
+    @MainActor func testRecordAppLaunchIncrementsCounter() {
         XCTAssertEqual(service.launchCount, 0)
 
         service.recordAppLaunch()
@@ -54,12 +56,12 @@ final class DiagnosticsServiceTests: XCTestCase {
         XCTAssertEqual(service.launchCount, 3)
     }
 
-    func testPayloadDirectoryIsScopedToWolfWave() {
+    @MainActor func testPayloadDirectoryIsScopedToWolfWave() {
         let path = service.payloadDirectory.path
         XCTAssertTrue(path.contains("WolfWave/Diagnostics"), "Unexpected payload path: \(path)")
     }
 
-    func testDiagnosticSummaryStartsNil() {
+    @MainActor func testDiagnosticSummaryStartsNil() {
         XCTAssertNil(service.diagnosticSummary)
     }
 }

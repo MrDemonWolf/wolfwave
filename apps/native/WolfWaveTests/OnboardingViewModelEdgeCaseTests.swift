@@ -8,30 +8,31 @@
 import XCTest
 @testable import WolfWave
 
-@MainActor
-final class OnboardingViewModelEdgeCaseTests: XCTestCase {
-    var viewModel: OnboardingViewModel?
+nonisolated final class OnboardingViewModelEdgeCaseTests: XCTestCase {
+    nonisolated(unsafe) var viewModel: OnboardingViewModel?
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         viewModel = OnboardingViewModel()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Completion State Tests
 
-    func testShowCompletionIsFalseInitially() {
+    @MainActor func testShowCompletionIsFalseInitially() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         XCTAssertFalse(viewModel.showCompletion)
     }
 
-    func testShowCompletionIsTrueAfterCompleteOnboarding() {
+    @MainActor func testShowCompletionIsTrueAfterCompleteOnboarding() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         viewModel.completeOnboarding()
         XCTAssertTrue(viewModel.showCompletion)
@@ -39,7 +40,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
 
     // MARK: - Rapid Navigation Tests
 
-    func testRapidForwardNavigationStaysAtBoundary() {
+    @MainActor func testRapidForwardNavigationStaysAtBoundary() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToNextStep()
@@ -48,7 +49,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
         XCTAssertTrue(viewModel.isLastStep)
     }
 
-    func testRapidBackwardNavigationStaysAtBoundary() {
+    @MainActor func testRapidBackwardNavigationStaysAtBoundary() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToPreviousStep()
@@ -57,7 +58,7 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
         XCTAssertTrue(viewModel.isFirstStep)
     }
 
-    func testRapidForwardThenBackwardReturnsToStart() {
+    @MainActor func testRapidForwardThenBackwardReturnsToStart() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         for _ in 0..<10 {
             viewModel.goToNextStep()
@@ -70,14 +71,14 @@ final class OnboardingViewModelEdgeCaseTests: XCTestCase {
 
     // MARK: - Step Enum Tests
 
-    func testStepRawValuesAreContiguous() {
+    @MainActor func testStepRawValuesAreContiguous() {
         let allCases = OnboardingViewModel.OnboardingStep.allCases
         for (index, step) in allCases.enumerated() {
             XCTAssertEqual(step.rawValue, index, "Step \(step) should have rawValue \(index)")
         }
     }
 
-    func testAllCasesCountEqualsTotalSteps() {
+    @MainActor func testAllCasesCountEqualsTotalSteps() {
         guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
         XCTAssertEqual(
             OnboardingViewModel.OnboardingStep.allCases.count,

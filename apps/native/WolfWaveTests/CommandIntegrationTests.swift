@@ -8,11 +8,11 @@
 import XCTest
 @testable import WolfWave
 
-final class CommandIntegrationTests: XCTestCase {
-    var dispatcher: BotCommandDispatcher!
+nonisolated final class CommandIntegrationTests: XCTestCase {
+    nonisolated(unsafe) var dispatcher: BotCommandDispatcher!
 
     /// Removes all cooldown and enable/disable keys from UserDefaults to ensure test isolation.
-    private func clearCommandDefaults() {
+    @MainActor private func clearCommandDefaults() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
@@ -22,40 +22,42 @@ final class CommandIntegrationTests: XCTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
     }
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         dispatcher = BotCommandDispatcher()
         clearCommandDefaults()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         clearCommandDefaults()
         dispatcher = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Full Flow Tests
 
-    func testFullFlowSongCommand() {
+    @MainActor func testFullFlowSongCommand() {
         dispatcher.setCurrentSongInfo { "Daft Punk - Around The World" }
         let result = dispatcher.processMessage("!song", userID: "user1")
         XCTAssertEqual(result, "Daft Punk - Around The World")
     }
 
-    func testFullFlowLastSongCommand() {
+    @MainActor func testFullFlowLastSongCommand() {
         dispatcher.setLastSongInfo { "Queen - Bohemian Rhapsody" }
         let result = dispatcher.processMessage("!last", userID: "user1")
         XCTAssertEqual(result, "Queen - Bohemian Rhapsody")
     }
 
-    func testNoCallbackReturnsDefaultMessage() {
+    @MainActor func testNoCallbackReturnsDefaultMessage() {
         let result = dispatcher.processMessage("!song", userID: "user1")
         XCTAssertEqual(result, "No track currently playing")
     }
 
     // MARK: - Cooldown Blocking Tests
 
-    func testCooldownBlocksSecondRapidCall() {
+    @MainActor func testCooldownBlocksSecondRapidCall() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -71,7 +73,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Cross-Command Isolation Tests
 
-    func testCrossCommandIsolation() {
+    @MainActor func testCrossCommandIsolation() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         dispatcher.setLastSongInfo { "Previous - Track" }
 
@@ -90,7 +92,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Enable/Disable Mid-Flow Tests
 
-    func testEnableDisableMidFlow() {
+    @MainActor func testEnableDisableMidFlow() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         dispatcher.setCurrentSongCommandEnabled { true }
 
@@ -107,7 +109,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Response Truncation Through Full Pipeline
 
-    func testResponseTruncationThroughPipeline() {
+    @MainActor func testResponseTruncationThroughPipeline() {
         let longString = String(repeating: "a", count: 600)
         dispatcher.setCurrentSongInfo { longString }
 
@@ -122,7 +124,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Multi-User Cooldown Tests
 
-    func testMultipleUsersWithCooldowns() {
+    @MainActor func testMultipleUsersWithCooldowns() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -141,7 +143,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Broadcaster Bypass Tests
 
-    func testBroadcasterBypassThroughPipeline() {
+    @MainActor func testBroadcasterBypassThroughPipeline() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -157,7 +159,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Reset Cooldowns Tests
 
-    func testResetCooldownsClearsAllState() {
+    @MainActor func testResetCooldownsClearsAllState() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -178,7 +180,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Zero Cooldown Tests
 
-    func testZeroCooldownNeverBlocks() {
+    @MainActor func testZeroCooldownNeverBlocks() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -194,7 +196,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Alias Through Full Pipeline Tests
 
-    func testAllSongAliasesWorkThroughPipeline() {
+    @MainActor func testAllSongAliasesWorkThroughPipeline() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
 
         let defaults = UserDefaults.standard
@@ -206,7 +208,7 @@ final class CommandIntegrationTests: XCTestCase {
         XCTAssertNotNil(dispatcher.processMessage("!nowplaying", userID: "u3"))
     }
 
-    func testAllLastAliasesWorkThroughPipeline() {
+    @MainActor func testAllLastAliasesWorkThroughPipeline() {
         dispatcher.setLastSongInfo { "Previous - Track" }
 
         let defaults = UserDefaults.standard
@@ -220,7 +222,7 @@ final class CommandIntegrationTests: XCTestCase {
 
     // MARK: - Non-Command Message Short Circuit
 
-    func testNonCommandMessageShortCircuits() {
+    @MainActor func testNonCommandMessageShortCircuits() {
         dispatcher.setCurrentSongInfo { "Artist - Song" }
         XCTAssertNil(dispatcher.processMessage("hello world", userID: "user1"))
         XCTAssertNil(dispatcher.processMessage("", userID: "user1"))

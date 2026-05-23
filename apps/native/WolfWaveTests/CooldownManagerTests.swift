@@ -8,22 +8,24 @@
 import XCTest
 @testable import WolfWave
 
-final class CooldownManagerTests: XCTestCase {
-    var manager: CooldownManager!
+nonisolated final class CooldownManagerTests: XCTestCase {
+    nonisolated(unsafe) var manager: CooldownManager!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         manager = CooldownManager()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         manager = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - No Cooldown Tests
 
-    func testFirstUseIsNotOnCooldown() {
+    @MainActor func testFirstUseIsNotOnCooldown() {
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "user1", isModerator: false,
             globalCooldown: 5.0, userCooldown: 10.0
@@ -31,7 +33,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    func testZeroCooldownsNeverBlock() {
+    @MainActor func testZeroCooldownsNeverBlock() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "user1", isModerator: false,
@@ -42,7 +44,7 @@ final class CooldownManagerTests: XCTestCase {
 
     // MARK: - Global Cooldown Tests
 
-    func testGlobalCooldownBlocksAllUsers() {
+    @MainActor func testGlobalCooldownBlocksAllUsers() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "user2", isModerator: false,
@@ -51,7 +53,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertTrue(result)
     }
 
-    func testGlobalCooldownDoesNotBlockDifferentTrigger() {
+    @MainActor func testGlobalCooldownDoesNotBlockDifferentTrigger() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!last", userID: "user1", isModerator: false,
@@ -62,7 +64,7 @@ final class CooldownManagerTests: XCTestCase {
 
     // MARK: - Per-User Cooldown Tests
 
-    func testUserCooldownBlocksSameUser() {
+    @MainActor func testUserCooldownBlocksSameUser() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "user1", isModerator: false,
@@ -71,7 +73,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertTrue(result)
     }
 
-    func testUserCooldownDoesNotBlockDifferentUser() {
+    @MainActor func testUserCooldownDoesNotBlockDifferentUser() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "user2", isModerator: false,
@@ -82,7 +84,7 @@ final class CooldownManagerTests: XCTestCase {
 
     // MARK: - Moderator Bypass Tests
 
-    func testModeratorBypassesGlobalCooldown() {
+    @MainActor func testModeratorBypassesGlobalCooldown() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "mod1", isModerator: true,
@@ -91,7 +93,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    func testModeratorBypassesUserCooldown() {
+    @MainActor func testModeratorBypassesUserCooldown() {
         manager.recordUse(trigger: "!song", userID: "mod1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "mod1", isModerator: true,
@@ -100,7 +102,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    func testModeratorBypassesBothCooldowns() {
+    @MainActor func testModeratorBypassesBothCooldowns() {
         manager.recordUse(trigger: "!song", userID: "mod1")
         let result = manager.isOnCooldown(
             trigger: "!song", userID: "mod1", isModerator: true,
@@ -111,7 +113,7 @@ final class CooldownManagerTests: XCTestCase {
 
     // MARK: - Reset Tests
 
-    func testResetClearsAllCooldowns() {
+    @MainActor func testResetClearsAllCooldowns() {
         manager.recordUse(trigger: "!song", userID: "user1")
         manager.recordUse(trigger: "!last", userID: "user2")
         manager.reset()
@@ -128,7 +130,7 @@ final class CooldownManagerTests: XCTestCase {
 
     // MARK: - Remaining Cooldown Tests
 
-    func testRemainingCooldownForNeverUsedTrigger() {
+    @MainActor func testRemainingCooldownForNeverUsedTrigger() {
         let remaining = manager.remainingCooldown(
             trigger: "!unused", userID: "user1",
             globalCooldown: 15.0, userCooldown: 15.0
@@ -137,7 +139,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertEqual(remaining.perUser, 0)
     }
 
-    func testRemainingCooldownForRecentlyUsedTrigger() {
+    @MainActor func testRemainingCooldownForRecentlyUsedTrigger() {
         manager.recordUse(trigger: "!song", userID: "user1")
         let remaining = manager.remainingCooldown(
             trigger: "!song", userID: "user1",
@@ -147,7 +149,7 @@ final class CooldownManagerTests: XCTestCase {
         XCTAssertGreaterThan(remaining.perUser, 0)
     }
 
-    func testResetThenIsOnCooldownReturnsFalse() {
+    @MainActor func testResetThenIsOnCooldownReturnsFalse() {
         manager.recordUse(trigger: "!song", userID: "user1")
         XCTAssertTrue(manager.isOnCooldown(
             trigger: "!song", userID: "user1", isModerator: false,

@@ -1,56 +1,56 @@
 import XCTest
 @testable import WolfWave
 
-final class BundleInstallMethodTests: XCTestCase {
+nonisolated final class BundleInstallMethodTests: XCTestCase {
 
     // MARK: - DMG / Non-Homebrew Paths
 
-    func testApplicationsPathIsNotHomebrew() {
+    @MainActor func testApplicationsPathIsNotHomebrew() {
         XCTAssertFalse(Bundle.isHomebrewPath("/Applications/WolfWave.app"))
     }
 
-    func testDownloadsPathIsNotHomebrew() {
+    @MainActor func testDownloadsPathIsNotHomebrew() {
         XCTAssertFalse(Bundle.isHomebrewPath("/Users/alice/Downloads/WolfWave.app"))
     }
 
-    func testUserApplicationsPathIsNotHomebrew() {
+    @MainActor func testUserApplicationsPathIsNotHomebrew() {
         XCTAssertFalse(Bundle.isHomebrewPath("/Users/alice/Applications/WolfWave.app"))
     }
 
-    func testEmptyPathIsNotHomebrew() {
+    @MainActor func testEmptyPathIsNotHomebrew() {
         XCTAssertFalse(Bundle.isHomebrewPath(""))
     }
 
     // MARK: - Apple Silicon Homebrew
 
-    func testAppleSiliconCaskroomIsHomebrew() {
+    @MainActor func testAppleSiliconCaskroomIsHomebrew() {
         XCTAssertTrue(Bundle.isHomebrewPath("/opt/homebrew/Caskroom/wolfwave/1.0.0/WolfWave.app"))
     }
 
-    func testAppleSiliconCellarIsHomebrew() {
+    @MainActor func testAppleSiliconCellarIsHomebrew() {
         XCTAssertTrue(Bundle.isHomebrewPath("/opt/homebrew/Cellar/something/1.0/bin"))
     }
 
     // MARK: - Intel Homebrew
 
-    func testIntelCaskroomIsHomebrew() {
+    @MainActor func testIntelCaskroomIsHomebrew() {
         // Regression guard: previously misclassified as DMG install.
         XCTAssertTrue(Bundle.isHomebrewPath("/usr/local/Caskroom/wolfwave/1.0.0/WolfWave.app"))
     }
 
-    func testIntelCellarIsHomebrew() {
+    @MainActor func testIntelCellarIsHomebrew() {
         XCTAssertTrue(Bundle.isHomebrewPath("/usr/local/Cellar/something/1.0/bin"))
     }
 
     // MARK: - Custom Prefix
 
-    func testCustomHomebrewPrefixIsHomebrew() {
+    @MainActor func testCustomHomebrewPrefixIsHomebrew() {
         XCTAssertTrue(Bundle.isHomebrewPath("/Users/alice/Homebrew/Caskroom/wolfwave/1.0.0/WolfWave.app"))
     }
 
     // MARK: - Bundle.main accessor compiles
 
-    func testMainBundleAccessorReturnsBool() {
+    @MainActor func testMainBundleAccessorReturnsBool() {
         _ = Bundle.main.isHomebrewInstall
     }
 }

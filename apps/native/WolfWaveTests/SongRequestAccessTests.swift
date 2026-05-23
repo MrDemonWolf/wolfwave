@@ -11,33 +11,33 @@ import XCTest
 
 // MARK: - RequestAudience
 
-final class RequestAudienceTests: XCTestCase {
+nonisolated final class RequestAudienceTests: XCTestCase {
 
-    func testEveryonePermitsAnyViewer() {
+    @MainActor func testEveryonePermitsAnyViewer() {
         XCTAssertTrue(
             RequestAudience.everyone.permits(
                 isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false))
     }
 
-    func testSubscribersBlocksRegularViewer() {
+    @MainActor func testSubscribersBlocksRegularViewer() {
         XCTAssertFalse(
             RequestAudience.subscribers.permits(
                 isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false))
     }
 
-    func testSubscribersAllowsSubscriber() {
+    @MainActor func testSubscribersAllowsSubscriber() {
         XCTAssertTrue(
             RequestAudience.subscribers.permits(
                 isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false))
     }
 
-    func testSubscribersBlocksVIP() {
+    @MainActor func testSubscribersBlocksVIP() {
         XCTAssertFalse(
             RequestAudience.subscribers.permits(
                 isSubscriber: false, isVIP: true, isModerator: false, isBroadcaster: false))
     }
 
-    func testVipsAndSubsAllowsVIPAndSubscriber() {
+    @MainActor func testVipsAndSubsAllowsVIPAndSubscriber() {
         let audience = RequestAudience.vipsAndSubs
         XCTAssertTrue(
             audience.permits(
@@ -47,19 +47,19 @@ final class RequestAudienceTests: XCTestCase {
                 isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false))
     }
 
-    func testVipsAndSubsBlocksRegularViewer() {
+    @MainActor func testVipsAndSubsBlocksRegularViewer() {
         XCTAssertFalse(
             RequestAudience.vipsAndSubs.permits(
                 isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false))
     }
 
-    func testModsOnlyBlocksSubscriberAndVIP() {
+    @MainActor func testModsOnlyBlocksSubscriberAndVIP() {
         XCTAssertFalse(
             RequestAudience.modsOnly.permits(
                 isSubscriber: true, isVIP: true, isModerator: false, isBroadcaster: false))
     }
 
-    func testModeratorAlwaysPermittedRegardlessOfAudience() {
+    @MainActor func testModeratorAlwaysPermittedRegardlessOfAudience() {
         for audience in RequestAudience.allCases {
             XCTAssertTrue(
                 audience.permits(
@@ -68,7 +68,7 @@ final class RequestAudienceTests: XCTestCase {
         }
     }
 
-    func testBroadcasterAlwaysPermittedRegardlessOfAudience() {
+    @MainActor func testBroadcasterAlwaysPermittedRegardlessOfAudience() {
         for audience in RequestAudience.allCases {
             XCTAssertTrue(
                 audience.permits(
@@ -77,7 +77,7 @@ final class RequestAudienceTests: XCTestCase {
         }
     }
 
-    func testRawValueRoundTrips() {
+    @MainActor func testRawValueRoundTrips() {
         for audience in RequestAudience.allCases {
             XCTAssertEqual(RequestAudience(rawValue: audience.rawValue), audience)
         }
@@ -86,23 +86,25 @@ final class RequestAudienceTests: XCTestCase {
 
 // MARK: - SongRequestPreset
 
-final class SongRequestPresetTests: XCTestCase {
+nonisolated final class SongRequestPresetTests: XCTestCase {
 
-    private var defaults: UserDefaults!
+    private nonisolated(unsafe) var defaults: UserDefaults!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         defaults = UserDefaults(suiteName: "SongRequestPresetTests")
         defaults.removePersistentDomain(forName: "SongRequestPresetTests")
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: "SongRequestPresetTests")
         defaults = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
-    func testApplyOpenPresetWritesExpectedKeys() {
+    @MainActor func testApplyOpenPresetWritesExpectedKeys() {
         SongRequestPreset.open.apply(to: defaults)
 
         XCTAssertEqual(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled), true)
@@ -114,14 +116,14 @@ final class SongRequestPresetTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
     }
 
-    func testApplyPaidOnlyDisablesChatCommand() {
+    @MainActor func testApplyPaidOnlyDisablesChatCommand() {
         SongRequestPreset.paidOnly.apply(to: defaults)
         XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.srCommandEnabled))
         XCTAssertTrue(
             defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled))
     }
 
-    func testApplySubsStrictDisablesRedemptions() {
+    @MainActor func testApplySubsStrictDisablesRedemptions() {
         SongRequestPreset.subsStrict.apply(to: defaults)
         XCTAssertEqual(
             defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience),
@@ -131,7 +133,7 @@ final class SongRequestPresetTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
     }
 
-    func testCurrentDetectsAppliedPreset() {
+    @MainActor func testCurrentDetectsAppliedPreset() {
         for preset in SongRequestPreset.allCases {
             preset.apply(to: defaults)
             XCTAssertEqual(
@@ -140,7 +142,7 @@ final class SongRequestPresetTests: XCTestCase {
         }
     }
 
-    func testCurrentReturnsNilForCustomConfiguration() {
+    @MainActor func testCurrentReturnsNilForCustomConfiguration() {
         SongRequestPreset.open.apply(to: defaults)
         // Diverge from every preset: open audience but redemptions off.
         defaults.set(false, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
@@ -151,19 +153,19 @@ final class SongRequestPresetTests: XCTestCase {
 
 // MARK: - RedemptionStatus
 
-final class RedemptionStatusTests: XCTestCase {
+nonisolated final class RedemptionStatusTests: XCTestCase {
 
-    func testOkHasNoBanner() {
+    @MainActor func testOkHasNoBanner() {
         XCTAssertNil(RedemptionStatus.ok.bannerMessage)
     }
 
-    func testProblemStatusesHaveBanner() {
+    @MainActor func testProblemStatusesHaveBanner() {
         XCTAssertNotNil(RedemptionStatus.scopeMissing.bannerMessage)
         XCTAssertNotNil(RedemptionStatus.botAccount.bannerMessage)
         XCTAssertNotNil(RedemptionStatus.subscribeFailed.bannerMessage)
     }
 
-    func testRawValueRoundTrips() {
+    @MainActor func testRawValueRoundTrips() {
         XCTAssertEqual(RedemptionStatus(rawValue: "ok"), .ok)
         XCTAssertEqual(RedemptionStatus(rawValue: "botAccount"), .botAccount)
     }

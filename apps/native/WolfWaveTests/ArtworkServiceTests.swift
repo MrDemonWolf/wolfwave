@@ -8,45 +8,47 @@
 import XCTest
 @testable import WolfWave
 
-final class ArtworkServiceTests: XCTestCase {
-    var service: ArtworkService!
+nonisolated final class ArtworkServiceTests: XCTestCase {
+    nonisolated(unsafe) var service: ArtworkService!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         service = ArtworkService()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         service = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Cache Tests
 
-    func testCachedArtworkURLReturnsNilOnMiss() {
+    @MainActor func testCachedArtworkURLReturnsNilOnMiss() {
         let result = service.cachedArtworkURL(track: "Nonexistent", artist: "Nobody")
         XCTAssertNil(result)
     }
 
-    func testCacheKeyUsesArtistPipeTrack() {
+    @MainActor func testCacheKeyUsesArtistPipeTrack() {
         // After fetching, the cache key format is "artist|track"
         // Without a network call, the cache should be empty
         XCTAssertNil(service.cachedArtworkURL(track: "Song", artist: "Artist"))
     }
 
-    func testDifferentTracksHaveSeparateCacheEntries() {
+    @MainActor func testDifferentTracksHaveSeparateCacheEntries() {
         XCTAssertNil(service.cachedArtworkURL(track: "Song A", artist: "Artist"))
         XCTAssertNil(service.cachedArtworkURL(track: "Song B", artist: "Artist"))
     }
 
-    func testDifferentArtistsHaveSeparateCacheEntries() {
+    @MainActor func testDifferentArtistsHaveSeparateCacheEntries() {
         XCTAssertNil(service.cachedArtworkURL(track: "Song", artist: "Artist A"))
         XCTAssertNil(service.cachedArtworkURL(track: "Song", artist: "Artist B"))
     }
 
     // MARK: - URL Construction Tests
 
-    func testFetchWithEmptyTrackCallsCompletion() {
+    @MainActor func testFetchWithEmptyTrackCallsCompletion() {
         let expectation = expectation(description: "completion called")
         service.fetchArtworkURL(track: "", artist: "") { _ in
             expectation.fulfill()
@@ -54,7 +56,7 @@ final class ArtworkServiceTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func testFetchArtworkURLCallsCompletion() {
+    @MainActor func testFetchArtworkURLCallsCompletion() {
         let expectation = expectation(description: "completion called")
         service.fetchArtworkURL(track: "Test", artist: "Test") { _ in
             expectation.fulfill()

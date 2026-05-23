@@ -16,7 +16,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - Initialization Tests
 
     @Test("TwitchDeviceAuth initializes with correct values")
-    func testInitialization() async throws {
+    @MainActor func testInitialization() async throws {
         let clientID = "test_client_id"
         let scopes = ["user:read:chat", "user:write:chat"]
 
@@ -29,7 +29,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - Device Code Response Tests
 
     @Test("TwitchDeviceCodeResponse structure stores values correctly")
-    func testDeviceCodeResponse() async throws {
+    @MainActor func testDeviceCodeResponse() async throws {
         let response = TwitchDeviceCodeResponse(
             deviceCode: "DEVICE123",
             userCode: "ABCD-EFGH",
@@ -48,7 +48,7 @@ struct TwitchDeviceAuthTests {
     }
 
     @Test("Device code response handles nil complete URI")
-    func testDeviceCodeResponseOptionalURI() async throws {
+    @MainActor func testDeviceCodeResponseOptionalURI() async throws {
         let response = TwitchDeviceCodeResponse(
             deviceCode: "DEVICE123",
             userCode: "ABCD-EFGH",
@@ -64,7 +64,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - Error Tests
 
     @Test("TwitchDeviceAuthError has correct descriptions")
-    func testErrorDescriptions() async throws {
+    @MainActor func testErrorDescriptions() async throws {
         let invalidResponse = TwitchDeviceAuthError.invalidResponse
         #expect(invalidResponse.errorDescription == "Invalid response from Twitch")
 
@@ -90,7 +90,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - Request Device Code Tests
 
     @Test("Request device code fails with empty client ID")
-    func testRequestDeviceCodeEmptyClientID() async throws {
+    @MainActor func testRequestDeviceCodeEmptyClientID() async throws {
         let auth = TwitchDeviceAuth(clientID: "", scopes: ["user:read:chat"])
 
         do {
@@ -105,7 +105,7 @@ struct TwitchDeviceAuthTests {
     }
 
     @Test("Request device code with valid client ID structure")
-    func testRequestDeviceCodeValidStructure() async throws {
+    @MainActor func testRequestDeviceCodeValidStructure() async throws {
         // We can't test actual API calls in unit tests, but we can verify
         // the auth object is constructed correctly
         let clientID = "test_client_123"
@@ -121,7 +121,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - Poll For Token Tests
 
     @Test("Poll for token validates device code")
-    func testPollForTokenValidation() async throws {
+    @MainActor func testPollForTokenValidation() async throws {
         let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
 
         do {
@@ -140,7 +140,7 @@ struct TwitchDeviceAuthTests {
     }
 
     @Test("Poll for token validates interval")
-    func testPollForTokenIntervalValidation() async throws {
+    @MainActor func testPollForTokenIntervalValidation() async throws {
         let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
 
         do {
@@ -159,7 +159,7 @@ struct TwitchDeviceAuthTests {
     }
 
     @Test("Poll for token validates negative interval")
-    func testPollForTokenNegativeInterval() async throws {
+    @MainActor func testPollForTokenNegativeInterval() async throws {
         let auth = TwitchDeviceAuth(clientID: "test_client", scopes: ["user:read:chat"])
 
         do {
@@ -180,14 +180,14 @@ struct TwitchDeviceAuthTests {
     // MARK: - Scope Tests
 
     @Test("Empty scopes are allowed")
-    func testEmptyScopes() async throws {
+    @MainActor func testEmptyScopes() async throws {
         let auth = TwitchDeviceAuth(clientID: "test_client", scopes: [])
 
         #expect(auth != nil)
     }
 
     @Test("Multiple scopes are supported")
-    func testMultipleScopes() async throws {
+    @MainActor func testMultipleScopes() async throws {
         let scopes = [
             "user:read:chat",
             "user:write:chat",
@@ -203,7 +203,7 @@ struct TwitchDeviceAuthTests {
     // MARK: - URL Encoding Tests
 
     @Test("Special characters in scopes are handled")
-    func testScopeEncoding() async throws {
+    @MainActor func testScopeEncoding() async throws {
         let scopes = ["user:read:chat", "user:write:chat"]
 
         let auth = TwitchDeviceAuth(clientID: "test_client", scopes: scopes)

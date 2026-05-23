@@ -16,14 +16,14 @@ struct StatsAggregatorTests {
     // MARK: - Helpers
 
     /// A fixed UTC Gregorian calendar so day/hour bucketing is deterministic.
-    private var calendar: Calendar {
+    private nonisolated(unsafe) var calendar: Calendar {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "UTC")!
         return cal
     }
 
     /// Builds a date at the given UTC components.
-    private func date(_ year: Int, _ month: Int, _ day: Int, hour: Int = 12) -> Date {
+    @MainActor private func date(_ year: Int, _ month: Int, _ day: Int, hour: Int = 12) -> Date {
         var components = DateComponents()
         components.year = year
         components.month = month
@@ -32,7 +32,7 @@ struct StatsAggregatorTests {
         return calendar.date(from: components)!
     }
 
-    private func record(
+    @MainActor private func record(
         track: String, artist: String, album: String = "Album",
         at date: Date, played: TimeInterval = 180
     ) -> PlayRecord {
@@ -43,7 +43,7 @@ struct StatsAggregatorTests {
     // MARK: - Empty
 
     @Test("An empty record set yields the empty snapshot")
-    func testEmpty() {
+    @MainActor func testEmpty() {
         let snapshot = StatsAggregator.snapshot(from: [])
         #expect(!snapshot.hasData)
         #expect(snapshot.totalPlays == 0)
@@ -53,7 +53,7 @@ struct StatsAggregatorTests {
     // MARK: - Totals
 
     @Test("Total plays and listening time sum correctly")
-    func testTotals() {
+    @MainActor func testTotals() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "A", artist: "X", at: now, played: 100),
@@ -68,7 +68,7 @@ struct StatsAggregatorTests {
     // MARK: - Top Lists
 
     @Test("Top artists are ranked by play count")
-    func testTopArtists() {
+    @MainActor func testTopArtists() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "A1", artist: "Alpha", at: now),
@@ -83,7 +83,7 @@ struct StatsAggregatorTests {
     }
 
     @Test("Top tracks group case-insensitively and keep an artist detail")
-    func testTopTracks() {
+    @MainActor func testTopTracks() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Echo", artist: "Alpha", at: now),
@@ -96,7 +96,7 @@ struct StatsAggregatorTests {
     }
 
     @Test("Albums with empty titles are excluded from top albums")
-    func testTopAlbumsSkipsEmpty() {
+    @MainActor func testTopAlbumsSkipsEmpty() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "A", artist: "X", album: "", at: now),
@@ -110,7 +110,7 @@ struct StatsAggregatorTests {
     // MARK: - Day & Hour Buckets
 
     @Test("last7Days always has exactly 7 buckets")
-    func testSevenDayBuckets() {
+    @MainActor func testSevenDayBuckets() {
         let now = date(2026, 5, 20)
         let snapshot = StatsAggregator.snapshot(
             from: [record(track: "A", artist: "X", at: now)],
@@ -122,7 +122,7 @@ struct StatsAggregatorTests {
     }
 
     @Test("Plays are bucketed by hour of day")
-    func testPlaysByHour() {
+    @MainActor func testPlaysByHour() {
         let now = date(2026, 5, 20, hour: 23)
         let records = [
             record(track: "A", artist: "X", at: date(2026, 5, 20, hour: 9)),
@@ -138,7 +138,7 @@ struct StatsAggregatorTests {
     // MARK: - Today
 
     @Test("playsToday only counts records from the current day")
-    func testPlaysToday() {
+    @MainActor func testPlaysToday() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Today1", artist: "X", at: date(2026, 5, 20, hour: 8)),
@@ -151,7 +151,7 @@ struct StatsAggregatorTests {
     }
 
     @Test("recent plays are newest first")
-    func testRecentOrdering() {
+    @MainActor func testRecentOrdering() {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Oldest", artist: "X", at: date(2026, 5, 18)),

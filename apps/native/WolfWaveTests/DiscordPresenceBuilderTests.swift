@@ -12,37 +12,39 @@ import XCTest
 ///
 /// Uses an isolated `UserDefaults(suiteName:)` per test so settings can't leak
 /// between tests or pollute the user's real defaults.
-final class DiscordPresenceBuilderTests: XCTestCase {
+nonisolated final class DiscordPresenceBuilderTests: XCTestCase {
 
-    private var defaults: UserDefaults!
-    private var suiteName: String!
+    private nonisolated(unsafe) var defaults: UserDefaults!
+    private nonisolated(unsafe) var suiteName: String!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         suiteName = "DiscordPresenceBuilderTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suiteName)
         defaults = nil
         suiteName = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - resolveButton
 
-    func test_resolveButton_omitted_whenURLNil() {
+    @MainActor func test_resolveButton_omitted_whenURLNil() {
         let result = DiscordRPCService.resolveButton(index: 1, url: nil, defaults: defaults)
         XCTAssertNil(result)
     }
 
-    func test_resolveButton_omitted_whenURLEmpty() {
+    @MainActor func test_resolveButton_omitted_whenURLEmpty() {
         let result = DiscordRPCService.resolveButton(index: 1, url: "", defaults: defaults)
         XCTAssertNil(result)
     }
 
-    func test_resolveButton_omitted_whenDisabled() {
+    @MainActor func test_resolveButton_omitted_whenDisabled() {
         defaults.set(false, forKey: AppConstants.UserDefaults.discordButton1Enabled)
         let result = DiscordRPCService.resolveButton(
             index: 1, url: "https://example.com/song", defaults: defaults
@@ -50,7 +52,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertNil(result)
     }
 
-    func test_resolveButton_defaultLabel_whenStoredEmpty() {
+    @MainActor func test_resolveButton_defaultLabel_whenStoredEmpty() {
         let result = DiscordRPCService.resolveButton(
             index: 1, url: "https://music.apple.com/x", defaults: defaults
         )
@@ -58,14 +60,14 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result?["url"], "https://music.apple.com/x")
     }
 
-    func test_resolveButton_defaultLabel_forButton2() {
+    @MainActor func test_resolveButton_defaultLabel_forButton2() {
         let result = DiscordRPCService.resolveButton(
             index: 2, url: "https://song.link/i/1", defaults: defaults
         )
         XCTAssertEqual(result?["label"], AppConstants.Discord.defaultButton2Label)
     }
 
-    func test_resolveButton_customLabelOverridesDefault() {
+    @MainActor func test_resolveButton_customLabelOverridesDefault() {
         defaults.set("Vibes 🎧", forKey: AppConstants.UserDefaults.discordButton1Label)
         let result = DiscordRPCService.resolveButton(
             index: 1, url: "https://music.apple.com/x", defaults: defaults
@@ -73,7 +75,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result?["label"], "Vibes 🎧")
     }
 
-    func test_resolveButton_truncatesLabelTo32Chars() {
+    @MainActor func test_resolveButton_truncatesLabelTo32Chars() {
         let long = String(repeating: "A", count: 50)
         defaults.set(long, forKey: AppConstants.UserDefaults.discordButton1Label)
         let result = DiscordRPCService.resolveButton(
@@ -82,7 +84,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result?["label"]?.count, AppConstants.Discord.buttonLabelMaxLength)
     }
 
-    func test_resolveButton_trimsWhitespace() {
+    @MainActor func test_resolveButton_trimsWhitespace() {
         defaults.set("   Hello   ", forKey: AppConstants.UserDefaults.discordButton1Label)
         let result = DiscordRPCService.resolveButton(
             index: 1, url: "https://x", defaults: defaults
@@ -90,7 +92,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result?["label"], "Hello")
     }
 
-    func test_resolveButton_whitespaceOnlyFallsBackToDefault() {
+    @MainActor func test_resolveButton_whitespaceOnlyFallsBackToDefault() {
         defaults.set("     ", forKey: AppConstants.UserDefaults.discordButton1Label)
         let result = DiscordRPCService.resolveButton(
             index: 1, url: "https://x", defaults: defaults
@@ -98,7 +100,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result?["label"], AppConstants.Discord.defaultButton1Label)
     }
 
-    func test_resolveButton_invalidIndexReturnsNil() {
+    @MainActor func test_resolveButton_invalidIndexReturnsNil() {
         let result = DiscordRPCService.resolveButton(
             index: 5, url: "https://x", defaults: defaults
         )
@@ -107,7 +109,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
 
     // MARK: - buildActivity
 
-    func test_buildActivity_stateIsArtistWithoutByPrefix() {
+    @MainActor func test_buildActivity_stateIsArtistWithoutByPrefix() {
         let activity = DiscordRPCService.buildActivity(
             track: "Smooth Operator",
             artist: "Sade",
@@ -124,7 +126,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(activity["details"] as? String, "Smooth Operator")
     }
 
-    func test_buildActivity_typeIsListening() {
+    @MainActor func test_buildActivity_typeIsListening() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
             artworkURL: nil, duration: 0, elapsed: 0,
@@ -135,7 +137,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(AppConstants.Discord.listeningActivityType, 2)
     }
 
-    func test_buildActivity_omitsButtonsKey_whenBothDisabled() {
+    @MainActor func test_buildActivity_omitsButtonsKey_whenBothDisabled() {
         defaults.set(false, forKey: AppConstants.UserDefaults.discordButton1Enabled)
         defaults.set(false, forKey: AppConstants.UserDefaults.discordButton2Enabled)
         let activity = DiscordRPCService.buildActivity(
@@ -148,7 +150,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertNil(activity["buttons"])
     }
 
-    func test_buildActivity_includesBothButtons_whenURLsAndEnabled() {
+    @MainActor func test_buildActivity_includesBothButtons_whenURLsAndEnabled() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
             artworkURL: nil, duration: 0, elapsed: 0,
@@ -162,7 +164,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(buttons?[1]["label"], AppConstants.Discord.defaultButton2Label)
     }
 
-    func test_buildActivity_skipsButton_whenURLMissing() {
+    @MainActor func test_buildActivity_skipsButton_whenURLMissing() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
             artworkURL: nil, duration: 0, elapsed: 0,
@@ -175,7 +177,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(buttons?[0]["url"], "https://music.apple.com/x")
     }
 
-    func test_buildActivity_timestampsOmittedWhenDurationZero() {
+    @MainActor func test_buildActivity_timestampsOmittedWhenDurationZero() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
             artworkURL: nil, duration: 0, elapsed: 0,
@@ -185,7 +187,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertNil(activity["timestamps"])
     }
 
-    func test_buildActivity_timestampsIncludedWhenDurationKnown() {
+    @MainActor func test_buildActivity_timestampsIncludedWhenDurationKnown() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
@@ -200,7 +202,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(stamps?["end"], 1_700_000_150_000)
     }
 
-    func test_buildActivity_assetsAlwaysIncludeFallbackImage() {
+    @MainActor func test_buildActivity_assetsAlwaysIncludeFallbackImage() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Album Name",
             artworkURL: nil, duration: 0, elapsed: 0,
@@ -214,7 +216,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(assets?["small_text"], "Apple Music")
     }
 
-    func test_buildActivity_assetsPreferArtworkURL() {
+    @MainActor func test_buildActivity_assetsPreferArtworkURL() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "A", album: "Al",
             artworkURL: "https://example.com/art.jpg",
@@ -229,20 +231,20 @@ final class DiscordPresenceBuilderTests: XCTestCase {
     // MARK: - resolvePlaylistDisplay
 
     /// Enables the playlist feature on the isolated suite with the given options.
-    private func enablePlaylist(showName: Bool = true, style: DiscordPlaylistStyle = .artistLine) {
+    @MainActor private func enablePlaylist(showName: Bool = true, style: DiscordPlaylistStyle = .artistLine) {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         defaults.set(showName, forKey: AppConstants.UserDefaults.discordPlaylistShowName)
         defaults.set(style.rawValue, forKey: AppConstants.UserDefaults.discordPlaylistStyle)
     }
 
-    func test_resolvePlaylistDisplay_nil_whenFeatureDisabled() {
+    @MainActor func test_resolvePlaylistDisplay_nil_whenFeatureDisabled() {
         let result = DiscordRPCService.resolvePlaylistDisplay(
             playlist: "Chill Saturday", album: "Diamond Life", defaults: defaults
         )
         XCTAssertNil(result)
     }
 
-    func test_resolvePlaylistDisplay_nil_whenEmpty() {
+    @MainActor func test_resolvePlaylistDisplay_nil_whenEmpty() {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         let result = DiscordRPCService.resolvePlaylistDisplay(
             playlist: "   ", album: "Al", defaults: defaults
@@ -250,7 +252,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertNil(result)
     }
 
-    func test_resolvePlaylistDisplay_nil_whenGenericName() {
+    @MainActor func test_resolvePlaylistDisplay_nil_whenGenericName() {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         for generic in ["Library", "music", "Apple Music"] {
             let result = DiscordRPCService.resolvePlaylistDisplay(
@@ -260,7 +262,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         }
     }
 
-    func test_resolvePlaylistDisplay_nil_whenEqualsAlbum() {
+    @MainActor func test_resolvePlaylistDisplay_nil_whenEqualsAlbum() {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         let result = DiscordRPCService.resolvePlaylistDisplay(
             playlist: "diamond life", album: "Diamond Life", defaults: defaults
@@ -268,7 +270,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertNil(result, "Playlist matching the album name should be hidden")
     }
 
-    func test_resolvePlaylistDisplay_named_whenEnabledAndShowNameOn() {
+    @MainActor func test_resolvePlaylistDisplay_named_whenEnabledAndShowNameOn() {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         let result = DiscordRPCService.resolvePlaylistDisplay(
             playlist: "  Chill Saturday  ", album: "Al", defaults: defaults
@@ -276,7 +278,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(result, .named("Chill Saturday"))
     }
 
-    func test_resolvePlaylistDisplay_anonymous_whenShowNameOff() {
+    @MainActor func test_resolvePlaylistDisplay_anonymous_whenShowNameOff() {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPlaylistEnabled)
         defaults.set(false, forKey: AppConstants.UserDefaults.discordPlaylistShowName)
         let result = DiscordRPCService.resolvePlaylistDisplay(
@@ -287,7 +289,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
 
     // MARK: - buildActivity + playlist
 
-    func test_buildActivity_styleArtistLine_appendsPlaylistToState() {
+    @MainActor func test_buildActivity_styleArtistLine_appendsPlaylistToState() {
         enablePlaylist()
         let activity = DiscordRPCService.buildActivity(
             track: "Smooth Operator", artist: "Sade", album: "Diamond Life",
@@ -301,7 +303,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(assets?["small_text"], "Apple Music")
     }
 
-    func test_buildActivity_styleArtistLine_genericLabelWhenNameHidden() {
+    @MainActor func test_buildActivity_styleArtistLine_genericLabelWhenNameHidden() {
         enablePlaylist(showName: false)
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "Sade", album: "Al",
@@ -313,7 +315,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(activity["state"] as? String, "Sade · From a playlist")
     }
 
-    func test_buildActivity_styleIconTooltip_setsSmallText() {
+    @MainActor func test_buildActivity_styleIconTooltip_setsSmallText() {
         enablePlaylist(style: .iconTooltip)
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "Sade", album: "Al",
@@ -327,7 +329,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(assets?["small_text"], "Playlist · Chill Saturday")
     }
 
-    func test_buildActivity_styleIconTooltip_genericTooltipWhenNameHidden() {
+    @MainActor func test_buildActivity_styleIconTooltip_genericTooltipWhenNameHidden() {
         enablePlaylist(showName: false, style: .iconTooltip)
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "Sade", album: "Al",
@@ -340,7 +342,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(assets?["small_text"], "Playing from a playlist")
     }
 
-    func test_buildActivity_noPlaylist_whenFeatureDisabled() {
+    @MainActor func test_buildActivity_noPlaylist_whenFeatureDisabled() {
         let activity = DiscordRPCService.buildActivity(
             track: "T", artist: "Sade", album: "Al",
             playlist: "Chill Saturday",
@@ -353,7 +355,7 @@ final class DiscordPresenceBuilderTests: XCTestCase {
         XCTAssertEqual(assets?["small_text"], "Apple Music")
     }
 
-    func test_stateLine_truncatesToActivityTextMax() {
+    @MainActor func test_stateLine_truncatesToActivityTextMax() {
         let longPlaylist = String(repeating: "P", count: 200)
         let line = DiscordRPCService.stateLine(
             artist: "Sade", playlist: .named(longPlaylist), style: .artistLine

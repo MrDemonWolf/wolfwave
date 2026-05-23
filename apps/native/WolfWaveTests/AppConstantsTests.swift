@@ -16,7 +16,7 @@ struct AppConstantsTests {
     // MARK: - App Info Tests
     
     @Test("App info constants are defined")
-    func testAppInfoConstants() async throws {
+    @MainActor func testAppInfoConstants() async throws {
         #expect(!AppConstants.AppInfo.bundleIdentifier.isEmpty)
         #expect(!AppConstants.AppInfo.displayName.isEmpty)
         #expect(AppConstants.AppInfo.bundleIdentifier == "com.mrdemonwolf.wolfwave")
@@ -26,7 +26,7 @@ struct AppConstantsTests {
     // MARK: - Notification Names Tests
     
     @Test("Notification names are defined")
-    func testNotificationNames() async throws {
+    @MainActor func testNotificationNames() async throws {
         #expect(!AppConstants.Notifications.trackingSettingChanged.isEmpty)
         #expect(!AppConstants.Notifications.dockVisibilityChanged.isEmpty)
         #expect(!AppConstants.Notifications.twitchReauthNeededChanged.isEmpty)
@@ -43,7 +43,7 @@ struct AppConstantsTests {
     // MARK: - UserDefaults Keys Tests
     
     @Test("UserDefaults keys are defined")
-    func testUserDefaultsKeys() async throws {
+    @MainActor func testUserDefaultsKeys() async throws {
         #expect(!AppConstants.UserDefaults.trackingEnabled.isEmpty)
         #expect(!AppConstants.UserDefaults.dockVisibility.isEmpty)
         #expect(!AppConstants.UserDefaults.twitchReauthNeeded.isEmpty)
@@ -56,7 +56,7 @@ struct AppConstantsTests {
     // MARK: - Dock Visibility Tests
     
     @Test("Dock visibility modes are defined")
-    func testDockVisibilityModes() async throws {
+    @MainActor func testDockVisibilityModes() async throws {
         #expect(AppConstants.DockVisibility.menuOnly == "menuOnly")
         #expect(AppConstants.DockVisibility.dockOnly == "dockOnly")
         #expect(AppConstants.DockVisibility.both == "both")
@@ -66,7 +66,7 @@ struct AppConstantsTests {
     // MARK: - Keychain Tests
     
     @Test("Keychain service identifier is defined")
-    func testKeychainService() async throws {
+    @MainActor func testKeychainService() async throws {
         #expect(!AppConstants.Keychain.service.isEmpty)
         #expect(AppConstants.Keychain.service == "com.mrdemonwolf.wolfwave")
     }
@@ -74,7 +74,7 @@ struct AppConstantsTests {
     // MARK: - Music App Tests
     
     @Test("Music app constants are defined")
-    func testMusicAppConstants() async throws {
+    @MainActor func testMusicAppConstants() async throws {
         #expect(AppConstants.Music.bundleIdentifier == "com.apple.Music")
         #expect(!AppConstants.Music.playerInfoNotification.isEmpty)
     }
@@ -82,7 +82,7 @@ struct AppConstantsTests {
     // MARK: - Twitch Tests
     
     @Test("Twitch constants are defined")
-    func testTwitchConstants() async throws {
+    @MainActor func testTwitchConstants() async throws {
         #expect(AppConstants.Twitch.apiBaseURL == "https://api.twitch.tv/helix")
         #expect(AppConstants.Twitch.settingsSection == "twitchIntegration")
         #expect(AppConstants.Twitch.sessionWelcomeTimeout == 10.0)
@@ -99,7 +99,7 @@ struct AppConstantsTests {
     // MARK: - Widget Tests
     
     @Test("Widget constants are defined")
-    func testWidgetConstants() async throws {
+    @MainActor func testWidgetConstants() async throws {
         #expect(AppConstants.Widget.recommendedWidth == 500)
         #expect(AppConstants.Widget.recommendedHeight == 120)
         #expect(!AppConstants.Widget.themes.isEmpty)
@@ -110,7 +110,7 @@ struct AppConstantsTests {
     // MARK: - Discord Tests
     
     @Test("Discord constants are defined")
-    func testDiscordConstants() async throws {
+    @MainActor func testDiscordConstants() async throws {
         #expect(AppConstants.Discord.settingsSection == "discordPresence")
         #expect(AppConstants.Discord.ipcSocketPrefix == "discord-ipc-")
         #expect(AppConstants.Discord.ipcSocketSlots == 10)
@@ -124,14 +124,14 @@ struct AppConstantsTests {
     // MARK: - Update Checker Tests
     
     @Test("Update checker constants are defined")
-    func testUpdateCheckerConstants() async throws {
+    @MainActor func testUpdateCheckerConstants() async throws {
         #expect(AppConstants.Update.checkInterval == 86400) // 24 hours
     }
     
     // MARK: - URLs Tests
     
     @Test("URLs are defined and valid")
-    func testURLs() async throws {
+    @MainActor func testURLs() async throws {
         // Verify URLs are defined
         #expect(!AppConstants.URLs.docs.isEmpty)
         #expect(!AppConstants.URLs.privacyPolicy.isEmpty)
@@ -156,7 +156,7 @@ struct AppConstantsTests {
     // MARK: - WebSocket Server Tests
     
     @Test("WebSocket server constants are defined")
-    func testWebSocketServerConstants() async throws {
+    @MainActor func testWebSocketServerConstants() async throws {
         #expect(AppConstants.WebSocketServer.defaultPort == 8765)
         #expect(AppConstants.WebSocketServer.minPort == 1024)
         #expect(AppConstants.WebSocketServer.maxPort == 65535)
@@ -168,7 +168,7 @@ struct AppConstantsTests {
     // MARK: - Dispatch Queues Tests
     
     @Test("Dispatch queue labels are defined")
-    func testDispatchQueueLabels() async throws {
+    @MainActor func testDispatchQueueLabels() async throws {
         #expect(!AppConstants.DispatchQueues.musicPlaybackMonitor.isEmpty)
         #expect(!AppConstants.DispatchQueues.twitchNetworkMonitor.isEmpty)
         #expect(!AppConstants.DispatchQueues.discordIPC.isEmpty)
@@ -178,7 +178,7 @@ struct AppConstantsTests {
     // MARK: - Settings UI Tests
 
     @Test("Settings UI constants are defined")
-    func testSettingsUIConstants() async throws {
+    @MainActor func testSettingsUIConstants() async throws {
         #expect(!AppConstants.SettingsUI.defaultAppName.isEmpty)
         #expect(AppConstants.SettingsUI.minWidth > 0)
         #expect(AppConstants.SettingsUI.minHeight > 0)
@@ -194,7 +194,7 @@ struct AppConstantsTests {
     // MARK: - Power Management Tests
     
     @Test("Power management constants are defined")
-    func testPowerManagementConstants() async throws {
+    @MainActor func testPowerManagementConstants() async throws {
         #expect(AppConstants.PowerManagement.reducedMusicCheckInterval > 0)
         #expect(AppConstants.PowerManagement.reducedDiscordPollInterval > 0)
         #expect(AppConstants.PowerManagement.reducedProgressBroadcastInterval > 0)
@@ -208,7 +208,7 @@ struct AppConstantsTests {
     // MARK: - Onboarding UI Tests
     
     @Test("Onboarding UI constants are defined")
-    func testOnboardingUIConstants() async throws {
+    @MainActor func testOnboardingUIConstants() async throws {
         #expect(AppConstants.OnboardingUI.windowWidth > 0)
         #expect(AppConstants.OnboardingUI.windowHeight > 0)
         #expect(AppConstants.OnboardingUI.windowWidth == 600)
@@ -218,7 +218,7 @@ struct AppConstantsTests {
     // MARK: - Menu Labels Tests
     
     @Test("Menu labels are defined")
-    func testMenuLabels() async throws {
+    @MainActor func testMenuLabels() async throws {
         #expect(!AppConstants.MenuLabels.settings.isEmpty)
         #expect(!AppConstants.MenuLabels.quit.isEmpty)
         #expect(AppConstants.MenuLabels.settings == "Settings\u{2026}")

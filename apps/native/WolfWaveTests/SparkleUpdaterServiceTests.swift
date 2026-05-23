@@ -8,19 +8,18 @@
 import XCTest
 @testable import WolfWave
 
-@MainActor
-final class SparkleUpdaterServiceTests: XCTestCase {
+nonisolated final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Initialization Tests
 
-    func testServiceInitializesWithoutCrash() {
+    @MainActor func testServiceInitializesWithoutCrash() {
         let service = SparkleUpdaterService()
         XCTAssertNotNil(service)
     }
 
     // MARK: - Feed URL Tests
 
-    func testFeedURLPointsAtBundledDevAppcastInDebug() {
+    @MainActor func testFeedURLPointsAtBundledDevAppcastInDebug() {
         // DEBUG builds route Sparkle at the bundled dev-appcast.xml so manual
         // "Check for Updates" exercises the real Sparkle UI against a dummy entry.
         let service = SparkleUpdaterService()
@@ -31,13 +30,13 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Default Property Tests
 
-    func testAutomaticCheckDefaultsToTrueWhenUpdaterNil() {
+    @MainActor func testAutomaticCheckDefaultsToTrueWhenUpdaterNil() {
         // The getter falls back to true when the underlying updater is unset.
         let service = SparkleUpdaterService()
         XCTAssertTrue(service.automaticCheckEnabled, "automaticCheckEnabled getter should default to true when updater is nil")
     }
 
-    func testUpdateCheckIntervalReturnsConstantWhenUpdaterNil() {
+    @MainActor func testUpdateCheckIntervalReturnsConstantWhenUpdaterNil() {
         let service = SparkleUpdaterService()
         XCTAssertEqual(
             service.updateCheckInterval,
@@ -48,19 +47,19 @@ final class SparkleUpdaterServiceTests: XCTestCase {
 
     // MARK: - Safe Operation Tests
 
-    func testCheckForUpdatesDoesNotCrash() {
+    @MainActor func testCheckForUpdatesDoesNotCrash() {
         let service = SparkleUpdaterService()
         service.checkForUpdates()
     }
 
-    func testCheckForUpdatesInBackgroundDoesNotCrash() {
+    @MainActor func testCheckForUpdatesInBackgroundDoesNotCrash() {
         let service = SparkleUpdaterService()
         service.checkForUpdatesInBackground()
     }
 
     // MARK: - SPUUpdaterDelegate Tests
 
-    func testServiceIsNSObjectForDelegateConformance() {
+    @MainActor func testServiceIsNSObjectForDelegateConformance() {
         let service = SparkleUpdaterService()
         XCTAssertTrue(service is NSObject, "SparkleUpdaterService should be an NSObject subclass to satisfy SPUUpdaterDelegate")
     }

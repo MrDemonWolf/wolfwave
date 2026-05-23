@@ -9,9 +9,9 @@ import XCTest
 
 @testable import WolfWave
 
-final class VoteSkipCommandTests: XCTestCase {
+nonisolated final class VoteSkipCommandTests: XCTestCase {
 
-    private let keys: [String] = [
+    private nonisolated(unsafe) let keys: [String] = [
         AppConstants.UserDefaults.voteSkipEnabled,
         AppConstants.UserDefaults.voteSkipMinVotes,
         AppConstants.UserDefaults.voteSkipSessionCooldown,
@@ -19,17 +19,19 @@ final class VoteSkipCommandTests: XCTestCase {
         AppConstants.UserDefaults.voteSkipCommandAliases,
     ]
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-        super.tearDown()
+        try await super.tearDown()
     }
 
-    private func context(userID: String) -> BotCommandContext {
+    @MainActor private func context(userID: String) -> BotCommandContext {
         BotCommandContext(
             userID: userID, username: "user\(userID)",
             isModerator: false, isBroadcaster: false,
@@ -39,53 +41,53 @@ final class VoteSkipCommandTests: XCTestCase {
 
     // MARK: - Triggers & Configuration
 
-    func testTriggers() {
+    @MainActor func testTriggers() {
         XCTAssertEqual(VoteSkipCommand().triggers, ["!voteskip", "!vs"])
     }
 
-    func testZeroCooldowns() {
+    @MainActor func testZeroCooldowns() {
         let command = VoteSkipCommand()
         XCTAssertEqual(command.globalCooldown, 0)
         XCTAssertEqual(command.userCooldown, 0)
     }
 
-    func testDefaultEnabled() {
+    @MainActor func testDefaultEnabled() {
         XCTAssertTrue(VoteSkipCommand().isCommandEnabled)
     }
 
-    func testDisabledViaUserDefaults() {
+    @MainActor func testDisabledViaUserDefaults() {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.voteSkipCommandEnabled)
         XCTAssertFalse(VoteSkipCommand().isCommandEnabled)
     }
 
-    func testCustomAliasesAppendToTriggers() {
+    @MainActor func testCustomAliasesAppendToTriggers() {
         UserDefaults.standard.set("skipvote, sv", forKey: AppConstants.UserDefaults.voteSkipCommandAliases)
         let triggers = VoteSkipCommand().allTriggers
         XCTAssertTrue(triggers.contains("!skipvote"))
         XCTAssertTrue(triggers.contains("!sv"))
     }
 
-    func testSyncExecuteReturnsNil() {
+    @MainActor func testSyncExecuteReturnsNil() {
         XCTAssertNil(VoteSkipCommand().execute(message: "!voteskip"))
     }
 
     // MARK: - Reply Formatting
 
-    func testFormatDisabledIsSilent() {
+    @MainActor func testFormatDisabledIsSilent() {
         XCTAssertNil(VoteSkipCommand.format(.disabled))
     }
 
-    func testFormatStartedAndCountedShowProgress() {
+    @MainActor func testFormatStartedAndCountedShowProgress() {
         XCTAssertEqual(VoteSkipCommand.format(.started(count: 1, needed: 3))?.contains("1/3"), true)
         XCTAssertEqual(VoteSkipCommand.format(.counted(count: 2, needed: 3))?.contains("2/3"), true)
     }
 
-    func testFormatPassedAndCooldown() {
+    @MainActor func testFormatPassedAndCooldown() {
         XCTAssertEqual(VoteSkipCommand.format(.passed(count: 3))?.isEmpty, false)
         XCTAssertEqual(VoteSkipCommand.format(.onCooldown(remaining: 12))?.contains("12"), true)
     }
 
-    func testFormatNonDisabledOutcomesProduceReplies() {
+    @MainActor func testFormatNonDisabledOutcomesProduceReplies() {
         let outcomes: [SkipVoteManager.VoteOutcome] = [
             .subscriberOnly,
             .alreadyVoted(count: 1, needed: 3),
@@ -100,7 +102,7 @@ final class VoteSkipCommandTests: XCTestCase {
 
     // MARK: - Execution
 
-    func testExecuteRepliesWhenVotePasses() {
+    @MainActor func testExecuteRepliesWhenVotePasses() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
         UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.voteSkipMinVotes)
 
@@ -117,7 +119,7 @@ final class VoteSkipCommandTests: XCTestCase {
         wait(for: [replied], timeout: 2)
     }
 
-    func testExecuteStaysSilentWhenFeatureDisabled() {
+    @MainActor func testExecuteStaysSilentWhenFeatureDisabled() {
         // voteSkipEnabled is unset → feature off → manager returns .disabled → no reply.
         let manager = SkipVoteManager()
         let command = VoteSkipCommand()

@@ -16,7 +16,7 @@ struct LoggerTests {
     // MARK: - Log Level Tests
     
     @Test("Log levels have correct raw values")
-    func testLogLevelRawValues() async throws {
+    @MainActor func testLogLevelRawValues() async throws {
         #expect(LogLevel.debug.rawValue == "🐛 DEBUG")
         #expect(LogLevel.info.rawValue == "ℹ️ INFO")
         #expect(LogLevel.warn.rawValue == "⚠️ WARN")
@@ -26,7 +26,7 @@ struct LoggerTests {
     // MARK: - PII Redaction Tests
     
     @Test("Redacts OAuth tokens from log messages")
-    func testOAuthTokenRedaction() async throws {
+    @MainActor func testOAuthTokenRedaction() async throws {
         let uniqueID = UUID().uuidString
         let message = "User token: oauth_abc123def456ghi789_\(uniqueID)"
         Log.info(message, category: "Test")
@@ -44,7 +44,7 @@ struct LoggerTests {
     }
 
     @Test("Redacts Bearer tokens from log messages")
-    func testBearerTokenRedaction() async throws {
+    @MainActor func testBearerTokenRedaction() async throws {
         let uniqueID = UUID().uuidString
         let message = "Authorization: Bearer abc123def456ghi789jkl012_\(uniqueID)"
         Log.info(message, category: "Test")
@@ -61,7 +61,7 @@ struct LoggerTests {
     }
 
     @Test("Redacts long alphanumeric tokens")
-    func testLongTokenRedaction() async throws {
+    @MainActor func testLongTokenRedaction() async throws {
         let uniqueID = UUID().uuidString
         let longToken = "abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqrstuvwxyz\(uniqueID)"
         let message = "Token value: \(longToken)"
@@ -79,7 +79,7 @@ struct LoggerTests {
     }
 
     @Test("Redacts Client-ID values")
-    func testClientIDRedaction() async throws {
+    @MainActor func testClientIDRedaction() async throws {
         let uniqueID = UUID().uuidString
         let message = "Client-ID: abc123def456_\(uniqueID)"
         Log.info(message, category: "Test")
@@ -96,7 +96,7 @@ struct LoggerTests {
     }
 
     @Test("Does not redact normal text")
-    func testNormalTextNotRedacted() async throws {
+    @MainActor func testNormalTextNotRedacted() async throws {
         let uniqueID = UUID().uuidString
         let message = "Normal log message with no sensitive data \(uniqueID)"
         Log.info(message, category: "Test")
@@ -116,7 +116,7 @@ struct LoggerTests {
     // MARK: - Log File Tests
     
     @Test("Log file can be exported")
-    func testLogFileExport() async throws {
+    @MainActor func testLogFileExport() async throws {
         // Write some test logs
         Log.info("Test log entry 1", category: "Test")
         Log.info("Test log entry 2", category: "Test")
@@ -135,7 +135,7 @@ struct LoggerTests {
     }
     
     @Test("Log file contains expected content")
-    func testLogFileContent() async throws {
+    @MainActor func testLogFileContent() async throws {
         let testMessage = "Test log message \(UUID().uuidString)"
 
         Log.info(testMessage, category: "TestCategory")
@@ -159,7 +159,7 @@ struct LoggerTests {
     // MARK: - Debug Logging Tests
     
     @Test("Debug logs are only written in debug builds")
-    func testDebugLogging() async throws {
+    @MainActor func testDebugLogging() async throws {
         let debugMessage = "Debug message \(UUID().uuidString)"
         
         Log.debug(debugMessage, category: "Test")
@@ -184,7 +184,7 @@ struct LoggerTests {
     // MARK: - Concurrent Logging Tests
     
     @Test("Concurrent logging is thread-safe")
-    func testConcurrentLogging() async throws {
+    @MainActor func testConcurrentLogging() async throws {
         let iterations = 100
         let uniquePrefix = UUID().uuidString
 
@@ -214,7 +214,7 @@ struct LoggerTests {
     // MARK: - Category Tests
     
     @Test("Different categories are logged correctly")
-    func testCategories() async throws {
+    @MainActor func testCategories() async throws {
         Log.info("App message", category: "App")
         Log.info("Network message", category: "Network")
         Log.info("Twitch message", category: "Twitch")
@@ -237,7 +237,7 @@ struct LoggerTests {
     // MARK: - Performance Tests
     
     @Test("Logging performance is acceptable")
-    func testLoggingPerformance() async throws {
+    @MainActor func testLoggingPerformance() async throws {
         let start = Date()
         
         for i in 0..<1000 {

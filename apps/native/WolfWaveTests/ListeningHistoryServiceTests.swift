@@ -17,33 +17,33 @@ struct ListeningHistoryServiceTests {
 
     // MARK: - Helpers
 
-    private func makeTempDirectory() -> URL {
+    @MainActor private func makeTempDirectory() -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("history-svc-test-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
-    private func makeService(enabled: Bool, directory: URL) -> ListeningHistoryService {
+    @MainActor private func makeService(enabled: Bool, directory: URL) -> ListeningHistoryService {
         ListeningHistoryService(store: PlayLogStore(directory: directory), enabled: enabled)
     }
 
     // MARK: - Scrobble Threshold
 
     @Test("A track played past 50% qualifies")
-    func testQualifiesAtHalf() {
+    @MainActor func testQualifiesAtHalf() {
         #expect(ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 100))
         #expect(ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 199))
     }
 
     @Test("A track played under 50% does not qualify")
-    func testRejectedUnderHalf() {
+    @MainActor func testRejectedUnderHalf() {
         #expect(!ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 99))
         #expect(!ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 5))
     }
 
     @Test("Four minutes always qualifies regardless of track length")
-    func testAbsoluteThreshold() {
+    @MainActor func testAbsoluteThreshold() {
         // A 20-minute track played for 4 minutes is < 50% but still counts.
         #expect(ListeningHistoryService.qualifiesAsPlay(duration: 1200, playedSeconds: 240))
         // Unknown duration: only the absolute threshold can qualify it.
@@ -52,14 +52,14 @@ struct ListeningHistoryServiceTests {
     }
 
     @Test("Zero play time never qualifies")
-    func testZeroPlayRejected() {
+    @MainActor func testZeroPlayRejected() {
         #expect(!ListeningHistoryService.qualifiesAsPlay(duration: 200, playedSeconds: 0))
     }
 
     // MARK: - Recording & Gating
 
     @Test("A qualifying play is recorded when enabled")
-    func testRecordsQualifyingPlay() {
+    @MainActor func testRecordsQualifyingPlay() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
 
@@ -74,7 +74,7 @@ struct ListeningHistoryServiceTests {
     }
 
     @Test("A short play is dropped")
-    func testDropsShortPlay() {
+    @MainActor func testDropsShortPlay() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
 
@@ -88,7 +88,7 @@ struct ListeningHistoryServiceTests {
     }
 
     @Test("Nothing is recorded while the feature is disabled")
-    func testGatingWhenDisabled() {
+    @MainActor func testGatingWhenDisabled() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: false, directory: dir)
 
@@ -104,7 +104,7 @@ struct ListeningHistoryServiceTests {
     }
 
     @Test("An empty track title is ignored")
-    func testEmptyTrackIgnored() {
+    @MainActor func testEmptyTrackIgnored() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
 
@@ -120,7 +120,7 @@ struct ListeningHistoryServiceTests {
     // MARK: - Clear
 
     @Test("clearHistory empties records and snapshot")
-    func testClearHistory() {
+    @MainActor func testClearHistory() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
         service.recordTrackChange(
@@ -138,7 +138,7 @@ struct ListeningHistoryServiceTests {
     // MARK: - Disk Load
 
     @Test("loadFromDisk restores previously recorded plays")
-    func testLoadFromDisk() async {
+    @MainActor func testLoadFromDisk() async {
         let dir = makeTempDirectory()
 
         // First session: record two plays.
@@ -160,7 +160,7 @@ struct ListeningHistoryServiceTests {
     // MARK: - Chat Line
 
     @Test("statsChatLine is friendly when nothing has played")
-    func testStatsChatLineEmpty() {
+    @MainActor func testStatsChatLineEmpty() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
         #expect(service.statsChatLine().contains("just getting started"))
@@ -168,7 +168,7 @@ struct ListeningHistoryServiceTests {
     }
 
     @Test("statsChatLine reports today's top track")
-    func testStatsChatLineWithPlays() {
+    @MainActor func testStatsChatLineWithPlays() {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
         service.recordTrackChange(

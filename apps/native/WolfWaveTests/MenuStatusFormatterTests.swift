@@ -8,35 +8,35 @@
 import XCTest
 @testable import WolfWave
 
-final class MenuStatusFormatterTests: XCTestCase {
+nonisolated final class MenuStatusFormatterTests: XCTestCase {
 
     // MARK: - Sync Music
 
-    func testMusicStatusTracking() {
+    @MainActor func testMusicStatusTracking() {
         XCTAssertEqual(MenuStatusFormatter.musicStatus(trackingEnabled: true), "Tracking")
     }
 
-    func testMusicStatusPaused() {
+    @MainActor func testMusicStatusPaused() {
         XCTAssertEqual(MenuStatusFormatter.musicStatus(trackingEnabled: false), "Paused")
     }
 
     // MARK: - Twitch
 
-    func testTwitchStatusConnectedWithChannel() {
+    @MainActor func testTwitchStatusConnectedWithChannel() {
         XCTAssertEqual(
             MenuStatusFormatter.twitchStatus(isConnected: true, channelName: "wolf"),
             "@wolf"
         )
     }
 
-    func testTwitchStatusDisconnectedWithChannel() {
+    @MainActor func testTwitchStatusDisconnectedWithChannel() {
         XCTAssertEqual(
             MenuStatusFormatter.twitchStatus(isConnected: false, channelName: "wolf"),
             "Not connected"
         )
     }
 
-    func testTwitchStatusNoChannelSaved() {
+    @MainActor func testTwitchStatusNoChannelSaved() {
         XCTAssertEqual(
             MenuStatusFormatter.twitchStatus(isConnected: false, channelName: nil),
             "No channel set"
@@ -49,28 +49,28 @@ final class MenuStatusFormatterTests: XCTestCase {
 
     // MARK: - Discord
 
-    func testDiscordStatusOff() {
+    @MainActor func testDiscordStatusOff() {
         XCTAssertEqual(
             MenuStatusFormatter.discordStatus(enabled: false, state: .connected),
             "Off"
         )
     }
 
-    func testDiscordStatusConnected() {
+    @MainActor func testDiscordStatusConnected() {
         XCTAssertEqual(
             MenuStatusFormatter.discordStatus(enabled: true, state: .connected),
             "Connected"
         )
     }
 
-    func testDiscordStatusConnecting() {
+    @MainActor func testDiscordStatusConnecting() {
         XCTAssertEqual(
             MenuStatusFormatter.discordStatus(enabled: true, state: .connecting),
             "Reconnecting\u{2026}"
         )
     }
 
-    func testDiscordStatusDisconnected() {
+    @MainActor func testDiscordStatusDisconnected() {
         XCTAssertEqual(
             MenuStatusFormatter.discordStatus(enabled: true, state: .disconnected),
             "Disconnected"
@@ -79,28 +79,28 @@ final class MenuStatusFormatterTests: XCTestCase {
 
     // MARK: - Stream Widgets
 
-    func testWidgetsStatusOff() {
+    @MainActor func testWidgetsStatusOff() {
         XCTAssertEqual(
             MenuStatusFormatter.widgetsStatus(enabled: false, widgetPort: 8766, clientCount: 5),
             "Off"
         )
     }
 
-    func testWidgetsStatusZeroViewers() {
+    @MainActor func testWidgetsStatusZeroViewers() {
         XCTAssertEqual(
             MenuStatusFormatter.widgetsStatus(enabled: true, widgetPort: 8766, clientCount: 0),
             ":8766 · 0 viewers"
         )
     }
 
-    func testWidgetsStatusOneViewer() {
+    @MainActor func testWidgetsStatusOneViewer() {
         XCTAssertEqual(
             MenuStatusFormatter.widgetsStatus(enabled: true, widgetPort: 8766, clientCount: 1),
             ":8766 · 1 viewer"
         )
     }
 
-    func testWidgetsStatusManyViewers() {
+    @MainActor func testWidgetsStatusManyViewers() {
         XCTAssertEqual(
             MenuStatusFormatter.widgetsStatus(enabled: true, widgetPort: 9000, clientCount: 42),
             ":9000 · 42 viewers"
@@ -109,23 +109,23 @@ final class MenuStatusFormatterTests: XCTestCase {
 
     // MARK: - Song Request Collapse Threshold
 
-    func testCollapseEmptyQueue() {
+    @MainActor func testCollapseEmptyQueue() {
         XCTAssertFalse(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 0, hasNowPlaying: false))
     }
 
-    func testCollapseOnlyNowPlaying() {
+    @MainActor func testCollapseOnlyNowPlaying() {
         XCTAssertFalse(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 0, hasNowPlaying: true))
     }
 
-    func testCollapseSingleQueuedNoCurrent() {
+    @MainActor func testCollapseSingleQueuedNoCurrent() {
         XCTAssertFalse(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 1, hasNowPlaying: false))
     }
 
-    func testCollapseSingleQueuedPlusCurrent() {
+    @MainActor func testCollapseSingleQueuedPlusCurrent() {
         XCTAssertTrue(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 1, hasNowPlaying: true))
     }
 
-    func testCollapseTwoOrMoreQueued() {
+    @MainActor func testCollapseTwoOrMoreQueued() {
         XCTAssertTrue(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 2, hasNowPlaying: false))
         XCTAssertTrue(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 5, hasNowPlaying: true))
     }

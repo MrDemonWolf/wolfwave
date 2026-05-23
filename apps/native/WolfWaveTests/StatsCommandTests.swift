@@ -17,7 +17,7 @@ struct StatsCommandTests {
     // MARK: - Helpers
 
     /// A dispatcher with `!stats` wired to fixed info + enabled closures.
-    private func makeDispatcher(
+    @MainActor private func makeDispatcher(
         info: @escaping () -> String,
         enabled: @escaping () -> Bool
     ) -> BotCommandDispatcher {
@@ -30,7 +30,7 @@ struct StatsCommandTests {
     // MARK: - Tests
 
     @Test("!stats replies with the stats string when enabled and live")
-    func testRepliesWhenEnabled() {
+    @MainActor func testRepliesWhenEnabled() {
         let dispatcher = makeDispatcher(
             info: { "🐺 Today: 47 plays" },
             enabled: { true }
@@ -40,7 +40,7 @@ struct StatsCommandTests {
     }
 
     @Test("!stats stays silent when the gate is closed (offline or disabled)")
-    func testSilentWhenDisabled() {
+    @MainActor func testSilentWhenDisabled() {
         let dispatcher = makeDispatcher(
             info: { "🐺 Today: 47 plays" },
             enabled: { false }
@@ -50,7 +50,7 @@ struct StatsCommandTests {
     }
 
     @Test("The !musicstats alias also works")
-    func testAliasTrigger() {
+    @MainActor func testAliasTrigger() {
         let dispatcher = makeDispatcher(
             info: { "🐺 stats here" },
             enabled: { true }
@@ -59,7 +59,7 @@ struct StatsCommandTests {
     }
 
     @Test("Unrelated messages do not trigger !stats")
-    func testNoFalseTrigger() {
+    @MainActor func testNoFalseTrigger() {
         let dispatcher = makeDispatcher(
             info: { "🐺 stats here" },
             enabled: { true }
@@ -69,7 +69,7 @@ struct StatsCommandTests {
     }
 
     @Test("A very long stats string is truncated for chat")
-    func testTruncation() {
+    @MainActor func testTruncation() {
         let long = String(repeating: "x", count: 800)
         let dispatcher = makeDispatcher(info: { long }, enabled: { true })
         let reply = dispatcher.processMessage("!stats", userID: "u1")

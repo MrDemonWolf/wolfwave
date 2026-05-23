@@ -8,94 +8,95 @@
 import XCTest
 @testable import WolfWave
 
-@MainActor
-final class OnboardingViewModelTests: XCTestCase {
-    var viewModel: OnboardingViewModel!
+nonisolated final class OnboardingViewModelTests: XCTestCase {
+    nonisolated(unsafe) var viewModel: OnboardingViewModel!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         viewModel = OnboardingViewModel()
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         viewModel = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Initial State
 
-    func testInitialStepIsWelcome() {
+    @MainActor func testInitialStepIsWelcome() {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testTotalStepsEquals7() {
+    @MainActor func testTotalStepsEquals7() {
         XCTAssertEqual(viewModel.totalSteps, 7)
     }
 
-    func testIsFirstStepAtWelcome() {
+    @MainActor func testIsFirstStepAtWelcome() {
         XCTAssertTrue(viewModel.isFirstStep)
     }
 
-    func testIsNotLastStepAtWelcome() {
+    @MainActor func testIsNotLastStepAtWelcome() {
         XCTAssertFalse(viewModel.isLastStep)
     }
 
     // MARK: - Forward Navigation
 
-    func testGoToNextStepFromWelcomeReachesDiscord() {
+    @MainActor func testGoToNextStepFromWelcomeReachesDiscord() {
         viewModel.goToNextStep()
         XCTAssertEqual(viewModel.currentStep, .discordConnect)
     }
 
-    func testTwoNextStepsReachesTwitch() {
+    @MainActor func testTwoNextStepsReachesTwitch() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         XCTAssertEqual(viewModel.currentStep, .twitchConnect)
     }
 
-    func testThreeNextStepsReachesOBS() {
+    @MainActor func testThreeNextStepsReachesOBS() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         XCTAssertEqual(viewModel.currentStep, .obsWidget)
     }
 
-    func testFourNextStepsReachesPreferences() {
+    @MainActor func testFourNextStepsReachesPreferences() {
         for _ in 0..<4 { viewModel.goToNextStep() }
         XCTAssertEqual(viewModel.currentStep, .preferences)
     }
 
-    func testFiveNextStepsReachesAppleMusic() {
+    @MainActor func testFiveNextStepsReachesAppleMusic() {
         for _ in 0..<5 { viewModel.goToNextStep() }
         XCTAssertEqual(viewModel.currentStep, .appleMusicAccess)
     }
 
-    func testSixNextStepsReachesMenuBarPointer() {
+    @MainActor func testSixNextStepsReachesMenuBarPointer() {
         for _ in 0..<6 { viewModel.goToNextStep() }
         XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
     }
 
-    func testGoToNextStepAtLastStepStays() {
+    @MainActor func testGoToNextStepAtLastStepStays() {
         for _ in 0..<10 { viewModel.goToNextStep() }
         XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
     }
 
     // MARK: - Backward Navigation
 
-    func testGoToPreviousStepAtFirstStepStays() {
+    @MainActor func testGoToPreviousStepAtFirstStepStays() {
         viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testGoToPreviousStepFromDiscord() {
+    @MainActor func testGoToPreviousStepFromDiscord() {
         viewModel.goToNextStep()
         viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testGoToPreviousStepFromTwitch() {
+    @MainActor func testGoToPreviousStepFromTwitch() {
         viewModel.goToNextStep()
         viewModel.goToNextStep()
         viewModel.goToPreviousStep()
@@ -104,46 +105,46 @@ final class OnboardingViewModelTests: XCTestCase {
 
     // MARK: - Step Properties
 
-    func testIsNotFirstStepAtDiscord() {
+    @MainActor func testIsNotFirstStepAtDiscord() {
         viewModel.goToNextStep()
         XCTAssertFalse(viewModel.isFirstStep)
     }
 
-    func testIsNotLastStepInMiddle() {
+    @MainActor func testIsNotLastStepInMiddle() {
         for _ in 0..<3 { viewModel.goToNextStep() }
         XCTAssertFalse(viewModel.isLastStep)
     }
 
-    func testIsLastStepAtMenuBarPointer() {
+    @MainActor func testIsLastStepAtMenuBarPointer() {
         for _ in 0..<6 { viewModel.goToNextStep() }
         XCTAssertTrue(viewModel.isLastStep)
     }
 
     // MARK: - Completion
 
-    func testCompleteOnboardingSetsFlag() {
+    @MainActor func testCompleteOnboardingSetsFlag() {
         viewModel.completeOnboarding()
         XCTAssertTrue(UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding))
     }
 
-    func testHasCompletedOnboardingReadsTrue() {
+    @MainActor func testHasCompletedOnboardingReadsTrue() {
         UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertTrue(OnboardingViewModel.hasCompletedOnboarding)
     }
 
-    func testHasCompletedOnboardingReadsFalse() {
+    @MainActor func testHasCompletedOnboardingReadsFalse() {
         UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertFalse(OnboardingViewModel.hasCompletedOnboarding)
     }
 
-    func testHasCompletedOnboardingDefaultsFalse() {
+    @MainActor func testHasCompletedOnboardingDefaultsFalse() {
         UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
         XCTAssertFalse(OnboardingViewModel.hasCompletedOnboarding)
     }
 
     // MARK: - Full Navigation Cycle
 
-    func testFullNavigationCycleForwardAndBack() {
+    @MainActor func testFullNavigationCycleForwardAndBack() {
         XCTAssertEqual(viewModel.currentStep, .welcome)
 
         let order: [OnboardingViewModel.OnboardingStep] = [

@@ -18,7 +18,7 @@ struct TwitchViewModelTests {
     // MARK: - Initialization Tests
     
     @Test("ViewModel initializes with default state")
-    func testInitialization() async throws {
+    @MainActor func testInitialization() async throws {
         let viewModel = TwitchViewModel()
         
         #expect(viewModel.botUsername == "")
@@ -37,7 +37,7 @@ struct TwitchViewModelTests {
     // MARK: - Auth State Tests
     
     @Test("Auth state isInProgress computed property works")
-    func testAuthStateIsInProgress() async throws {
+    @MainActor func testAuthStateIsInProgress() async throws {
         let viewModel = TwitchViewModel()
         
         // Idle should not be in progress
@@ -62,7 +62,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Auth state userCode extraction works")
-    func testAuthStateUserCode() async throws {
+    @MainActor func testAuthStateUserCode() async throws {
         let viewModel = TwitchViewModel()
         
         // No user code when idle
@@ -79,7 +79,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Auth state verificationURI extraction works")
-    func testAuthStateVerificationURI() async throws {
+    @MainActor func testAuthStateVerificationURI() async throws {
         let viewModel = TwitchViewModel()
         
         // No URI when idle
@@ -98,7 +98,7 @@ struct TwitchViewModelTests {
     // MARK: - Integration State Tests
     
     @Test("Integration state reflects connection status")
-    func testIntegrationStateConnected() async throws {
+    @MainActor func testIntegrationStateConnected() async throws {
         let viewModel = TwitchViewModel()
         
         // Not connected initially
@@ -120,7 +120,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Integration state reflects auth progress")
-    func testIntegrationStateAuthorizing() async throws {
+    @MainActor func testIntegrationStateAuthorizing() async throws {
         let viewModel = TwitchViewModel()
         
         // Authorizing when requesting code
@@ -143,7 +143,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Integration state reflects errors")
-    func testIntegrationStateError() async throws {
+    @MainActor func testIntegrationStateError() async throws {
         let viewModel = TwitchViewModel()
         
         viewModel.authState = .error("Test error message")
@@ -157,7 +157,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Integration color matches state")
-    func testIntegrationColor() async throws {
+    @MainActor func testIntegrationColor() async throws {
         let viewModel = TwitchViewModel()
         
         // Not connected = secondary
@@ -181,7 +181,7 @@ struct TwitchViewModelTests {
     // MARK: - Status Chip Tests
     
     @Test("Status chip text reflects state")
-    func testStatusChipText() async throws {
+    @MainActor func testStatusChipText() async throws {
         let viewModel = TwitchViewModel()
         
         // Not signed in
@@ -201,7 +201,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Status chip color reflects state")
-    func testStatusChipColor() async throws {
+    @MainActor func testStatusChipColor() async throws {
         let viewModel = TwitchViewModel()
         
         // Not signed in = gray
@@ -223,7 +223,7 @@ struct TwitchViewModelTests {
     // MARK: - Channel Validation State Tests
     
     @Test("Channel validation state enum equality works")
-    func testChannelValidationStateEquality() async throws {
+    @MainActor func testChannelValidationStateEquality() async throws {
         #expect(TwitchViewModel.ChannelValidationState.idle == .idle)
         #expect(TwitchViewModel.ChannelValidationState.validating == .validating)
         #expect(TwitchViewModel.ChannelValidationState.valid == .valid)
@@ -235,7 +235,7 @@ struct TwitchViewModelTests {
     // MARK: - Test Auth Result Tests
     
     @Test("Test auth result enum equality works")
-    func testTestAuthResultEquality() async throws {
+    @MainActor func testTestAuthResultEquality() async throws {
         #expect(TwitchViewModel.TestAuthResult.idle == .idle)
         #expect(TwitchViewModel.TestAuthResult.testing == .testing)
         #expect(TwitchViewModel.TestAuthResult.success == .success)
@@ -245,7 +245,7 @@ struct TwitchViewModelTests {
     // MARK: - Clear Credentials Tests
     
     @Test("Clear credentials resets all state")
-    func testClearCredentials() async throws {
+    @MainActor func testClearCredentials() async throws {
         let viewModel = TwitchViewModel()
         
         // Set some state
@@ -275,7 +275,7 @@ struct TwitchViewModelTests {
     // MARK: - Save Credentials Tests
     
     @Test("Save credentials validates empty token")
-    func testSaveCredentialsEmptyToken() async throws {
+    @MainActor func testSaveCredentialsEmptyToken() async throws {
         let viewModel = TwitchViewModel()
         
         viewModel.oauthToken = ""
@@ -288,7 +288,7 @@ struct TwitchViewModelTests {
     }
     
     @Test("Save credentials validates empty channel")
-    func testSaveCredentialsEmptyChannel() async throws {
+    @MainActor func testSaveCredentialsEmptyChannel() async throws {
         let viewModel = TwitchViewModel()
         
         viewModel.oauthToken = "test_token"
@@ -303,7 +303,7 @@ struct TwitchViewModelTests {
     // MARK: - Cancel OAuth Tests
     
     @Test("Cancel OAuth resets state")
-    func testCancelOAuth() async throws {
+    @MainActor func testCancelOAuth() async throws {
         let viewModel = TwitchViewModel()
         
         viewModel.authState = .waitingForAuth(userCode: "ABC123", verificationURI: "https://test.com")

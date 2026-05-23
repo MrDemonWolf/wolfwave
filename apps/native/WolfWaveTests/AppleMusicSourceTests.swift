@@ -8,49 +8,51 @@
 import XCTest
 @testable import WolfWave
 
-final class AppleMusicSourceTests: XCTestCase {
-    var monitor: AppleMusicSource!
+nonisolated final class AppleMusicSourceTests: XCTestCase {
+    nonisolated(unsafe) var monitor: AppleMusicSource!
 
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    override func setUp() async throws {
+        try await super.setUp()
         monitor = AppleMusicSource()
     }
 
-    override func tearDown() {
+    @MainActor
+    override func tearDown() async throws {
         monitor.stopTracking()
         monitor = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Initialization Tests
 
-    func testMonitorInitialization() {
+    @MainActor func testMonitorInitialization() {
         XCTAssertNotNil(monitor)
     }
 
-    func testDelegateIsNilByDefault() {
+    @MainActor func testDelegateIsNilByDefault() {
         XCTAssertNil(monitor.delegate)
     }
 
     // MARK: - Start/Stop Tests
 
-    func testStartTrackingDoesNotCrash() {
+    @MainActor func testStartTrackingDoesNotCrash() {
         monitor.startTracking()
         // If Music.app is not running, we should get a status update
     }
 
-    func testStopTrackingDoesNotCrash() {
+    @MainActor func testStopTrackingDoesNotCrash() {
         monitor.startTracking()
         monitor.stopTracking()
     }
 
-    func testDoubleStartDoesNotCrash() {
+    @MainActor func testDoubleStartDoesNotCrash() {
         monitor.startTracking()
         monitor.startTracking()
         monitor.stopTracking()
     }
 
-    func testDoubleStopDoesNotCrash() {
+    @MainActor func testDoubleStopDoesNotCrash() {
         monitor.startTracking()
         monitor.stopTracking()
         monitor.stopTracking()
@@ -58,11 +60,11 @@ final class AppleMusicSourceTests: XCTestCase {
 
     // MARK: - Update Interval Tests
 
-    func testUpdateCheckIntervalBeforeStartDoesNotCrash() {
+    @MainActor func testUpdateCheckIntervalBeforeStartDoesNotCrash() {
         monitor.updateCheckInterval(10.0)
     }
 
-    func testUpdateCheckIntervalWhileTrackingDoesNotCrash() {
+    @MainActor func testUpdateCheckIntervalWhileTrackingDoesNotCrash() {
         monitor.startTracking()
         monitor.updateCheckInterval(10.0)
         monitor.stopTracking()

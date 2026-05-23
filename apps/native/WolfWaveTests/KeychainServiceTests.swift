@@ -18,7 +18,7 @@ struct KeychainServiceTests {
     // MARK: - Token Save/Load/Delete Tests
 
     @Test("Save and load token successfully")
-    func testSaveAndLoadToken() async throws {
+    @MainActor func testSaveAndLoadToken() async throws {
         let testToken = "test_token_\(UUID().uuidString)"
 
         // Save token
@@ -35,7 +35,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Delete token removes it from keychain")
-    func testDeleteToken() async throws {
+    @MainActor func testDeleteToken() async throws {
         let testToken = "test_token_delete"
 
         // Save token
@@ -52,7 +52,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Save empty token throws error")
-    func testSaveEmptyToken() async throws {
+    @MainActor func testSaveEmptyToken() async throws {
         // Attempt to save empty token should throw
         #expect(throws: KeychainService.KeychainError.self) {
             try KeychainService.saveToken("")
@@ -60,7 +60,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Update existing token")
-    func testUpdateToken() async throws {
+    @MainActor func testUpdateToken() async throws {
         let token1 = "first_token"
         let token2 = "second_token"
 
@@ -79,7 +79,7 @@ struct KeychainServiceTests {
     // MARK: - Twitch Token Tests
 
     @Test("Save and load Twitch token")
-    func testTwitchToken() async throws {
+    @MainActor func testTwitchToken() async throws {
         let testToken = "twitch_oauth_\(UUID().uuidString)"
 
         try KeychainService.saveTwitchToken(testToken)
@@ -92,7 +92,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Save empty Twitch token throws error")
-    func testSaveEmptyTwitchToken() async throws {
+    @MainActor func testSaveEmptyTwitchToken() async throws {
         #expect(throws: KeychainService.KeychainError.self) {
             try KeychainService.saveTwitchToken("")
         }
@@ -101,7 +101,7 @@ struct KeychainServiceTests {
     // MARK: - Twitch Username Tests
 
     @Test("Save and load Twitch username")
-    func testTwitchUsername() async throws {
+    @MainActor func testTwitchUsername() async throws {
         let testUsername = "testbot_\(UUID().uuidString)"
 
         try KeychainService.saveTwitchUsername(testUsername)
@@ -114,7 +114,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Save username only if changed")
-    func testSaveUsernameIfChanged() async throws {
+    @MainActor func testSaveUsernameIfChanged() async throws {
         let username = "unchangedbot"
 
         // Save initially
@@ -140,7 +140,7 @@ struct KeychainServiceTests {
     // MARK: - Twitch Bot User ID Tests
 
     @Test("Save and load Twitch bot user ID")
-    func testTwitchBotUserID() async throws {
+    @MainActor func testTwitchBotUserID() async throws {
         let testUserID = "12345678"
 
         try KeychainService.saveTwitchBotUserID(testUserID)
@@ -155,7 +155,7 @@ struct KeychainServiceTests {
     // MARK: - Twitch Channel ID Tests
 
     @Test("Save and load Twitch channel ID")
-    func testTwitchChannelID() async throws {
+    @MainActor func testTwitchChannelID() async throws {
         let testChannelID = "testchannel"
 
         try KeychainService.saveTwitchChannelID(testChannelID)
@@ -170,7 +170,7 @@ struct KeychainServiceTests {
     // MARK: - Special Characters Tests
 
     @Test("Handle special characters in saved values")
-    func testSpecialCharacters() async throws {
+    @MainActor func testSpecialCharacters() async throws {
         let specialToken = "token_with_!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
 
         try KeychainService.saveToken(specialToken)
@@ -182,7 +182,7 @@ struct KeychainServiceTests {
     }
 
     @Test("Handle Unicode in saved values")
-    func testUnicodeCharacters() async throws {
+    @MainActor func testUnicodeCharacters() async throws {
         let unicodeUsername = "testbot_🐺🎵"
 
         try KeychainService.saveTwitchUsername(unicodeUsername)
@@ -196,7 +196,7 @@ struct KeychainServiceTests {
     // MARK: - Concurrent Access Tests
 
     @Test("Concurrent save and load operations are thread-safe")
-    func testConcurrentAccess() async throws {
+    @MainActor func testConcurrentAccess() async throws {
         let iterations = 50
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "keychain.stress", attributes: .concurrent)
@@ -225,7 +225,9 @@ struct KeychainServiceTests {
             }
         }
 
-        group.wait()
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            group.notify(queue: .main) { cont.resume() }
+        }
 
         // Validate: every read should have returned a non-nil, non-empty token
         // (since we seeded and continuously wrote valid tokens)
@@ -247,7 +249,7 @@ struct KeychainServiceTests {
     // MARK: - Error Handling Tests
 
     @Test("KeychainError has correct descriptions")
-    func testKeychainErrorDescriptions() async throws {
+    @MainActor func testKeychainErrorDescriptions() async throws {
         let saveError = KeychainService.KeychainError.saveFailed(-25300)
         #expect(saveError.errorDescription == "Failed to save token to Keychain (status: -25300)")
 
@@ -256,14 +258,14 @@ struct KeychainServiceTests {
     }
 
     @Test("Save failed errors with different status codes are distinct")
-    func testSaveFailedWithDifferentStatus() async throws {
+    @MainActor func testSaveFailedWithDifferentStatus() async throws {
         let error1 = KeychainService.KeychainError.saveFailed(-25299)
         let error2 = KeychainService.KeychainError.saveFailed(-25300)
         #expect(error1.errorDescription != error2.errorDescription)
     }
 
     @Test("Delete nonexistent key does not throw")
-    func testDeleteNonexistentKeyDoesNotThrow() async throws {
+    @MainActor func testDeleteNonexistentKeyDoesNotThrow() async throws {
         KeychainService.deleteTwitchChannelID()
         KeychainService.deleteTwitchChannelID()
         // Should succeed silently
