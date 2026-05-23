@@ -251,6 +251,18 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(settingsItem)
 
+        let sponsorItem = NSMenuItem(
+            title: "Sponsor WolfWave",
+            action: #selector(openSponsorPage),
+            keyEquivalent: ""
+        )
+        sponsorItem.image = NSImage(
+            systemSymbolName: "heart.fill",
+            accessibilityDescription: "Sponsor"
+        )
+        sponsorItem.target = self
+        menu.addItem(sponsorItem)
+
         let aboutItem = NSMenuItem(
             title: "About \(appName)",
             action: #selector(showAbout),
@@ -280,6 +292,12 @@ extension AppDelegate: NSMenuDelegate {
 // MARK: - Menu Toggle Actions
 
 extension AppDelegate {
+
+    /// Opens the GitHub Sponsors page in the user's default browser.
+    @objc func openSponsorPage() {
+        guard let url = URL(string: AppConstants.URLs.githubSponsors) else { return }
+        NSWorkspace.shared.open(url)
+    }
 
     /// Toggles the "Sync Music" preference, mirroring the General settings
     /// pane. Triggered by the menu bar's tracking item.
