@@ -495,7 +495,7 @@ extension AppDelegate: NSMenuDelegate {
             switch discordService?.stateSnapshot {
             case .connected: return .connected
             case .connecting: return .connecting
-            default: return .disconnected
+            case .disconnected, .none: return .disconnected
             }
         }()
         let discordItem = makeStatusItem(
@@ -716,7 +716,9 @@ extension AppDelegate {
     /// are missing or the channel is unconfigured.
     @objc func toggleTwitchConnection() {
         if twitchService?.isConnectedSnapshot.value ?? false {
-            twitchService?.leaveChannel()
+            if let service = twitchService {
+                Task { await service.leaveChannel() }
+            }
         } else {
             // Connecting requires channel + credentials — open Twitch settings
             UserDefaults.standard.set(AppConstants.Twitch.settingsSection, forKey: AppConstants.UserDefaults.selectedSettingsSection)
@@ -841,7 +843,9 @@ extension AppDelegate {
     @objc func shareCurrentTrackToTwitch() {
         guard twitchService?.isConnectedSnapshot.value ?? false else { return }
         let message = getCurrentSongInfo()
-        twitchService?.sendMessage(message)
+        if let service = twitchService {
+            Task { await service.sendMessage(message) }
+        }
         Log.debug("AppDelegate: Shared current track to Twitch chat", category: "App")
     }
 
@@ -880,7 +884,7 @@ extension AppDelegate {
         // Twitch: only attempt when creds exist; settings can drive the join
         // otherwise.
         if let twitch = twitchService, twitch.isConnectedSnapshot.value {
-            twitch.leaveChannel()
+            Task { await twitch.leaveChannel() }
         }
 
         // Discord: setEnabled(false) → setEnabled(true) tears down and

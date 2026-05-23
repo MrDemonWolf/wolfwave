@@ -133,7 +133,10 @@ actor TwitchChatService {
     // MARK: - Configuration
 
     private let apiBaseURL = AppConstants.Twitch.apiBaseURL
-    private let commandDispatcher = BotCommandDispatcher()
+    /// `BotCommandDispatcher` is `@MainActor` (project default). The actor
+    /// holds it as `nonisolated` (it's auto-Sendable since it's MainActor) and
+    /// hops to `MainActor.run` for every call into it.
+    nonisolated let commandDispatcher: BotCommandDispatcher
     private let channelPointsService = TwitchChannelPointsService()
     private let rateLimiter = RateLimiter()
 
@@ -277,7 +280,10 @@ actor TwitchChatService {
 
     // MARK: - Init / Deinit
 
-    init() {
+    /// Marked `@MainActor` so `BotCommandDispatcher()` (a MainActor type under
+    /// project default isolation) can be constructed at init time. AppDelegate
+    /// runs on MainActor; tests call from MainActor (Swift Testing) or wrap.
+    @MainActor init() {
         let chat = AsyncStream.makeStream(of: ChatMessage.self, bufferingPolicy: .unbounded)
         let connection = AsyncStream.makeStream(of: Bool.self, bufferingPolicy: .unbounded)
         let skip = AsyncStream.makeStream(of: SkipPollResult.self, bufferingPolicy: .unbounded)
@@ -288,6 +294,7 @@ actor TwitchChatService {
         self.connectionStateContinuation = connection.continuation
         self.skipPollResults = skip.stream
         self.skipPollResultsContinuation = skip.continuation
+        self.commandDispatcher = BotCommandDispatcher()
     }
 
     deinit {
@@ -307,18 +314,19 @@ actor TwitchChatService {
     // MARK: - Wiring (called once at app startup)
 
     /// Wire the song request service into the command dispatcher.
-    func setSongRequestService(callback: @escaping @Sendable () -> SongRequestService?) {
-        commandDispatcher.setSongRequestService(callback: callback)
+    /// Hops to `MainActor` because `BotCommandDispatcher` is `@MainActor`.
+    func setSongRequestService(callback: @escaping @Sendable () -> SongRequestService?) async {
+        await MainActor.run { commandDispatcher.setSongRequestService(callback: callback) }
     }
 
     /// Wire the song request queue into the command dispatcher.
-    func setSongRequestQueue(callback: @escaping @Sendable () -> SongRequestQueue?) {
-        commandDispatcher.setSongRequestQueue(callback: callback)
+    func setSongRequestQueue(callback: @escaping @Sendable () -> SongRequestQueue?) async {
+        await MainActor.run { commandDispatcher.setSongRequestQueue(callback: callback) }
     }
 
     /// Wire the skip-vote manager into the command dispatcher.
-    func setSkipVoteManager(callback: @escaping @Sendable () -> SkipVoteManager?) {
-        commandDispatcher.setSkipVoteManager(callback: callback)
+    func setSkipVoteManager(callback: @escaping @Sendable () -> SkipVoteManager?) async {
+        await MainActor.run { commandDispatcher.setSkipVoteManager(callback: callback) }
     }
 
     /// Set the live `SongRequestService` used by redemption handlers.
@@ -538,7 +546,7 @@ actor TwitchChatService {
         botID: String,
         token: String,
         clientID: String
-    ) throws {
+    ) async throws {
         guard !broadcasterID.isEmpty, !botID.isEmpty, !token.isEmpty else {
             Log.error("TwitchChatService: Invalid credentials for channel join", category: "Twitch")
             throw ConnectionError.invalidCredentials
@@ -556,38 +564,40 @@ actor TwitchChatService {
         self.hasSentConnectionMessage = false
         self.isProcessingDisconnect = false
 
-        // Wire dispatcher providers to bridge into our async providers.
-        // The dispatcher's setter takes a sync closure; we bridge synchronously
-        // by capturing the actor and using a semaphore via Task — instead we
-        // rely on the dispatcher continuing to call sync closures, but those
-        // closures now hop into the actor to read the async provider.
+        // Wire dispatcher providers. The dispatcher is `@MainActor`, so wiring
+        // hops to MainActor. The sync provider closures read the async
+        // providers through a nonisolated `ProviderRegistry` + `runSync`
+        // semaphore bridge — that's safe because dispatcher.processMessage is
+        // also called via MainActor.run, never re-entering this actor.
         let providers = self.providers
-        commandDispatcher.setCurrentSongInfo {
-            guard let provider = providers.current() else { return "No track currently playing" }
-            return Self.runSync { await provider() } ?? "No track currently playing"
-        }
-        commandDispatcher.setLastSongInfo {
-            guard let provider = providers.last() else { return "No previous track available" }
-            return Self.runSync { await provider() } ?? "No previous track available"
-        }
-        commandDispatcher.setStatsInfo {
-            guard let provider = providers.stats() else { return "No listening stats yet" }
-            return Self.runSync { await provider() } ?? "No listening stats yet"
-        }
-        commandDispatcher.setCurrentSongCommandEnabled { [weak self] in
+        let streamLiveSnapshot = self.streamLiveSnapshot
+        let currentSongCommandEnabled: @Sendable () -> Bool = { [weak self] in
             self?.currentSongCommandEnabled ?? false
         }
-        commandDispatcher.setLastSongCommandEnabled { [weak self] in
+        let lastSongCommandEnabled: @Sendable () -> Bool = { [weak self] in
             self?.lastSongCommandEnabled ?? false
         }
-        // `!stats` answers only when the feature is on AND the stream is live.
-        // `streamLiveSnapshot` is updated whenever we mutate `streamLive` so we
-        // can read it without re-entering the actor from the sync bridge.
-        let streamLiveSnapshot = self.streamLiveSnapshot
-        commandDispatcher.setStatsCommandEnabled { [weak self] in
+        let statsCommandActiveAndLive: @Sendable () -> Bool = { [weak self] in
             guard let self else { return false }
             guard self.statsCommandActive else { return false }
             return streamLiveSnapshot.value
+        }
+        await MainActor.run {
+            commandDispatcher.setCurrentSongInfo {
+                guard let provider = providers.current() else { return "No track currently playing" }
+                return Self.runSync { await provider() } ?? "No track currently playing"
+            }
+            commandDispatcher.setLastSongInfo {
+                guard let provider = providers.last() else { return "No previous track available" }
+                return Self.runSync { await provider() } ?? "No previous track available"
+            }
+            commandDispatcher.setStatsInfo {
+                guard let provider = providers.stats() else { return "No listening stats yet" }
+                return Self.runSync { await provider() } ?? "No listening stats yet"
+            }
+            commandDispatcher.setCurrentSongCommandEnabled(callback: currentSongCommandEnabled)
+            commandDispatcher.setLastSongCommandEnabled(callback: lastSongCommandEnabled)
+            commandDispatcher.setStatsCommandEnabled(callback: statsCommandActiveAndLive)
         }
 
         // Don't set connected state here - wait for EventSub session_welcome
@@ -625,7 +635,7 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Could not resolve channel name to user ID")
         }
 
-        try joinChannel(
+        try await joinChannel(
             broadcasterID: broadcasterUserID,
             botID: botUserID,
             token: token,
@@ -662,7 +672,8 @@ actor TwitchChatService {
         guard !token.isEmpty else { throw ConnectionError.invalidCredentials }
         guard !clientID.isEmpty else { throw ConnectionError.missingClientID }
 
-        let service = TwitchChatService()
+        // `init()` is `@MainActor`; hop to construct.
+        let service = await MainActor.run { TwitchChatService() }
         let identity = try await service.fetchBotIdentity(token: token, clientID: clientID)
         let resolvedUsername = identity.displayName.isEmpty ? identity.login : identity.displayName
 
@@ -1041,13 +1052,17 @@ actor TwitchChatService {
                 Task { await self.sendMessage(response, replyTo: messageID) }
             }
 
-            if let response = commandDispatcher.processMessage(
-                text,
-                userID: userID,
-                isModerator: bypassCooldown,
-                context: context,
-                asyncReply: asyncReply
-            ) {
+            // BotCommandDispatcher is `@MainActor` — hop to call it.
+            let response: String? = await MainActor.run {
+                commandDispatcher.processMessage(
+                    text,
+                    userID: userID,
+                    isModerator: bypassCooldown,
+                    context: context,
+                    asyncReply: asyncReply
+                )
+            }
+            if let response {
                 await sendMessage(response, replyTo: messageID)
             }
         }

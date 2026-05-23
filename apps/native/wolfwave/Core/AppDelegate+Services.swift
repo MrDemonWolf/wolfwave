@@ -54,6 +54,7 @@ extension AppDelegate {
 
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
+                _ = self
                 let stateString: String
                 switch newState {
                 case .connected: stateString = "connected"
@@ -165,8 +166,8 @@ extension AppDelegate {
                     MainActor.assumeIsolated { self?.songRequestService?.queue }
                 }
                 // Direct reference for the channel-point / bit redemption handlers
-                await twitchService.setSongRequestServiceReference(
-                    MainActor.assumeIsolated { self?.songRequestService })
+                let reference = await MainActor.run { self?.songRequestService }
+                await twitchService.setSongRequestServiceReference(reference)
             }
         }
 
@@ -310,12 +311,13 @@ extension AppDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                guard let self,
-                      let window = notification.object as? NSWindow,
-                      window !== self.settingsWindow,
-                      window !== self.onboardingWindow else { return }
-                Task { @MainActor [weak self] in
-                    self?.restoreMenuOnlyIfNeeded()
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated {
+                    guard let self,
+                          let window = n.object as? NSWindow,
+                          window !== self.settingsWindow,
+                          window !== self.onboardingWindow else { return }
+                    self.restoreMenuOnlyIfNeeded()
                 }
             }
         )
