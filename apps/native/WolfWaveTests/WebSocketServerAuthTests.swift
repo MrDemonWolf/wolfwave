@@ -5,172 +5,160 @@
 //  Created by MrDemonWolf, Inc. on 5/23/26.
 //
 
-import Network
 import XCTest
 @testable import WolfWave
 
-/// Integration tests for the WebSocket auth-token gate.
+/// Unit tests for the WebSocket auth-token gate.
 ///
-/// Each test stands a real `WebSocketServerService` up on a fixed loopback port
-/// (`59010`–`59013`), opens a client `NWConnection` configured with — or
-/// deliberately missing — the `wolfwave.token.<hex>` subprotocol, and asserts
-/// the service's `connectionCount` snapshot reflects whether the handshake
-/// passed auth.
-final class WebSocketServerAuthTests: XCTestCase, @unchecked Sendable {
+/// The decision logic that backs the `NWProtocolWebSocket` client-request
+/// handler in `WebSocketServerService` is intentionally factored out into the
+/// pure static helper `WebSocketAuthToken.shouldAccept(...)` so it can be
+/// verified without standing up `NWListener` / `NWConnection`. The lifecycle
+/// integration tests in `WebSocketServerIntegrationTests` cover the wiring; this
+/// file pins down the actual auth contract.
+final class WebSocketServerAuthTests: XCTestCase {
 
-    // MARK: - Helpers
+    // MARK: - Subprotocol shape
 
-    /// Spins the run-loop briefly to let Network.framework callbacks flush
-    /// onto the service actor. Used after closing a client to let
-    /// `removeConnection` settle.
-    private func drain(seconds: TimeInterval = 0.5) {
-        let exp = expectation(description: "drain")
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exp.fulfill() }
-        wait(for: [exp], timeout: seconds + 1)
+    func testExpectedSubprotocolHasWolfWavePrefix() {
+        XCTAssertEqual(
+            WebSocketAuthToken.expectedSubprotocol(for: "abcdef1234567890"),
+            "wolfwave.token.abcdef1234567890"
+        )
     }
 
-    /// Brings up the service, waits for `.listening`, then returns.
-    private func startListening(_ service: WebSocketServerService) {
-        let exp = expectation(description: "listening")
-        let stream = service.stateChanges
-        let observer = Task.detached {
-            for await (state, _) in stream where state == .listening {
-                exp.fulfill()
-                return
-            }
-        }
-        Task { await service.setEnabled(true) }
-        wait(for: [exp], timeout: 10)
-        observer.cancel()
+    // MARK: - shouldAccept — auth disabled (legacy init)
+
+    func testShouldAcceptIsTrueWhenTokenIsNil() {
+        XCTAssertTrue(
+            WebSocketAuthToken.shouldAccept(expectedToken: nil, offeredSubprotocols: []),
+            "Legacy `init(port:)` (no token) must keep accepting unauthenticated clients"
+        )
+        XCTAssertTrue(
+            WebSocketAuthToken.shouldAccept(expectedToken: nil, offeredSubprotocols: ["whatever"])
+        )
     }
 
-    /// Tears the service down. Best-effort — failures don't fail the test.
-    private func shutdown(_ service: WebSocketServerService) {
-        let exp = expectation(description: "stopped")
-        let stream = service.stateChanges
-        let observer = Task.detached {
-            for await (state, _) in stream where state == .stopped {
-                exp.fulfill()
-                return
-            }
-        }
-        Task { await service.setEnabled(false) }
-        wait(for: [exp], timeout: 15)
-        observer.cancel()
+    // MARK: - shouldAccept — token configured
+
+    func testRejectsWhenNoSubprotocolOffered() {
+        XCTAssertFalse(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: []
+            ),
+            "Handshake with no Sec-WebSocket-Protocol header must be rejected"
+        )
     }
 
-    /// Opens a WebSocket client to the given loopback port with the supplied
-    /// subprotocol (or none) and waits for the connection to reach `.ready`
-    /// or `.failed` / `.cancelled`. Returns the final state.
-    @discardableResult
-    private func connectClient(
-        port: UInt16,
-        subprotocol: String?,
-        readyTimeout: TimeInterval = 15
-    ) -> NWConnection {
-        let wsOptions = NWProtocolWebSocket.Options()
-        wsOptions.autoReplyPing = true
-        if let sub = subprotocol {
-            wsOptions.setSubprotocols([sub])
-        }
-        let parameters = NWParameters.tcp
-        parameters.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
-
-        let endpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: NWEndpoint.Port(rawValue: port)!)
-        let connection = NWConnection(to: endpoint, using: parameters)
-
-        let ready = expectation(description: "client settled")
-        ready.assertForOverFulfill = false
-        connection.stateUpdateHandler = { state in
-            switch state {
-            case .ready, .failed, .cancelled:
-                ready.fulfill()
-            default:
-                break
-            }
-        }
-        connection.start(queue: .global(qos: .userInitiated))
-        wait(for: [ready], timeout: readyTimeout)
-        return connection
+    func testRejectsWhenSubprotocolDoesNotMatch() {
+        XCTAssertFalse(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: ["wolfwave.token.deadbeef"]
+            )
+        )
+        XCTAssertFalse(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: ["some.other.protocol", "graphql-ws"]
+            )
+        )
     }
 
-    // MARK: - Tests
-
-    func testConnectionWithoutTokenIsRejected() {
-        let service = WebSocketServerService(port: 59010, authToken: "expected-token-abc123")
-        startListening(service)
-        defer { shutdown(service) }
-
-        let client = connectClient(port: 59010, subprotocol: nil)
-        defer { client.cancel() }
-
-        drain()
-
-        XCTAssertEqual(service.connectionCount, 0,
-                       "Connection without subprotocol must not join the active set")
+    func testRejectsRawTokenWithoutPrefix() {
+        // Client must offer the full `wolfwave.token.<hex>` form, not the bare token.
+        XCTAssertFalse(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: ["abcdef1234567890"]
+            )
+        )
     }
 
-    func testConnectionWithWrongTokenIsRejected() {
-        let service = WebSocketServerService(port: 59011, authToken: "expected-token-abc123")
-        startListening(service)
-        defer { shutdown(service) }
-
-        let client = connectClient(port: 59011, subprotocol: "wolfwave.token.deadbeef")
-        defer { client.cancel() }
-
-        drain()
-
-        XCTAssertEqual(service.connectionCount, 0,
-                       "Connection with mismatched token must not join the active set")
+    func testAcceptsWhenSubprotocolMatches() {
+        XCTAssertTrue(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: ["wolfwave.token.abcdef1234567890"]
+            )
+        )
     }
 
-    func testConnectionWithMatchingTokenIsAccepted() {
-        let token = "matching-token-xyz"
-        let service = WebSocketServerService(port: 59012, authToken: token)
-        startListening(service)
-        defer { shutdown(service) }
-
-        let client = connectClient(port: 59012, subprotocol: "wolfwave.token." + token)
-        defer { client.cancel() }
-
-        // Authorized clients flip the count snapshot once the actor processes the
-        // .ready transition — give it a moment longer than the rejection path.
-        let countExp = expectation(description: "client counted")
-        let stream = service.stateChanges
-        let observer = Task.detached {
-            for await (_, count) in stream where count >= 1 {
-                countExp.fulfill()
-                return
-            }
-        }
-        wait(for: [countExp], timeout: 15)
-        observer.cancel()
-
-        XCTAssertGreaterThanOrEqual(service.connectionCount, 1,
-                                    "Connection with matching subprotocol must join the active set")
+    func testAcceptsWhenMatchingSubprotocolIsOneOfMany() {
+        XCTAssertTrue(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: [
+                    "graphql-ws",
+                    "wolfwave.token.abcdef1234567890",
+                    "json.api.v1",
+                ]
+            )
+        )
     }
 
-    func testServiceInitWithoutTokenAcceptsAnyConnection() {
-        // Legacy `init(port:)` (no token) is used by lifecycle tests — assert it
-        // keeps accepting unauthenticated clients so we don't regress them.
-        let service = WebSocketServerService(port: 59013)
-        startListening(service)
-        defer { shutdown(service) }
+    func testCaseSensitiveTokenMatching() {
+        // Hex tokens are produced lowercase. A case-mangled offer must not pass —
+        // otherwise an attacker that knew the entropy could attempt mixed-case bypass.
+        XCTAssertFalse(
+            WebSocketAuthToken.shouldAccept(
+                expectedToken: "abcdef1234567890",
+                offeredSubprotocols: ["wolfwave.token.ABCDEF1234567890"]
+            )
+        )
+    }
 
-        let client = connectClient(port: 59013, subprotocol: nil)
-        defer { client.cancel() }
+    // MARK: - Token shape validation (used before persisting / substituting)
 
-        let countExp = expectation(description: "client counted")
-        let stream = service.stateChanges
-        let observer = Task.detached {
-            for await (_, count) in stream where count >= 1 {
-                countExp.fulfill()
-                return
-            }
-        }
-        wait(for: [countExp], timeout: 15)
-        observer.cancel()
+    func testIsValidAcceptsLowercaseHex() {
+        XCTAssertTrue(WebSocketAuthToken.isValid("abcdef1234567890"))
+    }
 
-        XCTAssertGreaterThanOrEqual(service.connectionCount, 1)
+    func testIsValidAcceptsUppercaseHex() {
+        XCTAssertTrue(WebSocketAuthToken.isValid("ABCDEF1234567890"))
+    }
+
+    func testIsValidAcceptsFullLengthGeneratedToken() {
+        // The generator emits 64 hex characters (32 random bytes).
+        XCTAssertTrue(WebSocketAuthToken.isValid(String(repeating: "a", count: 64)))
+    }
+
+    func testIsValidRejectsTooShort() {
+        XCTAssertFalse(WebSocketAuthToken.isValid("abc"))
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 15)))
+    }
+
+    func testIsValidRejectsTooLong() {
+        XCTAssertFalse(WebSocketAuthToken.isValid(String(repeating: "a", count: 129)))
+    }
+
+    func testIsValidRejectsEmpty() {
+        XCTAssertFalse(WebSocketAuthToken.isValid(""))
+    }
+
+    func testIsValidRejectsInjectionAttempts() {
+        // The whole point: a user-edited token that could escape the JS string
+        // context in `widget.html` must not pass validation.
+        XCTAssertFalse(WebSocketAuthToken.isValid("</script><script>alert(1)</script>"))
+        XCTAssertFalse(WebSocketAuthToken.isValid("abc'; document.cookie"))
+        XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef\""))
+        XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef\\"))
+    }
+
+    func testIsValidRejectsNonHexCharacters() {
+        XCTAssertFalse(WebSocketAuthToken.isValid("ghijklmnopqrstuv"))
+        XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef-"))
+    }
+
+    // MARK: - Redaction (logging safety)
+
+    func testRedactKeepsOnlyFirstFourChars() {
+        XCTAssertEqual(WebSocketAuthToken.redact("abcdef1234567890"), "abcd…")
+    }
+
+    func testRedactCollapsesShortInputs() {
+        XCTAssertEqual(WebSocketAuthToken.redact("ab"), "…")
+        XCTAssertEqual(WebSocketAuthToken.redact(""), "…")
     }
 }

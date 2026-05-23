@@ -275,18 +275,16 @@ actor WebSocketServerService {
         // `handleNewConnection`, so they can't pollute the active connection set.
         let expectedToken = authToken
         wsOptions.setClientRequestHandler(networkQueue) { subprotocols, _ in
-            guard let expected = expectedToken else {
+            let accept = WebSocketAuthToken.shouldAccept(
+                expectedToken: expectedToken,
+                offeredSubprotocols: subprotocols
+            )
+            if accept {
+                let selected: String? = expectedToken.map(WebSocketAuthToken.expectedSubprotocol(for:))
+                    ?? subprotocols.first
                 return NWProtocolWebSocket.Response(
                     status: .accept,
-                    subprotocol: subprotocols.first,
-                    additionalHeaders: nil
-                )
-            }
-            let expectedProtocol = WebSocketAuthToken.expectedSubprotocol(for: expected)
-            if subprotocols.contains(expectedProtocol) {
-                return NWProtocolWebSocket.Response(
-                    status: .accept,
-                    subprotocol: expectedProtocol,
+                    subprotocol: selected,
                     additionalHeaders: nil
                 )
             }

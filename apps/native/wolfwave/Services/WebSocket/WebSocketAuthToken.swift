@@ -56,6 +56,19 @@ nonisolated enum WebSocketAuthToken {
         subprotocolPrefix + token
     }
 
+    /// Decides whether a handshake should be accepted given the server's
+    /// configured token and the subprotocols the client offered.
+    ///
+    /// - When `expectedToken` is `nil` (test-only legacy init), any handshake
+    ///   passes — preserves backward-compat for the lifecycle tests that
+    ///   construct the service via `init(port:)`.
+    /// - Otherwise the client must have offered `wolfwave.token.<expected>`
+    ///   in its `Sec-WebSocket-Protocol` list.
+    static func shouldAccept(expectedToken: String?, offeredSubprotocols: [String]) -> Bool {
+        guard let expected = expectedToken else { return true }
+        return offeredSubprotocols.contains(expectedSubprotocol(for: expected))
+    }
+
     /// Returns `true` when `candidate` is a non-empty hex string (`[0-9a-fA-F]+`)
     /// between 16 and 128 characters. Custom tokens entered by the user are
     /// gated through this check before they are persisted or substituted into
