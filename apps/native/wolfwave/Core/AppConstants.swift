@@ -766,6 +766,21 @@ nonisolated enum AppConstants {
         /// GitHub new-issue page URL (resolved from config)
         static let githubIssuesNew = "https://github.com/\(repoOwner)/\(repoName)/issues/new"
 
+        /// GitHub Sponsors username.
+        ///
+        /// Auto-derived from `.github/FUNDING.yml` by `scripts/generate-sponsor-config.sh`
+        /// and committed as `SponsorConfig.generated.swift`. Falls back to `repoOwner`
+        /// if the generated value is empty.
+        @MainActor
+        static var sponsorUser: String {
+            let generated = SponsorConfig.sponsorUser.trimmingCharacters(in: .whitespacesAndNewlines)
+            return generated.isEmpty ? repoOwner : generated
+        }
+
+        /// GitHub Sponsors page URL (resolved from FUNDING.yml)
+        @MainActor
+        static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
+
         /// Community Discord invite — opened from the tray menu "Help ▸ Join Discord Community".
         static let communityDiscord = "https://mrdwolf.net/discord"
     }

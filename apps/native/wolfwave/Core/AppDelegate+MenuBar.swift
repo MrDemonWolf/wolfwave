@@ -492,7 +492,7 @@ extension AppDelegate: NSMenuDelegate {
 
         let discordEnabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         let discordState: MenuStatusFormatter.DiscordState = {
-            switch discordService?.state {
+            switch discordService?.stateSnapshot {
             case .connected: return .connected
             case .connecting: return .connecting
             default: return .disconnected
@@ -670,6 +670,14 @@ extension AppDelegate: NSMenuDelegate {
         github.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
         submenu.addItem(github)
 
+        let sponsor = NSMenuItem(
+            title: "Sponsor WolfWave",
+            action: #selector(openSponsorPage),
+            keyEquivalent: ""
+        )
+        sponsor.image = NSImage(systemSymbolName: "heart.fill", accessibilityDescription: "Sponsor")
+        submenu.addItem(sponsor)
+
         return submenu
     }
 
@@ -687,6 +695,12 @@ extension AppDelegate: NSMenuDelegate {
 // MARK: - Menu Toggle Actions
 
 extension AppDelegate {
+
+    /// Opens the GitHub Sponsors page in the user's default browser.
+    @objc func openSponsorPage() {
+        guard let url = URL(string: AppConstants.URLs.githubSponsors) else { return }
+        NSWorkspace.shared.open(url)
+    }
 
     /// Toggles the "Sync Music" preference, mirroring the General settings
     /// pane. Triggered by the menu bar's tracking item.
@@ -872,9 +886,11 @@ extension AppDelegate {
         // Discord: setEnabled(false) → setEnabled(true) tears down and
         // re-opens the IPC socket with fresh state.
         if UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) {
-            discordService?.setEnabled(false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                self?.discordService?.setEnabled(true)
+            let discord = discordService
+            Task {
+                await discord?.setEnabled(false)
+                try? await Task.sleep(for: .milliseconds(250))
+                await discord?.setEnabled(true)
             }
         }
 
