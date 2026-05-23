@@ -145,6 +145,10 @@ fileprivate struct WebSocketServerCard: View {
     /// `true` reveals the token; default hidden behind a `SecureField`.
     @State private var isTokenRevealed: Bool = false
 
+    /// Inline validation message shown beneath the token field, mirroring the
+    /// port-field error pattern. `nil` when the draft is valid or unchanged.
+    @State private var tokenError: String? = nil
+
     let serverState: WebSocketServerService.ServerState
     let localNetworkIP: String?
 
@@ -358,6 +362,17 @@ fileprivate struct WebSocketServerCard: View {
                 )
             }
 
+            if let tokenError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 11))
+                    Text(tokenError)
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.red)
+                .accessibilityIdentifier("websocketTokenError")
+            }
+
             HStack(spacing: 8) {
                 Button {
                     regenerateToken()
@@ -384,6 +399,7 @@ fileprivate struct WebSocketServerCard: View {
 
                     Button {
                         tokenDraft = currentToken
+                        tokenError = nil
                     } label: {
                         Text("Cancel").font(.system(size: 11))
                     }
@@ -416,9 +432,10 @@ fileprivate struct WebSocketServerCard: View {
                 "WebSocketSettings: Rejected custom token — must be hex characters (16–128).",
                 category: "WebSocket"
             )
-            tokenDraft = currentToken
+            tokenError = "Use 16–128 hex chars (0–9, a–f)."
             return
         }
+        tokenError = nil
         do {
             try KeychainService.saveToken(trimmed)
             currentToken = trimmed
@@ -426,6 +443,7 @@ fileprivate struct WebSocketServerCard: View {
             applyTokenToServer(trimmed)
         } catch {
             Log.error("WebSocketSettings: Failed to save custom token: \(error)", category: "WebSocket")
+            tokenError = "Couldn't save token. Try again."
         }
     }
 
@@ -434,6 +452,7 @@ fileprivate struct WebSocketServerCard: View {
         let fresh = WebSocketAuthToken.rotate()
         currentToken = fresh
         tokenDraft = fresh
+        tokenError = nil
         applyTokenToServer(fresh)
     }
 
