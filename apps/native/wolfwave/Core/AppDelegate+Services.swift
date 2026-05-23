@@ -72,7 +72,6 @@ extension AppDelegate {
 
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
-                self?.discordCachedState = newState
                 let stateString: String
                 switch newState {
                 case .connected: stateString = "connected"
@@ -89,7 +88,9 @@ extension AppDelegate {
 
         discordArtworkConsumer = Task { @MainActor [weak self] in
             for await resolution in service.artworkResolutions {
-                self?.websocketServer?.updateArtworkURL(resolution.url)
+                if let server = self?.websocketServer {
+                    await server.updateArtworkURL(resolution.url)
+                }
             }
         }
 
@@ -122,15 +123,19 @@ extension AppDelegate {
         let storedPort = UserDefaults.standard.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
         let port: UInt16 = storedPort > 0 ? UInt16(clamping: storedPort) : AppConstants.WebSocketServer.defaultPort
 
-        websocketServer = WebSocketServerService(port: port)
+        let server = WebSocketServerService(port: port)
+        websocketServer = server
 
-        websocketServer?.onStateChange = { newState, clientCount in
-            Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+        let stateChanges = server.stateChanges
+        Task.detached {
+            for await (newState, clientCount) in stateChanges {
+                Log.debug("AppDelegate: WebSocket state changed to \(newState.rawValue) (\(clientCount) clients)", category: "WebSocket")
+            }
         }
 
         let enabled = UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
         if enabled {
-            websocketServer?.setEnabled(true)
+            Task { await server.setEnabled(true) }
         }
     }
 
@@ -232,11 +237,15 @@ extension AppDelegate {
     func setupPowerStateMonitor() {
         _ = PowerStateMonitor.shared
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(powerStateChanged(_:)),
-            name: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
-            object: nil
+        notificationObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.powerStateChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.powerStateChanged(n) }
+            }
         )
     }
 
@@ -248,15 +257,15 @@ extension AppDelegate {
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
         if let discordService {
-            let interval = reduced
+            let discordInterval = reduced
                 ? AppConstants.PowerManagement.reducedDiscordPollInterval
                 : AppConstants.Discord.availabilityPollInterval
-            Task { await discordService.updatePollInterval(interval) }
+            Task { await discordService.updatePollInterval(discordInterval) }
         }
-        websocketServer?.updateProgressInterval(
-            reduced ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
-                    : AppConstants.WebSocketServer.progressBroadcastInterval
-        )
+        let wsInterval: TimeInterval = reduced
+            ? AppConstants.PowerManagement.reducedProgressBroadcastInterval
+            : AppConstants.WebSocketServer.progressBroadcastInterval
+        Task { [weak self] in await self?.websocketServer?.updateProgressInterval(wsInterval) }
 
         Log.debug("AppDelegate: Power state changed: reduced=\(reduced)", category: "App")
     }
@@ -270,24 +279,110 @@ extension AppDelegate {
     func setupNotificationObservers() {
         let nc = NotificationCenter.default
 
-        nc.addObserver(self, selector: #selector(trackingSettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged), object: nil)
-        nc.addObserver(self, selector: #selector(dockVisibilityChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged), object: nil)
-        nc.addObserver(self, selector: #selector(discordPresenceSettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged), object: nil)
-        nc.addObserver(self, selector: #selector(websocketServerSettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.websocketServerChanged), object: nil)
-        nc.addObserver(self, selector: #selector(widgetHTTPServerSettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged), object: nil)
-        nc.addObserver(self, selector: #selector(handleUpdateStateChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.updateStateChanged), object: nil)
-        nc.addObserver(self, selector: #selector(songRequestSettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged), object: nil)
-        nc.addObserver(self, selector: #selector(listeningHistorySettingChanged(_:)),
-                       name: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged), object: nil)
-    }
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.trackingSettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.trackingSettingChanged(n) }
+            }
+        )
 
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.dockVisibilityChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let window = notification.object as? NSWindow,
+                      window !== self.settingsWindow,
+                      window !== self.onboardingWindow else { return }
+                Task { @MainActor [weak self] in
+                    self?.restoreMenuOnlyIfNeeded()
+                }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.discordPresenceChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.discordPresenceSettingChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.websocketServerChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.websocketServerSettingChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.widgetHTTPServerChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.widgetHTTPServerSettingChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.updateStateChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.handleUpdateStateChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.songRequestSettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.songRequestSettingChanged(n) }
+            }
+        )
+
+        notificationObservers.append(
+            nc.addObserver(
+                forName: NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged),
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                nonisolated(unsafe) let n = notification
+                MainActor.assumeIsolated { self?.listeningHistorySettingChanged(n) }
+            }
+        )
+    }
 }
 
 // MARK: - Notification Handlers
@@ -343,10 +438,12 @@ extension AppDelegate {
     @objc func websocketServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
             ?? UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
-        websocketServer?.setEnabled(enabled)
-
-        if let port = notification.userInfo?["port"] as? UInt16 {
-            websocketServer?.updatePort(port)
+        let portChange = notification.userInfo?["port"] as? UInt16
+        Task { [weak self] in
+            await self?.websocketServer?.setEnabled(enabled)
+            if let portChange {
+                await self?.websocketServer?.updatePort(portChange)
+            }
         }
     }
 
@@ -354,7 +451,7 @@ extension AppDelegate {
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
         let enabled = notification.userInfo?["enabled"] as? Bool
             ?? UserDefaults.standard.object(forKey: AppConstants.UserDefaults.widgetHTTPEnabled) as? Bool ?? false
-        websocketServer?.setWidgetHTTPEnabled(enabled)
+        Task { [weak self] in await self?.websocketServer?.setWidgetHTTPEnabled(enabled) }
     }
 
     /// Starts or stops the song request playback monitor when the setting changes.
@@ -419,7 +516,7 @@ extension AppDelegate {
     func fetchArtworkForWidget(track: String, artist: String) {
         ArtworkService.shared.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
             guard let url else { return }
-            self?.websocketServer?.updateArtworkURL(url)
+            Task { [weak self] in await self?.websocketServer?.updateArtworkURL(url) }
         }
     }
 }
@@ -534,13 +631,15 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         postNowPlayingUpdate(song: track, artist: artist, album: album, playlist: playlist)
 
-        websocketServer?.updateNowPlaying(
-            track: track,
-            artist: artist,
-            album: album,
-            duration: duration,
-            elapsed: elapsed
-        )
+        Task { [weak self] in
+            await self?.websocketServer?.updateNowPlaying(
+                track: track,
+                artist: artist,
+                album: album,
+                duration: duration,
+                elapsed: elapsed
+            )
+        }
 
         fetchArtworkForWidget(track: track, artist: artist)
 
@@ -588,7 +687,7 @@ extension AppDelegate: PlaybackSourceDelegate {
             if let discordService {
                 Task { await discordService.clearPresence() }
             }
-            websocketServer?.clearNowPlaying()
+            Task { [weak self] in await self?.websocketServer?.clearNowPlaying() }
         }
     }
 }

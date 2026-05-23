@@ -212,6 +212,4 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     private func scheduleTrackCheck(after delay: TimeInterval, reason: String) {
         backgroundQueue.asyncAfter(deadline: .now() + delay) { [weak self] in self?.checkCurrentTrack() }
     }
-
-    deinit { stopTracking() }
 }
