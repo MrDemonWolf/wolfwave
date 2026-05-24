@@ -145,6 +145,7 @@ struct MusicMonitorSettingsView: View {
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
+                MusicPermissionCache.write(.granted)
                 permissionState = .granted
             }
         }

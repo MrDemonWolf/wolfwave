@@ -699,8 +699,17 @@ extension AppDelegate: PlaybackSourceDelegate {
     func playbackSource(didUpdateStatus status: String) {
         Log.info("AppDelegate: Playback status = \(status)", category: "Music")
 
-        if status == "No track playing" {
-            // Record the track that was playing before it stopped.
+        // Any of these statuses mean "no track is reliably playing right now" —
+        // flush in-progress history and blank the cached snapshot so Discord
+        // Rich Presence and the WebSocket overlay don't keep broadcasting a
+        // stale song after Music quits, permission is revoked, or SB errors out.
+        let shouldClearPlayback = status == "No track playing"
+            || status == "Music access denied"
+            || status == "Music not running"
+            || status == "No track info"
+            || status == "Script error"
+
+        if shouldClearPlayback {
             flushCurrentPlayToHistory()
             currentSong = nil
             currentArtist = nil
@@ -717,7 +726,7 @@ extension AppDelegate: PlaybackSourceDelegate {
 
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
 
-        if currentSong == nil {
+        if shouldClearPlayback {
             if let discordService {
                 Task { await discordService.clearPresence() }
             }
