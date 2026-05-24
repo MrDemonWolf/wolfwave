@@ -132,6 +132,9 @@ struct MusicMonitorSettingsView: View {
                 refreshPermission()
             }
             loadCurrentTrack()
+            if permissionState == .granted {
+                AppDelegate.shared?.refreshNowPlaying()
+            }
             loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
@@ -307,6 +310,9 @@ struct MusicMonitorSettingsView: View {
         // If we're now granted, try to get the current track again.
         if next == .granted {
             loadCurrentTrack()
+            // Cached snap first so the UI doesn't briefly clear, then ask
+            // the source for a fresh ScriptingBridge read.
+            AppDelegate.shared?.refreshNowPlaying()
         }
     }
 
