@@ -174,13 +174,13 @@ struct MusicMonitorSettingsView: View {
 
     @ViewBuilder
     private var permissionStatusRow: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpace.s4) {
             Image(systemName: permissionIconName)
                 .font(.system(size: DSFont.Size.md, weight: .semibold))
                 .foregroundStyle(permissionIconColor)
                 .frame(width: 20)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(permissionTitle)
                     .font(.system(size: DSFont.Size.base, weight: .medium))
                 if let subtitle = permissionSubtitle {
