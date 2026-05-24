@@ -697,6 +697,8 @@ extension AppDelegate: PlaybackSourceDelegate {
 
     /// Clears track state and notifies services when playback stops.
     func playbackSource(didUpdateStatus status: String) {
+        Log.info("AppDelegate: Playback status = \(status)", category: "Music")
+
         if status == "No track playing" {
             // Record the track that was playing before it stopped.
             flushCurrentPlayToHistory()
@@ -704,6 +706,13 @@ extension AppDelegate: PlaybackSourceDelegate {
             currentArtist = nil
             currentAlbum = nil
             currentPlaylist = nil
+        }
+
+        if status == "Music access denied" {
+            // Tell the Music Monitor settings view to flip its banner now,
+            // without waiting for the next AEDeterminePermissionToAutomateTarget
+            // poll or the user clicking Recheck.
+            NotificationCenter.default.post(name: .musicPermissionDenied, object: nil)
         }
 
         postNowPlayingUpdate(song: nil, artist: nil, album: nil)
