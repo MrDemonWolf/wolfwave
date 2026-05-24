@@ -360,7 +360,7 @@ function connect() {
   if (ws) return;
   console.log('[WolfWave Widget] Connecting to ws://localhost:' + wsPort);
   const protocols = wsToken ? ['wolfwave.token.' + wsToken] : [];
-  ws = new WebSocket('ws://localhost:' + wsPort, protocols);
+  ws = new WebSocket('ws://' + (location.hostname || 'localhost') + ':' + wsPort, protocols);
 
   ws.onopen = function() {
     console.log('[WolfWave Widget] Connected to ws://localhost:' + wsPort);

@@ -69,13 +69,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             Log.error("WidgetHTTPService: Invalid port \(port)", category: "WebSocket")
             return
         }
-        parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
-            host: .ipv4(.loopback),
-            port: nwPort
-        )
 
         do {
-            listener = try NWListener(using: parameters)
+            listener = try NWListener(using: parameters, on: nwPort)
         } catch {
             Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: "WebSocket")
             return

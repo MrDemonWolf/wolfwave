@@ -515,7 +515,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     private var networkWidgetURL: String? {
         guard let ip = localNetworkIP else { return nil }
         let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
-        return "http://\(ip):\(port)"
+        let token = WebSocketAuthToken.currentOrCreate()
+        return "http://\(ip):\(port)/?token=\(token)"
     }
 
     private var isWidgetPortValid: Bool {
