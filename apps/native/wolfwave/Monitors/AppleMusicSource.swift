@@ -167,11 +167,11 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             let stateTypeDesc = String(describing: type(of: stateObj))
             let stateRawDesc = stateRaw.map(String.init) ?? "unparsed(\(stateObj))"
             let isTrackLoaded: Bool = {
-                guard let s = stateRaw else { return false }
-                return s == Constants.playerStatePlaying
-                    || s == Constants.playerStatePaused
-                    || s == Constants.playerStateFastForward
-                    || s == Constants.playerStateRewinding
+                guard let state = stateRaw else { return false }
+                return state == Constants.playerStatePlaying
+                    || state == Constants.playerStatePaused
+                    || state == Constants.playerStateFastForward
+                    || state == Constants.playerStateRewinding
             }()
 
             let trackObj = musicApp.value(forKey: "currentTrack") as? SBObject
@@ -235,21 +235,21 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
     /// the now-playing read working across SDK updates instead of silently
     /// collapsing to `NOT_PLAYING`.
     static func extractPlayerState(_ raw: Any) -> UInt32? {
-        if let n = raw as? NSNumber {
-            return n.uint32Value
+        if let num = raw as? NSNumber {
+            return num.uint32Value
         }
-        if let i = raw as? Int {
-            return UInt32(truncatingIfNeeded: i)
+        if let int = raw as? Int {
+            return UInt32(truncatingIfNeeded: int)
         }
-        if let u = raw as? UInt32 {
-            return u
+        if let uint = raw as? UInt32 {
+            return uint
         }
         if let desc = raw as? NSAppleEventDescriptor {
             return UInt32(desc.typeCodeValue)
         }
-        if let s = raw as? String, s.utf8.count == 4 {
+        if let str = raw as? String, str.utf8.count == 4 {
             var packed: UInt32 = 0
-            for byte in s.utf8 {
+            for byte in str.utf8 {
                 packed = (packed << 8) | UInt32(byte)
             }
             return packed
