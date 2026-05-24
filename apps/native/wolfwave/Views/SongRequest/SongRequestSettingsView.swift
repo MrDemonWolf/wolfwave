@@ -820,11 +820,26 @@ fileprivate struct SongRequestBlocklistCard: View {
     @State private var blocklistText = ""
     @State private var blocklistType: BlocklistItem.BlockType = .song
     @State private var blocklist: [BlocklistItem] = []
+    @State private var showClearAllAlert = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Blocklist")
-                .font(.system(size: DSFont.Size.base, weight: .semibold))
+            HStack {
+                Text("Blocklist")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    showClearAllAlert = true
+                } label: {
+                    Label("Clear All", systemImage: "trash")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(blocklist.isEmpty)
+                .accessibilityIdentifier("blocklist.clearAll")
+            }
 
             Text("Block specific songs or artists from being requested.")
                 .font(.system(size: DSFont.Size.sm))
@@ -897,6 +912,15 @@ fileprivate struct SongRequestBlocklistCard: View {
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .onAppear {
             blocklist = blocklistProvider()?.allEntries ?? []
+        }
+        .alert("Clear blocklist?", isPresented: $showClearAllAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear All", role: .destructive) {
+                blocklistProvider()?.clearAll()
+                blocklist = blocklistProvider()?.allEntries ?? []
+            }
+        } message: {
+            Text("This removes every entry from your song-request blocklist. This cannot be undone.")
         }
     }
 }

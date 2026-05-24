@@ -140,9 +140,22 @@ All external network traffic uses encrypted transport:
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
-| `127.0.0.1:8765` | WebSocket (local) | Now-playing broadcast for OBS browser sources (loopback only) |
-| `127.0.0.1:8766` | HTTP (local) | Widget HTML server (loopback only) |
+| `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
+| `0.0.0.0:8765` | WebSocket (LAN) | Now-playing broadcast — token-gated via `Sec-WebSocket-Protocol`; same-Mac OBS gets the token automatically, remote browsers must supply `?token=…` |
+| `0.0.0.0:8766` | HTTP (LAN) | Widget HTML server — same token-gating rules |
 | Local Unix socket | IPC | Discord Rich Presence (`$TMPDIR/discord-ipc-{0..9}`) |
+
+The WebSocket and Widget HTTP listeners bind to all interfaces so a second-PC OBS or a phone browser on the same network can connect. Connections must present the 32-byte hex auth token (minted on first launch, stored in macOS Keychain, never logged in full).
+
+## Sparkle Updates
+
+Sparkle is configured with privacy-conscious defaults:
+
+- **EdDSA-signed appcast** — every release is signed with an Ed25519 key; the public key (`SUPublicEDKey`) ships in `Info.plist` and verifies the signature before any update is applied.
+- **Explicit consent for downloads** — `automaticallyDownloadsUpdates = false`. Sparkle never writes bytes to disk until you click *Install*.
+- **No anonymous system profile transmitted** — `SUSendProfileInfo` is not enabled, so background checks transmit only the appcast request itself (User-Agent + macOS version, no app-specific telemetry).
+- **DEBUG builds** — Sparkle is initialized with `startingUpdater: false`; manual checks read from a bundled `dev-appcast.xml`, so the developer experience never reaches the production feed.
+- **Homebrew installs** — Sparkle is disabled entirely; Homebrew manages updates.
 
 ## Best Practices
 

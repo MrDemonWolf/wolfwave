@@ -140,6 +140,9 @@ nonisolated enum AppConstants {
         
         /// Whether Twitch re-authentication is required (Bool, default: false)
         static let twitchReauthNeeded = "twitchReauthNeeded"
+
+        /// Connected Twitch channel/login name shown in the menu bar status line (String)
+        static let twitchChannelName = "twitchChannelName"
         
         /// Settings section to open next time (String, "twitchIntegration", etc.)
         static let selectedSettingsSection = "selectedSettingsSection"
@@ -387,6 +390,7 @@ nonisolated enum AppConstants {
             trackingEnabled,
             dockVisibility,
             twitchReauthNeeded,
+            twitchChannelName,
             selectedSettingsSection,
             websocketEnabled,
             websocketURI,
