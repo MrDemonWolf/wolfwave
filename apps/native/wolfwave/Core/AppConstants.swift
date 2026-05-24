@@ -975,9 +975,25 @@ nonisolated enum AppConstants {
         /// Discord blurple — `#5865F2`.
         static let discord = DSColor.partnerDiscord
 
+        /// Discord card surface — `#2B2D31`.
+        static let discordSurface = DSColor.partnerDiscordSurface
+
+        /// Discord secondary button surface — `#4E5058`.
+        static let discordControl = DSColor.partnerDiscordControl
+
         /// Apple Music gradient stops — pink-to-red.
         static let appleMusicGradientStart = DSColor.partnerAppleMusicStart
         static let appleMusicGradientEnd = DSColor.partnerAppleMusicEnd
+
+        /// Apple Music permission-denied icon gradient — softer than the main
+        /// brand gradient; used for the rounded-rect Music app icon stack.
+        static let appleMusicSurfaceStart = DSColor.partnerAppleMusicSurfaceStart
+        static let appleMusicSurfaceEnd = DSColor.partnerAppleMusicSurfaceEnd
+
+        /// Apple Music pulse gradient — used for the bottom-strip CTA accent
+        /// on the permission-denied screen.
+        static let appleMusicPulseStart = DSColor.partnerAppleMusicPulseStart
+        static let appleMusicPulseEnd = DSColor.partnerAppleMusicPulseEnd
 
         /// OBS Studio gradient stops — neutral dark.
         static let obsGradientStart = DSColor.partnerObsStart
