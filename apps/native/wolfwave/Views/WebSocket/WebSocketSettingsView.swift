@@ -503,6 +503,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
     @State private var widgetPortText: String = ""
 
+    /// Cached auth token. Seeded once in `.onAppear` so a SwiftUI recompute
+    /// never reaches into the Keychain (which `WebSocketAuthToken.currentOrCreate()`
+    /// would otherwise do, with side effects, on every render).
+    @State private var currentToken: String = ""
+
     let localNetworkIP: String?
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
@@ -513,10 +518,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     }
 
     private var networkWidgetURL: String? {
-        guard let ip = localNetworkIP else { return nil }
+        guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
         let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
-        let token = WebSocketAuthToken.currentOrCreate()
-        return "http://\(ip):\(port)/?token=\(token)"
+        return "http://\(ip):\(port)/?token=\(currentToken)"
     }
 
     private var isWidgetPortValid: Bool {
@@ -723,7 +727,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
-        .onAppear { widgetPortText = String(storedWidgetPort) }
+        .onAppear {
+            widgetPortText = String(storedWidgetPort)
+            currentToken = WebSocketAuthToken.currentOrCreate()
+        }
     }
 
     /// Validates the widget HTTP port text field, persists the new port, and
