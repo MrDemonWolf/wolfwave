@@ -187,7 +187,7 @@ struct DiscordSettingsView: View {
                 }
             }
             .cardStyle()
-            .animation(.easeInOut(duration: 0.2), value: buttonsEnabled)
+            .animation(.easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
         }
         .transition(.opacity)
     }
