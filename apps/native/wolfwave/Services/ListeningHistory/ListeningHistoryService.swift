@@ -95,14 +95,14 @@ final class ListeningHistoryService {
     /// If the in-memory window has overflowed during this session, the play
     /// log is compacted to the live records here so the next launch starts
     /// from a normalized file. The lifetime tally is also persisted.
+    ///
+    /// Both writes run **synchronously** so they're guaranteed to complete
+    /// before `applicationWillTerminate` returns and the process exits — a
+    /// detached `Task` would be racing termination.
     func shutdown() {
         if needsCompaction {
-            let liveRecords = records
-            let snapshotTally = lifetime
-            Task.detached(priority: .utility) { [store, tallyStore] in
-                store.replaceAll(with: liveRecords)
-                tallyStore.save(snapshotTally)
-            }
+            store.replaceAll(with: records)
+            tallyStore.save(lifetime)
             needsCompaction = false
         }
         store.flush()

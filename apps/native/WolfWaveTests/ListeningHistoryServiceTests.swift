@@ -240,6 +240,46 @@ struct ListeningHistoryServiceTests {
         #expect(tally.trackCounts["t0|wolf"]?.count == 1)
     }
 
+    @Test("shutdown synchronously persists compaction + tally when window overflowed")
+    func testShutdownPersistsCompaction() async {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cap = AppConstants.History.maxRetainedRecords
+        let store = PlayLogStore(directory: dir)
+        let base = Date().addingTimeInterval(-Double(cap) * 60)
+        var seeded: [PlayRecord] = []
+        seeded.reserveCapacity(cap)
+        for i in 0..<cap {
+            seeded.append(PlayRecord(
+                timestamp: base.addingTimeInterval(Double(i) * 60),
+                track: "T\(i)", artist: "Wolf", album: "Al",
+                duration: 200, playedSeconds: 200
+            ))
+        }
+        store.replaceAll(with: seeded)
+
+        let service = makeService(enabled: true, directory: dir)
+        await service.loadFromDisk()
+        // Drive the service one record past the cap — fold + arm compaction.
+        service.recordTrackChange(
+            track: "Overflow", artist: "Wolf", album: "",
+            duration: 200, playedSeconds: 200
+        )
+
+        // shutdown() must compact the NDJSON and persist the tally synchronously.
+        service.shutdown()
+
+        let onDisk = PlayLogStore(directory: dir).loadAll()
+        #expect(onDisk.count == cap)
+        #expect(onDisk.last?.track == "Overflow")
+        #expect(onDisk.first?.track == "T1")
+
+        let tally = LifetimeTallyStore(directory: dir).load()
+        #expect(tally.trimmedPlayCount == 1)
+        #expect(tally.trackCounts["t0|wolf"]?.count == 1)
+    }
+
     // MARK: - Chat Line
 
     @Test("statsChatLine is friendly when nothing has played")
