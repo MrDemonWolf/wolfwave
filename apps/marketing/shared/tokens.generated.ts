@@ -133,9 +133,13 @@ export const tokens = {
   },
   "motion": {
     "duration": {
+      "instant": 0,
       "fast": 150,
       "base": 220,
-      "slow": 320
+      "slow": 320,
+      "long": 400,
+      "pulse": 900,
+      "pulseSlow": 1400
     },
     "easing": {
       "standard": "cubic-bezier(0.4, 0.0, 0.2, 1)",
@@ -152,6 +156,10 @@ export const tokens = {
       },
       "gentle": {
         "response": 0.3,
+        "damping": 0.6
+      },
+      "expressive": {
+        "response": 0.5,
         "damping": 0.6
       }
     }

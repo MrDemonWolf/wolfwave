@@ -35,27 +35,32 @@ interface Violation {
   excerpt: string;
 }
 
-const RULES: Array<{ name: string; pattern: RegExp }> = [
+const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean }> = [
   {
     name: "raw-font-size",
     pattern: /\bfont\(\.system\(size:\s*\d+/,
+    appliesToOnboarding: false,
   },
   {
     name: "raw-spacing",
     // matches `spacing: N)` or `spacing: N,` where N is a tokenized value
     pattern: /\bspacing:\s*(2|4|8|10|12|14|16|20|24|28|32|44)(?=[,)\s])/,
+    appliesToOnboarding: false,
   },
   {
     name: "raw-padding",
     pattern: /\.padding\(\s*(2|4|8|10|12|14|16|20|24|28|32|44)\s*\)/,
+    appliesToOnboarding: false,
   },
   {
     name: "raw-animation-duration",
     // matches `.easeInOut(duration: 0.2)`, `.spring(response: 0.35, …)`,
     // `.easeOut(duration: 0.4)`, `.linear(duration: 0.2)`, `Animation(…duration: 0.2)`.
     // Token-only mode: any numeric literal in duration:/response: is flagged.
+    // Onboarding is opted in — its visual rhythm differs but motion tokens unify.
     pattern:
       /\.(easeInOut|easeIn|easeOut|linear|spring|interpolatingSpring|interactiveSpring)\([^)]*\b(duration|response):\s*\d+\.?\d*/,
+    appliesToOnboarding: true,
   },
 ];
 
@@ -73,15 +78,19 @@ function loadAllowlist(): Set<string> {
   }
 }
 
-function* walk(dir: string): Generator<string> {
+interface WalkEntry {
+  path: string;
+  inOnboarding: boolean;
+}
+
+function* walk(dir: string, inOnboarding = false): Generator<WalkEntry> {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     const st = statSync(full);
     if (st.isDirectory()) {
-      if (entry === "Onboarding") continue;
-      yield* walk(full);
+      yield* walk(full, inOnboarding || entry === "Onboarding");
     } else if (entry.endsWith(".swift") && !entry.endsWith(".generated.swift")) {
-      yield full;
+      yield { path: full, inOnboarding };
     }
   }
 }
@@ -89,12 +98,13 @@ function* walk(dir: string): Generator<string> {
 function scan(): Violation[] {
   const allowlist = loadAllowlist();
   const violations: Violation[] = [];
-  for (const file of walk(SCAN_ROOT)) {
-    const rel = relative(ROOT, file);
-    const lines = readFileSync(file, "utf8").split("\n");
+  for (const { path, inOnboarding } of walk(SCAN_ROOT)) {
+    const rel = relative(ROOT, path);
+    const lines = readFileSync(path, "utf8").split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       for (const rule of RULES) {
+        if (inOnboarding && !rule.appliesToOnboarding) continue;
         if (rule.pattern.test(line)) {
           const key = `${rel}:${i + 1}`;
           if (allowlist.has(key)) continue;
