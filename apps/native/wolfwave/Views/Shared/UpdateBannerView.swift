@@ -112,7 +112,7 @@ struct UpdateBannerView: View {
 
 #Preview("Update Available") {
     VStack(spacing: DSSpace.s6) {
-        let view = UpdateBannerView()
+        let view = UpdateBannerView().listening()
         view
             .onAppear {
                 NotificationCenter.default.post(
@@ -147,7 +147,7 @@ struct UpdateBannerView: View {
 #Preview("Banner in Settings Context") {
     ScrollView {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
-            let view = UpdateBannerView()
+            let view = UpdateBannerView().listening()
             view
                 .onAppear {
                     NotificationCenter.default.post(

@@ -114,7 +114,7 @@ struct OnboardingWelcomeStepView: View {
     /// Short one-liner clarifying what WolfWave sees and where the privacy
     /// policy lives, so first-launch consent is explicit.
     private var privacyLine: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: DSSpace.s1) {
             Text("Reads your Apple Music track. Shares only what you turn on.")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
