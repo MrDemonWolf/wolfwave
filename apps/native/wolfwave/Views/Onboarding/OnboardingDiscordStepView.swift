@@ -71,7 +71,7 @@ struct OnboardingDiscordStepView: View {
                         color: presenceEnabled ? AppConstants.Brand.discord.opacity(0.18) : .clear,
                         radius: 18, x: 0, y: 6
                     )
-                    .animation(.easeInOut(duration: 0.20), value: presenceEnabled)
+                    .animation(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
 
                     Text("Make sure Discord is open. We talk to it locally — nothing leaves your Mac.")
                         .font(.system(size: DSFont.Size.sm))

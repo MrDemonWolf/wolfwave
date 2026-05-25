@@ -49,7 +49,7 @@ struct OnboardingTwitchStepView: View {
                         errorContent(message: message)
                     }
                 }
-                .animation(.easeInOut(duration: 0.22), value: stateKey)
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
             }
         )
         .onAppear {

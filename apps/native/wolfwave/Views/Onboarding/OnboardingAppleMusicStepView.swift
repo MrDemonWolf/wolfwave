@@ -50,7 +50,7 @@ struct OnboardingAppleMusicStepView: View {
             },
             extras: {
                 content
-                    .animation(.easeInOut(duration: 0.20), value: permissionState)
+                    .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
         )
     }
@@ -168,7 +168,7 @@ struct OnboardingAppleMusicStepView: View {
     /// the user gets visible feedback even when the state doesn't change.
     private func recheckTapped() {
         guard !isRechecking else { return }
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
             isRechecking = true
         }
         Task {
@@ -180,7 +180,7 @@ struct OnboardingAppleMusicStepView: View {
                 try? await Task.sleep(nanoseconds: UInt64((minSpin - elapsed) * 1_000_000_000))
             }
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = next
                     isRechecking = false
                 }
