@@ -41,13 +41,13 @@ struct DebugLogsAndEventsCard: View {
         }
         .cardStyle()
         .task(id: refreshTick) {
-            let (u, s, l) = await Task.detached(priority: .userInitiated) {
-                (Log.exportLogFile(), Log.logFileSize(), Log.logLineCount())
+            let stats = await Task.detached(priority: .userInitiated) {
+                (url: Log.exportLogFile(), size: Log.logFileSize(), lines: Log.logLineCount())
             }.value
             await MainActor.run {
-                logURL = u
-                logSize = s
-                logLines = l
+                logURL = stats.url
+                logSize = stats.size
+                logLines = stats.lines
                 logStatsLoaded = true
             }
         }
