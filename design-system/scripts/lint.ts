@@ -16,6 +16,9 @@
  *  - spacing: N) / .padding(N)  → use DSSpace.* (with carve-outs for 0/1/6/etc.
  *                                  values that have no DSSpace equivalent)
  *  - Hand-rolled bordered icon buttons → use DSIconButton
+ *  - Animation literal durations (.easeInOut(duration: N), .spring(response: N),
+ *    .easeOut(duration: N), .easeIn(duration: N), .linear(duration: N))
+ *                               → use DSMotion.Duration.* tokens
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -45,6 +48,14 @@ const RULES: Array<{ name: string; pattern: RegExp }> = [
   {
     name: "raw-padding",
     pattern: /\.padding\(\s*(2|4|8|10|12|14|16|20|24|28|32|44)\s*\)/,
+  },
+  {
+    name: "raw-animation-duration",
+    // matches `.easeInOut(duration: 0.2)`, `.spring(response: 0.35, …)`,
+    // `.easeOut(duration: 0.4)`, `.linear(duration: 0.2)`, `Animation(…duration: 0.2)`.
+    // Token-only mode: any numeric literal in duration:/response: is flagged.
+    pattern:
+      /\.(easeInOut|easeIn|easeOut|linear|spring|interpolatingSpring|interactiveSpring)\([^)]*\b(duration|response):\s*\d+\.?\d*/,
   },
 ];
 
@@ -112,7 +123,7 @@ for (const v of violations) {
   console.error(`  ${v.file}:${v.line}  [${v.rule}]  ${v.excerpt}`);
 }
 console.error("");
-console.error("Fix: replace literals with DSFont.Size.* / DSSpace.* tokens.");
+console.error("Fix: replace literals with DSFont.Size.* / DSSpace.* / DSMotion.Duration.* tokens.");
 console.error("See: design-system/components/README.md");
 console.error("Allowlist exceptions: design-system/lint-allowlist.txt");
 process.exit(1);

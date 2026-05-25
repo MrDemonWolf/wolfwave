@@ -127,6 +127,13 @@ nonisolated enum DSMotion {
         static let base: Double = 0.22
         static let slow: Double = 0.32
     }
+
+    /// Named spring presets. Use via `.spring(DSMotion.Spring.snappy)`.
+    enum Spring {
+        static let snappy = SwiftUI.Animation.spring(response: 0.35, dampingFraction: 0.82, blendDuration: 0)
+        static let bouncy = SwiftUI.Animation.spring(response: 0.45, dampingFraction: 0.78, blendDuration: 0)
+        static let gentle = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.6, blendDuration: 0)
+    }
 }
 
 /// Window and onboarding dimension tokens (preserves legacy AppConstants values).
