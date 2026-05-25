@@ -64,7 +64,7 @@ struct OnboardingAppleMusicStepView: View {
             content
                 .frame(maxWidth: 440)
                 .padding(.horizontal, DSSpace.s8)
-                .animation(.easeInOut(duration: 0.20), value: permissionState)
+                .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
 
             Spacer(minLength: 0)
         }
