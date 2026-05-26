@@ -229,7 +229,7 @@ struct MonthlyWrapCard: View {
             LinearGradient(
                 colors: [
                     AppConstants.Brand.wolfwaveGradientStart,
-                    AppConstants.Brand.wolfwaveGradientEnd,
+                    AppConstants.Brand.wolfwaveGradientEnd
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
