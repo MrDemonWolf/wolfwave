@@ -87,6 +87,9 @@ nonisolated enum AppConstants {
         /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
         static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
 
+        /// Posted when the user toggles Streamer Mode from the tray menu. UserInfo contains "enabled" Bool.
+        static let streamerModeChanged = "StreamerModeChanged"
+
         /// Posted when the playback data path detects Apple Music Automation is denied
         /// (e.g., Music is running but ScriptingBridge reads return nil). Lets the
         /// Music Monitor settings view flip to the denied banner without waiting for
@@ -117,6 +120,7 @@ nonisolated enum AppConstants {
             voteSkipStateChanged,
             listeningHistorySettingChanged,
             musicPermissionDenied,
+            streamerModeChanged,
             openSettingsSection,
         ]
     }
@@ -392,6 +396,11 @@ nonisolated enum AppConstants {
         /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
         static let historyRetentionDays = "historyRetentionDays"
 
+        /// Whether Streamer Mode is on — hides sensitive values (channel name, overlay URL,
+        /// WebSocket URI, etc.) in the WolfWave UI so the app can be shown on stream.
+        /// UI-only redaction; does not change broadcast/chat/Discord output (Bool, default: false).
+        static let streamerModeEnabled = "streamerModeEnabled"
+
         /// Every UserDefaults key the app writes. Source of truth for reset operations
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
@@ -471,6 +480,7 @@ nonisolated enum AppConstants {
             statsCommandGlobalCooldown,
             statsCommandUserCooldown,
             historyRetentionDays,
+            streamerModeEnabled,
         ]
     }
     
