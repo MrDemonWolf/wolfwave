@@ -112,66 +112,66 @@ struct WolfHeroMark: View {
 private struct WolfHeadShape: Shape {
 
     func path(in rect: CGRect) -> Path {
-        let s = WolfViewBox(rect: rect)
+        let box = WolfViewBox(rect: rect)
         var path = Path()
 
         // Skull / head body — closed outline matching widget.html.
-        path.move(to: s.point(50, 18))
+        path.move(to: box.point(50, 18))
         path.addCurve(
-            to: s.point(72, 42),
-            control1: s.point(61, 16),
-            control2: s.point(72, 26)
+            to: box.point(72, 42),
+            control1: box.point(61, 16),
+            control2: box.point(72, 26)
         )
-        path.addLine(to: s.point(70, 57))
-        path.addLine(to: s.point(62, 67))
-        path.addLine(to: s.point(50, 71))
-        path.addLine(to: s.point(38, 67))
-        path.addLine(to: s.point(30, 57))
-        path.addLine(to: s.point(28, 42))
+        path.addLine(to: box.point(70, 57))
+        path.addLine(to: box.point(62, 67))
+        path.addLine(to: box.point(50, 71))
+        path.addLine(to: box.point(38, 67))
+        path.addLine(to: box.point(30, 57))
+        path.addLine(to: box.point(28, 42))
         path.addCurve(
-            to: s.point(50, 18),
-            control1: s.point(28, 26),
-            control2: s.point(39, 16)
+            to: box.point(50, 18),
+            control1: box.point(28, 26),
+            control2: box.point(39, 16)
         )
         path.closeSubpath()
 
         // Left ear triangle
-        path.move(to: s.point(32, 38))
-        path.addLine(to: s.point(35.5, 9))
-        path.addLine(to: s.point(46, 33))
+        path.move(to: box.point(32, 38))
+        path.addLine(to: box.point(35.5, 9))
+        path.addLine(to: box.point(46, 33))
         path.closeSubpath()
 
         // Right ear triangle
-        path.move(to: s.point(68, 38))
-        path.addLine(to: s.point(64.5, 9))
-        path.addLine(to: s.point(54, 33))
+        path.move(to: box.point(68, 38))
+        path.addLine(to: box.point(64.5, 9))
+        path.addLine(to: box.point(54, 33))
         path.closeSubpath()
 
         // Left eye socket — carved via even-odd.
-        path.move(to: s.point(32, 43))
+        path.move(to: box.point(32, 43))
         path.addCurve(
-            to: s.point(46.5, 43),
-            control1: s.point(34, 37.5),
-            control2: s.point(44.5, 37.5)
+            to: box.point(46.5, 43),
+            control1: box.point(34, 37.5),
+            control2: box.point(44.5, 37.5)
         )
         path.addCurve(
-            to: s.point(32, 43),
-            control1: s.point(44.5, 48.5),
-            control2: s.point(34, 48.5)
+            to: box.point(32, 43),
+            control1: box.point(44.5, 48.5),
+            control2: box.point(34, 48.5)
         )
         path.closeSubpath()
 
         // Right eye socket — carved via even-odd.
-        path.move(to: s.point(53.5, 43))
+        path.move(to: box.point(53.5, 43))
         path.addCurve(
-            to: s.point(68, 43),
-            control1: s.point(55.5, 37.5),
-            control2: s.point(66, 37.5)
+            to: box.point(68, 43),
+            control1: box.point(55.5, 37.5),
+            control2: box.point(66, 37.5)
         )
         path.addCurve(
-            to: s.point(53.5, 43),
-            control1: s.point(66, 48.5),
-            control2: s.point(55.5, 48.5)
+            to: box.point(53.5, 43),
+            control1: box.point(66, 48.5),
+            control2: box.point(55.5, 48.5)
         )
         path.closeSubpath()
 
@@ -189,10 +189,9 @@ private struct HowlBars: View {
     /// `0` = bars hidden, `1` = bars at final opacity. Driven by parent.
     let progress: Double
 
-    private struct Bar: Identifiable {
-        let id: Int
-        let x: CGFloat
-        let y: CGFloat
+    private struct Bar {
+        let originX: CGFloat
+        let originY: CGFloat
         let width: CGFloat
         let height: CGFloat
         let finalOpacity: Double
@@ -202,27 +201,30 @@ private struct HowlBars: View {
     /// Bars defined in viewBox coords from widget.html.
     /// Inner bars hit full opacity; outer bars fall off (0.78 / 0.55 / 0.33).
     private static let bars: [Bar] = [
-        Bar(id: 0, x: 25,   y: 38, width: 4.5, height: 35, finalOpacity: 1.00, stagger: 0.00),
-        Bar(id: 1, x: 18.5, y: 47, width: 4.5, height: 26, finalOpacity: 0.78, stagger: 0.25),
-        Bar(id: 2, x: 12,   y: 55, width: 4.5, height: 18, finalOpacity: 0.55, stagger: 0.50),
-        Bar(id: 3, x: 5.5,  y: 62, width: 4.5, height: 11, finalOpacity: 0.33, stagger: 0.75),
-        Bar(id: 4, x: 70.5, y: 38, width: 4.5, height: 35, finalOpacity: 1.00, stagger: 0.00),
-        Bar(id: 5, x: 77,   y: 47, width: 4.5, height: 26, finalOpacity: 0.78, stagger: 0.25),
-        Bar(id: 6, x: 83.5, y: 55, width: 4.5, height: 18, finalOpacity: 0.55, stagger: 0.50),
-        Bar(id: 7, x: 90,   y: 62, width: 4.5, height: 11, finalOpacity: 0.33, stagger: 0.75)
+        Bar(originX: 25.0, originY: 38, width: 4.5, height: 35, finalOpacity: 1.00, stagger: 0.00),
+        Bar(originX: 18.5, originY: 47, width: 4.5, height: 26, finalOpacity: 0.78, stagger: 0.25),
+        Bar(originX: 12.0, originY: 55, width: 4.5, height: 18, finalOpacity: 0.55, stagger: 0.50),
+        Bar(originX: 5.5, originY: 62, width: 4.5, height: 11, finalOpacity: 0.33, stagger: 0.75),
+        Bar(originX: 70.5, originY: 38, width: 4.5, height: 35, finalOpacity: 1.00, stagger: 0.00),
+        Bar(originX: 77.0, originY: 47, width: 4.5, height: 26, finalOpacity: 0.78, stagger: 0.25),
+        Bar(originX: 83.5, originY: 55, width: 4.5, height: 18, finalOpacity: 0.55, stagger: 0.50),
+        Bar(originX: 90.0, originY: 62, width: 4.5, height: 11, finalOpacity: 0.33, stagger: 0.75)
     ]
 
     var body: some View {
         GeometryReader { geo in
-            let vb = WolfViewBox(rect: CGRect(origin: .zero, size: geo.size))
-            ForEach(Self.bars) { bar in
-                let origin = vb.point(bar.x, bar.y)
-                let w = vb.scale(bar.width)
-                let h = vb.scale(bar.height)
-                RoundedRectangle(cornerRadius: vb.scale(2.25), style: .continuous)
+            let box = WolfViewBox(rect: CGRect(origin: .zero, size: geo.size))
+            ForEach(Array(Self.bars.enumerated()), id: \.offset) { _, bar in
+                let origin = box.point(bar.originX, bar.originY)
+                let renderedWidth = box.scale(bar.width)
+                let renderedHeight = box.scale(bar.height)
+                RoundedRectangle(cornerRadius: box.scale(2.25), style: .continuous)
                     .fill(tint)
-                    .frame(width: w, height: h)
-                    .position(x: origin.x + w / 2, y: origin.y + h / 2)
+                    .frame(width: renderedWidth, height: renderedHeight)
+                    .position(
+                        x: origin.x + renderedWidth / 2,
+                        y: origin.y + renderedHeight / 2
+                    )
                     .opacity(opacity(for: bar))
             }
         }
