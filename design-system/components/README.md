@@ -31,6 +31,7 @@ One markdown entry per reusable view. Stubs marked `(stub)` need filling in as w
 |---|---|---|
 | PillButton | [pill-button.md](pill-button.md) | drafted |
 | BrandTile | [brand-tile.md](brand-tile.md) | drafted |
+| WolfHeroMark | [wolf-hero-mark.md](wolf-hero-mark.md) | drafted |
 
 ## Catalog entry template
 
