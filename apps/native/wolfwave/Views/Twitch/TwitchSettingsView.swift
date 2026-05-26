@@ -279,6 +279,9 @@ struct TwitchSettingsView: View {
 
 /// View displayed when the user is signed in, showing bot info and channel controls.
 private struct SignedInView: View {
+    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
+    private var streamerMode = false
+
     let botUsername: String
     @Binding var channelID: String
     let isChannelConnected: Bool
@@ -415,10 +418,10 @@ private struct SignedInView: View {
     private var channelInputView: some View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
-            Text(channelID.isEmpty ? "Not set" : channelID)
+            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
         case (false, true):
-            Text(channelID.isEmpty ? "Not set" : channelID)
+            Text(channelID.isEmpty ? "Not set" : StreamerMode.mask(channelID, style: .channel, isOn: streamerMode))
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
                 .foregroundStyle(.secondary)
         case (false, false):
