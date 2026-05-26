@@ -1,5 +1,5 @@
 //
-//  DebugDiagnosticsnapshot.swift
+//  DebugDiagnostics.swift
 //  wolfwave
 //
 //  Created by MrDemonWolf, Inc. on 5/25/26.
