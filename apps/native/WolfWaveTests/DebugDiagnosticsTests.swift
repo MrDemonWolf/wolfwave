@@ -38,57 +38,57 @@ final class DebugDiagnosticsTests: XCTestCase {
     }
 
     func testIncludesEnvironmentAndServiceStateHeadings() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot())
-        XCTAssertTrue(md.contains("## Environment"))
-        XCTAssertTrue(md.contains("## Service State"))
+        let output = DebugDiagnostics.markdown(sampleSnapshot())
+        XCTAssertTrue(output.contains("## Environment"))
+        XCTAssertTrue(output.contains("## Service State"))
     }
 
     func testEnvironmentFieldsAppearVerbatim() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot(appVersion: "9.9.9", build: "777"))
-        XCTAssertTrue(md.contains("9.9.9 (build 777)"))
-        XCTAssertTrue(md.contains("macOS 26.0"))
-        XCTAssertTrue(md.contains("arm64"))
-        XCTAssertTrue(md.contains("DMG"))
-        XCTAssertTrue(md.contains("100"))
+        let output = DebugDiagnostics.markdown(sampleSnapshot(appVersion: "9.9.9", build: "777"))
+        XCTAssertTrue(output.contains("9.9.9 (build 777)"))
+        XCTAssertTrue(output.contains("macOS 26.0"))
+        XCTAssertTrue(output.contains("arm64"))
+        XCTAssertTrue(output.contains("DMG"))
+        XCTAssertTrue(output.contains("100"))
     }
 
     func testLogSizeFormattedViaByteCountFormatter() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot(logSizeBytes: 1024))
+        let output = DebugDiagnostics.markdown(sampleSnapshot(logSizeBytes: 1024))
         let expected = ByteCountFormatter.string(fromByteCount: 1024, countStyle: .file)
-        XCTAssertTrue(md.contains(expected), "expected formatted size \(expected) in markdown")
+        XCTAssertTrue(output.contains(expected), "expected formatted size in markdown")
     }
 
     func testServiceFlagsRenderAsYesNo() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot(
+        let output = DebugDiagnostics.markdown(sampleSnapshot(
             twitchConnected: true,
             discordConnected: false,
             widgetEnabled: true,
             musicTrackingEnabled: false
         ))
-        XCTAssertTrue(md.contains("| Twitch | Yes |"))
-        XCTAssertTrue(md.contains("| Discord | No |"))
-        XCTAssertTrue(md.contains("| Widget HTTP | Yes |"))
-        XCTAssertTrue(md.contains("| Music tracking | No |"))
+        XCTAssertTrue(output.contains("| Twitch | Yes |"))
+        XCTAssertTrue(output.contains("| Discord | No |"))
+        XCTAssertTrue(output.contains("| Widget HTTP | Yes |"))
+        XCTAssertTrue(output.contains("| Music tracking | No |"))
     }
 
     func testEmptyVersionAndZeroLogStatsTolerated() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot(
+        let output = DebugDiagnostics.markdown(sampleSnapshot(
             appVersion: "",
             build: "",
             logSizeBytes: 0,
             logLineCount: 0
         ))
-        XCTAssertTrue(md.contains("(build )"))
-        XCTAssertTrue(md.contains("| Log line count | 0 |"))
+        XCTAssertTrue(output.contains("(build )"))
+        XCTAssertTrue(output.contains("| Log line count | 0 |"))
         let zero = ByteCountFormatter.string(fromByteCount: 0, countStyle: .file)
-        XCTAssertTrue(md.contains(zero))
+        XCTAssertTrue(output.contains(zero))
     }
 
     func testOutputIsMarkdownTable() {
-        let md = DebugDiagnostics.markdown(sampleSnapshot())
-        XCTAssertTrue(md.contains("| Field | Value |"))
-        XCTAssertTrue(md.contains("| Service | State |"))
-        XCTAssertTrue(md.contains("|---|---|"))
+        let output = DebugDiagnostics.markdown(sampleSnapshot())
+        XCTAssertTrue(output.contains("| Field | Value |"))
+        XCTAssertTrue(output.contains("| Service | State |"))
+        XCTAssertTrue(output.contains("|---|---|"))
     }
 }
 #endif

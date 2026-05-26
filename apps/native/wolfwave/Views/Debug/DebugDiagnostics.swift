@@ -1,5 +1,5 @@
 //
-//  DebugDiagnostics.swift
+//  DebugDiagnosticsnapshot.swift
 //  wolfwave
 //
 //  Created by MrDemonWolf, Inc. on 5/25/26.
@@ -30,28 +30,28 @@ enum DebugDiagnostics {
     }
 
     /// Returns a markdown blob suitable for pasting into a GitHub issue.
-    static func markdown(_ s: Snapshot) -> String {
-        let size = ByteCountFormatter.string(fromByteCount: s.logSizeBytes, countStyle: .file)
+    static func markdown(_ snapshot: Snapshot) -> String {
+        let size = ByteCountFormatter.string(fromByteCount: snapshot.logSizeBytes, countStyle: .file)
         return """
         ## Environment
 
         | Field | Value |
         |---|---|
-        | App version | \(s.appVersion) (build \(s.build)) |
-        | macOS | \(s.osVersion) |
-        | Architecture | \(s.arch) |
-        | Install method | \(s.installMethod) |
+        | App version | \(snapshot.appVersion) (build \(snapshot.build)) |
+        | macOS | \(snapshot.osVersion) |
+        | Architecture | \(snapshot.arch) |
+        | Install method | \(snapshot.installMethod) |
         | Log file size | \(size) |
-        | Log line count | \(s.logLineCount) |
+        | Log line count | \(snapshot.logLineCount) |
 
         ## Service State
 
         | Service | State |
         |---|---|
-        | Twitch | \(yesNo(s.twitchConnected)) |
-        | Discord | \(yesNo(s.discordConnected)) |
-        | Widget HTTP | \(yesNo(s.widgetEnabled)) |
-        | Music tracking | \(yesNo(s.musicTrackingEnabled)) |
+        | Twitch | \(yesNo(snapshot.twitchConnected)) |
+        | Discord | \(yesNo(snapshot.discordConnected)) |
+        | Widget HTTP | \(yesNo(snapshot.widgetEnabled)) |
+        | Music tracking | \(yesNo(snapshot.musicTrackingEnabled)) |
         """
     }
 
