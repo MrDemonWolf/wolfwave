@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 
 type TabId = "overlay" | "ha" | "deck";
@@ -61,6 +61,37 @@ const SNIPPETS: Record<TabId, string> = {
 
 export function DeveloperTabs() {
   const [active, setActive] = useState<TabId>("overlay");
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const focusTab = (id: TabId) => {
+    setActive(id);
+    const idx = TABS.findIndex((t) => t.id === id);
+    requestAnimationFrame(() => {
+      tabRefs.current[idx]?.focus();
+    });
+  };
+
+  const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const idx = TABS.findIndex((t) => t.id === active);
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        focusTab(TABS[(idx + 1) % TABS.length].id);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        focusTab(TABS[(idx - 1 + TABS.length) % TABS.length].id);
+        break;
+      case "Home":
+        e.preventDefault();
+        focusTab(TABS[0].id);
+        break;
+      case "End":
+        e.preventDefault();
+        focusTab(TABS[TABS.length - 1].id);
+        break;
+    }
+  };
 
   return (
     <div className="ww-dev-terminal">
@@ -100,11 +131,14 @@ export function DeveloperTabs() {
           className="ww-dev-tabs"
           style={{ borderBottom: "1px solid var(--hairline)" }}
         >
-          {TABS.map((tab) => {
+          {TABS.map((tab, idx) => {
             const isActive = active === tab.id;
             return (
               <button
                 key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[idx] = el;
+                }}
                 role="tab"
                 type="button"
                 aria-selected={isActive}
@@ -112,6 +146,7 @@ export function DeveloperTabs() {
                 id={`ww-dev-tab-${tab.id}`}
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setActive(tab.id)}
+                onKeyDown={onTabKeyDown}
                 className={`ww-dev-tab ww-mono${isActive ? " is-active" : ""}`}
               >
                 <span className="ww-dev-tab-label">{tab.label}</span>
