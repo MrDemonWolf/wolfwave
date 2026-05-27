@@ -211,10 +211,7 @@ nonisolated enum AppConstants {
         
         /// Whether WebSocket integration is enabled (Bool, default: false)
         static let websocketEnabled = "websocketEnabled"
-        
-        /// WebSocket endpoint URI (String)
-        static let websocketURI = "websocketURI"
-        
+
         /// Whether "current song" bot command is enabled (Bool, default: false)
         static let currentSongCommandEnabled = "currentSongCommandEnabled"
 
@@ -463,7 +460,6 @@ nonisolated enum AppConstants {
             twitchChannelName,
             selectedSettingsSection,
             websocketEnabled,
-            websocketURI,
             currentSongCommandEnabled,
             lastSongCommandEnabled,
             hasCompletedOnboarding,
