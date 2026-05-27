@@ -87,7 +87,7 @@ struct NowPlayingHeroCard: View {
                 AlbumArtView(image: artwork, size: 92)
                     .opacity(isPaused ? 0.55 : 1)
                     .saturation(isPaused ? 0.6 : 1)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: isPaused)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
 
                 if isPaused {
                     Image(systemName: "pause.circle.fill")
