@@ -189,11 +189,21 @@ nonisolated enum KeychainService {
     // MARK: - Private Helpers
 
     /// Builds a base query dictionary for the given account.
+    ///
+    /// All queries opt into the **data-protection keychain** via
+    /// `kSecUseDataProtectionKeychain`. On macOS this switches off the legacy
+    /// file-keychain ACL model (which binds each item to the creating binary's
+    /// code-signing requirement and silently rejects reads from a re-signed
+    /// rebuild with `errSecAuthFailed`) and uses the modern, team-ID scoped
+    /// backend instead. Result: Xcode dev rebuilds keep their saved tokens
+    /// across runs, matching release behavior. Requires the
+    /// `keychain-access-groups` entitlement (already declared).
     private static func queryFor(account: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: true,
         ]
     }
 
