@@ -568,9 +568,6 @@ nonisolated enum AppConstants {
     enum Music {
         /// Bundle identifier for Apple Music app
         static let bundleIdentifier = "com.apple.Music"
-        
-        /// Notification name posted by Music app when playback info changes
-        static let playerInfoNotification = "com.apple.Music.playerInfo"
     }
     
     // MARK: - Twitch Integration
@@ -582,9 +579,6 @@ nonisolated enum AppConstants {
 
         /// Settings section identifier for Twitch configuration
         static let settingsSection = "twitchIntegration"
-
-        /// Default setting for sending connection message on subscribe
-        static let defaultSendConnectionMessage = true
 
         /// Timeout in seconds for receiving the session_welcome WebSocket message
         static let sessionWelcomeTimeout: TimeInterval = 10.0
@@ -782,9 +776,6 @@ nonisolated enum AppConstants {
         /// Twitch OAuth token exchange endpoint.
         static let twitchOAuthToken = "https://id.twitch.tv/oauth2/token"
 
-        /// Twitch Helix API base URL.
-        static let twitchHelix = "https://api.twitch.tv/helix"
-
         /// Spotify public oEmbed endpoint (no auth required).
         static let spotifyOEmbed = "https://open.spotify.com/oembed"
 
@@ -833,9 +824,6 @@ nonisolated enum AppConstants {
 
         /// GitHub repository URL (resolved from config)
         static let github = "https://github.com/\(repoOwner)/\(repoName)"
-
-        /// GitHub Releases API endpoint (resolved from config)
-        static let githubReleasesAPI = "https://api.github.com/repos/\(repoOwner)/\(repoName)/releases/latest"
 
         /// GitHub Releases page URL (resolved from config)
         static let githubReleases = "https://github.com/\(repoOwner)/\(repoName)/releases"
@@ -890,41 +878,13 @@ nonisolated enum AppConstants {
     }
 
     // MARK: - Dispatch Queue Labels
-    
+
     /// Dispatch queue identifiers for background operations.
-    ///
-    /// These are used to create dedicated background threads for specific tasks
-    /// to avoid blocking the main UI thread.
     enum DispatchQueues {
-        /// Queue for music playback monitoring callbacks
-        static let musicPlaybackMonitor = "com.mrdemonwolf.wolfwave.musicplaybackmonitor"
-        
-        /// Queue for Twitch network operations
-        static let twitchNetworkMonitor = "com.mrdemonwolf.wolfwave.networkmonitor"
-
-        /// Queue for Discord IPC operations
-        static let discordIPC = "com.mrdemonwolf.wolfwave.discordipc"
-
         /// Queue for WebSocket server operations
         static let websocketServer = "com.mrdemonwolf.wolfwave.websocketserver"
-
-        static let systemNowPlaying = "com.mrdemonwolf.wolfwave.systemnowplaying"
-
-        /// Queue for song request operations
-        static let songRequest = "com.mrdemonwolf.wolfwave.songrequest"
     }
-    
-    // MARK: - Animation & Timing
-    
-    /// Animation durations and timing constants.
-    enum Timing {
-        /// Delay before restoring menu-only mode after window closes
-        static let windowCloseDelay: TimeInterval = 0.1
-        
-        /// Delay before showing notifications after auth events
-        static let notificationDelay: TimeInterval = 0.5
-    }
-    
+
     // MARK: - Menu Item Labels
 
     /// Menu item text labels.
