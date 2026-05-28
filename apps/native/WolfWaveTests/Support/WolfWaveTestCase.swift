@@ -4,40 +4,35 @@
 //
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
-//  Shared base class for WolfWave unit tests. Centralizes UserDefaults reset
-//  and temp-directory plumbing so individual test files stop reinventing
-//  setUp/tearDown boilerplate (and stop forgetting keys their target writes).
+//  Shared base class for WolfWave unit tests. Provides helper methods for
+//  UserDefaults reset and temp-directory plumbing so individual test files
+//  stop reinventing the same boilerplate.
+//
+//  The base class is intentionally **not** annotated `@MainActor` and does
+//  **not** override `setUp` / `tearDown`. Tests in this project come in two
+//  flavors — nonisolated suites that invoke private static helpers from
+//  inside `@Sendable` `MockURLProtocol` handlers, and `@MainActor`-annotated
+//  suites that touch view-model state directly. A class-level isolation here
+//  would force one flavor or the other to fight the compiler. Keeping the
+//  base nonisolated and free of overrides lets subclasses keep their existing
+//  setUp/tearDown bodies and simply opt in to the helpers below.
 //
 
 import XCTest
 
 @testable import WolfWave
 
-/// Base test case that wipes every persisted setting before and after each test.
+/// Base test case providing shared cleanup helpers.
 ///
-/// Inherit from this instead of `XCTestCase` for any test that touches
-/// `UserDefaults`. The reset uses `AppConstants.UserDefaults.allKeys` as its
-/// source of truth, so adding a new key automatically participates in cleanup.
-/// Intentionally **not** annotated `@MainActor` at the class level. Subclasses
-/// that need main-actor isolation should declare it themselves (matching the
-/// project default), and tests that exercise `@Sendable` callbacks running on
-/// background queues need the base class to stay nonisolated so their static
-/// helpers can be called from those closures.
+/// Subclasses call `resetAllSettings()` and/or `makeTempDir()` from their own
+/// `setUp` / `tearDown` overrides. Adopt incrementally — there is no harm in
+/// existing tests continuing to remove individual keys explicitly.
 class WolfWaveTestCase: XCTestCase {
 
-    /// Temp directories registered for cleanup in `tearDown`.
+    /// Temp directories registered for cleanup. Subclasses that call
+    /// `makeTempDir()` are responsible for invoking `cleanupTrackedTempDirs()`
+    /// from their own `tearDown`.
     private var trackedTempDirs: [URL] = []
-
-    override func setUp() {
-        super.setUp()
-        resetAllSettings()
-    }
-
-    override func tearDown() {
-        cleanupTrackedTempDirs()
-        resetAllSettings()
-        super.tearDown()
-    }
 
     // MARK: - UserDefaults
 
@@ -51,9 +46,10 @@ class WolfWaveTestCase: XCTestCase {
 
     // MARK: - Temp directories
 
-    /// Returns a fresh, unique temp directory and registers it for cleanup at tearDown.
+    /// Returns a fresh, unique temp directory. Pair with
+    /// `cleanupTrackedTempDirs()` in `tearDown`.
     @discardableResult
-    func makeTempDir(file: StaticString = #file) -> URL {
+    func makeTempDir() -> URL {
         let dir = FileManager.default
             .temporaryDirectory
             .appendingPathComponent("wolfwave-tests-\(UUID().uuidString)", isDirectory: true)
@@ -62,7 +58,8 @@ class WolfWaveTestCase: XCTestCase {
         return dir
     }
 
-    private func cleanupTrackedTempDirs() {
+    /// Removes every directory previously returned by `makeTempDir()`.
+    func cleanupTrackedTempDirs() {
         for url in trackedTempDirs {
             try? FileManager.default.removeItem(at: url)
         }
