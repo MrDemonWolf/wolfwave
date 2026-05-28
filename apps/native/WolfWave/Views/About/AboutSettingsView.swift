@@ -19,25 +19,12 @@ struct AboutSettingsView: View {
 
     @State private var versionCopied = false
 
-    // MARK: - Bundle Info
+    // MARK: - Bundle Info (shared with the menu bar's standard About panel)
 
-    private var appName: String {
-        Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String
-            ?? Bundle.main.infoDictionary?["CFBundleName"] as? String
-            ?? AppConstants.AppInfo.displayName
-    }
-
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-    }
-
-    private var build: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-    }
-
-    private var versionString: String {
-        "Version \(version) (\(build))"
-    }
+    private var appName: String { AboutCopy.appName }
+    private var version: String { AboutCopy.version }
+    private var build: String { AboutCopy.build }
+    private var versionString: String { AboutCopy.versionString }
 
     // MARK: - Body
 
@@ -197,13 +184,13 @@ struct AboutSettingsView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
-            Text("Twitch, Discord, OBS, Apple Music, and Apple are trademarks of their respective owners. song.link is a trademark of Song, Inc. (Odesli). WolfWave is not affiliated with, endorsed by, or sponsored by any of them.")
+            Text(AboutCopy.trademarkNotice)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved.")
+            Text(AboutCopy.copyrightLine)
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
@@ -269,7 +256,7 @@ struct AboutSettingsView: View {
     // MARK: - Actions
 
     private func copyVersion() {
-        let payload = "\(appName) \(version) (build \(build))"
+        let payload = AboutCopy.versionClipboardPayload
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(payload, forType: .string)
