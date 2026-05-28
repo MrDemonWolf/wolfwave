@@ -21,21 +21,24 @@ final class BotCommandDispatcher {
         description: "Displays the currently playing track",
         defaultMessage: "No track currently playing",
         globalCooldownKey: AppConstants.UserDefaults.songCommandGlobalCooldown,
-        userCooldownKey: AppConstants.UserDefaults.songCommandUserCooldown
+        userCooldownKey: AppConstants.UserDefaults.songCommandUserCooldown,
+        aliasesKey: AppConstants.UserDefaults.songCommandAliases
     )
     private let lastSongCommand = TrackInfoCommand(
         triggers: ["!last", "!lastsong", "!prevsong"],
         description: "Displays the last played track",
         defaultMessage: "No previous track available",
         globalCooldownKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown,
-        userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown
+        userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown,
+        aliasesKey: AppConstants.UserDefaults.lastSongCommandAliases
     )
     private let statsCommand = TrackInfoCommand(
         triggers: ["!stats", "!musicstats"],
         description: "Displays today's listening stats (live streams only)",
         defaultMessage: "No listening stats yet",
         globalCooldownKey: AppConstants.UserDefaults.statsCommandGlobalCooldown,
-        userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown
+        userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown,
+        aliasesKey: AppConstants.UserDefaults.statsCommandAliases
     )
     private let cooldownManager = CooldownManager()
 

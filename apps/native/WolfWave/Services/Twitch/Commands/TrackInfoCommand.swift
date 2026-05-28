@@ -32,6 +32,9 @@ final class TrackInfoCommand: BotCommand {
     /// UserDefaults key for the user-configurable per-user cooldown override.
     let userCooldownKey: String?
 
+    /// UserDefaults key for user-configured alias triggers (comma-separated).
+    let aliasesKey: String?
+
     // MARK: - Thread-safe Closures
 
     private let lock = NSLock()
@@ -85,13 +88,15 @@ final class TrackInfoCommand: BotCommand {
         description: String,
         defaultMessage: String,
         globalCooldownKey: String? = nil,
-        userCooldownKey: String? = nil
+        userCooldownKey: String? = nil,
+        aliasesKey: String? = nil
     ) {
         self.triggers = triggers
         self.description = description
         self.defaultMessage = defaultMessage
         self.globalCooldownKey = globalCooldownKey
         self.userCooldownKey = userCooldownKey
+        self.aliasesKey = aliasesKey
     }
 
     // MARK: - Execute
@@ -105,7 +110,7 @@ final class TrackInfoCommand: BotCommand {
     func execute(message: String) -> String? {
         let lowered = message.lowercased()
 
-        for trigger in triggers {
+        for trigger in allTriggers {
             if lowered.hasPrefix(trigger) {
                 // Snapshot closures under lock to avoid racing with setter
                 let enabledCheck = isEnabled
@@ -130,7 +135,7 @@ final class TrackInfoCommand: BotCommand {
     func executeAsync(message: String) async -> String? {
         let lowered = message.lowercased()
 
-        for trigger in triggers {
+        for trigger in allTriggers {
             if lowered.hasPrefix(trigger) {
                 let enabledCheck = isEnabled
                 let asyncProvider = getTrackInfoAsync
