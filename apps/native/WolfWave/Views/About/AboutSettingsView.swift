@@ -102,7 +102,7 @@ struct AboutSettingsView: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Quick actions")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
-                Text("Updates, release notes, feedback, and sponsorship.")
+                Text("Release notes, website, feedback, and sponsorship.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }

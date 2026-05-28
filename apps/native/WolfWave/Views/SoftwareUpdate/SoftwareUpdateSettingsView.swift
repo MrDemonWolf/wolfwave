@@ -227,10 +227,9 @@ struct SoftwareUpdateSettingsView: View {
                     isCheckingForUpdates = true
                     isManualCheck = true
                     appDelegate?.sparkleUpdater?.checkForUpdates()
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(5))
-                        isCheckingForUpdates = false
-                    }
+                    // The `updateStateChanged` notification observer resets
+                    // `isCheckingForUpdates` when Sparkle's delegate reports
+                    // a result, so no fixed timer is needed.
                 } label: {
                     if isCheckingForUpdates {
                         ProgressView()
