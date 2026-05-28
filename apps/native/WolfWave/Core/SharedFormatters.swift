@@ -16,7 +16,11 @@ import Foundation
 nonisolated enum SharedFormatters {
 
     /// Strict ISO 8601 (`2026-05-28T12:34:56Z`).
-    static let iso8601: ISO8601DateFormatter = {
+    ///
+    /// `ISO8601DateFormatter` (unlike `DateFormatter`) is not annotated `Sendable`
+    /// even though formatting calls are documented as thread-safe — hence
+    /// `nonisolated(unsafe)`. Don't mutate `formatOptions` after init.
+    nonisolated(unsafe) static let iso8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         return formatter
     }()
