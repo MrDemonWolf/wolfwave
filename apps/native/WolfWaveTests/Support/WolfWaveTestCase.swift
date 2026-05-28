@@ -18,7 +18,11 @@ import XCTest
 /// Inherit from this instead of `XCTestCase` for any test that touches
 /// `UserDefaults`. The reset uses `AppConstants.UserDefaults.allKeys` as its
 /// source of truth, so adding a new key automatically participates in cleanup.
-@MainActor
+/// Intentionally **not** annotated `@MainActor` at the class level. Subclasses
+/// that need main-actor isolation should declare it themselves (matching the
+/// project default), and tests that exercise `@Sendable` callbacks running on
+/// background queues need the base class to stay nonisolated so their static
+/// helpers can be called from those closures.
 class WolfWaveTestCase: XCTestCase {
 
     /// Temp directories registered for cleanup in `tearDown`.
