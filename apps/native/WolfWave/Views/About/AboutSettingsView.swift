@@ -51,6 +51,7 @@ struct AboutSettingsView: View {
             identityCard
             actionsCard
             linksCard
+            acknowledgementsCard
         }
         .accessibilityIdentifier("about-settings.root")
     }
@@ -196,7 +197,7 @@ struct AboutSettingsView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
-            Text("Twitch, Discord, OBS, and Apple Music are trademarks of their respective owners. WolfWave is not affiliated with or endorsed by any of them.")
+            Text("Twitch, Discord, OBS, Apple Music, and Apple are trademarks of their respective owners. song.link is a trademark of Song, Inc. (Odesli). WolfWave is not affiliated with, endorsed by, or sponsored by any of them.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -205,6 +206,63 @@ struct AboutSettingsView: View {
             Text("© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    // MARK: - Acknowledgements Card
+
+    private var acknowledgementsCard: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Acknowledgements")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+                Text("Third-party services and open-source software WolfWave depends on.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: DSSpace.s4) {
+                acknowledgementsSection(
+                    title: "Third-party services",
+                    rows: [
+                        "Twitch — EventSub WebSocket + Helix API",
+                        "Discord — local IPC Rich Presence",
+                        "Apple Music — ScriptingBridge and MusicKit",
+                        "Odesli (song.link) — cross-platform track link API",
+                        "iTunes Search API — album artwork and Apple Music URLs"
+                    ]
+                )
+
+                acknowledgementsSection(
+                    title: "Open source",
+                    rows: [
+                        "Sparkle — auto-update framework (MIT license)"
+                    ]
+                )
+
+                if let url = URL(string: AppConstants.URLs.acknowledgements) {
+                    Link("View full licenses and notices", destination: url)
+                        .font(.system(size: DSFont.Size.sm))
+                        .accessibilityLabel("Open acknowledgements and license notices")
+                        .accessibilityIdentifier("about-settings.link.acknowledgements")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .cardStyle()
+    }
+
+    private func acknowledgementsSection(title: String, rows: [String]) -> some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text(title)
+                .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                .foregroundStyle(.secondary)
+            ForEach(rows, id: \.self) { row in
+                Text("• \(row)")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
