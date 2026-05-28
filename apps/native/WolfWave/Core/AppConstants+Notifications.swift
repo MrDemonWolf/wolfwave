@@ -26,6 +26,7 @@ extension NSNotification.Name {
     static let twitchReauthNeededChanged = NSNotification.Name(AppConstants.Notifications.twitchReauthNeededChanged)
     static let discordPresenceChanged = NSNotification.Name(AppConstants.Notifications.discordPresenceChanged)
     static let discordStateChanged = NSNotification.Name(AppConstants.Notifications.discordStateChanged)
+    static let discordPresenceSettingsChanged = NSNotification.Name(AppConstants.Notifications.discordPresenceSettingsChanged)
     static let nowPlayingChanged = NSNotification.Name(AppConstants.Notifications.nowPlayingChanged)
     static let updateStateChanged = NSNotification.Name(AppConstants.Notifications.updateStateChanged)
     static let websocketServerChanged = NSNotification.Name(AppConstants.Notifications.websocketServerChanged)
@@ -39,4 +40,6 @@ extension NSNotification.Name {
     static let voteSkipStateChanged = NSNotification.Name(AppConstants.Notifications.voteSkipStateChanged)
     static let musicPermissionDenied = NSNotification.Name(AppConstants.Notifications.musicPermissionDenied)
     static let openSettingsSection = NSNotification.Name(AppConstants.Notifications.openSettingsSection)
+    static let listeningHistorySettingChanged = NSNotification.Name(AppConstants.Notifications.listeningHistorySettingChanged)
+    static let streamerModeChanged = NSNotification.Name(AppConstants.Notifications.streamerModeChanged)
 }
