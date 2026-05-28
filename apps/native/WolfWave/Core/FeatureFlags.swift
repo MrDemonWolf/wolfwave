@@ -12,7 +12,7 @@ import Foundation
 /// Centralizes the repeated `UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.…)`
 /// pattern so default semantics are defined once. Adding a new toggle means adding
 /// one computed property here rather than hunting for every read site.
-enum FeatureFlags {
+nonisolated enum FeatureFlags {
     private static var defaults: Foundation.UserDefaults { .standard }
 
     // MARK: Integrations

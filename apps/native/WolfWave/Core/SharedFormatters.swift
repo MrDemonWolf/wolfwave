@@ -13,7 +13,7 @@ import Foundation
 /// CFDateFormatter even on copies. Sharing per-purpose singletons cuts repeated
 /// construction across the diagnostics path, the log writer, the monthly wrap
 /// renderer, and the onboarding date stamp.
-enum SharedFormatters {
+nonisolated enum SharedFormatters {
 
     /// Strict ISO 8601 (`2026-05-28T12:34:56Z`).
     static let iso8601: ISO8601DateFormatter = {
