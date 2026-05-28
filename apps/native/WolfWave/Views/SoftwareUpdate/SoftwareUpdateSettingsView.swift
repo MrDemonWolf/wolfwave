@@ -51,7 +51,7 @@ struct SoftwareUpdateSettingsView: View {
         .onAppear {
             isHomebrewInstall = Bundle.main.isHomebrewInstall
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name(AppConstants.Notifications.updateStateChanged))) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.updateStateChanged)) { notification in
             isCheckingForUpdates = false
             if let version = notification.userInfo?["latestVersion"] as? String,
                let available = notification.userInfo?["isUpdateAvailable"] as? Bool {
