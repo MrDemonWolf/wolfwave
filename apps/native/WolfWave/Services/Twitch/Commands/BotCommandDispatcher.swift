@@ -226,6 +226,11 @@ final class BotCommandDispatcher {
         }
 
         let lowered = trimmedMessage.lowercased()
+        // Match on the first whitespace-delimited token, not a prefix. Prefix
+        // matching let a short alias (e.g. "!s") capture longer commands
+        // ("!skip") and let "!song" swallow "!songrequest". Exact first-token
+        // equality routes each message to exactly one command.
+        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         let snapshot = lock.withLock { commands }
         for command in snapshot {
@@ -233,8 +238,7 @@ final class BotCommandDispatcher {
             let triggers = command.allTriggers
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
-                // Match: message starts with the trigger (original hasPrefix behavior)
-                if lowered.hasPrefix(triggerLowered) {
+                if commandToken == triggerLowered {
                     // Check if command is enabled
                     guard command.isCommandEnabled else {
                         return nil
@@ -312,13 +316,15 @@ final class BotCommandDispatcher {
         }
 
         let lowered = trimmedMessage.lowercased()
+        // First-token equality (see processMessage) — avoids alias/prefix collisions.
+        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         let snapshot = lock.withLock { commands }
         for command in snapshot {
             let triggers = command.allTriggers
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
-                if lowered.hasPrefix(triggerLowered) {
+                if commandToken == triggerLowered {
                     Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
                     guard command.isCommandEnabled else {
                         Log.debug("BotCommandDispatcher: command \(trigger) disabled, bail", category: "Twitch")

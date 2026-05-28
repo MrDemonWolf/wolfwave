@@ -109,9 +109,10 @@ final class TrackInfoCommand: BotCommand {
     ///   is disabled.
     func execute(message: String) -> String? {
         let lowered = message.lowercased()
+        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         for trigger in allTriggers {
-            if lowered.hasPrefix(trigger) {
+            if commandToken == trigger.lowercased() {
                 // Snapshot closures under lock to avoid racing with setter
                 let enabledCheck = isEnabled
                 let trackInfoProvider = getTrackInfo
@@ -134,9 +135,10 @@ final class TrackInfoCommand: BotCommand {
     /// first `!song`/`!last`/`!stats` chat command after Twitch auth.
     func executeAsync(message: String) async -> String? {
         let lowered = message.lowercased()
+        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         for trigger in allTriggers {
-            if lowered.hasPrefix(trigger) {
+            if commandToken == trigger.lowercased() {
                 let enabledCheck = isEnabled
                 let asyncProvider = getTrackInfoAsync
                 let syncProvider = getTrackInfo

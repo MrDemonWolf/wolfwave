@@ -355,7 +355,7 @@ struct HistoryStatsSettingsView: View {
                 Text("Keep history for")
                     .font(.system(size: DSFont.Size.body))
                 Spacer()
-                Picker("", selection: $historyRetentionDays) {
+                Picker("Keep history for", selection: $historyRetentionDays) {
                     Text("Forever").tag(0)
                     Text("7 days").tag(7)
                     Text("30 days").tag(30)
@@ -364,6 +364,7 @@ struct HistoryStatsSettingsView: View {
                     Text("365 days").tag(365)
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
                 .frame(width: 120)
                 .accessibilityIdentifier("historyRetentionDays")
             }
