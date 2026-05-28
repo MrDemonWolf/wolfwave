@@ -115,21 +115,16 @@ struct AboutSettingsView: View {
     private var actionGrid: some View {
         ActionGrid(columns: 2) {
             GridRow {
-                ActionGridButton(title: "Check for Updates", systemImage: "arrow.down.circle", action: checkForUpdates,
-                                 accessibilityIdentifier: "about-settings.action.Check for Updates")
                 ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: openReleaseNotes,
                                  accessibilityIdentifier: "about-settings.action.Release Notes")
-            }
-            GridRow {
                 ActionGridButton(title: "Website", systemImage: "globe", action: openWebsite,
                                  accessibilityIdentifier: "about-settings.action.Website")
-                ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback,
-                                 accessibilityIdentifier: "about-settings.action.Send Feedback")
             }
             GridRow {
+                ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback,
+                                 accessibilityIdentifier: "about-settings.action.Send Feedback")
                 ActionGridButton(title: "Sponsor on GitHub", systemImage: "heart.fill", action: openSponsor,
                                  accessibilityIdentifier: "about-settings.action.Sponsor on GitHub")
-                    .gridCellColumns(2)
             }
         }
     }
@@ -207,14 +202,6 @@ struct AboutSettingsView: View {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1500))
             withAnimation(.easeInOut(duration: DSMotion.Duration.base)) { versionCopied = false }
-        }
-    }
-
-    private func checkForUpdates() {
-        if AppDelegate.shared?.sparkleUpdater?.checkForUpdates() != true {
-            if let url = URL(string: AppConstants.URLs.githubReleases) {
-                NSWorkspace.shared.open(url)
-            }
         }
     }
 
