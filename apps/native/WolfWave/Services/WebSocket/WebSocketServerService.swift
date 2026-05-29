@@ -561,7 +561,9 @@ actor WebSocketServerService {
     /// Sends a `progress` tick (elapsed/duration) to every connected client
     /// while playback is active. Driven by the periodic progress task.
     private func broadcastProgress() {
-        guard isPlaying else { return }
+        // No clients = nothing to do. Skipping the serialization when no overlay
+        // is connected (the common idle case) avoids per-tick work.
+        guard isPlaying, !connections.isEmpty else { return }
         broadcastJSON([
             "type": "progress",
             "data": [
@@ -588,7 +590,9 @@ actor WebSocketServerService {
         let interval = currentProgressInterval
         progressTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
+                // Progress ticks tolerate ~10% jitter; the tolerance lets macOS
+                // coalesce the wakeup with other timers.
+                try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval * 0.1))
                 if Task.isCancelled { return }
                 await self?.broadcastProgress()
             }
