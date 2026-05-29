@@ -48,6 +48,6 @@ public enum WebSocketTokenRules {
     /// Redacts a token for safe logging — keeps the first 4 chars and an ellipsis.
     public static func redact(_ token: String) -> String {
         guard token.count > 4 else { return "…" }
-        return token.prefix(4) + "…"
+        return String(token.prefix(4)) + "…"
     }
 }

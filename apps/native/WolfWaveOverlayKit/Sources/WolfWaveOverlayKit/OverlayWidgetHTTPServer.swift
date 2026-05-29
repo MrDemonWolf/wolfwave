@@ -88,47 +88,55 @@ public final class OverlayWidgetHTTPServer: @unchecked Sendable {
         self.resourceBundle = resourceBundle
     }
 
-    deinit { stop() }
+    // Last reference at dealloc, so no other thread races the listener here.
+    deinit { listener?.cancel() }
 
     // MARK: - Lifecycle
 
+    // `listener` is mutated only on `queue` (its own callbacks run there too), so
+    // all reads/writes are confined to one serial executor — no data race with
+    // the `.failed` callback that nils it out.
     public func start() {
-        guard listener == nil else { return }
+        queue.async { [weak self] in
+            guard let self, self.listener == nil else { return }
 
-        let parameters = NWParameters.tcp
-        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
-            log.error("Invalid port \(self.port)")
-            return
-        }
-        do {
-            listener = try NWListener(using: parameters, on: nwPort)
-        } catch {
-            log.error("Failed to create listener: \(error.localizedDescription)")
-            return
-        }
-
-        listener?.stateUpdateHandler = { [weak self] state in
-            guard let self else { return }
-            switch state {
-            case .ready:
-                self.log.info("Listening on port \(self.port)")
-            case .failed(let error):
-                self.log.error("Listener failed: \(error.localizedDescription)")
-                self.listener = nil
-            default:
-                break
+            let parameters = NWParameters.tcp
+            guard let nwPort = NWEndpoint.Port(rawValue: self.port) else {
+                self.log.error("Invalid port \(self.port)")
+                return
             }
+            do {
+                self.listener = try NWListener(using: parameters, on: nwPort)
+            } catch {
+                self.log.error("Failed to create listener: \(error.localizedDescription)")
+                return
+            }
+
+            self.listener?.stateUpdateHandler = { [weak self] state in
+                guard let self else { return }
+                switch state {
+                case .ready:
+                    self.log.info("Listening on port \(self.port)")
+                case .failed(let error):
+                    self.log.error("Listener failed: \(error.localizedDescription)")
+                    self.listener = nil
+                default:
+                    break
+                }
+            }
+            self.listener?.newConnectionHandler = { [weak self] connection in
+                self?.handleConnection(connection)
+            }
+            self.listener?.start(queue: self.queue)
         }
-        listener?.newConnectionHandler = { [weak self] connection in
-            self?.handleConnection(connection)
-        }
-        listener?.start(queue: queue)
     }
 
     public func stop() {
-        listener?.cancel()
-        listener = nil
-        log.info("Server stopped")
+        queue.async { [weak self] in
+            self?.listener?.cancel()
+            self?.listener = nil
+            self?.log.info("Server stopped")
+        }
     }
 
     // MARK: - Connection Handling

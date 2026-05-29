@@ -431,6 +431,10 @@ actor WebSocketServerService {
     private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
         switch state {
         case .ready:
+            // Ignore a late .ready that lands after stopServer() — re-adding would
+            // inflate the count. `state` the param is NWConnection.State; qualify
+            // with self to read the server's lifecycle state.
+            guard self.state == .listening else { connection.cancel(); return }
             connections.append(connection)
             let count = connections.count
             writeConnectionCountSnapshot(count)

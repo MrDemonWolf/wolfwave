@@ -119,11 +119,15 @@ public actor OverlayWebSocketServer {
 
     public func setWidgetHTTPEnabled(_ enabled: Bool) {
         if enabled {
+            // Persist desired state so a listener restart (updateAuthToken /
+            // updatePort -> stop/start) re-creates the widget HTTP server.
+            widgetHTTPEnabledOnStart = true
             guard state == .listening, widgetHTTP == nil else { return }
             widgetHTTP = OverlayWidgetHTTPServer(port: widgetPort, authToken: authToken, resourceBundle: resourceBundle)
             widgetHTTP?.start()
             log.info("Widget HTTP server started")
         } else {
+            widgetHTTPEnabledOnStart = false
             widgetHTTP?.stop()
             widgetHTTP = nil
             log.info("Widget HTTP server stopped")
@@ -303,6 +307,11 @@ public actor OverlayWebSocketServer {
     private func handleConnectionState(_ connection: NWConnection, state: NWConnection.State) {
         switch state {
         case .ready:
+            // A late .ready callback can arrive after stopServer() cleared the
+            // connection set. Don't re-add (which would inflate the count) — the
+            // server is no longer listening, so drop the connection.
+            // (`state` the param is NWConnection.State, so qualify with self.)
+            guard self.state == .listening else { connection.cancel(); return }
             connections.append(connection)
             writeConnectionCountSnapshot(connections.count)
             log.info("Client connected (\(self.connections.count) total)")

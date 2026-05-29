@@ -56,13 +56,18 @@ actor WebSocketServerService {
     private var connection: NSXPCConnection?
     private var host: HostCallback?
     private var configureTask: Task<Void, Never>?
+    /// Bumped each time a new NSXPCConnection is created; lets termination
+    /// handlers ignore callbacks from a connection we already replaced.
+    private var connectionGeneration = 0
 
     // MARK: - Init
 
     init(port: UInt16 = OverlayConstants.defaultPort) {
         self.port = port
         self.authToken = nil
-        self.widgetHTTPEnabled = false
+        self.widgetHTTPEnabled = UserDefaults.standard.object(
+            forKey: AppConstants.UserDefaults.widgetHTTPEnabled
+        ) as? Bool ?? false
         let (stream, continuation) = AsyncStream<(ServerState, Int)>.makeStream(
             bufferingPolicy: .bufferingNewest(64)
         )
@@ -172,25 +177,45 @@ actor WebSocketServerService {
 
     private func performConfigure() async {
         connectIfNeeded()
-        let config = currentConfig()
-        guard let data = try? JSONEncoder().encode(config), let proxy = remote else { return }
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            proxy.configure(data) { cont.resume() }
+        guard let conn = connection, let data = try? JSONEncoder().encode(currentConfig()) else {
+            configureTask = nil   // allow a later retry
+            return
+        }
+        // NSXPC guarantees exactly one of the reply or the error handler fires.
+        // Resume from whichever runs (resume-once guard) so a connection failure
+        // can't leave ensureConfigured() suspended forever.
+        let succeeded = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let once = ResumeGuard()
+            guard let proxy = conn.remoteObjectProxyWithErrorHandler({ _ in
+                if once.fire() { cont.resume(returning: false) }
+            }) as? OverlayServerXPC else {
+                if once.fire() { cont.resume(returning: false) }
+                return
+            }
+            proxy.configure(data) {
+                if once.fire() { cont.resume(returning: true) }
+            }
+        }
+        if !succeeded {
+            // configure didn't apply (connection error) — clear so callers retry.
+            configureTask = nil
         }
     }
 
     private func connectIfNeeded() {
         guard connection == nil else { return }
+        connectionGeneration += 1
+        let generation = connectionGeneration
         let conn = NSXPCConnection(serviceName: OverlayConstants.xpcServiceName)
         conn.remoteObjectInterface = NSXPCInterface(with: OverlayServerXPC.self)
         conn.exportedInterface = NSXPCInterface(with: OverlayServerHostXPC.self)
         let callback = HostCallback(owner: self)
         conn.exportedObject = callback
         conn.interruptionHandler = { [weak self] in
-            Task { await self?.handleInterruption() }
+            Task { await self?.handleTermination(generation: generation) }
         }
         conn.invalidationHandler = { [weak self] in
-            Task { await self?.handleInterruption() }
+            Task { await self?.handleTermination(generation: generation) }
         }
         conn.resume()
         self.connection = conn
@@ -199,7 +224,10 @@ actor WebSocketServerService {
 
     /// Service crashed or was killed. Drop the stale connection and re-establish
     /// from last-known state so the overlay recovers without user action.
-    private func handleInterruption() async {
+    /// `generation` guards against a stale callback tearing down a connection we
+    /// already replaced.
+    private func handleTermination(generation: Int) async {
+        guard generation == connectionGeneration else { return }
         connection?.invalidate()
         connection = nil
         host = nil
@@ -275,5 +303,18 @@ private final class HostCallback: NSObject, OverlayServerHostXPC, @unchecked Sen
     func serverStateChanged(_ rawState: String, clientCount: Int) {
         guard let owner else { return }
         Task { await owner.ingestStateChange(rawState: rawState, clientCount: clientCount) }
+    }
+}
+
+/// Lets exactly one of the XPC reply / error handler resume a continuation.
+/// Both run off-actor on arbitrary threads, so the flag is lock-guarded.
+private final class ResumeGuard: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fired = false
+    func fire() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if fired { return false }
+        fired = true
+        return true
     }
 }
