@@ -170,12 +170,8 @@ jobs:
         if: steps.filter.outputs.docs == 'true'
         run: bun run --filter docs types:check
 
-      # Non-blocking: docs carry pre-existing eslint errors and have never
-      # been lint-gated. Annotations surface but won't fail the workflow.
-      # Drop continue-on-error once the existing errors are cleaned up.
       - name: Lint
         if: steps.filter.outputs.docs == 'true'
-        continue-on-error: true
         run: bun run --filter docs lint
 
       - name: Build docs
