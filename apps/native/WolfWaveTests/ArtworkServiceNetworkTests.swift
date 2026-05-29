@@ -47,6 +47,23 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
     }
 
+    /// Polls `condition` until it returns true or the timeout elapses.
+    /// Avoids fixed sleeps when waiting on async disk I/O, which are flaky under
+    /// CI load. Returns the final condition result.
+    @discardableResult
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        interval: Duration = .milliseconds(20),
+        _ condition: () -> Bool
+    ) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: interval)
+        }
+        return condition()
+    }
+
     func testFetchTrackLinksParsesFieldsAndUpgradesArtworkResolution() async {
         MockURLProtocol.requestHandler = { request in
             let result = #"{"artworkUrl100":"https://cdn.example/100x100bb.jpg","trackViewUrl":"https://music.apple.com/track","trackId":42}"#
@@ -125,7 +142,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
 
         // Wait for the async disk write to land.
-        try? await Task.sleep(for: .milliseconds(200))
+        let wrote = await waitUntil { FileManager.default.fileExists(atPath: url.path) }
+        XCTAssertTrue(wrote, "Cache file should be written within the timeout")
 
         // Second instance loads from the same file — no network.
         let second = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
@@ -147,14 +165,14 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
             svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { cont.resume(returning: $0) }
         }
-        try? await Task.sleep(for: .milliseconds(200))
+        await waitUntil { FileManager.default.fileExists(atPath: url.path) }
 
         svc.clearCache()
-        try? await Task.sleep(for: .milliseconds(200))
+        let deleted = await waitUntil { !FileManager.default.fileExists(atPath: url.path) }
 
         XCTAssertNil(svc.cachedArtworkURL(track: "Doomed", artist: "Artist"))
         XCTAssertEqual(svc.cacheStats().entryCount, 0)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertTrue(deleted, "Cache file should be deleted within the timeout")
     }
 
     func testCachedResultIsServedWithoutHittingNetwork() async {
