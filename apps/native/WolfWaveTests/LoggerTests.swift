@@ -37,9 +37,14 @@ struct LoggerTests {
     // made these readback assertions flaky in CI. Testing the redaction
     // function directly is deterministic and needs no file at all.
 
+    // Token fixtures below are synthetic placeholders, not real credentials.
+    // The redaction rules key on the `oauth_` / `Bearer ` prefixes (see
+    // Logger.swift), so low-entropy readable values exercise them fully while
+    // keeping secret scanners (GitGuardian) quiet — avoid random/UUID suffixes.
+
     @Test("Redacts OAuth tokens from log messages")
     func testOAuthTokenRedaction() {
-        let token = "oauth_abc123def456ghi789_\(UUID().uuidString)"
+        let token = "oauth_example_placeholder_not_a_real_token"
         let redacted = Log.redactForTesting("User token: \(token)")
 
         #expect(!redacted.contains(token), "OAuth token should be redacted")
@@ -47,7 +52,7 @@ struct LoggerTests {
 
     @Test("Redacts Bearer tokens from log messages")
     func testBearerTokenRedaction() {
-        let token = "Bearer abc123def456ghi789jkl012_\(UUID().uuidString)"
+        let token = "Bearer example_placeholder_not_a_real_token"
         let redacted = Log.redactForTesting("Authorization: \(token)")
 
         #expect(!redacted.contains(token), "Bearer token should be redacted")
