@@ -10,6 +10,14 @@ import XCTest
 
 @testable import WolfWave
 
+/// Thread-safe request tally for assertions inside `@Sendable` mock handlers.
+private final class RequestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func increment() { lock.lock(); count += 1; lock.unlock() }
+    var value: Int { lock.lock(); defer { lock.unlock() }; return count }
+}
+
 // MARK: - ArtworkServiceNetworkTests
 
 /// Covers `ArtworkService` iTunes Search API parsing, error handling, and
@@ -21,7 +29,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        service = ArtworkService(session: MockURLProtocol.makeSession())
+        service = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: nil)
     }
 
     override func tearDown() {
@@ -98,6 +106,55 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         _ = await fetchLinks(track: "Missing", artist: "Nobody")
 
         XCTAssertEqual(counter.value, 1, "A recent miss must not re-hit the network")
+    }
+
+    func testCachePersistsAcrossInstancesViaDisk() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        MockURLProtocol.requestHandler = { request in
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+
+        // First instance fetches + persists to disk.
+        let first = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        _ = await withCheckedContinuation { (c: CheckedContinuation<TrackLinks, Never>) in
+            first.fetchTrackLinks(track: "Persisted", artist: "Artist") { c.resume(returning: $0) }
+        }
+
+        // Wait for the async disk write to land.
+        try? await Task.sleep(for: .milliseconds(200))
+
+        // Second instance loads from the same file — no network.
+        let second = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        let cached = second.cachedTrackLinks(track: "Persisted", artist: "Artist")
+        XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
+    }
+
+    func testClearCacheEmptiesMemoryAndDisk() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        MockURLProtocol.requestHandler = { request in
+            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+
+        let svc = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
+        _ = await withCheckedContinuation { (c: CheckedContinuation<TrackLinks, Never>) in
+            svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { c.resume(returning: $0) }
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+
+        svc.clearCache()
+        try? await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertNil(svc.cachedArtworkURL(track: "Doomed", artist: "Artist"))
+        XCTAssertEqual(svc.cacheStats().entryCount, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
     func testCachedResultIsServedWithoutHittingNetwork() async {
