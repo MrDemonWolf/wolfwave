@@ -120,8 +120,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
         // First instance fetches + persists to disk.
         let first = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
-        _ = await withCheckedContinuation { (c: CheckedContinuation<TrackLinks, Never>) in
-            first.fetchTrackLinks(track: "Persisted", artist: "Artist") { c.resume(returning: $0) }
+        _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
+            first.fetchTrackLinks(track: "Persisted", artist: "Artist") { cont.resume(returning: $0) }
         }
 
         // Wait for the async disk write to land.
@@ -144,8 +144,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         }
 
         let svc = ArtworkService(session: MockURLProtocol.makeSession(), persistenceURL: url)
-        _ = await withCheckedContinuation { (c: CheckedContinuation<TrackLinks, Never>) in
-            svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { c.resume(returning: $0) }
+        _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
+            svc.fetchTrackLinks(track: "Doomed", artist: "Artist") { cont.resume(returning: $0) }
         }
         try? await Task.sleep(for: .milliseconds(200))
 

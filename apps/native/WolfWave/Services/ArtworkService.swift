@@ -373,12 +373,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         guard let url = persistenceURL else { return }
         var entries: [String: PersistedEntry] = [:]
         for key in cacheKeyOrder {
-            guard let ts = resolvedAt[key] else { continue }
+            guard let timestamp = resolvedAt[key] else { continue }
             entries[key] = PersistedEntry(
                 artworkURL: cache[key],
                 trackViewURL: trackViewURLCache[key],
                 songLinkURL: songLinkURLCache[key],
-                resolvedAt: ts
+                resolvedAt: timestamp
             )
         }
         let snapshot = PersistedCache(entries: entries, order: cacheKeyOrder)
