@@ -302,18 +302,8 @@ actor SkipVoteManager {
         let state: (count: Int, needed: Int)? = sessionStart != nil
             ? (voters.count, minVotes)
             : nil
-        var info: [String: Any] = [:]
-        if let state {
-            info["count"] = state.count
-            info["needed"] = state.needed
-        }
-        let infoCopy = info
         Task { @MainActor in
-            NotificationCenter.default.post(
-                name: .voteSkipStateChanged,
-                object: nil,
-                userInfo: infoCopy.isEmpty ? nil : infoCopy
-            )
+            NotificationCenter.default.postVoteSkipState(state)
         }
     }
 }
