@@ -46,6 +46,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// In-memory cache of song.link URLs. Key: "artist|track".
     private var songLinkURLCache: [String: String] = [:]
 
+    /// Timestamp of the last completed lookup per `cacheKey`, success or miss.
+    /// A miss caches nothing in the URL maps, so without this a track absent from
+    /// iTunes would re-hit the network on every playback tick. An entry here means
+    /// "already looked up recently" — callers within `AppConstants.API.artworkLookupTTL`
+    /// short-circuit to the (possibly empty) cached value instead of re-querying.
+    private var resolvedAt: [String: Date] = [:]
+
     /// Insertion-ordered keys — used to evict the oldest entry when caches are full.
     private var cacheKeyOrder: [String] = []
 
@@ -133,6 +140,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             if cached.artworkURL != nil {
                 return .hit(cached)
             }
+            // Recently resolved (even to an empty result) — serve the cached value
+            // without re-querying. Stops repeat lookups for tracks not on iTunes.
+            if let resolved = resolvedAt[cacheKey],
+               Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL {
+                return .hit(cached)
+            }
             if inFlight[cacheKey] != nil {
                 inFlight[cacheKey]?.append(completion)
                 return .waiter
@@ -175,6 +188,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                   let first = results.first
             else {
                 Log.debug("Artwork: iTunes lookup failed for \"\(track)\" by \(artist)", category: "Artwork")
+                self.cacheQueue.sync { self.recordResolution(cacheKey) }
                 self.finishInFlight(cacheKey: cacheKey, with: TrackLinks(artworkURL: nil, trackViewURL: nil, songLinkURL: nil))
                 return
             }
@@ -187,26 +201,34 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             let links = TrackLinks(artworkURL: artworkURL, trackViewURL: trackViewURL, songLinkURL: songLinkURL)
 
             self.cacheQueue.sync {
-                let isNewKey = self.cache[cacheKey] == nil
-                    && self.trackViewURLCache[cacheKey] == nil
-                    && self.songLinkURLCache[cacheKey] == nil
                 if let artworkURL { self.cache[cacheKey] = artworkURL }
                 if let trackViewURL { self.trackViewURLCache[cacheKey] = trackViewURL }
                 if let songLinkURL { self.songLinkURLCache[cacheKey] = songLinkURL }
-                if isNewKey {
-                    self.cacheKeyOrder.append(cacheKey)
-                    while self.cacheKeyOrder.count > self.cacheMaxEntries {
-                        let evicted = self.cacheKeyOrder.removeFirst()
-                        self.cache.removeValue(forKey: evicted)
-                        self.trackViewURLCache.removeValue(forKey: evicted)
-                        self.songLinkURLCache.removeValue(forKey: evicted)
-                    }
-                }
+                self.recordResolution(cacheKey)
             }
 
             Log.debug("Artwork: Found track links for \"\(track)\"", category: "Artwork")
             self.finishInFlight(cacheKey: cacheKey, with: links)
         }.resume()
+    }
+
+    /// Records that a lookup completed for `cacheKey` (success or miss) and bounds
+    /// the caches by evicting the oldest entry once `cacheMaxEntries` is exceeded.
+    ///
+    /// Must be called while holding `cacheQueue`. Tracking misses here is what stops
+    /// not-found tracks from re-querying the network on every playback tick.
+    private func recordResolution(_ cacheKey: String) {
+        if resolvedAt[cacheKey] == nil {
+            cacheKeyOrder.append(cacheKey)
+        }
+        resolvedAt[cacheKey] = Date()
+        while cacheKeyOrder.count > cacheMaxEntries {
+            let evicted = cacheKeyOrder.removeFirst()
+            cache.removeValue(forKey: evicted)
+            trackViewURLCache.removeValue(forKey: evicted)
+            songLinkURLCache.removeValue(forKey: evicted)
+            resolvedAt.removeValue(forKey: evicted)
+        }
     }
 
     /// Pops all pending waiters for `cacheKey` and invokes them with `links`.

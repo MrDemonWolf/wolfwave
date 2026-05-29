@@ -85,6 +85,21 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
     }
 
+    func testMissIsNotRequeriedWithinTTL() async {
+        let counter = RequestCounter()
+        MockURLProtocol.requestHandler = { request in
+            counter.increment()
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+
+        // First lookup misses and records the empty resolution.
+        _ = await fetchLinks(track: "Missing", artist: "Nobody")
+        // Second lookup for the same track must be served from the negative cache.
+        _ = await fetchLinks(track: "Missing", artist: "Nobody")
+
+        XCTAssertEqual(counter.value, 1, "A recent miss must not re-hit the network")
+    }
+
     func testCachedResultIsServedWithoutHittingNetwork() async {
         MockURLProtocol.requestHandler = { request in
             let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
