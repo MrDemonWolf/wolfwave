@@ -71,6 +71,10 @@ struct OnboardingView: View {
                         .padding(.vertical, DSSpace.s6)
                         .background(.regularMaterial)
                 }
+                // macOS 26 Liquid Glass: the wizard content rides on a glass
+                // panel so it picks up the window backdrop instead of a flat
+                // fill. The windowBackgroundColor below is the opaque fallback.
+                .glassEffect(.regular, in: .rect)
             }
         }
         .frame(
