@@ -108,7 +108,8 @@ struct OnboardingView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Setup progress")
-        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count)")
+        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count): \(viewModel.currentStep.accessibilityTitle)")
+        .accessibilityHint("Shows how far you are through WolfWave setup. Use Back and Next to move between steps.")
     }
 
     // MARK: - Step Content
