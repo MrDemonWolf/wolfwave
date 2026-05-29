@@ -1,0 +1,4 @@
+# SwiftPM build artifacts — never commit
+.build/
+.swiftpm/
+Package.resolved

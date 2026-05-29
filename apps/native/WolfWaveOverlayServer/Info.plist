@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.mrdemonwolf.wolfwave.overlayserver</string>
+	<key>CFBundleName</key>
+	<string>WolfWaveOverlayServer</string>
+	<key>CFBundleExecutable</key>
+	<string>WolfWaveOverlayServer</string>
+	<key>CFBundlePackageType</key>
+	<string>XPC!</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>WolfWave runs a local WebSocket and HTTP server on your Mac to stream now-playing data to OBS browser source overlays. No data is sent outside your local network.</string>
+	<key>XPCService</key>
+	<dict>
+		<!-- One shared service instance per app, launched on demand. -->
+		<key>ServiceType</key>
+		<string>Application</string>
+	</dict>
+</dict>
+</plist>
