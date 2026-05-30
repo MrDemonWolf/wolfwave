@@ -35,9 +35,10 @@ export const homepageSeo = {
   /** Browser `<title>` and og/twitter title. Keep the keyword-rich phrasing. */
   title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
 
-  /** Full meta description used for search snippets. */
+  /** Full meta description used for search snippets. Kept under ~160 chars so
+   *  Google does not truncate it. */
   description:
-    "WolfWave is a free Mac menu bar app built for Apple Music, not Spotify. Hit play and your Twitch chat, Discord Rich Presence, and OBS overlay stay in sync. Native, sandboxed, open source.",
+    "Free Mac menu bar app built for Apple Music, not Spotify. Hit play and your Twitch chat, Discord Rich Presence, and OBS overlay stay in sync.",
 
   /** Shorter description for the social cards (og + twitter). */
   socialDescription:
