@@ -191,11 +191,11 @@ final class NotificationService {
 
     /// Formats a `track — artist` line, tolerating either field being empty.
     private static func trackLine(track: String, artist: String) -> String {
-        let t = track.trimmingCharacters(in: .whitespacesAndNewlines)
-        let a = artist.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.isEmpty { return a }
-        if a.isEmpty { return t }
-        return "\(t) · \(a)"
+        let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTrack.isEmpty { return trimmedArtist }
+        if trimmedArtist.isEmpty { return trimmedTrack }
+        return "\(trimmedTrack) · \(trimmedArtist)"
     }
 
     // MARK: - Authorization
