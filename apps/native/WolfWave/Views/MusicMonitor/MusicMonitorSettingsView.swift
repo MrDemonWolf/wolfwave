@@ -409,7 +409,7 @@ struct MusicMonitorSettingsView: View {
     private func requestPermission() {
         isRequesting = true
         Task {
-            let resolved = MusicPermissionChecker.requestAccess()
+            let resolved = await MusicPermissionChecker.requestAccess()
             await MainActor.run {
                 withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
                     permissionState = resolved
