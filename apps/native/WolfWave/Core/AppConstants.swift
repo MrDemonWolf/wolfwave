@@ -486,6 +486,7 @@ nonisolated enum AppConstants {
         /// and the DEBUG-only UserDefaults inspector.
         static let allKeys: [String] = [
             trackingEnabled,
+            lastResolvedMusicPermission,
             dockVisibility,
             twitchReauthNeeded,
             twitchChannelName,
