@@ -107,7 +107,7 @@ struct CalloutBanner: View {
                     Text(title)
                         .font(.system(size: DSFont.Size.body, weight: .semibold))
                 }
-                Text(.init(message))
+                Text(InlineMarkdown.attributed(message))
                     .font(.system(size: title == nil ? DSFont.Size.body : DSFont.Size.sm))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

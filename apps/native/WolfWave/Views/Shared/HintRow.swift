@@ -37,7 +37,7 @@ struct HintRow: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text(.init(text))
+            Text(InlineMarkdown.attributed(text))
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

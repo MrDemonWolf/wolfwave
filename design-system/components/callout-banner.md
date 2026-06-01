@@ -23,6 +23,7 @@ CalloutBanner("These tools mutate live state. Use at your own risk.", strokeVisi
 | `strokeVisible` | `Bool` | `false` | Overlays a 1pt stroke at 25% tint. Reserved for high-attention areas (Debug tab). |
 
 ### Style maps to tint plus icon
+
 | Style | Tint | Default icon |
 |---|---|---|
 | `.info` | `DSColor.info` | `info.circle.fill` |
