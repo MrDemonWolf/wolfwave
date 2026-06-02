@@ -307,7 +307,7 @@ extension Color {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Card with .cardStyle()")
                 .sectionSubHeader()
-            Text("Glass surface, internal padding, rounded corners.")
+            Text("Control background fill, hairline border, internal padding, rounded corners.")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
         }

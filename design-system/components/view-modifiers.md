@@ -84,5 +84,5 @@ Standardized section-header typography.
 
 - ✅ Reach for `cardStyle()` before drawing your own rounded rectangle.
 - ✅ Combine `pointerCursor()` with any custom `.onTapGesture` to make affordance obvious.
-- ❌ Don't manually re-implement glass surfaces — `cardStyle()` already routes through macOS 26 `.glassEffect`.
+- ❌ Don't hand-roll `controlBackgroundColor` cards — `cardStyle()` already provides the standard content surface.
 - ❌ Don't apply `interactiveRow` to disabled controls — pass `isEnabled: false` instead so the hover state is suppressed.
