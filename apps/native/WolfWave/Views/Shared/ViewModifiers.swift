@@ -82,6 +82,7 @@ struct CardModifier: ViewModifier {
                 content
             }
         }
+        .clipShape(shape)
         .background(Color(nsColor: .controlBackgroundColor), in: shape)
         .overlay(shape.strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
     }
