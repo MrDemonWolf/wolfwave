@@ -8,21 +8,24 @@ Bundle of cross-cutting SwiftUI view modifiers. Each is exposed as a chainable e
 
 ## `.cardStyle()` / `.cardStyleUnpadded()`
 
-Wraps content in a macOS 26 Liquid Glass card.
+Wraps content in a standard settings card — a rounded `controlBackgroundColor` surface on the **content layer**.
 
 ```swift
 content
   .padding(DSDimension.Settings.cardPadding)   // unless cardStyleUnpadded
-  .glassEffect(.regular, in: RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius))
+  .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: DSDimension.Settings.cardCornerRadius, style: .continuous))
+  .overlay(/* hairline border: Color.primary.opacity(0.06) */)
 ```
 
 - **Tokens:** `DSDimension.Settings.cardPadding` (16), `DSDimension.Settings.cardCornerRadius` (14).
 - **When to use:** any grouped settings region. Default container.
 - **When _not_:** inside another card (no nesting), or for full-bleed hero sections.
-- **Legitimate hand-rolls** — only one generic site should still draw its own card chrome:
-  - `AboutSettingsView` — uses `Color(nsColor: .controlBackgroundColor)` for the standard panel surface (intentionally not glass).
+- **Why not glass:** Apple's Liquid Glass guidance ("Meet Liquid Glass", WWDC25) reserves glass for the *navigation* layer (sidebar/toolbar — macOS applies it automatically) and keeps the scrolling *content* layer on solid system backgrounds. Glass on content reads heavy/dark, and the system collapses stacked glass into a vibrant fill. Settings cards are content, so they use the native grouped-Form surface. Do **not** reintroduce `.glassEffect` here.
+- **Legitimate hand-rolls:**
+  - Tinted sub-cards (Advanced danger red, Song Request orange / quaternary, App Visibility indigo notice, WebSocket blue info) still hand-roll because the modifier has no `tint:` option. Tracked as a future extension — add `CardModifier(padded:tint:)` so those sites adopt one chrome. Until then, reach for `.cardStyle()` / `.cardStyleUnpadded()` only for **untinted** cards.
+  - Onboarding step tiles (`OnboardingDiscordStepView`, `OnboardingOBSWidgetStepView`, etc.) hand-roll `controlBackgroundColor` for their selected/unselected tile states — separate visual context from settings cards, intentionally not `cardStyle()`.
 
-  Tinted sub-cards (Advanced danger red, Song Request orange / quaternary, App Visibility indigo notice, WebSocket blue info) also still hand-roll because the current modifier has no `tint:` option. Tracked as a future extension — add `CardModifier(padded:tint:)` so those sites can adopt a single chrome. Until then, reach for `.cardStyle()` / `.cardStyleUnpadded()` only for **untinted** glass cards.
+  All untinted settings cards (including `AboutSettingsView`) route through `.cardStyle()` / `.cardStyleUnpadded()`.
 
 ## `.interactiveRow(isEnabled:)`
 
