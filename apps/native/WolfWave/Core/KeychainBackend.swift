@@ -86,7 +86,10 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
                 SecItemDelete(searchQuery as CFDictionary)
                 let retryStatus = SecItemAdd(addQuery as CFDictionary, nil)
                 guard retryStatus == errSecSuccess else {
-                    Log.error("Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)", category: "Keychain")
+                    Log.error(
+                        "Failed to save \(account) after duplicate-item recovery - OSStatus \(retryStatus)",
+                        category: "Keychain"
+                    )
                     throw KeychainService.KeychainError.saveFailed(retryStatus)
                 }
             } else if addStatus != errSecSuccess {
