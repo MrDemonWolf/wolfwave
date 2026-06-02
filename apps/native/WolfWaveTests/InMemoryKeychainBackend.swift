@@ -21,18 +21,21 @@ final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sendable {
     private var store: [String: String] = [:]
     private let lock = NSLock()
 
+    /// Stores `value` for `account`, overwriting any existing entry.
     func save(account: String, value: String) throws {
         lock.lock()
         defer { lock.unlock() }
         store[account] = value
     }
 
+    /// Returns the stored string for `account`, or nil if absent.
     func load(account: String) -> String? {
         lock.lock()
         defer { lock.unlock() }
         return store[account]
     }
 
+    /// Removes the entry for `account`. Succeeds silently if absent.
     func delete(account: String) {
         lock.lock()
         defer { lock.unlock() }

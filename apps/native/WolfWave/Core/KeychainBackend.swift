@@ -58,6 +58,9 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
 
     // MARK: - KeychainBackend
 
+    /// Stores `value` for `account` via `SecItemUpdate`, falling back to
+    /// `SecItemAdd`, and self-healing a duplicate whose only difference is
+    /// `kSecAttrAccessible`. Throws `KeychainService.KeychainError.saveFailed`.
     func save(account: String, value: String) throws {
         let data = Data(value.utf8)
         let searchQuery = queryFor(account: account)
@@ -96,6 +99,8 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         }
     }
 
+    /// Returns the stored string for `account` via `SecItemCopyMatching`, or nil
+    /// if absent or on a non-`errSecItemNotFound` error.
     func load(account: String) -> String? {
         var query = queryFor(account: account)
         query[kSecReturnData as String] = true
@@ -117,6 +122,8 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         return value
     }
 
+    /// Removes the entry for `account` via `SecItemDelete`. Treats a missing
+    /// item as success.
     func delete(account: String) {
         let query = queryFor(account: account)
         let status = SecItemDelete(query as CFDictionary)
