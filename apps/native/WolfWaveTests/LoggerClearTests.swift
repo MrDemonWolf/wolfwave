@@ -22,23 +22,23 @@ final class LoggerClearTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(count, 0)
     }
 
-    func testClearLogFileTruncatesAndWritesHeader() {
-        // Write some content first
-        Log.info("Pre-clear marker", category: "Test")
-        Log.info("Another line", category: "Test")
-        // Allow async file writes to flush
-        Thread.sleep(forTimeInterval: 0.2)
+    func testClearLogFileTruncatesAndWritesHeader() throws {
+        // Clear an isolated temp file, not the process-global log. The global
+        // file is shared by every suite, so truncating it from a test races
+        // other suites' reads (it once truncated the file mid-read in
+        // LoggerTests, a CI flake). A private file makes this deterministic.
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wolfwave-clear-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try "[old] line one\n[old] line two\n".write(to: url, atomically: true, encoding: .utf8)
 
-        let sizeBefore = Log.logFileSize()
-        Log.clearLogFile()
-        let sizeAfter = Log.logFileSize()
+        Log.clearLogFileForTesting(at: url)
 
-        // After clear, file should be much smaller (just the header line)
-        XCTAssertLessThan(sizeAfter, sizeBefore + 1)
-        XCTAssertGreaterThan(sizeAfter, 0, "header line should be written")
+        let content = try String(contentsOf: url, encoding: .utf8)
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: true)
 
-        // Line count after clear should be exactly 1 (the header).
-        let lines = Log.logLineCount()
-        XCTAssertEqual(lines, 1)
+        XCTAssertEqual(lines.count, 1, "Cleared file should contain exactly the header line")
+        XCTAssertTrue(content.contains("Log cleared by user"), "Header line should be present")
+        XCTAssertFalse(content.contains("line one"), "Pre-clear content should be truncated")
     }
 }

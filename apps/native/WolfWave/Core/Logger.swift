@@ -510,14 +510,41 @@ enum Log {
             try? fileHandle?.seek(toOffset: 0)
             try? fileHandle?.truncate(atOffset: 0)
 
-            let stamp = formatter.string(from: Date())
-            let header = "[\(stamp)] ℹ️ INFO [App] Log cleared by user\n"
-            if let data = header.data(using: .utf8) {
+            if let data = clearedHeaderLine().data(using: .utf8) {
                 fileHandle?.write(data)
             }
             fileHandle?.synchronizeFile()
         }
     }
+
+    /// The single header line `clearLogFile()` writes after truncating.
+    nonisolated private static func clearedHeaderLine() -> String {
+        let stamp = formatter.string(from: Date())
+        return "[\(stamp)] ℹ️ INFO [App] Log cleared by user\n"
+    }
+
+    #if DEBUG
+    /// Test-only hook: applies the same truncate-and-header clear as
+    /// `clearLogFile()` to an arbitrary file, without touching the
+    /// process-global log handle or path.
+    ///
+    /// `clearLogFile()` truncates the app-wide log every suite shares, so
+    /// calling it from a test races other suites' reads — it once truncated the
+    /// file mid-read in another suite, a CI flake. Tests point this at a private
+    /// temp file instead, so the clear logic is verified in isolation and never
+    /// disturbs the shared log.
+    nonisolated static func clearLogFileForTesting(at url: URL) {
+        if !FileManager.default.fileExists(atPath: url.path) {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
+        guard let handle = try? FileHandle(forWritingTo: url) else { return }
+        defer { try? handle.close() }
+        try? handle.truncate(atOffset: 0)
+        if let data = clearedHeaderLine().data(using: .utf8) {
+            handle.write(data)
+        }
+    }
+    #endif
 
     // MARK: - Cleanup
 
