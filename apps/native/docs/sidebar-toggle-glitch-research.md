@@ -59,6 +59,18 @@
 > collapsing **sidebar** segment that can't fit its toggle, so the cure is to put
 > the toggle in the **detail** segment instead.
 
+---
+
+> ⚠️ **Everything below this line is HISTORICAL CONTEXT from the investigation,
+> superseded by the RESOLVED section above.** It documents the app *as it was*
+> mid-investigation — a hand-rolled AppKit `NSWindow`/`NSHostingController` Settings
+> window with an empty `NSToolbar` shell, and a ranked list of fix *options* that
+> were still being weighed. None of that describes the shipped code. The app now
+> uses a dedicated SwiftUI `Window` scene (`WolfWaveApp.body`), a native
+> `NavigationSplitView` sidebar, `.toolbar(removing: .sidebarToggle)` on the
+> sidebar column, and a custom toggle on the detail toolbar. Read the section
+> below only for the diagnostic reasoning, not for the current architecture.
+
 ## Why Option B failed (the "two toggles" regression)
 
 Option B added a custom `ToolbarItem` and called `.toolbar(removing: .sidebarToggle)`

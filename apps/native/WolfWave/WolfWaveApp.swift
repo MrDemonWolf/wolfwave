@@ -13,7 +13,7 @@ import SwiftUI
 
 // MARK: - App Entry Point
 
-/// SwiftUI entry point. Runs as a menu bar app with a Settings scene.
+/// SwiftUI entry point. Runs as a menu bar app with a dedicated Settings `Window` scene.
 @main
 struct WolfWaveApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -34,17 +34,17 @@ struct WolfWaveApp: App {
 
     var body: some Scene {
         // Hidden helper window that hosts `SettingsSceneBridge`, declared BEFORE
-        // the `Settings` scene. Scene order is load-bearing: a helper window
-        // placed after `Settings` leaves the bridge's `openSettings` action a
-        // silent no-op. It gives the AppKit entry points (tray menu, Dock menu,
-        // Dock reopen, Twitch re-auth) a live SwiftUI scene tree to drive, so
-        // they open Settings via the public `openSettings` environment action
-        // rather than the private `showSettingsWindow:` selector (which logs
-        // "Please use SettingsLink for opening the Settings scene" on macOS 14+).
-        // `BridgeWindowNeutralizer` keeps this window offscreen and invisible, so
-        // it never appears and never trips `applyDockVisibility`'s probe. The app
-        // stays alive when this window orders out via
-        // `applicationShouldTerminateAfterLastWindowClosed` returning `false`.
+        // the Settings `Window` scene. Scene order is load-bearing: a helper
+        // window placed after the Settings scene leaves the bridge's
+        // `openWindow(id:)` action a silent no-op. It gives the AppKit entry
+        // points (tray menu, Dock menu, Dock reopen, Twitch re-auth) a live
+        // SwiftUI scene tree to drive, so they open Settings via the public
+        // `openWindow(id:)` environment action rather than the private
+        // `showSettingsWindow:` selector. `BridgeWindowNeutralizer` keeps this
+        // window offscreen and invisible, so it never appears and never trips
+        // `applyDockVisibility`'s probe. The app stays alive when this window
+        // orders out via `applicationShouldTerminateAfterLastWindowClosed`
+        // returning `false`.
         Window("WolfWave Settings Bridge", id: SettingsSceneBridge.windowID) {
             SettingsSceneBridge()
         }
@@ -144,8 +144,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var statusItem: NSStatusItem?
     var playbackSourceManager: PlaybackSourceManager?
-    // Settings is a SwiftUI `Settings` scene (see WolfWaveApp.body); SwiftUI
-    // owns that window, so AppDelegate no longer holds an `NSWindow` for it.
+    // Settings is a dedicated SwiftUI `Window` scene (see WolfWaveApp.body);
+    // SwiftUI owns that window, so AppDelegate no longer holds an `NSWindow` for it.
     var onboardingWindow: NSWindow?
     var whatsNewWindow: NSWindow?
     var twitchService: TwitchChatService?

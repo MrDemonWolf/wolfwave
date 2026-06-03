@@ -9,19 +9,18 @@ import AppKit
 import SwiftUI
 
 /// Invisible bridge that lets AppKit entry points (the status-bar menu, Dock
-/// context menu, Dock reopen, and Twitch re-auth) open the SwiftUI `Settings`
-/// scene through the public `@Environment(\.openSettings)` action instead of the
-/// private `showSettingsWindow:` selector, which logs "Please use SettingsLink
-/// for opening the Settings scene" on macOS 14+.
+/// context menu, Dock reopen, and Twitch re-auth) open the dedicated Settings
+/// `Window` scene through the public `@Environment(\.openWindow)` action,
+/// calling `openWindow(id: WolfWaveApp.settingsWindowID)`, instead of the
+/// private `showSettingsWindow:` selector.
 ///
-/// `openSettings` only resolves to the real scene-open action when read inside a
+/// `openWindow` only resolves to the real scene-open action when read inside a
 /// *live* SwiftUI render tree connected to the App scene graph. A detached
-/// `NSHostingView` does not qualify on macOS 26, which is why the previous
-/// offscreen-host approach (probing a hidden `SettingsLink` for a clickable
-/// control) fell back to the private selector and logged the warning.
+/// `NSHostingView` does not qualify on macOS 26, so the action must be read from
+/// a view that is part of a real scene.
 ///
 /// So this view is hosted in a real (but hidden) `Window` scene declared in
-/// `WolfWaveApp.body` *before* the `Settings` scene, and is driven by
+/// `WolfWaveApp.body` *before* the Settings `Window` scene, and is driven by
 /// `AppDelegate.openSettings()` via the `.openSettingsRequested` notification.
 /// `BridgeWindowNeutralizer` keeps that host window offscreen and invisible so it
 /// never appears and never trips `applyDockVisibility`'s visible-normal-key probe.
