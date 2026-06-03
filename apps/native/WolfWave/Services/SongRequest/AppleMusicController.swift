@@ -29,7 +29,7 @@ protocol AppleMusicControlling {
     var isAuthorized: Bool { get }
 
     /// `true` if Music.app is currently running. Reading this value never
-    /// launches Music.app — it only inspects the workspace.
+    /// launches Music.app. It only inspects the workspace.
     var isMusicAppRunning: Bool { get }
 
     /// Current MusicKit authorization status.
@@ -127,7 +127,7 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Returns `false` without scripting when Music.app is closed. A bare
     /// `tell application "Music"` auto-launches Music.app, so probing player
-    /// state on a closed app would relaunch it — the exact behavior that kept
+    /// state on a closed app would relaunch it. The exact behavior that kept
     /// Music popping back open after the user quit it (poll loop in
     /// `SongRequestService`).
     var isPlaying: Bool {
@@ -145,7 +145,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Whether Music.app is paused (as opposed to stopped or finished).
     ///
-    /// Returns `false` without scripting when Music.app is closed — see
+    /// Returns `false` without scripting when Music.app is closed. See
     /// `isPlaying` for why probing a closed app must be avoided.
     var isPaused: Bool {
         guard isMusicAppRunning else { return false }
@@ -245,7 +245,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// app after opening so Music.app does not steal focus during streaming.
     func playNow(song: Song) async throws {
         guard isMusicAppRunning else {
-            Log.debug("AppleMusicController: Music.app not running — buffering \"\(song.title)\"", category: "SongRequest")
+            Log.debug("AppleMusicController: Music.app not running, buffering \"\(song.title)\"", category: "SongRequest")
             throw PlaybackError.musicAppNotRunning
         }
 
@@ -257,7 +257,7 @@ final class AppleMusicController: AppleMusicControlling {
             end tell
             """
             runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Opening in Music.app — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+            Log.debug("AppleMusicController: Opening in Music.app: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
         } else {
             // Fallback: search local library and play
             let query = sanitizeForAppleScript("\(song.title) \(song.artistName)")
@@ -270,7 +270,7 @@ final class AppleMusicController: AppleMusicControlling {
             end tell
             """
             runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Library fallback — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+            Log.debug("AppleMusicController: Library fallback: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
         }
     }
 
@@ -280,7 +280,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// The internal `SongRequestQueue` tracks sequence; `SongRequestService` calls
     /// `playNow` for each song when it's ready to play.
     func enqueue(song: Song) async throws {
-        Log.debug("AppleMusicController: Queued internally — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+        Log.debug("AppleMusicController: Queued internally: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
     }
 
     /// Skip the current song in Music.app via AppleScript.
@@ -317,7 +317,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Stop playback in Music.app.
     ///
-    /// No-op when Music.app is closed — there is nothing to stop, and a bare
+    /// No-op when Music.app is closed. There is nothing to stop, and a bare
     /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
         guard isMusicAppRunning else { return }
@@ -329,7 +329,7 @@ final class AppleMusicController: AppleMusicControlling {
         Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
     }
 
-    /// No-op on macOS — Music.app's Up Next queue is not scriptable.
+    /// No-op on macOS. Music.app's Up Next queue is not scriptable.
     ///
     /// The internal queue in `SongRequestQueue` is the source of truth for ordering.
     func rebuildPlayerQueue(from songs: [Song]) async throws {
@@ -356,7 +356,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// Sanitize a string for safe inclusion in an AppleScript string literal.
     ///
     /// Escapes backslashes and double quotes, then strips ASCII control characters
-    /// (U+0000–U+001F, U+007F) which could break out of AppleScript string literals.
+    /// (U+0000-U+001F, U+007F) which could break out of AppleScript string literals.
     func sanitizeForAppleScript(_ input: String) -> String {
         let escaped = input
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -382,8 +382,26 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Run an AppleScript and return the string result.
+    ///
+    /// `NSAppleScript` is **not** thread-safe and must execute on the main
+    /// thread — running it off-main can crash (a libdispatch queue assertion)
+    /// or return a spurious nil. Most callers are already on the main actor,
+    /// but `isPlaying`/`isPaused` are synchronous and can be read from the
+    /// `SongRequestService` background poll loop, so bounce to main when the
+    /// current thread isn't already it. The `Thread.isMainThread` guard avoids
+    /// a `DispatchQueue.main.sync` deadlock when we're already on main.
     @discardableResult
     private func runAppleScript(_ source: String) -> String? {
+        if Thread.isMainThread {
+            return Self.executeAppleScript(source)
+        }
+        return DispatchQueue.main.sync { Self.executeAppleScript(source) }
+    }
+
+    /// Executes an `NSAppleScript` and returns its string result.
+    ///
+    /// Must be called on the main thread — see `runAppleScript`.
+    private nonisolated static func executeAppleScript(_ source: String) -> String? {
         var error: NSDictionary?
         let script = NSAppleScript(source: source)
         let result = script?.executeAndReturnError(&error)

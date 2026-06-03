@@ -13,7 +13,7 @@ import Foundation
 
 /// How the current Apple Music playlist is surfaced in Discord Rich Presence.
 ///
-/// Raw values are persisted in `UserDefaults` — keep them stable across releases.
+/// Raw values are persisted in `UserDefaults`, so keep them stable across releases.
 nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
     /// Playlist joins the artist on the activity's second line (`state`).
     case artistLine
@@ -40,11 +40,11 @@ nonisolated enum DiscordPlaylistStyle: String, CaseIterable, Sendable {
 /// performs the RPC handshake, and sends SET_ACTIVITY commands to display
 /// "Listening to Apple Music" on the user's Discord profile.
 ///
-/// No bot token is required — only a Discord Application ID from the
+/// No bot token is required, only a Discord Application ID from the
 /// Developer Portal, provided via `DISCORD_CLIENT_ID` in Config.xcconfig.
 ///
 /// Thread Safety:
-/// - Implemented as an `actor` — all mutable state and socket I/O run on the
+/// - Implemented as an `actor`. All mutable state and socket I/O run on the
 ///   actor's serial executor, replacing the previous `ipcQueue` + `NSLock`
 ///   combination.
 /// - State changes and resolved artwork URLs are published as `AsyncStream`s
@@ -253,7 +253,7 @@ actor DiscordRPCService {
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
     ///   - isPaused: `true` when the loaded track is paused. Discord has no
-    ///     native paused flag — when set we omit `timestamps` (stops the live
+    ///     native paused flag, so when set we omit `timestamps` (stops the live
     ///     ticker) and swap `small_image` to a `pause` art asset with a
     ///     `"Paused"` tooltip. Track text stays unchanged.
     func updatePresence(
@@ -282,7 +282,7 @@ actor DiscordRPCService {
         if cached.artworkURL == nil {
             ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { [weak self] links in
                 guard let self else { return }
-                // Re-send if any link resolved — buttons can appear even without artwork
+                // Re-send if any link resolved. Buttons can appear even without artwork
                 let hasNewData = links.artworkURL != nil
                     || links.trackViewURL != nil
                     || links.songLinkURL != nil
@@ -317,7 +317,7 @@ actor DiscordRPCService {
 
     /// Shows the opt-in "Idle" activity used when nothing is playing and the
     /// user chose to keep WolfWave visible on their profile instead of clearing
-    /// it. No track, timestamps, or buttons — just a static idle marker.
+    /// it. No track, timestamps, or buttons, just a static idle marker.
     func showIdleStatus() {
         guard state == .connected else { return }
         // Idle has no track to re-send on a settings change.
@@ -468,7 +468,7 @@ actor DiscordRPCService {
 
     /// Builds the Discord `activity` payload dictionary from track metadata + user settings.
     ///
-    /// Pure function — no socket I/O, no instance state. Exposed `internal` so unit
+    /// Pure function. No socket I/O, no instance state. Exposed `internal` so unit
     /// tests can drive it directly with isolated `UserDefaults` suites.
     ///
     /// - Parameters:
@@ -503,7 +503,7 @@ actor DiscordRPCService {
 
         let largeImage = artworkURL ?? "apple_music"
         // When paused: swap the small badge to the "pause" art asset (uploaded
-        // to the Discord developer portal — see discord-assets/README.md) and
+        // to the Discord developer portal, see discord-assets/README.md) and
         // override the tooltip. Source-of-truth keeps `large_image` intact so
         // album art still shows.
         let smallImageKey = isPaused ? "pause" : "apple_music"
@@ -544,7 +544,7 @@ actor DiscordRPCService {
     }
 
     /// Builds the minimal opt-in "Idle" activity payload (no track, timestamps,
-    /// or buttons). Pure function — no socket I/O, no instance state. Exposed
+    /// or buttons). Pure function. No socket I/O, no instance state. Exposed
     /// `internal` so unit tests can assert its shape.
     nonisolated static func buildIdleActivity() -> [String: Any] {
         [
@@ -616,7 +616,7 @@ actor DiscordRPCService {
     ///
     /// Returns `nil` when the playlist feature is disabled, the name is empty, a
     /// generic container (`Library` / `Music` / `Apple Music`), or identical to
-    /// the album — so the card never surfaces a non-playlist as a playlist.
+    /// the album, so the card never surfaces a non-playlist as a playlist.
     /// When `discordPlaylistShowName` is off, returns `.anonymous` so the
     /// listening context survives without leaking the playlist's name.
     nonisolated static func resolvePlaylistDisplay(
@@ -733,7 +733,7 @@ actor DiscordRPCService {
         // 1. Read the REAL TMPDIR from Discord's own process environment.
         //    sysctl(KERN_PROCARGS2) returns argv + environ for same-user processes
         //    and is NOT redirected by App Sandbox.
-        //    Result is cached for `discordTmpDirTTL` seconds — Discord's TMPDIR
+        //    Result is cached for `discordTmpDirTTL` seconds. Discord's TMPDIR
         //    doesn't change while it's running, so calling sysctl on every
         //    connect attempt is wasteful.
         let now = Date()
@@ -751,7 +751,7 @@ actor DiscordRPCService {
             candidates.append(resolved)
         }
 
-        // 2. confstr — works outside sandbox, returns container path inside sandbox.
+        // 2. confstr: works outside sandbox, returns container path inside sandbox.
         let len = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
         if len > 0 {
             var buf = [CChar](repeating: 0, count: len)
@@ -835,9 +835,12 @@ actor DiscordRPCService {
             }
         }
 
-        // strings[0] = exec path, strings[1..argc] = argv, rest = environment
+        // strings[0] = exec path, strings[1..argc] = argv, rest = environment.
+        // `argc >= 0` guards the `strings[i]` subscript below — a malformed
+        // negative argc would otherwise produce a negative lower bound.
+        guard argc >= 0 else { return nil }
         let envStart = 1 + Int(argc)
-        guard envStart < strings.count else { return nil }
+        guard envStart >= 0, envStart < strings.count else { return nil }
 
         for i in envStart..<strings.count {
             if strings[i].hasPrefix("TMPDIR=") {
@@ -859,7 +862,7 @@ actor DiscordRPCService {
     private func connectIfNeeded() {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
-            Log.warn("DiscordRPCService: No client ID configured — skipping connection", category: "Discord")
+            Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
             return
         }
 
@@ -910,6 +913,7 @@ actor DiscordRPCService {
 
                 if result == 0 {
                     socketFD = fd
+                    setSocketTimeouts(fd)
 
                     if performHandshake() {
                         state = .connected
@@ -972,6 +976,72 @@ actor DiscordRPCService {
 
     // MARK: - Frame I/O
 
+    /// Applies send/receive timeouts to the IPC socket.
+    ///
+    /// The frame I/O uses blocking `Darwin.read`/`Darwin.write` on the service's
+    /// actor executor. Without a timeout, a Discord peer that stalls mid-frame
+    /// (or stops draining its receive buffer) would block the executor forever,
+    /// freezing every other call into the service. `SO_RCVTIMEO`/`SO_SNDTIMEO`
+    /// make a stalled read/write fail with `EAGAIN`, which the frame I/O treats
+    /// as a lost connection.
+    private func setSocketTimeouts(_ fd: Int32) {
+        var tv = timeval(tv_sec: AppConstants.Discord.socketTimeoutSeconds, tv_usec: 0)
+        let size = socklen_t(MemoryLayout<timeval>.size)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, size)
+        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, size)
+    }
+
+    /// Writes all of `data` to the socket, looping over partial writes.
+    ///
+    /// A stream socket may accept fewer bytes than requested per `write`, so a
+    /// single call can't be assumed to flush the whole frame. Returns false if
+    /// the socket errors or times out before everything is written.
+    private func writeFully(_ data: Data) -> Bool {
+        guard !data.isEmpty else { return true }
+        return data.withUnsafeBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            var total = 0
+            while total < data.count {
+                let n = Darwin.write(socketFD, base + total, data.count - total)
+                if n > 0 {
+                    total += n
+                } else if n < 0 && errno == EINTR {
+                    continue
+                } else {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    /// Reads exactly `count` bytes from the socket, looping over partial reads.
+    ///
+    /// A stream socket may return fewer bytes than requested per `read`, so a
+    /// single call can't be assumed to fill the buffer. Returns nil if the peer
+    /// closes (`read` returns 0) or the socket errors/times out before `count`
+    /// bytes arrive.
+    private func readFully(_ count: Int) -> Data? {
+        guard count > 0 else { return Data() }
+        var buffer = Data(count: count)
+        let ok = buffer.withUnsafeMutableBytes { raw -> Bool in
+            guard let base = raw.baseAddress else { return false }
+            var total = 0
+            while total < count {
+                let n = Darwin.read(socketFD, base + total, count - total)
+                if n > 0 {
+                    total += n
+                } else if n < 0 && errno == EINTR {
+                    continue
+                } else {
+                    return false // peer closed (0) or error/timeout (-1)
+                }
+            }
+            return true
+        }
+        return ok ? buffer : nil
+    }
+
     /// Sends a framed message to Discord.
     ///
     /// Frame format: `[opcode: UInt32 LE][length: UInt32 LE][JSON payload]`
@@ -995,22 +1065,8 @@ actor DiscordRPCService {
             buf.storeBytes(of: UInt32(jsonData.count).littleEndian, toByteOffset: 4, as: UInt32.self)
         }
 
-        let frameData = header + jsonData
-
-        let written = frameData.withUnsafeBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService: sendFrame buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.write(socketFD, baseAddress, frameData.count)
-        }
-
-        if written != frameData.count {
-            if written < 0 {
-                Log.error("DiscordRPCService: Write failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            } else {
-                Log.error("DiscordRPCService: Partial write (wrote \(written)/\(frameData.count))", category: "Discord")
-            }
+        guard writeFully(header + jsonData) else {
+            Log.error("DiscordRPCService: Write failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             handleConnectionLost()
             return false
         }
@@ -1024,18 +1080,8 @@ actor DiscordRPCService {
     private func readFrame() -> (UInt32, [String: Any]?)? {
         guard socketFD >= 0 else { return nil }
 
-        var headerBuf = Data(count: 8)
-        let headerRead = headerBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService:readFrame header buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.read(socketFD, baseAddress, 8)
-        }
-        if headerRead != 8 {
-            if headerRead < 0 {
-                Log.error("DiscordRPCService: Header read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            }
+        guard let headerBuf = readFully(8) else {
+            Log.error("DiscordRPCService: Header read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             return nil
         }
 
@@ -1048,18 +1094,8 @@ actor DiscordRPCService {
 
         guard length > 0, length < 65536 else { return (opcode, nil) }
 
-        var bodyBuf = Data(count: Int(length))
-        let bodyRead = bodyBuf.withUnsafeMutableBytes { buf -> Int in
-            guard let baseAddress = buf.baseAddress else {
-                Log.error("DiscordRPCService:readFrame body buffer baseAddress is nil", category: "Discord")
-                return -1
-            }
-            return Darwin.read(socketFD, baseAddress, Int(length))
-        }
-        if bodyRead != Int(length) {
-            if bodyRead < 0 {
-                Log.error("DiscordRPCService: Body read failed with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
-            }
+        guard let bodyBuf = readFully(Int(length)) else {
+            Log.error("DiscordRPCService: Body read failed/timed out with errno \(errno) (\(String(cString: strerror(errno))))", category: "Discord")
             return nil
         }
 
@@ -1101,7 +1137,7 @@ actor DiscordRPCService {
         let interval = currentPollInterval
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                // Availability polling tolerates coarse timing — allow 10%
+                // Availability polling tolerates coarse timing, allow 10%
                 // tolerance so the wakeup coalesces with other timers.
                 try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval * 0.1))
                 guard !Task.isCancelled, let self else { return }

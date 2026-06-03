@@ -58,7 +58,7 @@ struct SettingsView: View {
 
         var id: Self { self }
 
-        /// Cases — `.debug` only present in DEBUG builds.
+        /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
                 .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
@@ -310,7 +310,7 @@ struct SettingsView: View {
         ]
     }
 
-    /// Twitch detail pane — auth settings plus the bot commands card.
+    /// Twitch detail pane: auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             TwitchSettingsView(viewModel: twitchViewModel)
