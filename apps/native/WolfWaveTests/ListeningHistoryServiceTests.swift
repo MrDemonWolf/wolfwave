@@ -30,8 +30,6 @@ struct ListeningHistoryServiceTests {
         )
     }
 
-    // MARK: - Scrobble Threshold
-
     // MARK: - Earliest Recorded Month
 
     @Test("earliestRecordedMonth is nil when no plays have been recorded")
@@ -88,6 +86,8 @@ struct ListeningHistoryServiceTests {
         #expect(service.earliestRecordedMonth == expected)
         try? FileManager.default.removeItem(at: dir)
     }
+
+    // MARK: - Scrobble Threshold
 
     @Test("A track played past 50% qualifies")
     func testQualifiesAtHalf() {
