@@ -21,7 +21,7 @@ struct WolfWaveApp: App {
     /// True when the app is launched as a test host by xcodebuild.
     ///
     /// `NSClassFromString("XCTestCase")` is the canonical, toolchain-independent
-    /// detection: `XCTest.framework` is only loaded into the host process when
+    /// detection. `XCTest.framework` is only loaded into the host process when
     /// xctest runs. The env-var fallbacks preserve behavior on older runners
     /// that did expose those variables.
     static let isRunningTests = NSClassFromString("XCTestCase") != nil
@@ -29,15 +29,35 @@ struct WolfWaveApp: App {
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
+        // Hidden helper window that hosts `SettingsSceneBridge`, declared BEFORE
+        // the `Settings` scene. Scene order is load-bearing: a helper window
+        // placed after `Settings` leaves the bridge's `openSettings` action a
+        // silent no-op. It gives the AppKit entry points (tray menu, Dock menu,
+        // Dock reopen, Twitch re-auth) a live SwiftUI scene tree to drive, so
+        // they open Settings via the public `openSettings` environment action
+        // rather than the private `showSettingsWindow:` selector (which logs
+        // "Please use SettingsLink for opening the Settings scene" on macOS 14+).
+        // `BridgeWindowNeutralizer` keeps this window offscreen and invisible, so
+        // it never appears and never trips `applyDockVisibility`'s probe. The app
+        // stays alive when this window orders out via
+        // `applicationShouldTerminateAfterLastWindowClosed` returning `false`.
+        Window("WolfWave Settings Bridge", id: SettingsSceneBridge.windowID) {
+            SettingsSceneBridge()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 1, height: 1)
+        .commandsRemoved()
+
         // Settings lives in SwiftUI's own `Settings` scene so SwiftUI creates
         // and drives the window's `NSToolbar`. That lets `NavigationSplitView`'s
         // sidebar toggle, tracking separator, and overflow math animate as one
         // unit, which is what finally kills the `>>` overflow flash that the
         // old hand-rolled `NSWindow` + foreign `NSToolbar` produced during the
         // sidebar collapse animation. AppDelegate still drives *when* the window
-        // opens (dock-visibility activation policy, tray/reopen entry points)
-        // via `showSettingsWindow:`; it no longer owns the window itself. See
-        // `apps/native/docs/sidebar-toggle-glitch-research.md`.
+        // opens (dock-visibility activation policy, tray/reopen entry points) by
+        // posting `.openSettingsRequested` to `SettingsSceneBridge`; it no longer
+        // owns the window itself nor uses the private `showSettingsWindow:`
+        // selector. See `apps/native/docs/sidebar-toggle-glitch-research.md`.
         Settings {
             SettingsView()
         }
@@ -56,11 +76,12 @@ struct WolfWaveApp: App {
                 }
             }
             // `SettingsLink` is the public macOS 14+ way to open the `Settings`
-            // scene. It sends the same `showSettingsWindow:` action that
-            // `appDelegate.openSettings()` does, just without the private
-            // selector. It only works here because `.commands` is a SwiftUI
-            // context; the tray/Dock `NSMenu` entry points can't host a SwiftUI
-            // view, so they keep routing through `appDelegate.openSettings()`.
+            // scene. It runs the same scene-open action that
+            // `appDelegate.openSettings()` now routes through `SettingsSceneBridge`,
+            // just without the private selector. It only works here because
+            // `.commands` is a SwiftUI context; the tray/Dock `NSMenu` entry
+            // points can't host a SwiftUI view, so they keep routing through
+            // `appDelegate.openSettings()`.
             //
             // No dock-visibility handling is lost: the App menu (and its Cmd+,)
             // is only reachable when the app is already `.regular`. An
@@ -175,7 +196,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Skip full app setup when running unit tests to prevent windows from
         // appearing and services (WebSocket, Discord) from starting.
         if WolfWaveApp.isRunningTests {
-            Log.debug("AppDelegate: Running under XCTest: skipping service setup", category: "App")
+            Log.debug("AppDelegate: Running under XCTest, skipping service setup", category: "App")
             return
         }
 
@@ -241,6 +262,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    /// Keeps the menu-bar app alive when its last window closes.
+    ///
+    /// WolfWave lives in the status bar (and optionally the Dock) and quits only
+    /// via the explicit Quit item, never by closing a window. Returning `false`
+    /// matters now that `WolfWaveApp.body` declares a hidden `Window` scene for
+    /// `SettingsSceneBridge`: that helper window is ordered out at launch, so
+    /// without this the app could see zero windows and auto-terminate right after
+    /// launching.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
     // MARK: - Track Display Updates
 
     /// Posts a `nowPlayingChanged` notification for settings view observers.
@@ -267,7 +300,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Returns a formatted string with the current track for Twitch bot commands.
     ///
-    /// Reflects pause state. A paused track is still "loaded" per the
+    /// Reflects pause state: a paused track is still "loaded" per the
     /// `AppleMusicSource` playerState rules, so chat sees `⏸️ Paused:` instead
     /// of the silent fallback that confused viewers in earlier builds.
     func getCurrentSongInfo() -> String {

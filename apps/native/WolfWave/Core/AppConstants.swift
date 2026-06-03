@@ -153,7 +153,14 @@ nonisolated enum AppConstants {
         /// section. UserInfo contains "section" String matching `SettingsView.SettingsSection.rawValue`.
         static let openSettingsSection = "OpenSettingsSection"
 
-        /// All notification names. Used by the DEBUG-only notification firehose.
+        /// Posted by AppKit entry points (tray menu, Dock menu, Dock reopen, Twitch
+        /// re-auth) to ask the live SwiftUI scene tree (`SettingsSceneBridge`) to
+        /// open the `Settings` scene via `@Environment(\.openSettings)`. Replaces the
+        /// private `showSettingsWindow:` selector path that logged "Please use
+        /// SettingsLink for opening the Settings scene" on macOS 14+.
+        static let openSettingsRequested = "OpenSettingsRequested"
+
+        /// All notification names, used by the DEBUG-only notification firehose.
         static let allNames: [String] = [
             trackingSettingChanged,
             dockVisibilityChanged,
@@ -175,6 +182,7 @@ nonisolated enum AppConstants {
             musicPermissionDenied,
             streamerModeChanged,
             openSettingsSection,
+            openSettingsRequested,
         ]
     }
 
@@ -450,7 +458,7 @@ nonisolated enum AppConstants {
         /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
         static let shareDiagnosticsEnabled = "shareDiagnosticsEnabled"
 
-        /// Local count of app launches. Anonymous, never transmitted (Int, default: 0)
+        /// Local count of app launches: anonymous, never transmitted (Int, default: 0)
         static let diagnosticsLaunchCount = "diagnosticsLaunchCount"
 
         /// Whether a macOS notification is posted when the song changes (Bool, default: false)
@@ -485,7 +493,7 @@ nonisolated enum AppConstants {
         /// Days of listening history to retain. 0 = keep everything (Int, default: 0)
         static let historyRetentionDays = "historyRetentionDays"
 
-        /// Whether Streamer Mode is on. Hides sensitive values (channel name, overlay URL,
+        /// Whether Streamer Mode is on: hides sensitive values (channel name, overlay URL,
         /// WebSocket URI, etc.) in the WolfWave UI so the app can be shown on stream.
         /// UI-only redaction; does not change broadcast/chat/Discord output (Bool, default: false).
         static let streamerModeEnabled = "streamerModeEnabled"
@@ -933,7 +941,7 @@ nonisolated enum AppConstants {
 
     /// Listening History & Stats configuration.
     ///
-    /// The play log is an append-only NDJSON file in Application Support. One
+    /// The play log is an append-only NDJSON file in Application Support, one
     /// small line per recorded play. Stats are derived in memory, so they cost
     /// no extra disk writes.
     enum History {
@@ -951,7 +959,7 @@ nonisolated enum AppConstants {
         static let scrobbleFraction: Double = 0.5
 
         /// Absolute play time (seconds) that always counts as a play, regardless
-        /// of track length. Mirrors Last.fm's 4-minute rule.
+        /// of track length, mirrors Last.fm's 4-minute rule.
         static let scrobbleAbsoluteSeconds: TimeInterval = 240
 
         /// Initial number of recent plays shown in the History & Stats pane.
@@ -999,7 +1007,7 @@ nonisolated enum AppConstants {
 
         /// How long a completed artwork lookup (including a miss) is trusted before
         /// a track is re-queried. The links cache is persisted to disk, so this TTL
-        /// survives relaunches. A track is looked up roughly once a week instead of
+        /// survives relaunches, a track is looked up roughly once a week instead of
         /// once per launch. Tracks absent from iTunes (e.g. indie releases) therefore
         /// stop re-hitting the network on every playback tick.
         static let artworkLookupTTL: TimeInterval = 7 * 24 * 3600
@@ -1070,7 +1078,7 @@ nonisolated enum AppConstants {
         @MainActor
         static var githubSponsors: String { "https://github.com/sponsors/\(sponsorUser)" }
 
-        /// Community Discord invite. Opened from the tray menu "Help ▸ Join Discord Community".
+        /// Community Discord invite: opened from the tray menu "Help ▸ Join Discord Community".
         /// Override via `COMMUNITY_DISCORD_URL` in `Config.xcconfig`.
         static let communityDiscord = validURL(
             infoPlistString("COMMUNITY_DISCORD_URL", fallback: "https://mrdwolf.net/discord"),
@@ -1252,12 +1260,12 @@ nonisolated enum AppConstants {
         static let appleMusicGradientStart = DSColor.partnerAppleMusicStart
         static let appleMusicGradientEnd = DSColor.partnerAppleMusicEnd
 
-        /// Apple Music permission-denied icon gradient. Softer than the main
+        /// Apple Music permission-denied icon gradient: softer than the main
         /// brand gradient; used for the rounded-rect Music app icon stack.
         static let appleMusicSurfaceStart = DSColor.partnerAppleMusicSurfaceStart
         static let appleMusicSurfaceEnd = DSColor.partnerAppleMusicSurfaceEnd
 
-        /// Apple Music pulse gradient. Used for the bottom-strip CTA accent
+        /// Apple Music pulse gradient: used for the bottom-strip CTA accent
         /// on the permission-denied screen.
         static let appleMusicPulseStart = DSColor.partnerAppleMusicPulseStart
         static let appleMusicPulseEnd = DSColor.partnerAppleMusicPulseEnd
