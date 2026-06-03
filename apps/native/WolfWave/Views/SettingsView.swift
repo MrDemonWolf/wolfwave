@@ -9,17 +9,38 @@
 import AppKit
 import SwiftUI
 
-/// Root settings UI: a `NavigationSplitView` sidebar plus a detail pane per
-/// section (General, Song Requests, Stream Widgets, History & Stats, Twitch,
-/// Discord, Software Update, Advanced, About, and DEBUG-only Debug).
+/// Main settings UI for WolfWave application.
 ///
-/// Section detail views are composed from separate per-section components.
-/// `TwitchViewModel` (@Observable) is held in @State and linked to the
-/// AppDelegate's shared service on appear; section selection and reset state
-/// are local @State, user preferences come from @AppStorage.
+/// Provides a split-view interface with sidebar navigation and detail panes for:
+/// - Music Playback Monitoring configuration
+/// - App Visibility (dock/menu bar modes)
+/// - WebSocket integration settings
+/// - Twitch bot authentication and commands
+/// - Advanced options (reset, debugging)
+///
+/// Architecture:
+/// - NavigationSplitView with sidebar and detail columns
+/// - Settings section enum for sidebar navigation
+/// - Detail views composed from separate view components
+/// - Sidebar toggle button in toolbar
+/// - Reset alert confirmation
+///
+/// State Management:
+/// - @State for TwitchViewModel (Twitch integration state, @Observable)
+/// - @AppStorage for user preferences (synced to UserDefaults)
+/// - @State for UI state (section selection, sidebar visibility)
+///
+/// Key Features:
+/// - Smooth sidebar toggle animation
+/// - Keyboard shortcuts (Esc or Cmd+W to close)
+/// - Integration with AppDelegate services
+/// - Responsive to notifications from other parts of the app
+/// - Reset all settings with confirmation dialog
 struct SettingsView: View {
-    // MARK: - Settings Section Enum
+    // MARK: - Constants
 
+    // MARK: - Settings Section Enum
+    
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
@@ -37,7 +58,7 @@ struct SettingsView: View {
 
         var id: Self { self }
 
-        /// Cases. `.debug` only present in DEBUG builds.
+        /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
                 .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
@@ -109,24 +130,8 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(selection: $selectedSection) {
-                ForEach(Self.sidebarGroups, id: \.sections) { group in
-                    if let title = group.title {
-                        Section(title) {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    } else {
-                        Section {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+            SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
         } detail: {
             detailPane
             .scrollEdgeEffectStyle(.hard, for: .top)
@@ -197,6 +202,7 @@ struct SettingsView: View {
     
     // MARK: - Detail Views
 
+    /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
     /// shared scrolling, width-clamped column. The DEBUG-only Debug tab opts out:
     /// it owns its own layout (a jump-nav rail beside a scroll column) and needs
@@ -283,28 +289,6 @@ struct SettingsView: View {
         ]
     }
 
-    /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
-    @ViewBuilder
-    private func sidebarRow(for section: SettingsSection) -> some View {
-        Label {
-            Text(section.rawValue)
-        } icon: {
-            if let brandIcon = section.brandIcon {
-                Image(brandIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .foregroundStyle(.primary)
-            } else {
-                Image(systemName: section.systemIcon)
-                    .frame(width: 16, height: 16)
-            }
-        }
-        .accessibilityLabel(Text(section.rawValue))
-        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
-    }
-    
     /// Twitch detail pane: auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
