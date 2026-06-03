@@ -356,7 +356,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// Sanitize a string for safe inclusion in an AppleScript string literal.
     ///
     /// Escapes backslashes and double quotes, then strips ASCII control characters
-    /// (U+0000–U+001F, U+007F) which could break out of AppleScript string literals.
+    /// (U+0000-U+001F, U+007F) which could break out of AppleScript string literals.
     func sanitizeForAppleScript(_ input: String) -> String {
         let escaped = input
             .replacingOccurrences(of: "\\", with: "\\\\")

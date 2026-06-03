@@ -444,7 +444,7 @@ nonisolated enum AppConstants {
         /// Whether vote-skip uses native Twitch Polls instead of a chat tally (Bool, default: false)
         static let voteSkipUsePolls = "voteSkipUsePolls"
 
-        /// Duration of a Twitch poll created for vote-skip, in seconds (Int, default: 60; Twitch allows 15–1800)
+        /// Duration of a Twitch poll created for vote-skip, in seconds (Int, default: 60; Twitch allows 15-1800)
         static let voteSkipPollDuration = "voteSkipPollDuration"
 
         /// Whether on-device MetricKit diagnostics collection is opted in (Bool, default: false)
@@ -862,7 +862,7 @@ nonisolated enum AppConstants {
         /// Settings section identifier for Discord configuration
         static let settingsSection = "discordPresence"
 
-        /// IPC socket filename prefix (append 0–9 to find active socket)
+        /// IPC socket filename prefix (append 0-9 to find active socket)
         static let ipcSocketPrefix = "discord-ipc-"
 
         /// Number of IPC socket slots to try (0 through 9)

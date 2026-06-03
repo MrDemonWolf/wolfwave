@@ -53,7 +53,7 @@ struct StatsSnapshot: Sendable {
     let topAlbums: [CountedItem]
     /// Exactly 7 buckets, oldest day first, ending today.
     let last7Days: [DailyCount]
-    /// 24 buckets, index = hour of day (0–23).
+    /// 24 buckets, index = hour of day (0-23).
     let playsByHour: [Int]
     /// Most recent plays, newest first.
     let recent: [PlayRecord]

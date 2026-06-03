@@ -157,7 +157,7 @@ actor SkipVoteManager {
         defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
     }
 
-    /// Twitch poll duration in seconds. Clamped to Twitch's 15–1800 range.
+    /// Twitch poll duration in seconds. Clamped to Twitch's 15-1800 range.
     nonisolated var pollDuration: Int {
         let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: 60)
         return min(max(value, 15), 1800)
