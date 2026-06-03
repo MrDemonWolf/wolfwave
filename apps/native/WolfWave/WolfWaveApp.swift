@@ -76,6 +76,13 @@ struct WolfWaveApp: App {
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
         .restorationBehavior(.disabled)
+        // Suppress the scene's default macOS commands — a `Window(_:id:)` scene
+        // otherwise injects a "WolfWave Settings" entry into the Window menu that
+        // duplicates Cmd+, and reads oddly for a menu-bar app. `openWindow(id:)`
+        // (used by `SettingsSceneBridge`) is an environment action, not a menu
+        // command, so it keeps working. Our explicit `.commands` below are added
+        // on top and are unaffected.
+        .commandsRemoved()
         .commands {
             // Route the standard App menu's About/Settings to our AppKit
             // windows so the system main menu matches the tray when the app
