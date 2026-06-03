@@ -278,17 +278,17 @@ nonisolated private struct WolfViewBox {
 
 // MARK: - Previews
 
-#Preview("mono — primary") {
+#Preview("mono: primary") {
     WolfHeroMark(size: 120, style: .mono(.primary))
         .padding(DSSpace.s7)
 }
 
-#Preview("brand gradient — animated") {
+#Preview("brand gradient: animated") {
     WolfHeroMark(size: 120, style: .brandGradient, animatedBars: true)
         .padding(DSSpace.s7)
 }
 
-#Preview("mono — twitch tint, small") {
+#Preview("mono: twitch tint, small") {
     WolfHeroMark(size: 44, style: .mono(AppConstants.Brand.twitch))
         .padding(DSSpace.s4)
 }

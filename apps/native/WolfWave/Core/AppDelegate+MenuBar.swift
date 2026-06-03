@@ -898,7 +898,7 @@ extension AppDelegate {
         guard let song = currentSong, let artist = currentArtist else { return }
         let links = ArtworkService.shared.cachedTrackLinks(track: song, artist: artist)
         guard let url = links.songLinkURL ?? links.trackViewURL else {
-            Log.debug("AppDelegate: Copy Song Link no-op — no URL cached for \(song) — \(artist)", category: "App")
+            Log.debug("AppDelegate: Copy Song Link no-op: no URL cached for \(song) by \(artist)", category: "App")
             return
         }
         Pasteboard.copy(url)

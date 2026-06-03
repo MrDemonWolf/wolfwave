@@ -521,7 +521,7 @@ private extension UInt16 {
 
 // MARK: - Preview
 
-#Preview("Granted — playing") {
+#Preview("Granted, playing") {
     MusicMonitorSettingsView()
         .padding()
         .frame(width: 720)

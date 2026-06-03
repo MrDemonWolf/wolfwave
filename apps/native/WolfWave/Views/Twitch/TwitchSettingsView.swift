@@ -48,7 +48,7 @@ struct TwitchSettingsView: View {
             // `layoutSubtreeIfNeeded on a view which is already being laid out`
             // recursion that has been associated with the post-onboarding hang.
             Task { @MainActor in
-                Log.debug("TwitchSettingsView: onAppear first-mount — loading credentials", category: "Twitch")
+                Log.debug("TwitchSettingsView: onAppear first-mount, loading credentials", category: "Twitch")
                 viewModel.loadSavedCredentials()
 
                 if viewModel.twitchService == nil {

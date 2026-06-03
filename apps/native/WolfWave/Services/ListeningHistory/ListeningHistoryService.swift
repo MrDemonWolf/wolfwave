@@ -157,7 +157,7 @@ final class ListeningHistoryService {
 
         rebuildSnapshot()
         Log.debug(
-            "ListeningHistoryService: Recorded play — \(trimmedTrack) (\(Int(playedSeconds))s)",
+            "ListeningHistoryService: Recorded play: \(trimmedTrack) (\(Int(playedSeconds))s)",
             category: AppConstants.History.logCategory
         )
     }

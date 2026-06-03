@@ -205,7 +205,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             rendered = rendered.replacingOccurrences(of: Self.tokensScriptTag, with: inlined)
         } else {
             Log.warn(
-                "WidgetHTTPService: widget-tokens.generated.js not found in bundle — falling back to external <script src>",
+                "WidgetHTTPService: widget-tokens.generated.js not found in bundle, falling back to external <script src>",
                 category: "WebSocket"
             )
         }

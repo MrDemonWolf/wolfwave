@@ -649,7 +649,7 @@ actor TwitchChatService {
             commandDispatcher.setCurrentSongInfoAsync {
                 Log.debug("Twitch provider: current song closure invoked", category: "Twitch")
                 guard let provider = providers.current() else {
-                    Log.debug("Twitch provider: current song — no provider, default", category: "Twitch")
+                    Log.debug("Twitch provider: current song: no provider, default", category: "Twitch")
                     return "No track currently playing"
                 }
                 let result = await provider()
@@ -1017,7 +1017,7 @@ actor TwitchChatService {
         if isProcessingDisconnect { return }
 
         guard let event = json["event"] as? [String: Any] else {
-            Log.debug("TwitchChatService: handleEventSubMessage — payload has no event, bail", category: "Twitch")
+            Log.debug("TwitchChatService: handleEventSubMessage: payload has no event, bail", category: "Twitch")
             return
         }
 
@@ -1456,7 +1456,7 @@ actor TwitchChatService {
         }
 
         Log.info(
-            "TwitchChatService: Vote-skip poll ended — \(skipVotes) skip / \(keepVotes) keep",
+            "TwitchChatService: Vote-skip poll ended: \(skipVotes) skip / \(keepVotes) keep",
             category: "Twitch")
         skipPollResultsContinuation.yield(SkipPollResult(skipVotes: skipVotes, keepVotes: keepVotes))
     }
@@ -1472,7 +1472,7 @@ actor TwitchChatService {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Cannot create poll — missing credentials", category: "Twitch")
+            Log.warn("TwitchChatService: Cannot create poll: missing credentials", category: "Twitch")
             return false
         }
 
@@ -1511,7 +1511,7 @@ actor TwitchChatService {
             }
             let text = String(data: data, encoding: .utf8) ?? "No response"
             Log.warn(
-                "TwitchChatService: Poll creation failed — HTTP \(http.statusCode) — \(text)",
+                "TwitchChatService: Poll creation failed: HTTP \(http.statusCode): \(text)",
                 category: "Twitch")
             return false
         } catch {
@@ -1645,7 +1645,7 @@ actor TwitchChatService {
                 headers: HelixClient.headers(for: .init(token: token, clientID: clientID)))
             let live = !response.data.isEmpty
             streamLive = live
-            Log.info("TwitchChatService: Seeded stream-live state — live=\(live)", category: "Twitch")
+            Log.info("TwitchChatService: Seeded stream-live state: live=\(live)", category: "Twitch")
         } catch {
             Log.debug(
                 "TwitchChatService: Stream-live seed request failed - \(error.localizedDescription)",
@@ -1673,7 +1673,7 @@ actor TwitchChatService {
         // Channel-point and bit EventSub require the broadcaster's own token.
         guard let broadcasterID, let botID, broadcasterID == botID else {
             Log.warn(
-                "TwitchChatService: Redemption events need the broadcaster account — skipping",
+                "TwitchChatService: Redemption events need the broadcaster account, skipping",
                 category: "Twitch")
             setRedemptionStatus(.botAccount)
             return

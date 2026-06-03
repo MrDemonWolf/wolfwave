@@ -175,7 +175,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Skip full app setup when running unit tests to prevent windows from
         // appearing and services (WebSocket, Discord) from starting.
         if WolfWaveApp.isRunningTests {
-            Log.debug("AppDelegate: Running under XCTest — skipping service setup", category: "App")
+            Log.debug("AppDelegate: Running under XCTest: skipping service setup", category: "App")
             return
         }
 

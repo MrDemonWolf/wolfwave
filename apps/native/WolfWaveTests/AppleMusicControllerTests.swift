@@ -114,7 +114,7 @@ struct AppleMusicControllerTests {
         #expect(makeController().sanitizeForAppleScript(input) == "abcd")
     }
 
-    @Test("Space (U+0020) preserved — boundary of control-char filter")
+    @Test("Space (U+0020) preserved: boundary of control-char filter")
     func spacePreserved() {
         #expect(makeController().sanitizeForAppleScript("a b") == "a b")
     }

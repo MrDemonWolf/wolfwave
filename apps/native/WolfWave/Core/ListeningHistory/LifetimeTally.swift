@@ -208,7 +208,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
                 try data.write(to: fileURL, options: .atomic)
             } catch {
                 Log.error(
-                    "LifetimeTallyStore: Save failed — \(error.localizedDescription)",
+                    "LifetimeTallyStore: Save failed: \(error.localizedDescription)",
                     category: AppConstants.History.logCategory
                 )
             }

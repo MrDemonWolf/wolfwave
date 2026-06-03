@@ -341,7 +341,7 @@ final class SongRequestService {
             // Music.app closed: put the item back at the front so it plays first when Music.app re-opens
             queue.insertAtHead(item)
             queue.clearNowPlaying()
-            Log.debug("SongRequestService: Music.app closed — \"\(item.title)\" re-queued at head", category: "SongRequest")
+            Log.debug("SongRequestService: Music.app closed, \"\(item.title)\" re-queued at head", category: "SongRequest")
         } catch {
             Log.debug("SongRequestService: Failed to play \"\(item.title)\": \(error)", category: "SongRequest")
             await playNextInQueueUnguarded()
@@ -367,11 +367,11 @@ final class SongRequestService {
     /// starts the fallback playlist) after a 500 ms grace period so Music.app
     /// has time to initialize its AppleScript surface.
     private func handleMusicAppLaunched() async {
-        Log.debug("SongRequestService: Music.app launched — flushing buffered requests", category: "SongRequest")
+        Log.debug("SongRequestService: Music.app launched, flushing buffered requests", category: "SongRequest")
         // Give Music.app a moment to finish launching before sending commands
         try? await Task.sleep(for: .milliseconds(500))
         guard !isHoldEnabled else {
-            Log.debug("SongRequestService: Hold enabled — skipping flush on Music.app launch", category: "SongRequest")
+            Log.debug("SongRequestService: Hold enabled, skipping flush on Music.app launch", category: "SongRequest")
             return
         }
         if queue.nowPlaying == nil && !queue.isEmpty {

@@ -35,10 +35,10 @@ struct AdvancedSettingsView: View {
     @State private var showingClearLogsAlert = false
 
     /// Formatted log file size (e.g. "248 KB"). Refreshed on appear and after diagnostics actions.
-    @State private var logSizeText: String = "—"
+    @State private var logSizeText: String = "N/A"
 
     /// Formatted log line count (e.g. "4,512 lines").
-    @State private var logLineCountText: String = "—"
+    @State private var logLineCountText: String = "N/A"
 
     /// Whether the "Copied!" feedback row is shown after copying logs.
     @State private var showingCopyFeedback = false
@@ -47,7 +47,7 @@ struct AdvancedSettingsView: View {
     @State private var showingClearArtworkAlert = false
 
     /// Formatted artwork cache summary (e.g. "42 tracks · 18 KB").
-    @State private var artworkStatsText: String = "—"
+    @State private var artworkStatsText: String = "N/A"
 
     /// The decoded backup awaiting the user's import confirmation.
     @State private var pendingBackup: SettingsBackup?

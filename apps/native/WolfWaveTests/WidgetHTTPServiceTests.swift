@@ -134,7 +134,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         )
         XCTAssertFalse(
             body.contains("<script src=\"widget-tokens.generated.js\"></script>"),
-            "Served HTML should not still reference the external tokens JS — it should be inlined"
+            "Served HTML should not still reference the external tokens JS: it should be inlined"
         )
     }
 

@@ -245,7 +245,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// app after opening so Music.app does not steal focus during streaming.
     func playNow(song: Song) async throws {
         guard isMusicAppRunning else {
-            Log.debug("AppleMusicController: Music.app not running — buffering \"\(song.title)\"", category: "SongRequest")
+            Log.debug("AppleMusicController: Music.app not running, buffering \"\(song.title)\"", category: "SongRequest")
             throw PlaybackError.musicAppNotRunning
         }
 
@@ -257,7 +257,7 @@ final class AppleMusicController: AppleMusicControlling {
             end tell
             """
             runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Opening in Music.app — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+            Log.debug("AppleMusicController: Opening in Music.app: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
         } else {
             // Fallback: search local library and play
             let query = sanitizeForAppleScript("\(song.title) \(song.artistName)")
@@ -270,7 +270,7 @@ final class AppleMusicController: AppleMusicControlling {
             end tell
             """
             runAppleScriptPreservingFocus(script)
-            Log.debug("AppleMusicController: Library fallback — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+            Log.debug("AppleMusicController: Library fallback: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
         }
     }
 
@@ -280,7 +280,7 @@ final class AppleMusicController: AppleMusicControlling {
     /// The internal `SongRequestQueue` tracks sequence; `SongRequestService` calls
     /// `playNow` for each song when it's ready to play.
     func enqueue(song: Song) async throws {
-        Log.debug("AppleMusicController: Queued internally — \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
+        Log.debug("AppleMusicController: Queued internally: \"\(song.title)\" by \(song.artistName)", category: "SongRequest")
     }
 
     /// Skip the current song in Music.app via AppleScript.

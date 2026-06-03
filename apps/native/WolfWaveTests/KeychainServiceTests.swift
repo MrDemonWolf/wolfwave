@@ -237,9 +237,9 @@ final class KeychainServiceTests {
         // Validate: every read should have returned a non-nil, non-empty token
         // (since we seeded and continuously wrote valid tokens)
         for (index, result) in readResults.enumerated() {
-            #expect(result != nil, "Read at index \(index) returned nil — possible corruption")
+            #expect(result != nil, "Read at index \(index) returned nil: possible corruption")
             if let value = result {
-                #expect(!value.isEmpty, "Read at index \(index) returned empty string — possible corruption")
+                #expect(!value.isEmpty, "Read at index \(index) returned empty string: possible corruption")
             }
         }
 

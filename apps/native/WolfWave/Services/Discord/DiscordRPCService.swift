@@ -859,7 +859,7 @@ actor DiscordRPCService {
     private func connectIfNeeded() {
         guard state == .disconnected else { return }
         guard !clientID.isEmpty else {
-            Log.warn("DiscordRPCService: No client ID configured — skipping connection", category: "Discord")
+            Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: "Discord")
             return
         }
 

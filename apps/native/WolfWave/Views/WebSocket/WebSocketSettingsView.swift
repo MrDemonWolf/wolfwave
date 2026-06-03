@@ -430,7 +430,7 @@ fileprivate struct WebSocketServerCard: View {
         }
         guard WebSocketAuthToken.isValid(trimmed) else {
             Log.warn(
-                "WebSocketSettings: Rejected custom token — must be hex characters (16–128).",
+                "WebSocketSettings: Rejected custom token: must be hex characters (16–128).",
                 category: "WebSocket"
             )
             tokenError = "Use 16–128 hex chars (0–9, a–f)."

@@ -522,7 +522,7 @@ extension AppDelegate {
         guard let update = notification.updateState, update.isUpdateAvailable else { return }
         let version = update.latestVersion
 
-        Log.info("AppDelegate: Update available notification received — v\(version)", category: "Update")
+        Log.info("AppDelegate: Update available notification received: v\(version)", category: "Update")
     }
 }
 
@@ -629,11 +629,11 @@ extension AppDelegate {
     func autoReconnectTwitchIfPossible(token: String) async {
         guard let service = twitchService else { return }
         guard let clientID = TwitchChatService.resolveClientID(), !clientID.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no Client ID", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: "Twitch")
             return
         }
         guard let channel = KeychainService.loadTwitchChannelID(), !channel.isEmpty else {
-            Log.debug("AppDelegate: Skipping Twitch auto-reconnect — no stored channel name", category: "Twitch")
+            Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no stored channel name", category: "Twitch")
             return
         }
 

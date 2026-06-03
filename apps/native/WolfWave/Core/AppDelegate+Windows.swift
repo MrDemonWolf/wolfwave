@@ -260,7 +260,7 @@ extension AppDelegate: NSWindowDelegate {
 
         if window === onboardingWindow {
             if OnboardingViewModel.hasCompletedOnboarding == false {
-                Log.info("AppDelegate: Onboarding window closed before completion — will show again on next launch", category: "App")
+                Log.info("AppDelegate: Onboarding window closed before completion, will show again on next launch", category: "App")
             }
             Task { @MainActor [weak self] in
                 self?.onboardingWindow = nil

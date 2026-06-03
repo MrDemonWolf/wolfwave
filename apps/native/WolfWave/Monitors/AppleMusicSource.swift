@@ -225,7 +225,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             // bridge type once so we can add it to extractPlayerState natively.
             logGuardOnce(
                 key: "state-parse-fallback",
-                message: "AppleMusicSource: playerState bridge unknown — trusting currentTrack.name. \(diag)"
+                message: "AppleMusicSource: playerState bridge unknown: trusting currentTrack.name. \(diag)"
             )
         }
         handleTrackInfo(result.status)
@@ -301,14 +301,14 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
 
     nonisolated private func handleTrackInfo(_ trackInfo: String) {
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
-            logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error — \(trackInfo)")
+            logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error: \(trackInfo)")
             notifyDelegate(status: Constants.DelegateStatus.scriptError)
         } else if trackInfo == Constants.Status.notRunning {
             logGuardOnce(key: "not-running", message: "AppleMusicSource: Music.app not running")
             notifyDelegate(status: Constants.DelegateStatus.musicNotRunning)
         } else if trackInfo == Constants.Status.accessDenied {
             // Music IS running but ScriptingBridge can't read state. TCC denied.
-            logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil — Automation permission likely denied")
+            logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil: Automation permission likely denied")
             notifyDelegate(status: Constants.DelegateStatus.accessDenied)
         } else if trackInfo == Constants.Status.scriptBridgeNil {
             logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(bundleIdentifier:) returned nil")
@@ -351,7 +351,7 @@ final class AppleMusicSource: PlaybackSource, @unchecked Sendable {
             return true
         }
         guard isNew else { return }
-        Log.debug("AppleMusicSource: Now Playing → \(trackName) — \(artist) [\(album)]", category: "Music")
+        Log.debug("AppleMusicSource: Now Playing → \(trackName) by \(artist) [\(album)]", category: "Music")
     }
 
     nonisolated private func subscribeToMusicNotifications() {

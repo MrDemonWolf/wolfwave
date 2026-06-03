@@ -264,7 +264,7 @@ final class BotCommandDispatcher {
                             userCooldown: userCD
                         )
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
                             category: "Twitch")
                         return nil
                     }
@@ -283,7 +283,7 @@ final class BotCommandDispatcher {
                     if let response = command.execute(message: trimmedMessage) {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: "Twitch")
                         return response
                     }
@@ -312,7 +312,7 @@ final class BotCommandDispatcher {
         let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
 
         guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
-            Log.debug("BotCommandDispatcher: processMessageAsync — empty/too-long, bail", category: "Twitch")
+            Log.debug("BotCommandDispatcher: processMessageAsync: empty/too-long, bail", category: "Twitch")
             return nil
         }
 
@@ -349,7 +349,7 @@ final class BotCommandDispatcher {
                             userCooldown: userCD
                         )
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID) — global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
                             category: "Twitch")
                         return nil
                     }
@@ -375,7 +375,7 @@ final class BotCommandDispatcher {
                     if let response {
                         cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed — cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
+                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: "Twitch")
                         return response
                     }

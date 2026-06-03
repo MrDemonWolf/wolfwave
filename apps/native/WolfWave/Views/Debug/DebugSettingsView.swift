@@ -179,8 +179,8 @@ struct DebugSettingsView: View {
 
     private func copyDiagnostics() {
         let snapshot = DebugDiagnostics.Snapshot(
-            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—",
-            build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—",
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "N/A",
+            build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "N/A",
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
             arch: BugReportURL.currentArch(),
             installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",

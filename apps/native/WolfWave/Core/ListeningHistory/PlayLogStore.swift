@@ -143,7 +143,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
             try handle.seekToEnd()
             handle.write(data)
         } catch {
-            Log.error("PlayLogStore: Append failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Append failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
     }
 
@@ -174,7 +174,7 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         do {
             try contents.data(using: .utf8)?.write(to: fileURL, options: .atomic)
         } catch {
-            Log.error("PlayLogStore: Rewrite failed — \(error.localizedDescription)", category: AppConstants.History.logCategory)
+            Log.error("PlayLogStore: Rewrite failed: \(error.localizedDescription)", category: AppConstants.History.logCategory)
         }
     }
 
