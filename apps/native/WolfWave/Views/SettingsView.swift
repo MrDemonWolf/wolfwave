@@ -58,7 +58,7 @@ struct SettingsView: View {
 
         var id: Self { self }
 
-        /// Cases — `.debug` only present in DEBUG builds.
+        /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
                 .general, .songRequests, .websocket, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
@@ -130,24 +130,8 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(selection: $selectedSection) {
-                ForEach(Self.sidebarGroups, id: \.sections) { group in
-                    if let title = group.title {
-                        Section(title) {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    } else {
-                        Section {
-                            ForEach(group.sections) { section in
-                                sidebarRow(for: section)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+            SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
         } detail: {
             detailPane
             .scrollEdgeEffectStyle(.hard, for: .top)
@@ -186,7 +170,7 @@ struct SettingsView: View {
         // No `.toolbar` workaround needed: this view now lives in SwiftUI's own
         // `Settings` scene (see `WolfWaveApp.body`), so SwiftUI creates and
         // drives the window's NSToolbar. NavigationSplitView's automatic sidebar
-        // toggle, tracking separator, and overflow math animate as one unit —
+        // toggle, tracking separator, and overflow math animate as one unit,
         // which is what removed the old `>>` overflow flash. The previous
         // hand-rolled NSWindow forced an empty `NSToolbar`/`.toolbar { }` shell
         // and could not own the toggle, causing both a floating reveal chevron
@@ -305,29 +289,7 @@ struct SettingsView: View {
         ]
     }
 
-    /// Builds a sidebar row with a brand icon (if available) or an SF Symbol fallback.
-    @ViewBuilder
-    private func sidebarRow(for section: SettingsSection) -> some View {
-        Label {
-            Text(section.rawValue)
-        } icon: {
-            if let brandIcon = section.brandIcon {
-                Image(brandIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .foregroundStyle(.primary)
-            } else {
-                Image(systemName: section.systemIcon)
-                    .frame(width: 16, height: 16)
-            }
-        }
-        .accessibilityLabel(Text(section.rawValue))
-        .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
-    }
-    
-    /// Twitch detail pane — auth settings plus the bot commands card.
+    /// Twitch detail pane: auth settings plus the bot commands card.
     private func twitchIntegrationView() -> some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             TwitchSettingsView(viewModel: twitchViewModel)
