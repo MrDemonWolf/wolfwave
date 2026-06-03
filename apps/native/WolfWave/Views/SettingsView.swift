@@ -234,6 +234,11 @@ struct SettingsView: View {
         } message: {
             Text("This erases every setting and signs you out of Twitch. WolfWave goes back to a fresh install, and it can't be undone.\n\nType \(resetConfirmWord) to confirm.")
         }
+        // Clear on the source-of-truth lifecycle event so every dismissal path
+        // (Cancel, Escape, click-away) starts the next attempt with an empty field.
+        .onChange(of: showingResetAlert) { _, isPresented in
+            if !isPresented { resetConfirmText = "" }
+        }
     }
     
     // MARK: - Detail Views
