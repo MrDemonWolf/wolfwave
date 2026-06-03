@@ -73,7 +73,11 @@ struct SettingsSceneBridge: View {
     @MainActor
     static func settingsWindow() -> NSWindow? {
         let delegate = NSApp.delegate as? AppDelegate
-        return NSApp.windows.first { window in
+        // `orderedWindows` is front-to-back z-order (first = foremost), so the
+        // match is the topmost eligible window rather than an arbitrary one from
+        // the unordered `windows`. The ordered-out bridge window isn't on screen,
+        // so it's absent here anyway; the `windowID` guard is belt-and-braces.
+        return NSApp.orderedWindows.first { window in
             window.identifier?.rawValue != windowID
                 && window !== delegate?.onboardingWindow
                 && window !== delegate?.whatsNewWindow
