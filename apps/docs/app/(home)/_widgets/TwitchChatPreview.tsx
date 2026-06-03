@@ -132,7 +132,9 @@ export function TwitchChatPreview({
 
   // Latest track in a ref so the interval closure always reads current values.
   const ctxRef = useRef<Ctx>({ cur: track, last: lastTrack });
-  ctxRef.current = { cur: track, last: lastTrack };
+  useEffect(() => {
+    ctxRef.current = { cur: track, last: lastTrack };
+  }, [track, lastTrack]);
 
   const idRef = useRef(10);
   const stepRef = useRef(0);
