@@ -10,8 +10,8 @@ import Foundation
 
 /// Routes chat messages to appropriate bot command handlers.
 ///
-/// Default commands (!song, !last, !lastsong) are registered automatically.
-/// Includes cooldown enforcement with moderator bypass.
+/// The full built-in command suite is registered automatically at init (see
+/// `registerDefaultCommands`). Includes cooldown enforcement with moderator bypass.
 /// MainActor-isolated (project default isolation); the `NSLock` is retained as a
 /// defense-in-depth guard around the command table.
 final class BotCommandDispatcher {

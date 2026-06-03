@@ -10,23 +10,16 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Advanced settings interface providing diagnostics and dangerous operations.
+/// Advanced settings: diagnostics and the destructive reset operations.
 ///
-/// Provides controls for:
-/// - Resetting the onboarding wizard so it shows again on next launch
-/// - Exporting / clearing diagnostic logs
-/// - Resetting all application settings to defaults
-/// - Clearing stored authentication tokens from Keychain
-/// - Disconnecting from Twitch
+/// Cards, top to bottom: rerun the setup wizard, log diagnostics (export /
+/// copy / reveal / clear), artwork cache (size + clear), opt-in MetricKit
+/// diagnostics share card, settings backup (export / import), and the Danger
+/// Zone full reset.
 ///
-/// State:
-/// - Uses @Binding for showingResetAlert (passed from parent SettingsView)
-/// - Shares context with AppDelegate via NSApplication.shared.delegate
-///
-/// Actions:
-/// - Reset Onboarding clears the onboarding flag so the wizard runs on next launch
-/// - Reset All button shows confirmation dialog before proceeding
-/// - Actual full reset is performed by SettingsView.resetSettings()
+/// `showingResetAlert` is a @Binding from the parent `SettingsView` because the
+/// actual reset is performed by `SettingsView.resetSettings()` after the alert
+/// confirms. Everything else uses local @State.
 struct AdvancedSettingsView: View {
     // MARK: - State
 

@@ -76,8 +76,10 @@ nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.Conn
 /// - Token validation and user identity resolution
 ///
 /// Concurrency:
-/// - `actor`-isolated. All mutable state lives inside the actor's isolation
-///   domain; no locks, no `nonisolated(unsafe)` properties.
+/// - `actor`-isolated. The actor's own mutable state lives inside its isolation
+///   domain with no locks. The only locks are in two tiny `@unchecked Sendable`
+///   mirror classes (`ProviderRegistry`, `AtomicBool`) that exist so the sync
+///   dispatcher bridge can read state without re-entering the actor.
 /// - Side-effect "callbacks" (chat messages, connection state, vote-skip poll
 ///   results) are surfaced as `AsyncStream`s on the `nonisolated` interface.
 /// - Track-info providers (`!song`, `!last`, `!stats`) are async closures;

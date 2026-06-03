@@ -155,7 +155,7 @@ struct PermissionDeniedBanner: View {
 // MARK: - Instruction sheet (State 2)
 
 /// Modal sheet walking the user through Privacy & Security → Automation.
-/// Reached from "Show instructions" on the banner.
+/// Reached from "Show me how" on the banner.
 struct PermissionInstructionSheet: View {
 
     @Environment(\.dismiss) private var dismiss

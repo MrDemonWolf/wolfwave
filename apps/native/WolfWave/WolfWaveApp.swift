@@ -6,7 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-/// WolfWave — macOS menu bar app bridging Apple Music to Twitch, Discord, and stream widgets.
+/// WolfWave: macOS menu bar app bridging Apple Music to Twitch, Discord, and stream widgets.
 
 import AppKit
 import SwiftUI
@@ -21,7 +21,7 @@ struct WolfWaveApp: App {
     /// True when the app is launched as a test host by xcodebuild.
     ///
     /// `NSClassFromString("XCTestCase")` is the canonical, toolchain-independent
-    /// detection — `XCTest.framework` is only loaded into the host process when
+    /// detection: `XCTest.framework` is only loaded into the host process when
     /// xctest runs. The env-var fallbacks preserve behavior on older runners
     /// that did expose those variables.
     static let isRunningTests = NSClassFromString("XCTestCase") != nil
@@ -32,7 +32,7 @@ struct WolfWaveApp: App {
         // Settings lives in SwiftUI's own `Settings` scene so SwiftUI creates
         // and drives the window's `NSToolbar`. That lets `NavigationSplitView`'s
         // sidebar toggle, tracking separator, and overflow math animate as one
-        // unit — which is what finally kills the `>>` overflow flash that the
+        // unit, which is what finally kills the `>>` overflow flash that the
         // old hand-rolled `NSWindow` + foreign `NSToolbar` produced during the
         // sidebar collapse animation. AppDelegate still drives *when* the window
         // opens (dock-visibility activation policy, tray/reopen entry points)
@@ -56,7 +56,7 @@ struct WolfWaveApp: App {
                 }
             }
             // `SettingsLink` is the public macOS 14+ way to open the `Settings`
-            // scene — it sends the same `showSettingsWindow:` action that
+            // scene. It sends the same `showSettingsWindow:` action that
             // `appDelegate.openSettings()` does, just without the private
             // selector. It only works here because `.commands` is a SwiftUI
             // context; the tray/Dock `NSMenu` entry points can't host a SwiftUI
@@ -93,9 +93,9 @@ struct WolfWaveApp: App {
 /// Orchestrates the menu bar, services, and window lifecycle.
 ///
 /// Behavior is split across focused extension files:
-/// - `AppDelegate+MenuBar.swift` — status item, menu construction, toggle actions
-/// - `AppDelegate+Windows.swift` — settings/onboarding/whatsNew/about windows, dock visibility
-/// - `AppDelegate+Services.swift` — service setup, notification observers, playback delegate
+/// - `AppDelegate+MenuBar.swift`: status item, menu construction, toggle actions
+/// - `AppDelegate+Windows.swift`: settings/onboarding/whatsNew/about windows, dock visibility
+/// - `AppDelegate+Services.swift`: service setup, notification observers, playback delegate
 class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var shared: AppDelegate?
 
@@ -267,7 +267,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Returns a formatted string with the current track for Twitch bot commands.
     ///
-    /// Reflects pause state — a paused track is still "loaded" per the
+    /// Reflects pause state. A paused track is still "loaded" per the
     /// `AppleMusicSource` playerState rules, so chat sees `⏸️ Paused:` instead
     /// of the silent fallback that confused viewers in earlier builds.
     func getCurrentSongInfo() -> String {

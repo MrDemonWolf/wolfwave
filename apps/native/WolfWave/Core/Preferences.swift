@@ -76,13 +76,13 @@ nonisolated enum Preferences {
     // MARK: - WebSocket / Widget
 
     /// Port the embedded WebSocket server should listen on. `0` means "use the
-    /// default" — callers are expected to substitute `AppConstants.WebSocket.defaultPort`.
+    /// default": callers substitute `AppConstants.WebSocketServer.defaultPort`.
     static var websocketServerPort: Int {
         defaults.integer(forKey: AppConstants.UserDefaults.websocketServerPort)
     }
 
     /// Port the embedded widget HTTP server should listen on. `0` means "use
-    /// the default" — callers substitute `AppConstants.WebSocket.defaultWidgetPort`.
+    /// the default": callers substitute `AppConstants.WebSocketServer.widgetDefaultPort`.
     static var widgetPort: Int {
         defaults.integer(forKey: AppConstants.UserDefaults.widgetPort)
     }

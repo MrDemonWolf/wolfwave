@@ -87,8 +87,6 @@ struct TwitchSettingsView: View {
         )
     }
 
-    // keychain status moved into header as a subtle affordance
-
     /// Title text for the auth card header, adapts to reauth/signed-in/signed-out states.
     private var authCardHeaderTitle: String {
         if viewModel.reauthNeeded {
@@ -115,7 +113,7 @@ struct TwitchSettingsView: View {
         }
     }
 
-/// Main card that switches content based on integration state.
+    /// Main card that switches content based on integration state.
     ///
     /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
     @ViewBuilder

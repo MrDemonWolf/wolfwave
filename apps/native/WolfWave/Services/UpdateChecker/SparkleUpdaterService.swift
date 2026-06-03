@@ -221,9 +221,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         #endif
     }
 
-    /// Called when Sparkle is about to check for updates.
-    ///
-    /// We can use this to post notifications, update UI, or cancel the check.
+    /// Called when Sparkle schedules its next automatic check. Logs the delay.
     func updater(_ updater: SPUUpdater, willScheduleUpdateCheckAfterDelay delay: TimeInterval) {
         Log.debug("SparkleUpdaterService: Next check scheduled in \(Int(delay))s", category: "Update")
     }

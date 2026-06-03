@@ -9,38 +9,17 @@
 import AppKit
 import SwiftUI
 
-/// Main settings UI for WolfWave application.
+/// Root settings UI: a `NavigationSplitView` sidebar plus a detail pane per
+/// section (General, Song Requests, Stream Widgets, History & Stats, Twitch,
+/// Discord, Software Update, Advanced, About, and DEBUG-only Debug).
 ///
-/// Provides a split-view interface with sidebar navigation and detail panes for:
-/// - Music Playback Monitoring configuration
-/// - App Visibility (dock/menu bar modes)
-/// - WebSocket integration settings
-/// - Twitch bot authentication and commands
-/// - Advanced options (reset, debugging)
-///
-/// Architecture:
-/// - NavigationSplitView with sidebar and detail columns
-/// - Settings section enum for sidebar navigation
-/// - Detail views composed from separate view components
-/// - Sidebar toggle button in toolbar
-/// - Reset alert confirmation
-///
-/// State Management:
-/// - @State for TwitchViewModel (Twitch integration state, @Observable)
-/// - @AppStorage for user preferences (synced to UserDefaults)
-/// - @State for UI state (section selection, sidebar visibility)
-///
-/// Key Features:
-/// - Smooth sidebar toggle animation
-/// - Keyboard shortcuts (Esc or Cmd+W to close)
-/// - Integration with AppDelegate services
-/// - Responsive to notifications from other parts of the app
-/// - Reset all settings with confirmation dialog
+/// Section detail views are composed from separate per-section components.
+/// `TwitchViewModel` (@Observable) is held in @State and linked to the
+/// AppDelegate's shared service on appear; section selection and reset state
+/// are local @State, user preferences come from @AppStorage.
 struct SettingsView: View {
-    // MARK: - Constants
-
     // MARK: - Settings Section Enum
-    
+
     /// Navigation sections in the settings sidebar.
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general = "General"
@@ -218,7 +197,6 @@ struct SettingsView: View {
     
     // MARK: - Detail Views
 
-    /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
     /// shared scrolling, width-clamped column. The DEBUG-only Debug tab opts out:
     /// it owns its own layout (a jump-nav rail beside a scroll column) and needs

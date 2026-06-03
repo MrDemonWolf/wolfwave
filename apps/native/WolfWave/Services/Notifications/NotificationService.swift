@@ -189,7 +189,7 @@ final class NotificationService {
         return content
     }
 
-    /// Formats a `track — artist` line, tolerating either field being empty.
+    /// Formats a `track · artist` line, tolerating either field being empty.
     private static func trackLine(track: String, artist: String) -> String {
         let trimmedTrack = track.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)

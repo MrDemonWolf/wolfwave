@@ -215,8 +215,8 @@ private struct MotionGallerySection: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-            // `.periodic` keeps the demo lively without a Combine pipeline. The
-            // timeline ticks every 1.2s; we advance state on each tick.
+            // A cancelable Task loop keeps the demo lively without a Combine
+            // pipeline. It advances the chip state every 1.2s.
             .onAppear { startChipTimer() }
         }
     }
