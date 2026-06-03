@@ -249,7 +249,7 @@ export default async function HomePage() {
                 <OBSOverlayWidget controls={false} />
               </div>
               <div className="ww-hc-twitch" aria-hidden="true">
-                <TwitchChatPreview viewportHeight={180} />
+                <TwitchChatPreview viewportHeight={150} />
               </div>
             </div>
           </div>

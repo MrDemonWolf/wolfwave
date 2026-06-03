@@ -262,7 +262,10 @@
      top, Discord at the bottom. align-self zig-zags them left/right and a
      tiny rotation adds life without colliding. */
   .ww-hero-cluster {
-    gap: 20px;
+    gap: 16px;
+    /* Scale the whole cluster down so the hero fits above the fold. zoom
+       (unlike transform) also shrinks the reserved layout height. */
+    zoom: 0.8;
   }
   .ww-hc-obs {
     display: block;
