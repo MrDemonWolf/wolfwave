@@ -1,7 +1,8 @@
 //
 //  ReplyCapture.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-29.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 //  Shared reply-capture helper for bot-command tests. Several command suites

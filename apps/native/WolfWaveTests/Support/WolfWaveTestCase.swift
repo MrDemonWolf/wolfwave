@@ -1,7 +1,8 @@
 //
 //  WolfWaveTestCase.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 //  Shared base class for WolfWave unit tests. Provides helper methods for

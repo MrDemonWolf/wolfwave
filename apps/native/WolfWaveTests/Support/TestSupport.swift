@@ -1,7 +1,8 @@
 //
 //  TestSupport.swift
-//  WolfWaveTests
+//  WolfWave
 //
+//  Created by Nathanial Henniges on 2026-05-28.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 //  Free helpers used by both XCTest and Swift Testing suites.
