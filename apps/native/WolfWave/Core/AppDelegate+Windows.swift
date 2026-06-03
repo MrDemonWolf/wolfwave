@@ -18,11 +18,11 @@ extension AppDelegate {
     /// Settings is a SwiftUI `Settings` scene (`WolfWaveApp.body`), so SwiftUI
     /// creates, reuses (single-instance), and tears down the window. We open it
     /// through AppKit's standard `showSettingsWindow:` action rather than
-    /// constructing an `NSWindow` ourselves — that hand-off is what lets SwiftUI
+    /// constructing an `NSWindow` ourselves. That hand-off is what lets SwiftUI
     /// own the `NSToolbar` and fixes the sidebar `>>` flash.
     ///
     /// When switching from menu-only mode, the activation policy change is
-    /// asynchronous — the show is deferred to the next run-loop tick so macOS
+    /// asynchronous. The show is deferred to the next run-loop tick so macOS
     /// has time to register the app as a regular (Dock-visible) process, and to
     /// avoid "layoutSubtreeIfNeeded on a view already being laid out" warnings.
     @objc func openSettings() {
@@ -103,7 +103,7 @@ extension AppDelegate {
         }
 
         if !hasVisibleWindows {
-            // Defer past the current AppKit layout pass — calling
+            // Defer past the current AppKit layout pass. Calling
             // setActivationPolicy(.accessory) inline during a window-close
             // animation triggers "layoutSubtreeIfNeeded on a view already
             // being laid out" warnings. RunLoop.main.perform schedules this
@@ -188,8 +188,8 @@ extension AppDelegate {
             defer: false
         )
         // Assigning the hosting controller makes hosting.view the window's
-        // contentView. Do NOT disable autoresizing or add identity constraints
-        // — AppKit uses the autoresizing mask to keep the hosting view filling
+        // contentView. Do NOT disable autoresizing or add identity constraints.
+        // AppKit uses the autoresizing mask to keep the hosting view filling
         // the window. Disabling it left the view inset inside the window and
         // broke both the unified titlebar look and List hit-testing.
         window.contentViewController = hosting
@@ -283,7 +283,7 @@ extension AppDelegate {
     ///
     /// - Important: Callers invoked from `NSStatusItem` menu tracking or any other
     ///   AppKit layout pass must defer to the next runloop tick (e.g. via
-    ///   `RunLoop.main.perform`) before calling this — otherwise AppKit logs
+    ///   `RunLoop.main.perform`) before calling this. Otherwise AppKit logs
     ///   "layoutSubtreeIfNeeded on a view already being laid out".
     func showWindow(_ window: NSWindow?) {
         window?.level = .normal

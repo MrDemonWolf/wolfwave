@@ -9,7 +9,7 @@
 #if DEBUG
 import SwiftUI
 
-/// DEBUG-only card for poking live services — force reconnects, fake track events,
+/// DEBUG-only card for poking live services: force reconnects, fake track events,
 /// queue injection, and Sparkle / WebSocket broadcasts.
 struct DebugServiceControlsCard: View {
     @State private var fakeTitle: String = "Test Track"

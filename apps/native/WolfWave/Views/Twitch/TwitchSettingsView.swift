@@ -35,7 +35,7 @@ struct TwitchSettingsView: View {
         }
         .onAppear {
             // Keychain reads + AppDelegate wiring run once per view model instance.
-            // Re-entering the Twitch settings pane shouldn't repeat them — TwitchViewModel
+            // Re-entering the Twitch settings pane shouldn't repeat them. TwitchViewModel
             // is owned by the parent SettingsView and survives section switches.
             guard !didLoadCredentials else { return }
             didLoadCredentials = true
@@ -139,7 +139,7 @@ struct TwitchSettingsView: View {
             }
 
             // Main content switches by integration state. Card sizes to fit
-            // each state — the outer `.animation` interpolates height when the
+            // each state. The outer `.animation` interpolates height when the
             // device-code panel drops in or back out.
             Group {
                 switch viewModel.integrationState {
@@ -209,7 +209,7 @@ struct TwitchSettingsView: View {
                         hasStartedActivation = true
                     }
                 )
-                // Symmetric transition — same shape in and out — so the card
+                // Symmetric transition (same shape in and out) so the card
                 // doesn't snap on dismissal.
                 .transition(.opacity.combined(with: .move(edge: .top)))
                 .animation(DSMotion.Spring.snappy, value: viewModel.authState.userCode)
@@ -305,7 +305,7 @@ private struct SignedInView: View {
     @State private var showingDisconnectConfirmation = false
 
     /// Shared height for every button in the action row. Pinning all of them to
-    /// one value keeps Join/Leave, Test Login, and Log Out visually aligned —
+    /// one value keeps Join/Leave, Test Login, and Log Out visually aligned.
     /// without it, the taller `checkmark.circle.fill` glyph makes the connect
     /// button a hair taller than its neighbors.
     private static let actionButtonHeight: CGFloat = 22
@@ -674,7 +674,7 @@ private struct SignedInView: View {
         let validChannel = !channelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if isConnecting { return true }
         // If credentials are saved we can attempt to connect even if the
-        // bot username hasn't been resolved yet — rely on saved token.
+        // bot username hasn't been resolved yet, rely on saved token.
         if credentialsSaved {
             return !validChannel
         }

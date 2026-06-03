@@ -49,7 +49,7 @@ struct LoggerTests {
     // Token fixtures below are synthetic placeholders, not real credentials.
     // The redaction rules key on the `oauth_` / `Bearer ` prefixes (see
     // Logger.swift), so low-entropy readable values exercise them fully while
-    // keeping secret scanners (GitGuardian) quiet — avoid random/UUID suffixes.
+    // keeping secret scanners (GitGuardian) quiet. Avoid random/UUID suffixes.
 
     @Test("Redacts OAuth tokens from log messages")
     func testOAuthTokenRedaction() {
@@ -177,7 +177,7 @@ struct LoggerTests {
             }
         }
 
-        // Log writes are dispatched async onto the file queue — drain it
+        // Log writes are dispatched async onto the file queue. Drain it
         // before reading so CI doesn't see a half-flushed snapshot.
         Log.flush()
 

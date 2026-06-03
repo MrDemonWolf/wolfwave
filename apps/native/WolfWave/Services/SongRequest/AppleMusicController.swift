@@ -29,7 +29,7 @@ protocol AppleMusicControlling {
     var isAuthorized: Bool { get }
 
     /// `true` if Music.app is currently running. Reading this value never
-    /// launches Music.app — it only inspects the workspace.
+    /// launches Music.app. It only inspects the workspace.
     var isMusicAppRunning: Bool { get }
 
     /// Current MusicKit authorization status.
@@ -127,7 +127,7 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Returns `false` without scripting when Music.app is closed. A bare
     /// `tell application "Music"` auto-launches Music.app, so probing player
-    /// state on a closed app would relaunch it — the exact behavior that kept
+    /// state on a closed app would relaunch it. The exact behavior that kept
     /// Music popping back open after the user quit it (poll loop in
     /// `SongRequestService`).
     var isPlaying: Bool {
@@ -145,7 +145,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Whether Music.app is paused (as opposed to stopped or finished).
     ///
-    /// Returns `false` without scripting when Music.app is closed — see
+    /// Returns `false` without scripting when Music.app is closed. See
     /// `isPlaying` for why probing a closed app must be avoided.
     var isPaused: Bool {
         guard isMusicAppRunning else { return false }
@@ -317,7 +317,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Stop playback in Music.app.
     ///
-    /// No-op when Music.app is closed — there is nothing to stop, and a bare
+    /// No-op when Music.app is closed. There is nothing to stop, and a bare
     /// `tell application "Music"` would relaunch the app the user just quit.
     func clearPlayerQueue() async {
         guard isMusicAppRunning else { return }
@@ -329,7 +329,7 @@ final class AppleMusicController: AppleMusicControlling {
         Log.debug("AppleMusicController: Music.app stopped", category: "SongRequest")
     }
 
-    /// No-op on macOS — Music.app's Up Next queue is not scriptable.
+    /// No-op on macOS. Music.app's Up Next queue is not scriptable.
     ///
     /// The internal queue in `SongRequestQueue` is the source of truth for ordering.
     func rebuildPlayerQueue(from songs: [Song]) async throws {

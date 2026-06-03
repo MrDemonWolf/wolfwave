@@ -10,7 +10,7 @@ import AppKit
 import Foundation
 
 /// Shared identity, version, and legal copy used by every surface that shows
-/// "About" — the system standard About panel (opened from the menu bar) and
+/// "About". The system standard About panel (opened from the menu bar) and
 /// the rich `AboutSettingsView` (Settings sidebar tab). Keeps both entry
 /// points in sync so trademark + copyright strings don't drift.
 enum AboutCopy {

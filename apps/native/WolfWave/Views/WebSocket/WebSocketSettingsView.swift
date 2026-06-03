@@ -139,7 +139,7 @@ fileprivate struct WebSocketServerCard: View {
     @State private var portText: String = ""
 
     /// Currently-persisted token. Seeded empty so struct init doesn't hit the
-    /// Keychain — populated by `.task` off-main on first appear, and re-read
+    /// Keychain. Populated by `.task` off-main on first appear, and re-read
     /// after edits/regens so the displayed URL row stays in sync.
     @State private var currentToken: String = ""
 

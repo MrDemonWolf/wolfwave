@@ -14,7 +14,7 @@ import Foundation
 /// Sibling to ``FeatureFlags`` (which covers booleans). Centralizes the
 /// repeated `UserDefaults.standard.string(forKey:)` /
 /// `UserDefaults.standard.integer(forKey:)` pattern so default semantics and
-/// fallbacks live in one place — adding a new pref means one property here
+/// fallbacks live in one place. Adding a new pref means one property here
 /// rather than hunting for the matching read/write across `AppDelegate+*`,
 /// `WolfWaveApp`, and the settings views.
 ///

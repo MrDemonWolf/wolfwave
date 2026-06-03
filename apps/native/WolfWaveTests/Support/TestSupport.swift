@@ -13,7 +13,7 @@ import Testing
 
 /// Creates a fresh, unique temp directory and ensures it exists. Returns the URL.
 ///
-/// Swift Testing suites don't have tearDown — callers are responsible for cleanup
+/// Swift Testing suites don't have tearDown. Callers are responsible for cleanup
 /// (or rely on the OS reclaiming `tmp`). Prefer `WolfWaveTestCase.makeTempDir()`
 /// for XCTest-based suites, which auto-cleans on tearDown.
 func makeIsolatedTempDirectory(prefix: String = "wolfwave-test") -> URL {

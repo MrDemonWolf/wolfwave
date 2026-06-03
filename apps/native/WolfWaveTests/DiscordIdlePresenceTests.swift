@@ -29,7 +29,7 @@ final class DiscordIdlePresenceTests: XCTestCase {
 
     func test_idleActivity_hasNoButtonsOrTimestamps() {
         let activity = DiscordRPCService.buildIdleActivity()
-        // Idle is a static marker — no clickable buttons and no live ticker.
+        // Idle is a static marker. No clickable buttons and no live ticker.
         XCTAssertNil(activity["buttons"])
         XCTAssertNil(activity["timestamps"])
     }

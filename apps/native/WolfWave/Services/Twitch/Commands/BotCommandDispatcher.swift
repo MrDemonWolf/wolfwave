@@ -75,7 +75,7 @@ final class BotCommandDispatcher {
     /// Adds a `BotCommand` to the dispatch table. Thread-safe.
     ///
     /// - Parameter command: Command instance. Duplicate triggers are not
-    ///   detected — last-registered wins.
+    ///   detected. Last-registered wins.
     func register(_ command: BotCommand) {
         lock.withLock {
             commands.append(command)
@@ -129,8 +129,8 @@ final class BotCommandDispatcher {
 
     // MARK: - Async Provider Wiring (Production Path)
 
-    /// Wires the async `!song` provider. Preferred by `processMessageAsync`
-    /// — bridges MainActor-isolated AppDelegate state without the deprecated
+    /// Wires the async `!song` provider. Preferred by `processMessageAsync`,
+    /// bridges MainActor-isolated AppDelegate state without the deprecated
     /// `runSync` semaphore that previously deadlocked MainActor.
     func setCurrentSongInfoAsync(callback: @Sendable @escaping () async -> String) {
         lock.withLock {
@@ -317,7 +317,7 @@ final class BotCommandDispatcher {
         }
 
         let lowered = trimmedMessage.lowercased()
-        // First-token equality (see processMessage) — avoids alias/prefix collisions.
+        // First-token equality (see processMessage), avoids alias/prefix collisions.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
         let snapshot = lock.withLock { commands }

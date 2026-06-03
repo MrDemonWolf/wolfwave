@@ -221,11 +221,11 @@ struct MonthlyWrapView: View {
 
 // MARK: - MonthlyWrapCard
 
-/// The shareable wrap card — displayed in the sheet and rendered to a PNG.
+/// The shareable wrap card, displayed in the sheet and rendered to a PNG.
 struct MonthlyWrapCard: View {
 
     let data: MonthlyWrapData
-    /// `false` when no plays have ever been recorded — switches the empty branch
+    /// `false` when no plays have ever been recorded. Switches the empty branch
     /// from a per-month "no plays" message to a punchy onboarding CTA.
     var hasAnyHistory: Bool = true
 

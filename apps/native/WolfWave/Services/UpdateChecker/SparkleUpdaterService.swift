@@ -108,7 +108,7 @@ final class SparkleUpdaterService: NSObject {
         Log.info("SparkleUpdaterService: Initializing Sparkle framework", category: "Update")
 
         // In DEBUG, instantiate the controller but don't start the background
-        // update cycle — manual "Check for Updates" still works and is routed
+        // update cycle. Manual "Check for Updates" still works and is routed
         // at the bundled dev-appcast.xml via `feedURLString(for:)`.
         #if DEBUG
         let startingUpdater = false
@@ -274,7 +274,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
 
     /// Allows customization of update permission prompts.
     ///
-    /// Return false — `SUEnableAutomaticChecks` in Info.plist provides the
+    /// Return false. `SUEnableAutomaticChecks` in Info.plist provides the
     /// answer, and onboarding handles user consent explicitly.
     func updaterShouldPromptForPermissionToCheck(forUpdates updater: SPUUpdater) -> Bool {
         return false
@@ -286,7 +286,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     /// appcast request as query parameters. Returning an empty array opts out
     /// entirely so no environmental data leaves the user's machine on update
     /// checks. The release pipeline already publishes a static appcast, so the
-    /// telemetry would only inform analytics — not update targeting.
+    /// telemetry would only inform analytics, not update targeting.
     func allowedSystemProfileKeys(for updater: SPUUpdater) -> [String]? {
         return []
     }

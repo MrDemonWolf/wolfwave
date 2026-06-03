@@ -11,7 +11,7 @@ import Foundation
 //  Typed payload helpers for NotificationCenter.
 //
 //  `AppConstants+Notifications.swift` centralizes the notification *names*.
-//  This file centralizes the *payloads* — the `userInfo` dictionaries that
+//  This file centralizes the *payloads*: the `userInfo` dictionaries that
 //  used to be hand-built (and hand-decoded) at every call site. Each notification
 //  that carries data gets a typed `post…` method on `NotificationCenter` plus a
 //  matching typed accessor on `Notification`, so the string keys and value casts

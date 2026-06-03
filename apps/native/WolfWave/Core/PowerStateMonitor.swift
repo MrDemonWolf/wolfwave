@@ -12,8 +12,8 @@ import Foundation
 /// services to throttle non-essential work when the Mac is under resource pressure.
 ///
 /// Monitors two system signals:
-/// - `NSProcessInfoPowerStateDidChange` — Low Power Mode toggle
-/// - `ProcessInfo.thermalStateDidChangeNotification` — thermal throttling state
+/// - `NSProcessInfoPowerStateDidChange`: Low Power Mode toggle
+/// - `ProcessInfo.thermalStateDidChangeNotification`: thermal throttling state
 ///
 /// When either condition indicates resource pressure, `isReducedMode` becomes `true`
 /// and a `powerStateChanged` notification is posted so services can widen their
@@ -35,7 +35,7 @@ final class PowerStateMonitor {
 
     // MARK: - Lifecycle
 
-    // Process-lifetime singleton — deinit included for completeness
+    // Process-lifetime singleton. Deinit included for completeness
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

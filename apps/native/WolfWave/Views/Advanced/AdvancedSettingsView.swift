@@ -463,7 +463,7 @@ struct AdvancedSettingsView: View {
     // MARK: - Backup Actions
 
     /// Exports portable settings to a user-chosen JSON file. Accounts and
-    /// secrets are excluded — see `AppConstants.UserDefaults.exportableKeys`.
+    /// secrets are excluded. See `AppConstants.UserDefaults.exportableKeys`.
     @MainActor
     private func exportSettings() {
         let service = SettingsBackupService()

@@ -10,13 +10,13 @@
 import AppKit
 import SwiftUI
 
-/// DEBUG-only card for inspecting persistent state — UserDefaults values, Keychain
+/// DEBUG-only card for inspecting persistent state: UserDefaults values, Keychain
 /// presence flags, and bundle/build metadata. Never displays Keychain values.
 struct DebugInspectorsCard: View {
     @State private var refreshTick = 0
     @State private var filter: String = ""
 
-    /// Keychain presence flags — loaded off-main via `.task(id: refreshTick)`
+    /// Keychain presence flags, loaded off-main via `.task(id: refreshTick)`
     /// so the card paints instantly. Each `KeychainService.load…()` call is a
     /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
     @State private var keychainPresence: [String: Bool] = [:]

@@ -81,7 +81,7 @@ nonisolated struct SettingsBackupCoder {
     ///   - exportedAt: Creation timestamp.
     ///
     /// Keys outside `exportableKeys`, and values of unsupported types, are
-    /// silently skipped — a backup can only ever contain portable scalars.
+    /// silently skipped. A backup can only ever contain portable scalars.
     func makeBackup(
         snapshot: [String: Any],
         exportableKeys: [String],
