@@ -32,7 +32,7 @@ struct SettingsSceneBridge: View {
     /// Settings-window front search.
     static let windowID = "settings-bridge"
 
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         BridgeWindowNeutralizer()
@@ -48,12 +48,13 @@ struct SettingsSceneBridge: View {
     ///
     /// The activation-policy switch (`.accessory` → `.regular`) is owned by
     /// `AppDelegate.openSettings()`, which runs before posting the notification;
-    /// here we activate, invoke the public `openSettings` action (the SettingsLink
-    /// path, no private selector, no warning), then front the realized window.
+    /// here we activate, invoke the public `openWindow(id:)` action for the
+    /// Settings `Window` scene (single-instance, so this fronts the existing
+    /// window if it is already open), then front the realized window.
     @MainActor
     private func handleOpenRequest() {
         NSApp.activate(ignoringOtherApps: true)
-        openSettings()
+        openWindow(id: WolfWaveApp.settingsWindowID)
 
         // SwiftUI creates/reuses the Settings window during `openSettings()`, so
         // it exists by the time this fires. Fronting it is a best-effort polish
