@@ -42,21 +42,58 @@ struct GeneralSettingsView: View {
 
                         AppVisibilitySettingsView()
                             .id(GeneralSection.visibility)
+                            .background(sectionAnchor(.visibility))
 
                         AppearanceSettingsView()
                             .id(GeneralSection.appearance)
+                            .background(sectionAnchor(.appearance))
 
                         NotificationsSettingsView()
                             .id(GeneralSection.notifications)
+                            .background(sectionAnchor(.notifications))
                     }
                     .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
                     .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
                 }
+                .coordinateSpace(name: Self.scrollSpace)
+                .onPreferenceChange(SectionOffsetKey.self) { offsets in
+                    syncSelection(from: offsets)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: - Scroll-position sync
+
+    /// Named coordinate space the section anchors report their offset in.
+    private static let scrollSpace = "generalScroll"
+
+    /// Reports a section's top offset (relative to the scroll viewport) into
+    /// `SectionOffsetKey`, so the rail can highlight whatever the user scrolled
+    /// to manually, not just the last row they tapped.
+    private func sectionAnchor(_ section: GeneralSection) -> some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: SectionOffsetKey.self,
+                value: [section: geo.frame(in: .named(Self.scrollSpace)).minY]
+            )
+        }
+    }
+
+    /// Picks the active rail row from live section offsets: the lowest section
+    /// whose top has scrolled at or above the activation line near the viewport
+    /// top. When nothing has crossed it yet (scrolled to the very top), Music
+    /// (the header region, which carries no anchor) stays selected.
+    private func syncSelection(from offsets: [GeneralSection: CGFloat]) {
+        let activationLine = AppConstants.SettingsUI.contentPaddingV + DSSpace.s8
+        let next = offsets
+            .filter { $0.value <= activationLine }
+            .max { $0.value < $1.value }?
+            .key ?? .music
+        if next != selected { selected = next }
     }
 
     // MARK: - Header
@@ -152,6 +189,23 @@ private enum GeneralSection: String, CaseIterable, Identifiable {
         case .appearance: return "circle.lefthalf.filled"
         case .notifications: return "bell"
         }
+    }
+}
+
+// MARK: - Section Offset Key
+
+/// Collects each anchored section's top offset (in the scroll coordinate space)
+/// so the parent can resolve which section the user has scrolled to and keep the
+/// rail highlight in sync. Later values win on merge, so the freshest geometry
+/// read for a given section is the one that lands.
+private struct SectionOffsetKey: PreferenceKey {
+    static let defaultValue: [GeneralSection: CGFloat] = [:]
+
+    static func reduce(
+        value: inout [GeneralSection: CGFloat],
+        nextValue: () -> [GeneralSection: CGFloat]
+    ) {
+        value.merge(nextValue()) { _, new in new }
     }
 }
 
