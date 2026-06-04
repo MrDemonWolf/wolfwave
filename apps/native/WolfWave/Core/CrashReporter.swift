@@ -64,18 +64,23 @@ enum CrashReporter {
         crashReporterPreviousExceptionHandler = NSGetUncaughtExceptionHandler()
         NSSetUncaughtExceptionHandler(crashReporterExceptionHandler)
 
-        // Fatal signals: record a breadcrumb, then reset to default and re-raise
-        // so the OS crash reporter / MetricKit / the debugger still see the crash.
+        // Fatal signals: record a breadcrumb, then restore the PREVIOUS handler
+        // and re-raise so the OS crash reporter / MetricKit / the debugger / the
+        // Swift runtime backtracer all still see the crash. We capture each prior
+        // disposition here and chain it from the handler instead of dropping to
+        // SIG_DFL, so a handler a dependency or debugger registered isn't lost.
         // Order must line up with `crashReporterSignalSlot` and the label table.
         // SIGPIPE is deliberately excluded (ignored above).
         let trappedSignals: [Int32] = [SIGABRT, SIGILL, SIGSEGV, SIGFPE, SIGBUS, SIGTRAP]
-        for sig in trappedSignals {
+        let savedActions = UnsafeMutablePointer<sigaction>.allocate(capacity: trappedSignals.count)
+        for (index, sig) in trappedSignals.enumerated() {
             var action = sigaction()
             action.__sigaction_u.__sa_handler = crashReporterSignalHandler
             sigemptyset(&action.sa_mask)
             action.sa_flags = 0
-            sigaction(sig, &action, nil)
+            sigaction(sig, &action, savedActions.advanced(by: index)) // capture prior disposition
         }
+        crashReporterPreviousActions = savedActions
 
         Log.info("CrashReporter: installed (uncaught-exception + signal handlers)", category: "App")
     }
@@ -161,6 +166,12 @@ private nonisolated(unsafe) var crashReporterLabelTable: UnsafeMutablePointer<Un
 /// happen). malloc'd at install.
 private nonisolated(unsafe) var crashReporterUnknownLabel: UnsafePointer<CChar>?
 
+/// Saved prior `sigaction` for each trapped signal, in install order (indexed by
+/// `crashReporterSignalSlot`). malloc'd at install. The handler restores the
+/// entry for the firing signal so the previous handler (debugger, Swift runtime
+/// backtracer, a dependency's reporter) is chained before re-raise.
+private nonisolated(unsafe) var crashReporterPreviousActions: UnsafeMutablePointer<sigaction>?
+
 // MARK: - Handlers
 
 /// Uncaught ObjC exception handler. Runs in a normal runtime (allocation OK).
@@ -188,9 +199,18 @@ private nonisolated func crashReporterSignalHandler(_ signalNumber: Int32) {
             close(fd)
         }
     }
-    // Reset to the default disposition and re-deliver so the OS produces its
-    // normal crash report (and lldb still breaks when attached).
-    signal(signalNumber, SIG_DFL)
+    // Restore the PREVIOUS disposition for this signal (the debugger, the Swift
+    // runtime backtracer, or a dependency's handler) and re-deliver, so the crash
+    // still reaches whatever was watching. Falls back to the default only when no
+    // prior action was captured. Async-signal-safe: a pure slot switch, a
+    // raw-pointer read, a stack-local copy, then sigaction/raise.
+    let slot = crashReporterSignalSlot(signalNumber)
+    if slot >= 0, let saved = crashReporterPreviousActions {
+        var previous = saved[slot]
+        sigaction(signalNumber, &previous, nil)
+    } else {
+        signal(signalNumber, SIG_DFL)
+    }
     raise(signalNumber)
 }
 
