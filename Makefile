@@ -23,6 +23,7 @@ help:
 	@echo "  clean          Clean build artifacts"
 	@echo "  test           Run tests"
 	@echo "  lint           Run SwiftLint (requires: brew install swiftlint)"
+	@echo "  lint-crash-safety  Run crash-safety SwiftLint (blocking CI gate)"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
 	@echo "  prod-install   Release build + install to /Applications"
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"
