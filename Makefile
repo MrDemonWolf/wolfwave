@@ -14,7 +14,7 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 
 .SHELLFLAGS = -ec
 
-.PHONY: help build clean test test-verbose test-ci lint update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
+.PHONY: help build clean test test-verbose test-ci lint lint-crash-safety update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget
 
 help:
 	@echo "Available targets:"
@@ -83,6 +83,13 @@ lint:
 	@if ! command -v swiftlint >/dev/null 2>&1; then \
 		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
 	swiftlint lint --config .swiftlint.yml
+
+# Blocking crash-class gate: force-unwrap / try! / as! on production source.
+# Mirrors the CI `lint-crash-safety` job. Must stay clean.
+lint-crash-safety:
+	@if ! command -v swiftlint >/dev/null 2>&1; then \
+		echo "❌ SwiftLint not found. Install with: brew install swiftlint"; exit 1; fi
+	swiftlint lint --strict --config .swiftlint-crash-safety.yml
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet
