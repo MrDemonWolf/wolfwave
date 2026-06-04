@@ -264,7 +264,7 @@ struct AdvancedSettingsView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
 
-                    Text("These actions are permanent and can't be undone.")
+                    Text("Reset and Clear Logs can't be undone. Clearing the artwork cache just forces a fresh lookup.")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

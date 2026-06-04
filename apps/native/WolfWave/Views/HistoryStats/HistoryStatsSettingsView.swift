@@ -449,7 +449,7 @@ struct HistoryStatsSettingsView: View {
 
             ToggleSettingRow(
                 title: "!stats command",
-                subtitle: "Lets chat ask for today's top track. Replies only while your stream is live.",
+                subtitle: "Lets chat pull up today's top track. Replies only while your stream is live.",
                 isOn: $statsCommandEnabled,
                 accessibilityLabel: "Toggle the stats Twitch command",
                 accessibilityIdentifier: "statsCommandToggle"
