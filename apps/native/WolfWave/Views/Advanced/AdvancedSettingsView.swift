@@ -264,19 +264,37 @@ struct AdvancedSettingsView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Danger Zone")
 
-                    Text("Permanently erases all settings and saved accounts. This can't be undone.")
+                    Text("These actions are permanent and can't be undone.")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                DestructiveButton(
-                    title: "Reset All Settings to Defaults",
-                    systemImage: "trash",
-                    accessibilityIdentifier: "resetAllSettingsButton",
-                    action: { showingResetAlert = true }
-                )
-                .accessibilityHint("Permanently delete all settings and stored credentials")
+                VStack(alignment: .leading, spacing: DSSpace.s2) {
+                    DestructiveButton(
+                        title: "Clear Logs",
+                        systemImage: "trash",
+                        accessibilityIdentifier: "clearLogsButton",
+                        action: { showingClearLogsAlert = true }
+                    )
+                    .accessibilityHint("Erases the current log file")
+
+                    DestructiveButton(
+                        title: "Clear Artwork Cache",
+                        systemImage: "trash",
+                        accessibilityIdentifier: "clearArtworkCacheButton",
+                        action: { showingClearArtworkAlert = true }
+                    )
+                    .accessibilityHint("Erases saved album art links")
+
+                    DestructiveButton(
+                        title: "Reset All Settings to Defaults",
+                        systemImage: "trash",
+                        accessibilityIdentifier: "resetAllSettingsButton",
+                        action: { showingResetAlert = true }
+                    )
+                    .accessibilityHint("Permanently delete all settings and stored credentials")
+                }
             }
             .padding(AppConstants.SettingsUI.cardPadding)
             .background(DSColor.error.opacity(0.06))
@@ -304,7 +322,7 @@ struct AdvancedSettingsView: View {
                         .accessibilityLabel("Log file size \(logSizeText), \(logLineCountText)")
                 }
 
-                Text("Export logs, copy them to your clipboard, or clear them.")
+                Text("Export logs, copy them to your clipboard, or reveal the file in Finder.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -343,14 +361,6 @@ struct AdvancedSettingsView: View {
                 SuccessFeedbackRow(text: "Copied to clipboard!")
                     .transition(.opacity)
             }
-
-            DestructiveButton(
-                title: "Clear Logs",
-                systemImage: "trash",
-                accessibilityIdentifier: "clearLogsButton",
-                action: { showingClearLogsAlert = true }
-            )
-            .accessibilityHint("Erases the current log file")
         }
         .cardStyle()
         .alert("Clear logs?", isPresented: $showingClearLogsAlert) {
@@ -378,19 +388,11 @@ struct AdvancedSettingsView: View {
                         .accessibilityLabel("Artwork cache: \(artworkStatsText)")
                 }
 
-                Text("Saved album art links so tracks don't reload every launch. Clear to force a fresh lookup.")
+                Text("Saved album art links so tracks don't reload every launch.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            DestructiveButton(
-                title: "Clear Artwork Cache",
-                systemImage: "trash",
-                accessibilityIdentifier: "clearArtworkCacheButton",
-                action: { showingClearArtworkAlert = true }
-            )
-            .accessibilityHint("Erases saved album art links")
         }
         .cardStyle()
         .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {
