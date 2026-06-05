@@ -157,7 +157,7 @@ struct TwitchCommandsCard: View {
                         userCooldown: $lastSongUserCooldown
                     )
                     commandAliasRow(aliases: $lastSongCommandAliases,
-                                    placeholder: "e.g. np, track",
+                                    placeholder: "e.g. ll, lp",
                                     accessibilityIdentifier: "lastSongCommandAliases")
                 }
 
@@ -190,7 +190,7 @@ struct TwitchCommandsCard: View {
                         userCooldown: $wolfwaveUserCooldown
                     )
                     commandAliasRow(aliases: $wolfwaveCommandAliases,
-                                    placeholder: "e.g. np, track",
+                                    placeholder: "e.g. ww, app",
                                     accessibilityIdentifier: "wolfwaveCommandAliases",
                                     isLast: true)
                 }
