@@ -140,6 +140,7 @@ struct TwitchCommandsCard: View {
                     accessibilityIdentifier: "lastSongCommandToggle",
                     cooldown: .init(global: $lastSongGlobalCooldown, user: $lastSongUserCooldown),
                     aliases: $lastSongCommandAliases,
+                    aliasPlaceholder: "e.g. ll, lp",
                     aliasAccessibilityIdentifier: "lastSongCommandAliases",
                     onChange: { enabled in
                         Log.debug("TwitchCommandsCard: !last \(enabled ? "enabled" : "disabled")", category: "Twitch")
@@ -164,6 +165,7 @@ struct TwitchCommandsCard: View {
                     accessibilityIdentifier: "wolfwaveCommandToggle",
                     cooldown: .init(global: $wolfwaveGlobalCooldown, user: $wolfwaveUserCooldown),
                     aliases: $wolfwaveCommandAliases,
+                    aliasPlaceholder: "e.g. ww, app",
                     aliasAccessibilityIdentifier: "wolfwaveCommandAliases",
                     isLast: true,
                     onChange: { enabled in
