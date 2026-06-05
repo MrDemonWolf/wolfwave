@@ -32,9 +32,12 @@ struct OnboardingToggleCard: View {
     var body: some View {
         HStack(spacing: DSSpace.s4) {
             ZStack {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.iconTileRadius, style: .continuous)
                     .fill(iconColor.opacity(0.15))
-                    .frame(width: 28, height: 28)
+                    .frame(
+                        width: AppConstants.OnboardingUI.iconTileSize,
+                        height: AppConstants.OnboardingUI.iconTileSize
+                    )
 
                 Image(systemName: icon)
                     .font(.system(size: DSFont.Size.base, weight: .semibold))

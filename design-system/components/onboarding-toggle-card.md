@@ -34,12 +34,13 @@ OnboardingToggleCard(
 - `DSFont.Size.base` (13) — title; icon glyph
 - `DSFont.Size.sm` (11) — subtitle
 - `DSRadius.lg2` (12) — card corner
-- Tile radius `7` and `28×28` size are intentional onboarding-language literals (this folder is lint-exempt), kept to match the existing visual.
+- `AppConstants.OnboardingUI.iconTileSize` (28) — icon tile side
+- `AppConstants.OnboardingUI.iconTileRadius` (7) — icon tile corner (mirrors the brand tile's 25% ratio)
 
 ## Anatomy
 ```mermaid
 graph LR
-  Card[HStack spacing s4] --> Tile[ZStack 28x28 — tinted RoundedRect r7 + glyph]
+  Card[HStack spacing s4] --> Tile[ZStack iconTileSize — tinted tile iconTileRadius + glyph]
   Card --> Text[VStack spacing s0 — title base / subtitle sm secondary]
   Card --> Spacer
   Card --> Switch[Toggle .switch labelsHidden]
