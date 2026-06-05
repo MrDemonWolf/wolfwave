@@ -22,6 +22,12 @@ struct DebugInspectorsCard: View {
     @State private var keychainPresence: [String: Bool] = [:]
     @State private var keychainLoaded = false
 
+    /// Backstop poll interval. UserDefaults edits surface instantly via
+    /// `didChangeNotification`, but the Keychain has no change notification,
+    /// so a low-frequency tick keeps presence flags honest after an out-of-app
+    /// login/logout or a token rotation the Twitch notification didn't cover.
+    private static let pollInterval: Duration = .seconds(2)
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             HStack(alignment: .top, spacing: DSSpace.s2) {
@@ -66,6 +72,16 @@ struct DebugInspectorsCard: View {
         // the user hits refresh. Bumping the tick re-runs `.task(id:)` above.
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { _ in
             refreshTick &+= 1
+        }
+        // Backstop poll for state with no change notification (Keychain).
+        // Structured concurrency cancels the loop when the card disappears,
+        // matching DebugMetricsCard — no subscription to tear down.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.pollInterval)
+                guard !Task.isCancelled else { break }
+                refreshTick &+= 1
+            }
         }
     }
 
