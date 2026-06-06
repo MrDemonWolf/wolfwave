@@ -61,12 +61,13 @@ struct HourChartCard: View {
             Chart(0..<24, id: \.self) { hour in
                 BarMark(
                     x: .value("Hour", hour),
-                    y: .value("Plays", playsAtHour(hour))
+                    y: .value("Plays", playsAtHour(hour)),
+                    width: .ratio(0.9)
                 )
                 .foregroundStyle(Color.accentColor.gradient)
                 .cornerRadius(2)
             }
-            .chartXScale(domain: 0...23)
+            .chartXScale(domain: -0.5...23.5)
             .chartXAxis {
                 AxisMarks(values: [0, 6, 12, 18, 23]) { value in
                     AxisValueLabel {
