@@ -45,7 +45,7 @@ nonisolated private struct HelixStreamsResponse: Decodable {
 /// Maps an `HTTPClient.HTTPError` to the matching `TwitchChatService.ConnectionError`.
 /// Preserves the existing 401 → `authenticationFailed` mapping; everything else
 /// becomes `.networkError(...)` with the underlying description.
-nonisolated private func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionError {
+nonisolated func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionError {
     if let httpError = error as? HTTPClient.HTTPError {
         switch httpError {
         case .unexpectedStatus(401, _):

@@ -16,6 +16,11 @@ import Foundation
 /// presented by clients on the WebSocket handshake as the
 /// `wolfwave.token.<hex>` subprotocol. Only the first 4 characters are ever
 /// logged so the full credential never ends up in a diagnostics export.
+///
+/// Persistence routes through `KeychainService`, which carries its own
+/// injectable `KeychainBackend` seam (`KeychainService.backend`). Tests swap in
+/// an in-memory backend there so `currentOrCreate()` / `rotate()` can be covered
+/// without touching the real Keychain (which prompts under ad-hoc test signing).
 nonisolated enum WebSocketAuthToken {
 
     /// Subprotocol prefix advertised by the widget on `new WebSocket(url, [...])`

@@ -172,9 +172,9 @@ final class WebSocketServerAuthTests: XCTestCase {
 
     // MARK: - Generation (Keychain-free)
     //
-    // `generate()` is exercised directly; `currentOrCreate()` / `rotate()`
-    // round-trip through KeychainService, which prompts under the ad-hoc-signed
-    // test host, so they are deliberately not covered here.
+    // `generate()` is exercised directly. `currentOrCreate()` / `rotate()` are
+    // covered below through an in-memory backend so the tests NEVER touch the
+    // real Keychain (which prompts under the ad-hoc-signed test host).
 
     func testGenerateProduces64HexChars() {
         let token = WebSocketAuthToken.generate()
@@ -186,5 +186,69 @@ final class WebSocketServerAuthTests: XCTestCase {
         var seen = Set<String>()
         for _ in 0..<50 { seen.insert(WebSocketAuthToken.generate()) }
         XCTAssertEqual(seen.count, 50, "generated tokens must not repeat")
+    }
+
+    // MARK: - currentOrCreate / rotate (in-memory backend, Keychain-free)
+    //
+    // `WebSocketAuthToken` persists through `KeychainService`, which carries its
+    // own injectable `KeychainBackend` seam. Each of these tests swaps in a fresh
+    // `InMemoryKeychainBackend` and restores the previous one so they NEVER touch
+    // the real Keychain (which prompts under ad-hoc test signing).
+
+    /// Runs `body` with an empty in-memory Keychain backend installed, restoring
+    /// the previously active backend afterward.
+    private func withInMemoryKeychain(_ body: () throws -> Void) rethrows {
+        let previous = KeychainService.backend
+        KeychainService.backend = InMemoryKeychainBackend()
+        defer { KeychainService.backend = previous }
+        try body()
+    }
+
+    func testCurrentOrCreateMintsAndPersistsWhenEmpty() {
+        withInMemoryKeychain {
+            XCTAssertNil(KeychainService.loadToken())
+
+            let minted = WebSocketAuthToken.currentOrCreate()
+
+            XCTAssertTrue(WebSocketAuthToken.isValid(minted), "minted token must be valid hex")
+            XCTAssertEqual(KeychainService.loadToken(), minted, "minted token must be persisted")
+        }
+    }
+
+    func testCurrentOrCreateIsStableAcrossCalls() {
+        withInMemoryKeychain {
+            let first = WebSocketAuthToken.currentOrCreate()
+            let second = WebSocketAuthToken.currentOrCreate()
+
+            XCTAssertEqual(first, second, "currentOrCreate must return the persisted token on later calls")
+        }
+    }
+
+    func testCurrentOrCreateReusesPreexistingToken() throws {
+        try withInMemoryKeychain {
+            let existing = WebSocketAuthToken.generate()
+            try KeychainService.saveToken(existing)
+
+            let returned = WebSocketAuthToken.currentOrCreate()
+
+            XCTAssertEqual(returned, existing, "an already-stored token must be returned verbatim")
+        }
+    }
+
+    func testRotateReplacesAndPersistsToken() {
+        withInMemoryKeychain {
+            let original = WebSocketAuthToken.currentOrCreate()
+
+            let rotated = WebSocketAuthToken.rotate()
+
+            XCTAssertNotEqual(rotated, original, "rotate must mint a new token")
+            XCTAssertTrue(WebSocketAuthToken.isValid(rotated))
+            XCTAssertEqual(KeychainService.loadToken(), rotated, "rotate must persist the new token")
+            XCTAssertEqual(
+                WebSocketAuthToken.currentOrCreate(),
+                rotated,
+                "a subsequent currentOrCreate must return the rotated token"
+            )
+        }
     }
 }

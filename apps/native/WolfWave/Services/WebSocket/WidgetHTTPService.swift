@@ -45,6 +45,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         qos: .utility
     )
 
+    /// Readiness latch, fulfilled once on the first `NWListener.State.ready`.
+    /// Lets callers (notably tests) await the listener actually binding the
+    /// port instead of sleeping a fixed interval. Guarded by `readyLock` so the
+    /// `networkQueue` state callback and an awaiting caller can race safely.
+    private let readyLock = NSLock()
+    private var isReady = false
+    private var readyWaiters: [CheckedContinuation<Void, Never>] = []
+
     /// Sentinel string in the bundled `widget.html` that we replace with the
     /// live auth token before sending the response.
     private static let tokenPlaceholder = "__WOLFWAVE_TOKEN__"
@@ -101,6 +109,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             switch state {
             case .ready:
                 Log.info("WidgetHTTPService: Listening on port \(self.port)", category: "WebSocket")
+                self.markReady()
             case .failed(let error):
                 Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
                 self.listener = nil
@@ -121,7 +130,40 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     func stop() {
         listener?.cancel()
         listener = nil
+        readyLock.withLock { isReady = false }
         Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
+    }
+
+    /// Suspends until the listener reaches `NWListener.State.ready` (the port
+    /// is bound and accepting connections). Returns immediately if the service
+    /// is already ready. Use this instead of a fixed `Thread.sleep` so callers
+    /// (and tests) wait exactly as long as the bind takes and no longer.
+    func ready() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let alreadyReady: Bool = readyLock.withLock {
+                if isReady { return true }
+                readyWaiters.append(continuation)
+                return false
+            }
+            if alreadyReady {
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Latches readiness and resumes any callers awaiting `ready()`. Invoked
+    /// once on the first `.ready` listener transition (on `queue`).
+    private func markReady() {
+        let waiters: [CheckedContinuation<Void, Never>] = readyLock.withLock {
+            guard !isReady else { return [] }
+            isReady = true
+            let pending = readyWaiters
+            readyWaiters.removeAll()
+            return pending
+        }
+        for waiter in waiters {
+            waiter.resume()
+        }
     }
 
     // MARK: - Connection Handling
