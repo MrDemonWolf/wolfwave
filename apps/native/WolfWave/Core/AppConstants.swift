@@ -1179,6 +1179,17 @@ nonisolated enum AppConstants {
             fallback: "https://mrdwolf.net/discord"
         )
 
+        /// System Settings deep link to Notifications (macOS 13+).
+        /// Opened from onboarding and `NotificationService` so users can grant
+        /// the notification permission outside the app.
+        static let systemNotificationSettings =
+            "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+
+        /// System Settings deep link to Privacy & Security ▸ Automation (macOS 13+).
+        /// Opened from the Apple Music permission flow.
+        static let systemAutomationSettings =
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
+
         /// Returns `value` when it parses as an absolute URL with a scheme and
         /// host, otherwise `fallback`. Catches xcconfig `//`-truncated values
         /// like `https:` that would otherwise produce broken links.

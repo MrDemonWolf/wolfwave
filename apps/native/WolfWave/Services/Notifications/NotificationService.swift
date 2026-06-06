@@ -216,7 +216,7 @@ final class NotificationService {
 
     /// Opens System Settings → Notifications. macOS 13+ deep-link.
     func openSystemNotificationSettings() {
-        ExternalLink.open("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        ExternalLink.open(AppConstants.URLs.systemNotificationSettings)
     }
 
     // MARK: - Request Building
