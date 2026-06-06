@@ -1019,8 +1019,9 @@ nonisolated enum AppConstants {
     /// small line per recorded play. Stats are derived in memory, so they cost
     /// no extra disk writes.
     enum History {
-        /// Subdirectory of Application Support holding the play log.
-        static let directoryName = "WolfWave/History"
+        /// Leaf subdirectory under the `WolfWave/` Application Support container
+        /// holding the play log. Resolved via ``AppContainer/directory(_:)``.
+        static let directoryName = "History"
 
         /// Append-only NDJSON play log filename.
         static let logFileName = "plays.ndjson"
