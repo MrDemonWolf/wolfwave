@@ -879,6 +879,18 @@ nonisolated enum AppConstants {
         /// Maximum retry attempts for failed message sends
         static let maxMessageRetries = 3
 
+        /// Maximum buffered messages in the per-message retry queue. Past this
+        /// cap the oldest pending message is dropped (drop-oldest backpressure).
+        static let maxPendingMessages = 64
+
+        /// Bounded buffer for the `chatMessages` AsyncStream (drop-oldest). Chat
+        /// can burst, so this is sized larger than the control streams.
+        static let chatMessageStreamBuffer = 256
+
+        /// Bounded buffer for the control AsyncStreams
+        /// (`connectionStateChanges`, `skipPollResults`) using drop-oldest.
+        static let controlStreamBuffer = 16
+
         /// Delay before sending connection message after subscribing (seconds)
         static let connectionMessageDelay: TimeInterval = 1.5
 

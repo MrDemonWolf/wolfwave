@@ -344,9 +344,15 @@ actor TwitchChatService {
     /// project default isolation) can be constructed at init time. AppDelegate
     /// runs on MainActor; tests call from MainActor (Swift Testing) or wrap.
     @MainActor init() {
-        let chat = AsyncStream.makeStream(of: ChatMessage.self, bufferingPolicy: .unbounded)
-        let connection = AsyncStream.makeStream(of: Bool.self, bufferingPolicy: .unbounded)
-        let skip = AsyncStream.makeStream(of: SkipPollResult.self, bufferingPolicy: .unbounded)
+        let chat = AsyncStream.makeStream(
+            of: ChatMessage.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.chatMessageStreamBuffer))
+        let connection = AsyncStream.makeStream(
+            of: Bool.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
+        let skip = AsyncStream.makeStream(
+            of: SkipPollResult.self,
+            bufferingPolicy: .bufferingNewest(AppConstants.Twitch.controlStreamBuffer))
 
         self.chatMessages = chat.stream
         self.chatMessagesContinuation = chat.continuation
@@ -1026,7 +1032,28 @@ actor TwitchChatService {
         }
     }
 
+    /// Applies the drop-oldest cap to a pending-message queue.
+    ///
+    /// Pure and `nonisolated` so it is unit-testable without spinning up the
+    /// actor. Appends `pending` then trims the front until the queue is at most
+    /// `cap` entries, returning the number of dropped (oldest) messages so the
+    /// caller can log. With `cap <= 0` everything but nothing is kept (the new
+    /// message itself is still appended, then trimmed to the cap).
+    nonisolated static func appendCapped<Element>(
+        _ pending: Element, to queue: inout [Element], cap: Int
+    ) -> Int {
+        queue.append(pending)
+        guard queue.count > cap else { return 0 }
+        let overflow = queue.count - max(cap, 0)
+        queue.removeFirst(overflow)
+        return overflow
+    }
+
     /// Queues a message for retry with exponential backoff.
+    ///
+    /// The queue is bounded by `AppConstants.Twitch.maxPendingMessages`
+    /// (drop-oldest). A single long-lived drain loop (`pendingRetryTask`) walks
+    /// the queue instead of one detached Task per retry.
     private func queueMessageForRetry(message: String, parentMessageID: String?, attempts: Int) {
         guard attempts < maxMessageRetries else {
             Log.error(
@@ -1037,35 +1064,60 @@ actor TwitchChatService {
 
         let pending = PendingMessage(
             message: message, parentMessageID: parentMessageID, attempts: attempts + 1)
-        pendingMessages.append(pending)
+        let dropped = Self.appendCapped(
+            pending, to: &pendingMessages, cap: AppConstants.Twitch.maxPendingMessages)
+        if dropped > 0 {
+            Log.warn(
+                "TwitchChatService: Retry queue full, dropped \(dropped) oldest message(s)",
+                category: "Twitch")
+        }
 
-        let delay = pow(2.0, Double(attempts))
         Log.debug(
-            "TwitchChatService: Scheduling message retry \(attempts + 1)/\(maxMessageRetries) in \(delay)s",
+            "TwitchChatService: Queued message retry \(attempts + 1)/\(maxMessageRetries) "
+                + "(\(pendingMessages.count) pending)",
             category: "Twitch")
 
-        Task { [weak self] in
-            // Retry backoff tolerates 10% jitter for wakeup coalescing.
-            try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
-            await self?.retryPendingMessages()
+        startRetryDrainLoopIfNeeded()
+    }
+
+    /// Starts the single long-lived drain loop if one is not already running.
+    private func startRetryDrainLoopIfNeeded() {
+        guard pendingRetryTask == nil else { return }
+        pendingRetryTask = Task { [weak self] in
+            await self?.drainPendingMessages()
         }
     }
 
-    /// Retries pending messages from the queue.
-    private func retryPendingMessages() async {
-        guard !pendingMessages.isEmpty else { return }
-        let message = pendingMessages.removeFirst()
+    /// Single long-lived drain loop. Walks the pending queue, sleeping per
+    /// message according to that message's exponential backoff, until the queue
+    /// drains. Exits (clearing `pendingRetryTask`) when empty so a future
+    /// enqueue restarts it. Per-message attempt limits are preserved: a message
+    /// missing credentials is re-queued via `queueMessageForRetry`, which still
+    /// enforces `maxMessageRetries`.
+    private func drainPendingMessages() async {
+        defer { pendingRetryTask = nil }
 
-        // Check if we have valid credentials now
-        guard broadcasterID != nil, botID != nil, oauthToken != nil, clientID != nil else {
-            queueMessageForRetry(
-                message: message.message,
-                parentMessageID: message.parentMessageID,
-                attempts: message.attempts)
-            return
+        while !Task.isCancelled, !pendingMessages.isEmpty {
+            let pending = pendingMessages.removeFirst()
+
+            // Backoff is keyed off the prior attempt count. `attempts` here is
+            // the next attempt number (1-based), so the delay matches the old
+            // `pow(2, attempts)` schedule (attempt 1 -> 2^0 = 1s).
+            let delay = pow(2.0, Double(pending.attempts - 1))
+            try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
+            if Task.isCancelled { return }
+
+            // Check if we have valid credentials now.
+            guard broadcasterID != nil, botID != nil, oauthToken != nil, clientID != nil else {
+                queueMessageForRetry(
+                    message: pending.message,
+                    parentMessageID: pending.parentMessageID,
+                    attempts: pending.attempts)
+                continue
+            }
+
+            await sendMessage(pending.message, replyTo: pending.parentMessageID)
         }
-
-        await sendMessage(message.message, replyTo: message.parentMessageID)
     }
 
     // MARK: - Message Parsing
