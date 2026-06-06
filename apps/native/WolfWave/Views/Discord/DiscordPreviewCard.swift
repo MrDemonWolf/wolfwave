@@ -364,9 +364,8 @@ struct DiscordPreviewCard: View {
     private var idleActivityContent: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
             ZStack(alignment: .bottomTrailing) {
-                artworkPlaceholder
+                wolfWaveArtTile
                     .frame(width: 80, height: 80)
-                    .saturation(0.45)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
                 cornerBadge(paused: false, tooltip: "Apple Music")
             }
