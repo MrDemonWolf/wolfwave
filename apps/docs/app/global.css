@@ -318,7 +318,7 @@
 
 .ww-btn-secondary {
   background-color: transparent;
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 .ww-btn-secondary:hover {
   text-decoration: underline;
@@ -511,7 +511,7 @@ a.ww-chip:hover {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brand-500);
+  color: var(--brand-600);
 }
 .ww-download-headline {
   margin-top: 0.5rem;
