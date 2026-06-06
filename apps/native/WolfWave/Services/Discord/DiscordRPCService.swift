@@ -184,10 +184,13 @@ actor DiscordRPCService {
         self.artworkContinuation = artCont
 
         // Re-send presence when display settings change so users see button-label
-        // edits and similar tweaks immediately.
+        // edits and similar tweaks immediately. Delivery is pinned to the main
+        // queue so the block never fires on an arbitrary thread while `init` is
+        // still completing (the closure captures `self`); the block only hops
+        // into a detached Task, so main-queue delivery adds no real work.
         let name = Notification.Name.discordPresenceSettingsChanged
         self.settingsObserver = NotificationCenter.default.addObserver(
-            forName: name, object: nil, queue: nil
+            forName: name, object: nil, queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             Task { await self.resendLastPresence() }
@@ -1130,6 +1133,15 @@ actor DiscordRPCService {
 
     // MARK: - Reconnection
 
+    /// Computes the next exponential-backoff delay: doubles `current` and clamps
+    /// to `max`. Pure and `nonisolated` so the backoff math is unit-testable
+    /// without the actor. Reset is just `base` (see `reconnectBaseDelay`).
+    nonisolated static func nextBackoff(
+        _ current: TimeInterval, base: TimeInterval, max: TimeInterval
+    ) -> TimeInterval {
+        Swift.min(current * 2, max)
+    }
+
     /// Handles a lost connection by disconnecting and scheduling reconnect.
     private func handleConnectionLost() {
         disconnect()
@@ -1145,7 +1157,10 @@ actor DiscordRPCService {
             await self.attemptReconnect()
         }
 
-        reconnectDelay = min(reconnectDelay * 2, AppConstants.Discord.reconnectMaxDelay)
+        reconnectDelay = Self.nextBackoff(
+            reconnectDelay,
+            base: AppConstants.Discord.reconnectBaseDelay,
+            max: AppConstants.Discord.reconnectMaxDelay)
     }
 
     private func attemptReconnect() {

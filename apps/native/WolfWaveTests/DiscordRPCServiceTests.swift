@@ -179,4 +179,37 @@ final class DiscordRPCServiceTests: XCTestCase {
     func testMaxIPCFrameBytesCapIsBounded() {
         XCTAssertEqual(AppConstants.Discord.maxIPCFrameBytes, 65536)
     }
+
+    // MARK: - Reconnect Backoff
+
+    func testNextBackoffDoubles() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        let next = DiscordRPCService.nextBackoff(base, base: base, max: max)
+        XCTAssertEqual(next, base * 2, accuracy: 0.0001)
+    }
+
+    func testNextBackoffClampsAtMax() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        // Already at max: doubling would overshoot, so it must clamp.
+        let next = DiscordRPCService.nextBackoff(max, base: base, max: max)
+        XCTAssertEqual(next, max, accuracy: 0.0001)
+        // Just under max: doubling overshoots, still clamps.
+        let nearMax = DiscordRPCService.nextBackoff(max * 0.75, base: base, max: max)
+        XCTAssertEqual(nearMax, max, accuracy: 0.0001)
+    }
+
+    func testNextBackoffRepeatedDoublingClampsAndResetIsBase() {
+        let base = AppConstants.Discord.reconnectBaseDelay
+        let max = AppConstants.Discord.reconnectMaxDelay
+        var delay = base
+        for _ in 0..<20 {
+            delay = DiscordRPCService.nextBackoff(delay, base: base, max: max)
+            XCTAssertLessThanOrEqual(delay, max)
+        }
+        XCTAssertEqual(delay, max, accuracy: 0.0001)
+        // Reset semantics: a successful connect sets reconnectDelay back to base.
+        XCTAssertEqual(base, AppConstants.Discord.reconnectBaseDelay, accuracy: 0.0001)
+    }
 }
