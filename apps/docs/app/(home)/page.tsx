@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { absoluteUrl, homepageSeo } from "@/lib/site";
+import { absoluteUrl, homepageSeo, repoUrl } from "@/lib/site";
 import {
   ArrowRight,
   BookOpen,
@@ -27,7 +27,7 @@ import { TwitchChatPreview } from "./_widgets/TwitchChatPreview";
 import { BackToTop } from "./_widgets/BackToTop";
 import { ComparisonTable } from "./_widgets/ComparisonTable";
 
-const REPO_URL = "https://github.com/MrDemonWolf/WolfWave";
+const REPO_URL = repoUrl;
 const DISCORD_URL = "https://mrdwolf.net/discord";
 
 // Homepage SEO is centralized in `homepageSeo` (lib/site.ts) so the page meta,
