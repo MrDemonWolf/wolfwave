@@ -740,6 +740,16 @@ actor TwitchChatService {
             try await connectToChannel(channelName: channelName, token: token, clientID: clientID)
             reconnectionAttempts = 0
             Log.info("TwitchChatService: Reconnection successful", category: "Twitch")
+        } catch ConnectionError.authenticationFailed {
+            // A 401 means the stored token is dead. Retrying with the same token
+            // only burns `maxReconnectionAttempts` and never succeeds, so stop the
+            // loop and surface the re-auth banner. Try one reactive token refresh
+            // first; only fall back to interactive re-auth when that fails.
+            Log.error(
+                "TwitchChatService: Reconnect failed with 401; token is invalid or expired",
+                category: "Twitch")
+            await handleAuthenticationFailureDuringReconnect(
+                channelName: channelName, clientID: clientID)
         } catch {
             reconnectionAttempts += 1
             Log.warn(
@@ -753,6 +763,35 @@ actor TwitchChatService {
                     category: "Twitch")
             }
         }
+    }
+
+    /// Handles a 401 during reconnect. Attempts exactly ONE reactive token
+    /// refresh (no loop); on success it reconnects with the fresh token, and on
+    /// any failure it signals interactive re-auth and stops the reconnect loop.
+    private func handleAuthenticationFailureDuringReconnect(
+        channelName: String, clientID: String
+    ) async {
+        if let refreshed = await TwitchTokenRefresher.attemptReactiveRefresh(clientID: clientID) {
+            Log.info(
+                "TwitchChatService: Reactive token refresh succeeded; reconnecting",
+                category: "Twitch")
+            reconnectToken = refreshed
+            reconnectionAttempts = 0
+            do {
+                try await connectToChannel(
+                    channelName: channelName, token: refreshed, clientID: clientID)
+                Log.info(
+                    "TwitchChatService: Reconnection successful after token refresh",
+                    category: "Twitch")
+                return
+            } catch {
+                Log.warn(
+                    "TwitchChatService: Reconnect after refresh failed - \(error.localizedDescription)",
+                    category: "Twitch")
+            }
+        }
+        // Refresh unavailable or failed: stop looping and ask the user to re-auth.
+        signalReauthNeededAndStop()
     }
 
     // MARK: - Public Methods
@@ -2013,22 +2052,36 @@ actor TwitchChatService {
         // The chat subscription is the critical one: its extra success
         // side-effect is the connection confirmation message, and a failure
         // tears the connection back down.
+        var sawAuthFailure = false
         let subscribed = await postEventSubSubscription(
             body: body,
             token: token,
             clientID: clientID,
-            label: "channel.chat.message"
-        ) {
-            Log.info("TwitchChatService: Connected to chat", category: "Twitch")
-            if shouldSendConnectionMessageOnSubscribe {
-                sendConnectionMessage()
+            label: "channel.chat.message",
+            onSuccess: {
+                Log.info("TwitchChatService: Connected to chat", category: "Twitch")
+                if shouldSendConnectionMessageOnSubscribe {
+                    sendConnectionMessage()
+                }
+            },
+            onFailureStatus: { status in
+                // A 401 on the critical chat subscription means the token is dead.
+                // The subscription runs async after `session_welcome`, so it can't
+                // throw back into `attemptReconnect`; surface it as a re-auth signal.
+                if status == 401 { sawAuthFailure = true }
             }
-        }
+        )
 
         if !subscribed {
             setConnected(false)
             NotificationCenter.default.postTwitchConnectionState(isConnected: false)
             connectionStateContinuation.yield(false)
+            if sawAuthFailure {
+                Log.error(
+                    "TwitchChatService: Chat subscription returned 401; signaling re-auth",
+                    category: "Twitch")
+                signalReauthNeededAndStop()
+            }
         }
     }
 
@@ -2174,7 +2227,8 @@ actor TwitchChatService {
         token: String,
         clientID: String,
         label: String,
-        onSuccess: () -> Void = {}
+        onSuccess: () -> Void = {},
+        onFailureStatus: (Int) -> Void = { _ in }
     ) async -> Bool {
         guard let url = URL(string: apiBaseURL + "/eventsub/subscriptions") else { return false }
 
@@ -2207,6 +2261,7 @@ actor TwitchChatService {
                 if label == "channel-point redemptions" || label == "bit usage" {
                     setRedemptionStatus(http.statusCode == 403 ? .scopeMissing : .subscribeFailed)
                 }
+                onFailureStatus(http.statusCode)
                 return false
             }
         } catch {
