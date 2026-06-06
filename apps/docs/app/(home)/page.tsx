@@ -175,7 +175,7 @@ function fmtStars(n: number): string {
 export default async function HomePage() {
   const { stars, latest } = await getRepoStats();
   return (
-    <main className="ww-font ww-bg-base">
+    <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">
         <div className="ww-hero-glow" aria-hidden="true" />

@@ -309,11 +309,11 @@
 .ww-btn:active { transform: scale(0.98); }
 
 .ww-btn-primary {
-  background-color: var(--brand-500);
+  background-color: var(--brand-600);
   color: #fff;
 }
 .ww-btn-primary:hover {
-  background-color: var(--brand-600);
+  background-color: var(--brand-700);
 }
 
 .ww-btn-secondary {
