@@ -25,6 +25,13 @@ struct AppVisibilitySettingsView: View {
     @AppStorage(AppConstants.UserDefaults.launchAtLogin)
     private var launchAtLogin = false
 
+    // MARK: - Local State
+
+    /// Set when a Launch-at-Login registration was accepted but is waiting on the
+    /// user's approval in System Settings → General → Login Items. Drives the
+    /// "Approve in Login Items" affordance; the toggle stays on.
+    @State private var loginItemNeedsApproval = false
+
     // MARK: - Body
 
     var body: some View {
@@ -61,6 +68,8 @@ struct AppVisibilitySettingsView: View {
             // Sync toggle with actual SMAppService state on appear
             let actual = LaunchAtLoginService.isEnabled
             if launchAtLogin != actual { launchAtLogin = actual }
+            // Reflect a still-pending approval the user may not have completed.
+            loginItemNeedsApproval = LaunchAtLoginService.requiresApproval
             // If launch at login is on but dockOnly was persisted externally, correct it
             if launchAtLogin && dockVisibility == AppConstants.DockVisibility.dockOnly {
                 dockVisibility = AppConstants.DockVisibility.default
@@ -80,8 +89,19 @@ struct AppVisibilitySettingsView: View {
             Toggle("Launch at Login", isOn: Binding(
                 get: { launchAtLogin },
                 set: { newValue in
-                    // Revert toggle immediately if SMAppService fails
-                    guard LaunchAtLoginService.setEnabled(newValue) else { return }
+                    let outcome = LaunchAtLoginService.setEnabled(newValue)
+                    switch outcome {
+                    case .failure:
+                        // SMAppService threw; leave the toggle where it was.
+                        return
+                    case .requiresApproval:
+                        // Registration was accepted but is pending the user's
+                        // approval in Login Items. Keep the toggle ON (the user
+                        // opted in) and surface the approval affordance.
+                        loginItemNeedsApproval = true
+                    case .success:
+                        loginItemNeedsApproval = false
+                    }
                     launchAtLogin = newValue
                     // Dock Only is incompatible with launch at login,
                     // switch to Menu Bar + Dock so the app is always reachable.
@@ -102,6 +122,21 @@ struct AppVisibilitySettingsView: View {
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if loginItemNeedsApproval {
+                VStack(alignment: .leading, spacing: DSSpace.s2) {
+                    CalloutBanner(
+                        "macOS needs you to approve WolfWave in Login Items before it can start at login.",
+                        style: .info
+                    )
+                    Button("Approve in Login Items\u{2026}") {
+                        LaunchAtLoginService.openLoginItemsSettings()
+                    }
+                    .font(.system(size: DSFont.Size.base))
+                    .pointerCursor()
+                    .accessibilityIdentifier("approveLoginItemButton")
+                }
+            }
         }
     }
 
