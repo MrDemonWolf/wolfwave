@@ -235,6 +235,88 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertEqual(AppConstants.Discord.maxIPCFrameBytes, 65536)
     }
 
+    // MARK: - I/O Result Shapes (errno captured on-queue)
+    //
+    // `writeFully`/`readFully` now return a small Sendable result carrying the
+    // failing `errno` captured on the same worker thread that ran the syscall,
+    // instead of letting the actor read a stale, unrelated `errno` after the
+    // queue hop. These assert the result shape and the success/failure contract
+    // without opening a socket.
+
+    func testWriteResultSuccessShape() {
+        let result = DiscordRPCService.WriteResult(ok: true, errno: 0)
+        XCTAssertTrue(result.ok)
+        XCTAssertEqual(result.errno, 0, "errno is meaningful only on failure; success carries 0")
+    }
+
+    func testWriteResultFailureCarriesErrno() {
+        let result = DiscordRPCService.WriteResult(ok: false, errno: EPIPE)
+        XCTAssertFalse(result.ok)
+        XCTAssertEqual(result.errno, EPIPE, "failing errno must be carried back, not re-read post-hop")
+    }
+
+    func testReadResultSuccessShape() {
+        let result = DiscordRPCService.ReadResult(data: Data([1, 2, 3]), errno: 0)
+        XCTAssertEqual(result.data, Data([1, 2, 3]))
+        XCTAssertEqual(result.errno, 0)
+    }
+
+    func testReadResultPeerCloseHasNilDataAndZeroErrno() {
+        // A clean peer close (read returns 0) is not a syscall error, so errno
+        // stays 0 while data is nil — distinct from a timeout/error path.
+        let result = DiscordRPCService.ReadResult(data: nil, errno: 0)
+        XCTAssertNil(result.data)
+        XCTAssertEqual(result.errno, 0)
+    }
+
+    func testReadResultErrorCarriesErrno() {
+        let result = DiscordRPCService.ReadResult(data: nil, errno: EAGAIN)
+        XCTAssertNil(result.data)
+        XCTAssertEqual(result.errno, EAGAIN, "timeout/error errno must be carried back from the queue")
+    }
+
+    // MARK: - Teardown / Generation Gate (no socket)
+    //
+    // `disconnect()` bumps a monotonic generation token and routes the close
+    // through `ipcQueue`, and `connectIfNeeded` discards a just-opened fd if the
+    // generation changed mid-connect. With no client ID nothing reaches a real
+    // socket, but a regression in the gate (or in routing the close through the
+    // queue) would deadlock or crash these toggles. They must all settle on
+    // `.disconnected` without hanging.
+
+    func testEnableDisableTogglesSettleDisconnected() async {
+        let service = DiscordRPCService(clientID: "")
+        for _ in 0..<5 {
+            await service.setEnabled(true)
+            await service.setEnabled(false)
+        }
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected, "repeated enable/disable must end disconnected, not hang")
+    }
+
+    func testDisableDuringConcurrentCallsSettlesDisconnected() async {
+        // A disable racing in-flight presence calls exercises the teardown +
+        // generation path. None reach a socket, so all must complete and the
+        // service must end disconnected.
+        let service = DiscordRPCService(clientID: "")
+        await service.setEnabled(true)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<4 {
+                group.addTask {
+                    await service.updatePresence(
+                        track: "T", artist: "A", album: "Al",
+                        playlist: "", duration: 0, elapsed: 0, isPaused: false
+                    )
+                }
+                group.addTask { await service.clearPresence() }
+            }
+            group.addTask { await service.setEnabled(false) }
+        }
+        await service.setEnabled(false)
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
     // MARK: - Reconnect Backoff
 
     func testNextBackoffDoubles() {
