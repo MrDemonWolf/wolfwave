@@ -1127,18 +1127,41 @@ actor TwitchChatService {
     }
 
     /// Sends a message that replies to another message.
+    ///
+    /// This is the public entry point used by command handlers. It delegates to
+    /// `sendMessageOnce(_:replyTo:)` and, on failure, queues a fresh retry at
+    /// `attempts: 0`. The drain loop does NOT call this method — it calls
+    /// `sendMessageOnce` directly so the per-message attempt count is preserved
+    /// across retries instead of being reset to 0.
     func sendMessage(_ message: String, replyTo parentMessageID: String?) async {
+        let sent = await sendMessageOnce(message, replyTo: parentMessageID)
+        if !sent {
+            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
+        }
+    }
+
+    /// Performs a single send attempt and reports success/failure WITHOUT
+    /// touching the retry queue.
+    ///
+    /// Returns `true` when the Helix request completed (the message reached
+    /// Twitch, regardless of whether Twitch later flagged it dropped), and
+    /// `false` when credentials are missing or the request threw. The drain loop
+    /// uses the boolean to decide whether to requeue with an incremented attempt
+    /// count, so this primitive must never enqueue on its own.
+    ///
+    /// An empty/whitespace-only message is treated as success (nothing to send,
+    /// no point retrying).
+    func sendMessageOnce(_ message: String, replyTo parentMessageID: String?) async -> Bool {
         guard let broadcasterID,
               let botID,
               let token = oauthToken,
               let clientID else {
-            Log.warn("TwitchChatService: Not connected, queuing message for retry", category: "Twitch")
-            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
-            return
+            Log.warn("TwitchChatService: Not connected, send attempt failed", category: "Twitch")
+            return false
         }
 
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return true }
 
         let finalMessage = trimmed.truncatedForChat()
 
@@ -1162,7 +1185,7 @@ actor TwitchChatService {
                 let parsed = try JSONCoders.snakeCase.decode(HelixSendMessageResponse.self, from: data)
                 guard let first = parsed.data.first else {
                     Log.warn("TwitchChatService: Could not parse send-message response", category: "Twitch")
-                    return
+                    return true
                 }
                 if !first.isSent {
                     Log.warn("TwitchChatService: Message dropped by Twitch", category: "Twitch")
@@ -1172,11 +1195,12 @@ actor TwitchChatService {
                     "TwitchChatService: Failed to decode send-message response - \(error.localizedDescription)",
                     category: "Twitch")
             }
+            return true
         } catch {
             Log.error(
                 "TwitchChatService: Failed to send message - \(error.localizedDescription)",
                 category: "Twitch")
-            queueMessageForRetry(message: message, parentMessageID: parentMessageID, attempts: 0)
+            return false
         }
     }
 
@@ -1195,6 +1219,16 @@ actor TwitchChatService {
         let overflow = queue.count - max(cap, 0)
         queue.removeFirst(overflow)
         return overflow
+    }
+
+    /// Pure decision for whether a just-failed send attempt should be requeued.
+    ///
+    /// `attempts` is the attempt number that just failed (1-based). The message
+    /// is requeued only while `attempts < maxRetries`; once the count reaches the
+    /// limit the message is dropped. `nonisolated` so the bounded-retry contract
+    /// is unit-testable without the actor or the network.
+    nonisolated static func shouldRequeueAfterFailure(attempts: Int, maxRetries: Int) -> Bool {
+        attempts < maxRetries
     }
 
     /// Queues a message for retry with exponential backoff.
@@ -1239,9 +1273,12 @@ actor TwitchChatService {
     /// Single long-lived drain loop. Walks the pending queue, sleeping per
     /// message according to that message's exponential backoff, until the queue
     /// drains. Exits (clearing `pendingRetryTask`) when empty so a future
-    /// enqueue restarts it. Per-message attempt limits are preserved: a message
-    /// missing credentials is re-queued via `queueMessageForRetry`, which still
-    /// enforces `maxMessageRetries`.
+    /// enqueue restarts it. Per-message attempt limits are preserved: the loop
+    /// sends via `sendMessageOnce` (which never touches the queue) and, on
+    /// failure, requeues with `attempts: pending.attempts + 1`, dropping the
+    /// message once it reaches `maxMessageRetries`. It must NOT call
+    /// `sendMessage`, whose failure path requeues at `attempts: 0` and would
+    /// reset the count, allowing unbounded retries.
     private func drainPendingMessages() async {
         defer { pendingRetryTask = nil }
 
@@ -1255,16 +1292,17 @@ actor TwitchChatService {
             try? await Task.sleep(for: .seconds(delay), tolerance: .seconds(delay * 0.1))
             if Task.isCancelled { return }
 
-            // Check if we have valid credentials now.
-            guard broadcasterID != nil, botID != nil, oauthToken != nil, clientID != nil else {
+            // Send without auto-queueing. On failure (missing credentials or a
+            // failed request) requeue with the attempt count incremented, so a
+            // persistently failing message stops at `maxMessageRetries` instead
+            // of looping forever.
+            let sent = await sendMessageOnce(pending.message, replyTo: pending.parentMessageID)
+            if !sent {
                 queueMessageForRetry(
                     message: pending.message,
                     parentMessageID: pending.parentMessageID,
                     attempts: pending.attempts)
-                continue
             }
-
-            await sendMessage(pending.message, replyTo: pending.parentMessageID)
         }
     }
 
@@ -1559,6 +1597,13 @@ actor TwitchChatService {
     private func handleSessionWelcomeTimeout() async {
         guard sessionID == nil else { return } // If we already got a welcome, ignore
 
+        // A welcome that never arrived means the (possibly migration) socket is
+        // dead and we fall back to a fresh reconnect. Clear the migration flag so
+        // the next fresh `session_welcome` re-subscribes normally. (disconnectFromEventSub
+        // below also clears it, but reset here too so the contract is explicit and
+        // independent of teardown ordering.)
+        isMigratingSession = false
+
         Log.error(
             "TwitchChatService: Session welcome timeout - WebSocket may not be responding",
             category: "Twitch")
@@ -1632,6 +1677,12 @@ actor TwitchChatService {
 
     /// Handles a WebSocket receive error: logs, updates state, and attempts reconnect.
     private func handleReceiveError(_ error: Error) async {
+        // A receive error on a migration socket leads to a fresh `scheduleReconnect`
+        // below, NOT a reconnect_url migration. Clear the migration flag so the
+        // resulting fresh `session_welcome` runs the normal `subscribeTo*` path
+        // instead of being mistaken for a carried-over migrated session.
+        isMigratingSession = false
+
         let nsError = error as NSError
         let errorCode = nsError.code
         let errorDomain = nsError.domain
