@@ -312,15 +312,39 @@ function resolveFontFamily(name: string | undefined): string {
  * ║  THEME + LAYOUT                                                        ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  resolveTheme() merges a preset with user overrides (only Default/Glass
- *  themes accept overrides — the others are author-curated and stay opaque).
+ *  resolveTheme() merges a preset with user overrides. Only the themes whose
+ *  native settings UI exposes the color pickers accept overrides. The others
+ *  are author-curated and stay opaque.
  */
+
+// Themes whose text/background colors the user can override. Mirrors the
+// `customizable` set in `design-system/scripts/generate.ts` (which drives the
+// native `userCustomizable` flag that enables/disables the color pickers). Keep
+// these in sync. (The native "Default, Glass, and WolfWave …" picker caption is
+// stale; the actual gate excludes WolfWave, so the widget excludes it too.)
+const THEMES_ALLOWING_OVERRIDE = new Set(["Default", "Glass"]);
 
 function resolveTheme(config: WidgetConfig): ThemePreset {
   const preset = themePresets[config.theme] || themePresets["Default"];
   const resolved: ThemePreset = { ...preset };
-  resolved.fontFamily = resolveFontFamily(config.fontFamily);
-  if (config.theme === "Default" || config.theme === "Glass") {
+  // The font stack contains double quotes (e.g. `"Segoe UI"`); buildWidget
+  // splices `theme.fontFamily` straight into double-quoted `style="…"`
+  // attributes via innerHTML, so escape it here. The browser unescapes the
+  // entities when it parses the attribute, so the rendered font is unchanged.
+  resolved.fontFamily = escapeHtml(resolveFontFamily(config.fontFamily));
+  if (THEMES_ALLOWING_OVERRIDE.has(config.theme)) {
+    // NOTE: the `widget_config` wire format carries no presence info. The
+    // native server (`WebSocketServerService.swift`) always sends `textColor`
+    // and `backgroundColor`, defaulting to `defaultConfig` values when the user
+    // hasn't picked one, and `handleMessage` back-fills any missing field from
+    // `defaultConfig`. So "did the user actually choose this color?" can't be
+    // answered here without a contract change (a separate "color was set" flag,
+    // or sending the field only when chosen). Until that lands we keep the
+    // default-equality heuristic: a value equal to the default is treated as
+    // "unset" and falls back to the preset. This means a deliberate selection
+    // that equals the default (e.g. white text on Glass) is not applied (a
+    // known limitation). Dropping the check instead would regress Default's
+    // overlay to opaque `#1A1A2E` for every uncustomized user, which is worse.
     const textColor = safeColor(config.textColor);
     if (textColor && textColor !== defaultConfig.textColor) {
       resolved.textPrimary = textColor;

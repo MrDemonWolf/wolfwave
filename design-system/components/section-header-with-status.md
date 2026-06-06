@@ -64,6 +64,6 @@ SectionHeaderWithStatus(
     subtitle: "Connect once. !song works for your viewers.",
     statusText: viewModel.isConnected ? "Connected" : nil,
     statusColor: viewModel.isConnected ? DSColor.success : nil,
-    statusSymbol: viewModel.isConnected ? StatusChip.StateGlyph.on : StatusChip.StateGlyph.off
+    statusSymbol: viewModel.isConnected ? StatusChip.StateGlyph.on : nil
 )
 ```
