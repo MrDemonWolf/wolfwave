@@ -452,6 +452,53 @@ actor TwitchChatService {
             }
         }
 
+        /// Records a hard 429 backoff: marks `endpoint` saturated until
+        /// `resetEpoch` (seconds since 1970) so ``awaitCapacity(endpoint:)``
+        /// sleeps until the bucket is allowed to refill. Used by the reactive
+        /// 429 retry path after parsing `Ratelimit-Reset` / `Retry-After`.
+        func noteRateLimited(endpoint: String, untilEpoch resetEpoch: TimeInterval) {
+            var state = states[endpoint] ?? RateLimitState()
+            state.remaining = 0
+            state.resetTime = resetEpoch
+            states[endpoint] = state
+        }
+
+        /// Parses the seconds to wait after a `429 Too Many Requests` response.
+        ///
+        /// Prefers a `Retry-After` delta (seconds from now); falls back to
+        /// `Ratelimit-Reset` (epoch seconds). Returns `nil` when neither header
+        /// is present or parseable. The result is clamped to be non-negative.
+        ///
+        /// `nonisolated` + `static` so it is unit-testable without the actor or a
+        /// live socket.
+        nonisolated static func retryWaitSeconds(
+            from headers: [AnyHashable: Any],
+            now: TimeInterval
+        ) -> TimeInterval? {
+            func headerValue(_ name: String) -> String? {
+                if let direct = headers[name] as? String { return direct }
+                // Header lookups are case-insensitive in practice; scan keys.
+                for (key, value) in headers {
+                    if let keyString = key as? String,
+                       keyString.caseInsensitiveCompare(name) == .orderedSame,
+                       let stringValue = value as? String {
+                        return stringValue
+                    }
+                }
+                return nil
+            }
+
+            if let retryAfter = headerValue("Retry-After"),
+               let seconds = TimeInterval(retryAfter.trimmingCharacters(in: .whitespaces)) {
+                return max(0, seconds)
+            }
+            if let reset = headerValue("Ratelimit-Reset"),
+               let resetEpoch = TimeInterval(reset.trimmingCharacters(in: .whitespaces)) {
+                return max(0, resetEpoch - now)
+            }
+            return nil
+        }
+
         /// Records Twitch's `Ratelimit-*` headers after a Helix response.
         func updateRateLimitState(endpoint: String, from headers: [AnyHashable: Any]) {
             var state = states[endpoint] ?? RateLimitState()
@@ -852,8 +899,10 @@ actor TwitchChatService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 15
         // Per Twitch docs, use "OAuth <token>" for the validate endpoint
         request.setValue("OAuth \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, http) = try await HTTPClient.shared.send(request)
@@ -1168,10 +1217,33 @@ actor TwitchChatService {
             throw ConnectionError.networkError("Failed to serialize request body")
         }
 
-        let (data, http) = try await HTTPClient.shared.send(request)
+        var (data, http) = try await HTTPClient.shared.send(request)
 
         await rateLimiter.updateRateLimitState(
             endpoint: endpoint, from: http.allHeaderFields)
+
+        // Reactive 429: honor the server's reset, wait for capacity, then do
+        // exactly ONE bounded retry. Never loop, so a persistent 429 can't spin.
+        if http.statusCode == 429 {
+            let wait = RateLimiter.retryWaitSeconds(
+                from: http.allHeaderFields, now: Date().timeIntervalSince1970)
+            if let wait {
+                Log.info(
+                    "TwitchChatService: API \(endpoint) hit 429; waiting \(String(format: "%.1f", wait))s before one retry",
+                    category: "Twitch")
+                await rateLimiter.noteRateLimited(
+                    endpoint: endpoint, untilEpoch: Date().timeIntervalSince1970 + wait)
+                await rateLimiter.awaitCapacity(endpoint: endpoint)
+            } else {
+                Log.info(
+                    "TwitchChatService: API \(endpoint) hit 429 without a reset header; one immediate retry",
+                    category: "Twitch")
+            }
+
+            (data, http) = try await HTTPClient.shared.send(request)
+            await rateLimiter.updateRateLimitState(
+                endpoint: endpoint, from: http.allHeaderFields)
+        }
 
         if !(200..<300).contains(http.statusCode) {
             let responseText = String(data: data, encoding: .utf8) ?? "No response body"
@@ -1645,7 +1717,9 @@ actor TwitchChatService {
         guard let broadcasterID,
               let token = oauthToken,
               let clientID,
-              let url = URL(string: apiBaseURL + "/streams?user_id=\(broadcasterID)") else { return }
+              var components = URLComponents(string: apiBaseURL + "/streams") else { return }
+        components.queryItems = [URLQueryItem(name: "user_id", value: broadcasterID)]
+        guard let url = components.url else { return }
 
         do {
             let response: HelixStreamsResponse = try await HTTPClient.shared.get(

@@ -190,6 +190,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
         request.httpBody = body
         request.timeoutInterval = 15
 
@@ -319,6 +320,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             request.httpMethod = "POST"
             request.setValue(
                 "application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.setValue(HTTPClient.defaultUserAgent, forHTTPHeaderField: "User-Agent")
             request.httpBody = body
             request.timeoutInterval = 15
 

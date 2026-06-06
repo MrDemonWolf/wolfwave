@@ -75,6 +75,25 @@ nonisolated enum AppConstants {
             "COPYRIGHT_HOLDER",
             fallback: "MrDemonWolf, Inc."
         )
+
+        /// Marketing version string (`CFBundleShortVersionString`) with a safe
+        /// fallback for contexts where the Info.plist key is absent (e.g. unit
+        /// test hosts or a stripped bundle).
+        static let shortVersion = infoPlistString(
+            "CFBundleShortVersionString",
+            fallback: "0.0.0"
+        )
+
+        /// Canonical public source repository URL. Casing matches the docs
+        /// `repoUrl` constant (`apps/docs/lib/site.ts`).
+        static let repositoryURL = "https://github.com/MrDemonWolf/WolfWave"
+
+        /// Default outbound `User-Agent` for HTTP requests, honestly identifying
+        /// the app and version: `WolfWave/<version> (+<repo URL>; macOS)`.
+        ///
+        /// Computed once from the bundle so every request carries the same
+        /// string. Callers may still override `User-Agent` per request.
+        static let userAgent = "WolfWave/\(shortVersion) (+\(repositoryURL); macOS)"
     }
     
     // MARK: - Notifications
