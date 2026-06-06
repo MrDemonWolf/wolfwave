@@ -835,6 +835,9 @@ nonisolated enum AppConstants {
     enum Keychain {
         /// Primary keychain service for storing Twitch tokens and credentials
         static let service = "com.mrdemonwolf.wolfwave"
+
+        /// Account identifier for the Twitch OAuth refresh token.
+        static let twitchBotAccountRefreshToken = "twitchBotAccountRefreshToken"
     }
     
     // MARK: - Music App Integration

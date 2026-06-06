@@ -121,7 +121,9 @@ final class WidgetHTTPServiceTests: XCTestCase {
         defer { service.stop() }
 
         // Await the listener actually binding the port instead of sleeping.
-        await service.ready()
+        // A failed/stopped bind throws rather than hanging; the fetch guard below
+        // turns any such case into a clear XCTFail.
+        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")
@@ -144,7 +146,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         service.start()
         defer { service.stop() }
 
-        await service.ready()
+        try? await service.ready()
 
         guard let body = fetchServedWidget(port: port) else {
             XCTFail("Failed to fetch served widget.html")

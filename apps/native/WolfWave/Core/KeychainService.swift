@@ -64,7 +64,7 @@ nonisolated enum KeychainService {
     private static let twitchBotAccountOauthToken = "twitchBotAccountOauthToken"
 
     /// Account identifier for the Twitch OAuth refresh token.
-    private static let twitchBotAccountRefreshToken = "twitchBotAccountRefreshToken"
+    private static let twitchBotAccountRefreshToken = AppConstants.Keychain.twitchBotAccountRefreshToken
 
     /// Account identifier for Twitch bot username.
     private static let twitchBotAccountUsername = "twitchBotAccountUsername"

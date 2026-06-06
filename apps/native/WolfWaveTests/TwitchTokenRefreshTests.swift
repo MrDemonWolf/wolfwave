@@ -93,9 +93,14 @@ final class TwitchTokenRefreshTests: XCTestCase {
         XCTAssertEqual(response.refreshToken, "NEW_RT")
     }
 
-    /// Reads a URLProtocol-intercepted request body, which is exposed via
-    /// `httpBodyStream` rather than `httpBody`.
+    /// Reads a URLProtocol-intercepted request body. Prefers `httpBody` when the
+    /// transport set it; otherwise falls back to draining `httpBodyStream` (how
+    /// `URLProtocol` typically exposes the body), so the assertion is robust
+    /// across either representation.
     nonisolated private static func bodyString(of request: URLRequest) -> String {
+        if let body = request.httpBody, !body.isEmpty {
+            return String(data: body, encoding: .utf8) ?? ""
+        }
         guard let stream = request.httpBodyStream else { return "" }
         stream.open()
         defer { stream.close() }

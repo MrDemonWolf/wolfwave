@@ -65,17 +65,29 @@ struct AppVisibilitySettingsView: View {
             }
         }
         .onAppear {
-            // Sync toggle with actual SMAppService state on appear
-            let actual = LaunchAtLoginService.isEnabled
-            if launchAtLogin != actual { launchAtLogin = actual }
-            // Reflect a still-pending approval the user may not have completed.
-            loginItemNeedsApproval = LaunchAtLoginService.requiresApproval
+            syncLoginItemState()
             // If launch at login is on but dockOnly was persisted externally, correct it
             if launchAtLogin && dockVisibility == AppConstants.DockVisibility.dockOnly {
                 dockVisibility = AppConstants.DockVisibility.default
                 applyDockVisibility(AppConstants.DockVisibility.default)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Re-read after the user returns from System Settings → Login Items so
+            // the approval banner clears once they've approved (or appears if they
+            // revoked) instead of staying stale until the next onAppear.
+            syncLoginItemState()
+        }
+    }
+
+    /// Re-reads the live `SMAppService` registration and approval state, keeping
+    /// the toggle and the "approve in Login Items" banner in sync. Shared by
+    /// `onAppear` and the app-became-active refresh.
+    private func syncLoginItemState() {
+        let actual = LaunchAtLoginService.isEnabled
+        if launchAtLogin != actual { launchAtLogin = actual }
+        // Reflect a still-pending approval the user may not have completed.
+        loginItemNeedsApproval = LaunchAtLoginService.requiresApproval
     }
 
     // MARK: - Groups

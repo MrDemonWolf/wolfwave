@@ -14,8 +14,12 @@ import Foundation
 /// artwork cache) routed through here so the `WolfWave/` prefix and the
 /// "fall back to the temporary directory" policy live in exactly one place.
 enum AppContainer {
+    // MARK: - Properties
+
     /// Top-level container folder name under Application Support.
     nonisolated static let containerName = "WolfWave"
+
+    // MARK: - Public Methods
 
     /// Returns `Application Support/WolfWave/<sub>`, falling back to
     /// `<temporary>/WolfWave/<sub>` when Application Support can't be resolved.

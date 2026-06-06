@@ -32,6 +32,19 @@ import Network
 /// - All other requests → `404 Not Found`
 nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
+    // MARK: - Errors
+
+    /// Thrown from `ready()` when the listener will never reach `.ready` for the
+    /// current `start()` cycle: either the bind failed or the service was stopped
+    /// before binding. Lets a caller distinguish "bound" from "shut down" instead
+    /// of hanging forever.
+    enum ReadyError: Error {
+        /// The `NWListener` transitioned to `.failed` before becoming ready.
+        case listenerFailed
+        /// `stop()` ran before the listener became ready.
+        case stopped
+    }
+
     // MARK: - Properties
 
     private let port: UInt16
@@ -51,7 +64,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// `networkQueue` state callback and an awaiting caller can race safely.
     private let readyLock = NSLock()
     private var isReady = false
-    private var readyWaiters: [CheckedContinuation<Void, Never>] = []
+    private var readyWaiters: [CheckedContinuation<Void, Error>] = []
 
     /// Sentinel string in the bundled `widget.html` that we replace with the
     /// live auth token before sending the response.
@@ -113,6 +126,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             case .failed(let error):
                 Log.error("WidgetHTTPService: Listener failed: \(error)", category: "WebSocket")
                 self.listener = nil
+                self.failReadyWaiters(with: .listenerFailed)
             default:
                 break
             }
@@ -131,6 +145,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         listener?.cancel()
         listener = nil
         readyLock.withLock { isReady = false }
+        // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
+        // leave them suspended forever.
+        failReadyWaiters(with: .stopped)
         Log.info("WidgetHTTPService: Server stopped", category: "WebSocket")
     }
 
@@ -138,8 +155,13 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// is bound and accepting connections). Returns immediately if the service
     /// is already ready. Use this instead of a fixed `Thread.sleep` so callers
     /// (and tests) wait exactly as long as the bind takes and no longer.
-    func ready() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+    ///
+    /// - Throws: `ReadyError.listenerFailed` if the bind fails, or
+    ///   `ReadyError.stopped` if `stop()` runs before the listener binds. This
+    ///   guarantees the call always resolves instead of hanging on a listener
+    ///   that will never reach `.ready`.
+    func ready() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let alreadyReady: Bool = readyLock.withLock {
                 if isReady { return true }
                 readyWaiters.append(continuation)
@@ -154,7 +176,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Latches readiness and resumes any callers awaiting `ready()`. Invoked
     /// once on the first `.ready` listener transition (on `queue`).
     private func markReady() {
-        let waiters: [CheckedContinuation<Void, Never>] = readyLock.withLock {
+        let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
             guard !isReady else { return [] }
             isReady = true
             let pending = readyWaiters
@@ -163,6 +185,20 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
         for waiter in waiters {
             waiter.resume()
+        }
+    }
+
+    /// Resumes any pending `ready()` waiters with the given failure, then clears
+    /// the queue. Invoked when the listener fails to bind or when `stop()` tears
+    /// the service down before it ever reaches `.ready`.
+    private func failReadyWaiters(with error: ReadyError) {
+        let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
+            let pending = readyWaiters
+            readyWaiters.removeAll()
+            return pending
+        }
+        for waiter in waiters {
+            waiter.resume(throwing: error)
         }
     }
 

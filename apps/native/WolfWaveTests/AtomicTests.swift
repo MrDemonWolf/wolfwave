@@ -54,12 +54,15 @@ final class AtomicTests: XCTestCase {
     /// Many concurrent writers each setting a distinct value: the final read must
     /// land on one of the written values (never a torn or default value), and the
     /// box must not crash or deadlock under contention.
-    func testConcurrentSettersLeaveValidValue() {
+    func testConcurrentSettersLeaveValidValue() async {
         let box = Atomic(-1)
         let iterations = 1_000
 
-        DispatchQueue.concurrentPerform(iterations: iterations) { i in
-            box.set(i)
+        await withTaskGroup(of: Void.self) { group in
+            for i in 0..<iterations {
+                group.addTask { box.set(i) }
+            }
+            await group.waitForAll()
         }
 
         let final = box.value
@@ -70,18 +73,23 @@ final class AtomicTests: XCTestCase {
     /// Interleaved concurrent reads and writes must each observe a consistent
     /// value from the valid set, proving every access takes the lock. A failure
     /// here would surface as a crash, a hang, or a sanitizer data-race report.
-    func testConcurrentReadersAndWritersAreConsistent() {
+    func testConcurrentReadersAndWritersAreConsistent() async {
         let valid = Set(0..<256)
         let box = Atomic(0)
         let observed = Atomic(Set<Int>())
 
-        DispatchQueue.concurrentPerform(iterations: 2_000) { i in
-            if i.isMultiple(of: 2) {
-                box.set(i % 256)
-            } else {
-                let snapshot = box.value
-                observed.set(observed.value.union([snapshot]))
+        await withTaskGroup(of: Void.self) { group in
+            for i in 0..<2_000 {
+                group.addTask {
+                    if i.isMultiple(of: 2) {
+                        box.set(i % 256)
+                    } else {
+                        let snapshot = box.value
+                        observed.set(observed.value.union([snapshot]))
+                    }
+                }
             }
+            await group.waitForAll()
         }
 
         XCTAssertTrue(observed.value.isSubset(of: valid),
