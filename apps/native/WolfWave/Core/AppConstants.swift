@@ -858,6 +858,18 @@ nonisolated enum AppConstants {
         /// Timeout in seconds for receiving the session_welcome WebSocket message
         static let sessionWelcomeTimeout: TimeInterval = 10.0
 
+        /// Grace period added to Twitch's advertised `keepalive_timeout_seconds`
+        /// before the keepalive watchdog fires. Twitch sends a `session_keepalive`
+        /// (or any other frame) within the advertised window when the connection
+        /// is healthy; the grace absorbs scheduling and network jitter so a single
+        /// late frame doesn't trip a needless reconnect.
+        static let keepaliveGraceSeconds: TimeInterval = 10.0
+
+        /// Fallback keepalive timeout (seconds) used when the `session_welcome`
+        /// payload omits or malforms `keepalive_timeout_seconds`. Twitch's default
+        /// is 10s; this mirrors it so the watchdog still arms safely.
+        static let keepaliveDefaultTimeoutSeconds: TimeInterval = 10.0
+
         /// Maximum length for bot chat messages (Twitch limit)
         static let maxMessageLength = 500
 

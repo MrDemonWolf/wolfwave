@@ -164,6 +164,98 @@ actor TwitchChatService {
         let keepVotes: Int
     }
 
+    /// How a `revocation` EventSub message should be handled.
+    ///
+    /// Twitch revokes a subscription when the user de-authorizes the app
+    /// (`authorization_revoked`), removes their account (`user_removed`), or the
+    /// subscription version is retired (`version_removed`). Only the first means
+    /// the token is dead; the others are recoverable by re-subscribing.
+    enum RevocationDisposition: Sendable, Equatable {
+        /// Token is no longer valid; surface the re-auth banner and stop reconnecting.
+        case reauth
+        /// Subscription was dropped but the token is fine; re-subscribe.
+        case resubscribe
+        /// Unrecognized status; do nothing (log only).
+        case ignore
+    }
+
+    // MARK: - EventSub Decision Helpers (nonisolated, pure, testable)
+
+    /// Extracts a session reconnect URL from a `session_reconnect` message.
+    ///
+    /// Reads `payload.session.reconnect_url`. Returns the trimmed string only when
+    /// it is a non-empty, well-formed absolute URL; otherwise `nil` so the caller
+    /// falls back to the proven fresh-connect path.
+    nonisolated static func reconnectURL(from json: [String: Any]) -> String? {
+        guard let payload = json["payload"] as? [String: Any],
+              let session = payload["session"] as? [String: Any],
+              let raw = session["reconnect_url"] as? String else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "wss" || scheme == "ws",
+              url.host != nil else {
+            return nil
+        }
+        return trimmed
+    }
+
+    /// Reads `payload.session.keepalive_timeout_seconds` from a `session_welcome`
+    /// message. Returns `nil` when the field is missing or non-positive so the
+    /// caller can substitute a safe default.
+    nonisolated static func keepaliveTimeoutSeconds(from json: [String: Any]) -> TimeInterval? {
+        guard let payload = json["payload"] as? [String: Any],
+              let session = payload["session"] as? [String: Any] else {
+            return nil
+        }
+        // Twitch sends an integer, but tolerate a numeric string too.
+        if let intValue = session["keepalive_timeout_seconds"] as? Int, intValue > 0 {
+            return TimeInterval(intValue)
+        }
+        if let doubleValue = session["keepalive_timeout_seconds"] as? Double, doubleValue > 0 {
+            return doubleValue
+        }
+        if let stringValue = session["keepalive_timeout_seconds"] as? String,
+           let parsed = TimeInterval(stringValue), parsed > 0 {
+            return parsed
+        }
+        return nil
+    }
+
+    /// Computes the keepalive watchdog deadline: the advertised timeout plus a
+    /// grace period. Clamped to a small positive minimum so a degenerate input
+    /// can never produce a zero-or-negative deadline that fires immediately.
+    nonisolated static func keepaliveDeadline(
+        timeoutSeconds: TimeInterval,
+        grace: TimeInterval
+    ) -> TimeInterval {
+        let safeTimeout = max(0, timeoutSeconds)
+        let safeGrace = max(0, grace)
+        return max(1, safeTimeout + safeGrace)
+    }
+
+    /// Maps a `revocation` subscription `(type, status)` to a disposition.
+    ///
+    /// `status` drives the decision; `type` is accepted for future per-type
+    /// granularity and logging. `authorization_revoked` is fatal (re-auth);
+    /// `user_removed` / `version_removed` are recoverable (re-subscribe).
+    nonisolated static func revocationDisposition(
+        type: String,
+        status: String
+    ) -> RevocationDisposition {
+        switch status {
+        case "authorization_revoked":
+            return .reauth
+        case "user_removed", "version_removed":
+            return .resubscribe
+        default:
+            return .ignore
+        }
+    }
+
     /// Rate-limit bucket state for one Helix endpoint.
     struct RateLimitState: Sendable {
         var remaining: Int = 0
@@ -218,6 +310,22 @@ actor TwitchChatService {
     private var webSocketTask: URLSessionWebSocketTask?
     private var sessionID: String?
     private var receiveTask: Task<Void, Never>?
+
+    /// Keepalive watchdog. Armed after `session_welcome` from the advertised
+    /// `keepalive_timeout_seconds` (+ grace) and reset on every inbound frame.
+    /// Firing means Twitch went quiet past the deadline, so we tear down and
+    /// reconnect via the proven fresh-connect path.
+    private var keepaliveWatchdogTask: Task<Void, Never>?
+
+    /// Current keepalive deadline (seconds) used when the watchdog re-arms on
+    /// each inbound frame. Set from the `session_welcome` payload.
+    private var keepaliveDeadlineSeconds: TimeInterval = AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+
+    /// True while a `session_reconnect` migration is in flight. The resulting
+    /// `session_welcome` then only re-arms the watchdog and flips connected,
+    /// skipping the `subscribeTo*` calls because subscriptions migrate with the
+    /// reconnect_url session.
+    private var isMigratingSession = false
 
     // MARK: - Credentials
 
@@ -368,6 +476,7 @@ actor TwitchChatService {
         sessionWelcomeTask?.cancel()
         reconnectTask?.cancel()
         receiveTask?.cancel()
+        keepaliveWatchdogTask?.cancel()
         connectionMessageTask?.cancel()
         pendingRetryTask?.cancel()
         networkPathMonitor?.cancel()
@@ -1309,9 +1418,16 @@ actor TwitchChatService {
 
     // MARK: - WebSocket Management
 
-    /// Connects to the Twitch EventSub WebSocket endpoint.
-    private func connectToEventSub() {
-        guard let url = URL(string: "wss://eventsub.wss.twitch.tv/ws") else {
+    /// Default Twitch EventSub WebSocket endpoint.
+    private static let defaultEventSubURL = "wss://eventsub.wss.twitch.tv/ws"
+
+    /// Connects to a Twitch EventSub WebSocket endpoint.
+    ///
+    /// - Parameter urlString: Endpoint to connect to. Defaults to the standard
+    ///   EventSub URL; a `session_reconnect` migration passes the server-provided
+    ///   `reconnect_url` instead so subscriptions carry over to the new session.
+    private func connectToEventSub(urlString: String = TwitchChatService.defaultEventSubURL) {
+        guard let url = URL(string: urlString) else {
             Log.error("TwitchChatService: Invalid EventSub URL", category: "Twitch")
             setConnected(false)
             NotificationCenter.default.postTwitchConnectionState(isConnected: false)
@@ -1348,6 +1464,56 @@ actor TwitchChatService {
     private func cancelSessionWelcomeTimeout() {
         sessionWelcomeTask?.cancel()
         sessionWelcomeTask = nil
+    }
+
+    // MARK: - Keepalive Watchdog
+
+    /// Arms (or re-arms) the keepalive watchdog for `deadlineSeconds`. Cancels any
+    /// existing watchdog first so there is never more than one pending. On expiry
+    /// it reuses the proven transport-error teardown: `disconnectFromEventSub()`
+    /// then `scheduleReconnect()`.
+    private func armKeepaliveWatchdog(deadlineSeconds: TimeInterval) {
+        keepaliveDeadlineSeconds = deadlineSeconds
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(deadlineSeconds))
+            if Task.isCancelled { return }
+            await self?.handleKeepaliveExpiry()
+        }
+    }
+
+    /// Resets the keepalive watchdog to a full deadline. Called on every inbound
+    /// frame. No-op until the watchdog has been armed by `session_welcome`.
+    private func resetKeepaliveWatchdog() {
+        guard keepaliveWatchdogTask != nil else { return }
+        armKeepaliveWatchdog(deadlineSeconds: keepaliveDeadlineSeconds)
+    }
+
+    /// Cancels the keepalive watchdog.
+    private func cancelKeepaliveWatchdog() {
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+    }
+
+    /// Called when no frame arrived before the keepalive deadline. Treated like a
+    /// transport error: tear down and reconnect fresh (which re-subscribes).
+    private func handleKeepaliveExpiry() async {
+        Log.warn(
+            "TwitchChatService: Keepalive watchdog fired (no frame within \(Int(keepaliveDeadlineSeconds))s); reconnecting",
+            category: "Twitch")
+        setConnected(false)
+        NotificationCenter.default.postTwitchConnectionState(isConnected: false)
+        connectionStateContinuation.yield(false)
+
+        disconnectFromEventSub()
+
+        if let channelName = reconnectChannelName,
+           let token = reconnectToken,
+           let clientID = reconnectClientID,
+           !channelName.isEmpty, !token.isEmpty, !clientID.isEmpty,
+           isNetworkReachable {
+            scheduleReconnect()
+        }
     }
 
     /// Called when session_welcome timeout expires.
@@ -1387,6 +1553,9 @@ actor TwitchChatService {
         sessionWelcomeTask = nil
         receiveTask?.cancel()
         receiveTask = nil
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+        isMigratingSession = false
 
         Log.debug("TwitchChatService: EventSub WebSocket disconnected", category: "Twitch")
     }
@@ -1455,6 +1624,11 @@ actor TwitchChatService {
 
     /// Handles a received WebSocket message.
     private func handleWebSocketMessage(_ text: String) async {
+        // Any inbound frame is proof the connection is alive: reset the keepalive
+        // watchdog before doing anything else, even if the frame later fails to
+        // parse. A no-op until the watchdog has been armed by `session_welcome`.
+        resetKeepaliveWatchdog()
+
         guard let data = text.data(using: .utf8) else {
             Log.warn("TwitchChatService: WebSocket message is not valid UTF-8", category: "Twitch")
             return
@@ -1511,9 +1685,104 @@ actor TwitchChatService {
             await handleNotification(json)
         case "session_keepalive":
             break
+        case "session_reconnect":
+            await handleSessionReconnect(json)
+        case "revocation":
+            await handleRevocation(json)
         default:
             break
         }
+    }
+
+    /// Handles a `session_reconnect` message by migrating to the server-provided
+    /// `reconnect_url`. The migrated session keeps its existing subscriptions, so
+    /// the resulting `session_welcome` must NOT re-run the `subscribeTo*` calls.
+    ///
+    /// Safety: if the URL is missing/invalid OR anything goes wrong, fall back to
+    /// the proven fresh-connect path (`disconnectFromEventSub()` +
+    /// `scheduleReconnect()`), which re-subscribes. A brief event gap during the
+    /// migration is acceptable; correctness beats zero-gap.
+    private func handleSessionReconnect(_ json: [String: Any]) async {
+        guard let url = TwitchChatService.reconnectURL(from: json) else {
+            Log.warn(
+                "TwitchChatService: session_reconnect missing a valid reconnect_url; reconnecting fresh",
+                category: "Twitch")
+            disconnectFromEventSub()
+            scheduleReconnect()
+            return
+        }
+
+        Log.info("TwitchChatService: Migrating EventSub session to reconnect_url", category: "Twitch")
+
+        // Tear down only the old socket/receive loop; keep credentials and the
+        // armed-deadline value. Mark migration so the next welcome skips re-subscribe.
+        let oldTask = webSocketTask
+        webSocketTask = nil
+        sessionID = nil
+        receiveTask?.cancel()
+        receiveTask = nil
+        keepaliveWatchdogTask?.cancel()
+        keepaliveWatchdogTask = nil
+        sessionWelcomeTask?.cancel()
+        sessionWelcomeTask = nil
+
+        isMigratingSession = true
+        connectToEventSub(urlString: url)
+
+        // Close the old socket only after the new connect was initiated, so the
+        // new welcome can arrive without us re-entering the fresh path on close.
+        oldTask?.cancel(with: .goingAway, reason: nil)
+    }
+
+    /// Handles a `revocation` message. Routes `authorization_revoked` to the
+    /// shared re-auth signal and stops reconnecting; routes `user_removed` /
+    /// `version_removed` to a safe full re-subscribe.
+    private func handleRevocation(_ json: [String: Any]) async {
+        guard let payload = json["payload"] as? [String: Any],
+              let subscription = payload["subscription"] as? [String: Any] else {
+            Log.warn("TwitchChatService: revocation missing subscription payload", category: "Twitch")
+            return
+        }
+        let type = (subscription["type"] as? String) ?? ""
+        let status = (subscription["status"] as? String) ?? ""
+
+        switch TwitchChatService.revocationDisposition(type: type, status: status) {
+        case .reauth:
+            Log.error(
+                "TwitchChatService: EventSub authorization revoked (\(type)); signaling re-auth",
+                category: "Twitch")
+            signalReauthNeededAndStop()
+        case .resubscribe:
+            Log.warn(
+                "TwitchChatService: EventSub subscription revoked (\(type)/\(status)); re-subscribing",
+                category: "Twitch")
+            guard sessionID != nil else { return }
+            await subscribeToChannelChatMessage()
+            await subscribeToPollEvents()
+            await subscribeToStreamEvents()
+            await seedStreamLiveState()
+            await subscribeToRedemptionsIfEnabled()
+        case .ignore:
+            Log.debug(
+                "TwitchChatService: Ignoring revocation status \(status) for \(type)",
+                category: "Twitch")
+        }
+    }
+
+    /// Signals that interactive Twitch re-auth is required and stops the reconnect
+    /// loop. Reuses the existing re-auth banner path (`Preferences` flag plus the
+    /// `.twitchReauthNeededChanged` notification observed by `TwitchViewModel`).
+    private func signalReauthNeededAndStop() {
+        // Stop any pending/active reconnect so we don't burn attempts on a dead token.
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectionAttempts = 0
+
+        disconnectFromEventSub()
+
+        // Preferences is a `nonisolated enum`, safe to call from the actor.
+        Preferences.setTwitchReauthNeeded(true)
+        NotificationCenter.default.post(name: Notification.Name.twitchReauthNeededChanged, object: nil)
     }
 
     /// Handles the session_welcome message from EventSub.
@@ -1531,9 +1800,26 @@ actor TwitchChatService {
             "TwitchChatService: EventSub session established with ID: \(sessionID)",
             category: "Twitch")
 
+        // Arm the keepalive watchdog from the advertised timeout (+ grace).
+        let timeout = TwitchChatService.keepaliveTimeoutSeconds(from: json)
+            ?? AppConstants.Twitch.keepaliveDefaultTimeoutSeconds
+        let deadline = TwitchChatService.keepaliveDeadline(
+            timeoutSeconds: timeout, grace: AppConstants.Twitch.keepaliveGraceSeconds)
+        armKeepaliveWatchdog(deadlineSeconds: deadline)
+
         setConnected(true)
         NotificationCenter.default.postTwitchConnectionState(isConnected: true)
         connectionStateContinuation.yield(true)
+
+        // A `session_reconnect` migration carries its subscriptions to the new
+        // session, so skip re-subscribing. Only fresh connects subscribe.
+        if isMigratingSession {
+            isMigratingSession = false
+            Log.info(
+                "TwitchChatService: Session migration complete; subscriptions carried over",
+                category: "Twitch")
+            return
+        }
 
         await subscribeToChannelChatMessage()
         await subscribeToPollEvents()
