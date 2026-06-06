@@ -78,6 +78,61 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertFalse(success, "testConnection should return false when disconnected with no client ID")
     }
 
+    // MARK: - Off-Executor I/O Tests (No Socket)
+    //
+    // The blocking IPC syscalls now run on a dedicated serial queue, bridged back
+    // to the actor with a checked continuation. None of these entry points may
+    // touch the socket while disconnected (they guard on `state == .connected`),
+    // so on a service with no client ID they must return promptly without ever
+    // opening or blocking on a socket. A regression that re-blocks the executor
+    // (or drops the state guard) would hang these `await`s.
+
+    func testUpdatePresenceWhileDisconnectedReturnsWithoutBlocking() async {
+        let service = DiscordRPCService(clientID: "")
+        // Disconnected: guarded out before any socket I/O. Must return, not hang.
+        await service.updatePresence(
+            track: "Howl", artist: "Timber Wolf", album: "Moonrise",
+            playlist: "", duration: 120, elapsed: 10, isPaused: false
+        )
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected, "updatePresence must not connect on its own")
+    }
+
+    func testShowIdleStatusWhileDisconnectedIsNoOp() async {
+        let service = DiscordRPCService(clientID: "")
+        await service.showIdleStatus()
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
+    func testTestConnectionWithEmptyClientReturnsFalseWithoutHanging() async {
+        // testConnection() now awaits connectIfNeeded(); with no client ID it
+        // bails before touching the IPC queue and resolves to false.
+        let service = DiscordRPCService(clientID: "")
+        let result = await service.testConnection()
+        XCTAssertFalse(result)
+    }
+
+    func testConcurrentDisconnectedCallsAllComplete() async {
+        // The actor serializes these and none reach the socket, so a batch of
+        // concurrent calls must all complete (no continuation leak / deadlock).
+        let service = DiscordRPCService(clientID: "")
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<8 {
+                group.addTask { await service.clearPresence() }
+                group.addTask { await service.showIdleStatus() }
+                group.addTask {
+                    await service.updatePresence(
+                        track: "T", artist: "A", album: "Al",
+                        playlist: "", duration: 0, elapsed: 0, isPaused: false
+                    )
+                }
+            }
+        }
+        let state = await service.state
+        XCTAssertEqual(state, .disconnected)
+    }
+
     // MARK: - Connection State Enum Tests
 
     func testConnectionStateRawValues() {
