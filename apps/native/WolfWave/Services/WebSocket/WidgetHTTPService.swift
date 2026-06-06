@@ -168,14 +168,51 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Connection Handling
 
-    /// Accepts an inbound TCP connection and reads up to 8 KiB of the request
-    /// before dispatching to `serveResponse`.
+    /// Largest request-header block we will buffer before giving up. Bounds the
+    /// reassembly below so a slow or hostile peer can't make us hold an unbounded
+    /// buffer while we wait for `\r\n\r\n`.
+    private static let maxHeaderBytes = 8192
+
+    /// HTTP header terminator: a blank line (CRLF CRLF) ends the request headers.
+    private static let headerTerminator = Data([0x0D, 0x0A, 0x0D, 0x0A])
+
+    /// Accepts an inbound TCP connection and reads the request headers, then
+    /// dispatches to `serveResponse`.
     private func handleConnection(_ connection: NWConnection) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, error in
+        readRequestHeaders(from: connection, accumulated: Data())
+    }
+
+    /// Reads from `connection` until the `\r\n\r\n` header terminator is seen or
+    /// the `maxHeaderBytes` cap is hit, reassembling across fragmented reads so a
+    /// split first packet can't produce a false 404. The request line is always in
+    /// the first chunk we hand to `serveResponse`, so once the headers are complete
+    /// (or the cap is reached) we parse and stop reading. No security change: the
+    /// auth gate still lives in the WebSocket handshake, not here.
+    private func readRequestHeaders(from connection: NWConnection, accumulated: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, isComplete, error in
             guard let self else { connection.cancel(); return }
-            guard let data, !data.isEmpty, error == nil else { connection.cancel(); return }
-            self.serveResponse(to: connection, requestData: data)
+            guard error == nil else { connection.cancel(); return }
+
+            var buffer = accumulated
+            if let data { buffer.append(data) }
+
+            if buffer.isEmpty {
+                // Peer closed without sending anything.
+                connection.cancel()
+                return
+            }
+
+            // Headers complete, cap reached, or peer finished sending: parse now.
+            if buffer.range(of: Self.headerTerminator) != nil
+                || buffer.count >= Self.maxHeaderBytes
+                || isComplete {
+                self.serveResponse(to: connection, requestData: buffer)
+                return
+            }
+
+            // Need more bytes to complete the header block.
+            self.readRequestHeaders(from: connection, accumulated: buffer)
         }
     }
 

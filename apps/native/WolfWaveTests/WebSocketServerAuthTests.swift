@@ -110,6 +110,32 @@ final class WebSocketServerAuthTests: XCTestCase {
         )
     }
 
+    // MARK: - Constant-time comparison
+
+    func testConstantTimeEqualsMatch() {
+        XCTAssertTrue(
+            WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef1234567890")
+        )
+        XCTAssertTrue(WebSocketAuthToken.constantTimeEquals("", ""))
+    }
+
+    func testConstantTimeEqualsNonMatchSameLength() {
+        XCTAssertFalse(
+            WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef1234567891")
+        )
+        // Differ only in the first byte (the early-exit risk for naive compares).
+        XCTAssertFalse(
+            WebSocketAuthToken.constantTimeEquals("Xbcdef1234567890", "abcdef1234567890")
+        )
+    }
+
+    func testConstantTimeEqualsLengthMismatch() {
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abcdef", "abcdef1234567890"))
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abcdef1234567890", "abcdef"))
+        // A prefix must not pass.
+        XCTAssertFalse(WebSocketAuthToken.constantTimeEquals("abc", "abcdef"))
+    }
+
     // MARK: - Token shape validation (used before persisting / substituting)
 
     func testIsValidAcceptsLowercaseHex() {

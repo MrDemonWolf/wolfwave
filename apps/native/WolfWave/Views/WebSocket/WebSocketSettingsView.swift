@@ -672,7 +672,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         CopyableURLRow(
                             label: "Network Address",
                             url: networkWidget,
-                            subtitle: "Use this for two-PC setups.",
+                            subtitle: "Use this for two-PC setups. The localhost link above is safer. This one sends your token over the network unencrypted, so only share it on a network you trust.",
                             isStreamerMode: streamerMode,
                             actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
                             copyLabel: "Copy Link",
