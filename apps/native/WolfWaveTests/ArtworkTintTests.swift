@@ -40,11 +40,13 @@ struct ArtworkTintTests {
             bytesPerRow: 0, space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
-        let l = left.usingColorSpace(.sRGB)!
-        ctx.setFillColor(red: l.redComponent, green: l.greenComponent, blue: l.blueComponent, alpha: 1)
+        let leftRGB = left.usingColorSpace(.sRGB)!
+        ctx.setFillColor(red: leftRGB.redComponent, green: leftRGB.greenComponent,
+                         blue: leftRGB.blueComponent, alpha: 1)
         ctx.fill(CGRect(x: 0, y: 0, width: side / 2, height: side))
-        let r = right.usingColorSpace(.sRGB)!
-        ctx.setFillColor(red: r.redComponent, green: r.greenComponent, blue: r.blueComponent, alpha: 1)
+        let rightRGB = right.usingColorSpace(.sRGB)!
+        ctx.setFillColor(red: rightRGB.redComponent, green: rightRGB.greenComponent,
+                         blue: rightRGB.blueComponent, alpha: 1)
         ctx.fill(CGRect(x: side / 2, y: 0, width: side / 2, height: side))
         return ctx.makeImage()!
     }

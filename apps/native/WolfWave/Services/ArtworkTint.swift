@@ -21,10 +21,10 @@ enum ArtworkTint {
     /// be read. Convenience over the `CGImage` overload.
     nonisolated static func dominantColor(from image: NSImage, sample: Int = 16) -> NSColor? {
         var rect = CGRect(origin: .zero, size: image.size)
-        guard let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else {
+        guard let cgImage = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else {
             return nil
         }
-        return dominantColor(from: cg, sample: sample)
+        return dominantColor(from: cgImage, sample: sample)
     }
 
     /// Samples `cg` over a small grid and returns a saturation-weighted average so
@@ -34,8 +34,8 @@ enum ArtworkTint {
     ///
     /// Reads through `NSBitmapImageRep.colorAt`, which is color-managed, so we
     /// don't have to reason about raw byte order or premultiplied alpha.
-    nonisolated static func dominantColor(from cg: CGImage, sample: Int = 16) -> NSColor? {
-        let rep = NSBitmapImageRep(cgImage: cg)
+    nonisolated static func dominantColor(from cgImage: CGImage, sample: Int = 16) -> NSColor? {
+        let rep = NSBitmapImageRep(cgImage: cgImage)
         let width = rep.pixelsWide
         let height = rep.pixelsHigh
         guard width > 0, height > 0 else { return nil }
@@ -44,10 +44,10 @@ enum ArtworkTint {
         var weighted = (r: 0.0, g: 0.0, b: 0.0, w: 0.0)
         var plain = (r: 0.0, g: 0.0, b: 0.0, count: 0.0)
 
-        for iy in 0..<steps {
-            for ix in 0..<steps {
-                let x = min(width - 1, ix * width / steps)
-                let y = min(height - 1, iy * height / steps)
+        for row in 0..<steps {
+            for col in 0..<steps {
+                let x = min(width - 1, col * width / steps)
+                let y = min(height - 1, row * height / steps)
                 guard let pixel = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
                       pixel.alphaComponent > 0.1 else { continue }
 
