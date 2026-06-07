@@ -2185,6 +2185,14 @@ actor TwitchChatService {
     /// account is in use they are skipped and the UI is notified.
     private func subscribeToRedemptionsIfEnabled() async {
         let defaults = UserDefaults.standard
+
+        // Channel-point and bit toggles are independent of the master switch, so
+        // skip every redemption subscription while the feature as a whole is off.
+        guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
+            setRedemptionStatus(.ok)
+            return
+        }
+
         let channelPointsEnabled = defaults.bool(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
         let bitsEnabled = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
@@ -2353,7 +2361,13 @@ actor TwitchChatService {
 
         Task { [weak self] in
             guard let self else { return }
-            guard let service = songRequestService else { return }
+            guard let service = songRequestService else {
+                // Service not wired up: the points were already spent, so refund
+                // rather than strand the redemption in the pending state forever.
+                await self.resolveRedemption(
+                    credentials, rewardID: rewardID, redemptionID: redemptionID, as: .canceled)
+                return
+            }
 
             if userInput.isEmpty {
                 await self.sendMessage(
@@ -2398,7 +2412,7 @@ actor TwitchChatService {
             guard let self else { return }
             guard let service = songRequestService else { return }
 
-            if boostEnabled, let boosted = await service.queue.boost(username: userName) {
+            if boostEnabled, let boosted = await service.boost(username: userName) {
                 await self.sendMessage(
                     "@\(userName) boosted \"\(boosted.title)\" to the front of the queue! (\(bits) bits)")
                 return
@@ -2466,6 +2480,8 @@ actor TwitchChatService {
             return ("@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
         case .notAuthorized:
             return ("@\(username) song requests aren't available right now. Points refunded.", .canceled)
+        case .featureDisabled:
+            return ("@\(username) song requests are off right now. Points refunded.", .canceled)
         case let .error(message):
             return ("@\(username) \(message) Points refunded.", .canceled)
         }
@@ -2494,6 +2510,8 @@ actor TwitchChatService {
             return "@\(username) couldn't find that on Apple Music."
         case .notAuthorized:
             return "@\(username) song requests aren't available right now."
+        case .featureDisabled:
+            return "@\(username) song requests are off right now."
         case let .error(message):
             return "@\(username) \(message)"
         }
