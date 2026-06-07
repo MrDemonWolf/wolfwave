@@ -86,6 +86,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
+        defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
     /// Polls `condition` until it returns true or the timeout elapses, returning
@@ -131,9 +133,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     // MARK: - Bit Boost
 
-    func testBoostMovesUsersMostRecentItemToFront() async {
-        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
+    func testBoostMovesUsersEarliestItemToFront() async {
         queue.add(SongRequestItem(title: "B", artist: "y", requesterUsername: "bob"))
+        queue.add(SongRequestItem(title: "A", artist: "x", requesterUsername: "alice"))
         queue.add(SongRequestItem(title: "C", artist: "z", requesterUsername: "alice"))
         // Streamer's own track is playing, so boost only reorders (no takeover).
         mockController.isMusicAppRunning = true
@@ -141,8 +143,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         let boosted = await service.boost(username: "alice")
 
-        XCTAssertEqual(boosted?.title, "C")
-        XCTAssertEqual(queue.items.first?.title, "C", "Boosted item should jump to the front")
+        // Alice's *earliest* queued request (A) jumps the line, not her newest (C).
+        XCTAssertEqual(boosted?.title, "A")
+        XCTAssertEqual(queue.items.first?.title, "A", "Boosted item should jump to the front")
     }
 
     func testBoostRejectedWhenFeatureDisabled() async {
@@ -353,11 +356,15 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     }
 
     func testSkipCallsNativeSkip() async {
+        // No fallback + autoplay-off → draining the queue via skip stops Music.app.
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
         queue.add(SongRequestItem(title: "Song A", artist: "Artist", requesterUsername: "user1"))
         queue.dequeue()
 
         _ = await service.skip()
         XCTAssertTrue(mockController.clearCalled)
+
+        UserDefaults.standard.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
     }
 
     // MARK: - ClearQueue

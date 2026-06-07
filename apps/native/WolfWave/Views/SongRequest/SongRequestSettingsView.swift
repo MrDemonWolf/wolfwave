@@ -41,6 +41,10 @@ struct SongRequestSettingsView: View {
                 twitchNotice
                 SongRequestMasterToggleCard(isTwitchConnected: isTwitchConnected)
 
+                // Vote-skip skips the live Apple Music track even with no request
+                // queue, so it stays reachable whether or not song requests are on.
+                VoteSkipCard()
+
                 if songRequestEnabled {
                     if musicAuthStatus != .authorized {
                         SongRequestMusicAuthCard(
@@ -50,7 +54,6 @@ struct SongRequestSettingsView: View {
                     }
                     SongRequestQueueView()
                     SongRequestAccessCard()
-                    VoteSkipCard()
                     SongRequestQueueConfigCard()
                     SongRequestPlaybackCard()
                     SongRequestCommandsCard()

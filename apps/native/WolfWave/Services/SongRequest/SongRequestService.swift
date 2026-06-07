@@ -120,6 +120,12 @@ final class SongRequestService {
     /// instead of interrupting a track mid-play.
     private var takeoverBaselineTrackID: String?
 
+    /// Consecutive poll ticks that have read Music.app as stopped. The poll
+    /// requires two in a row before advancing or taking over, so a single flaky
+    /// AppleScript read (which returns "stopped" on error) can't trigger a
+    /// spurious skip mid-track.
+    private var stoppedPollStreak = 0
+
     /// Whether the fallback playlist is currently playing (no active requests).
     private(set) var isPlayingFallback = false
 
@@ -197,10 +203,20 @@ final class SongRequestService {
                 let isPlaying = self.musicController.isPlaying
                 let isPaused = self.musicController.isPaused
 
+                // Debounce stopped detection: a flaky AppleScript read returns
+                // "stopped" on error, so require two consecutive stopped polls
+                // before advancing/taking over to avoid a spurious mid-track skip.
+                if !isPlaying && !isPaused {
+                    self.stoppedPollStreak += 1
+                } else {
+                    self.stoppedPollStreak = 0
+                }
+                let confirmedStopped = self.stoppedPollStreak >= 2
+
                 if self.queue.nowPlaying != nil {
-                    // A request is playing. Advance only once it has stopped or
-                    // finished, never while it is still playing or merely paused.
-                    guard !isPlaying && !isPaused else {
+                    // A request is playing. Advance only once playback has clearly
+                    // stopped (two reads), never while playing or merely paused.
+                    guard confirmedStopped else {
                         self.takeoverBaselineTrackID = nil
                         continue
                     }
@@ -219,16 +235,12 @@ final class SongRequestService {
                     continue
                 }
 
-                if (!isPlaying && !isPaused) || self.isPlayingFallback {
+                if confirmedStopped || self.isPlayingFallback {
                     // Silence, or the fallback playlist is filling: start the
                     // first queued request immediately.
                     self.takeoverBaselineTrackID = nil
                     await self.advanceQueue()
-                } else if isPaused {
-                    // The streamer paused their own track. Wait for them to
-                    // resume or move on before taking over.
-                    continue
-                } else {
+                } else if isPlaying {
                     // The streamer's own track is playing. Honor "play when the
                     // current song ends": remember the track that's playing, then
                     // take over the moment it changes (finishes or gets skipped),
@@ -242,6 +254,9 @@ final class SongRequestService {
                     } else {
                         self.takeoverBaselineTrackID = currentID
                     }
+                } else {
+                    // Paused, or a single unconfirmed stopped read: wait.
+                    continue
                 }
             }
         }
@@ -337,23 +352,37 @@ final class SongRequestService {
     }
 
     /// Skips the now-playing track and immediately starts the next queued
-    /// request. Stops Music.app playback if the queue is empty.
+    /// request. Falls back to the drain policy (fallback playlist / autoplay /
+    /// silence) when the queue empties.
     ///
     /// - Returns: The newly-playing item, or `nil` when the queue empties.
     func skip() async -> SongRequestItem? {
+        // Take the playback-transition guard so the auto-advance poll can't
+        // interleave a second dequeue across the `playNow` await and consume two
+        // tracks for one skip.
+        guard !isStartingPlayback else { return nil }
+        isStartingPlayback = true
+        defer { isStartingPlayback = false }
+        takeoverBaselineTrackID = nil
+
         let next = queue.skip()
-        if let next, let song = next.song {
-            do {
-                try await musicController.playNow(song: song)
-                Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
-            } catch {
-                Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
+        if let next {
+            // There's a next request: it's already `nowPlaying`; start it.
+            if let song = next.song {
+                do {
+                    try await musicController.playNow(song: song)
+                    Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: "SongRequest")
+                } catch {
+                    Log.debug("SongRequestService: Failed to play after skip: \(error)", category: "SongRequest")
+                }
             }
-        } else {
-            // No next song: stop Music.app
-            await musicController.clearPlayerQueue()
+            isPlayingFallback = false
+            return next
         }
-        return next
+        // Queue emptied by the skip: honor the drain policy (fallback / autoplay /
+        // silence) instead of an unconditional stop.
+        await handleQueueEmptied()
+        return nil
     }
 
     /// Skips whatever is currently playing, used by the chat vote-skip feature.
