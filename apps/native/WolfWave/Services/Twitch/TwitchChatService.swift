@@ -2260,8 +2260,16 @@ actor TwitchChatService {
             // feature is on.
             try? await channelPointsService.setRewardPaused(
                 credentials: credentials, rewardID: rewardID, paused: false)
-            try? await channelPointsService.updateRewardCost(
-                credentials: credentials, rewardID: rewardID, cost: cost)
+            // Cost sync is non-fatal (the reward still works at its old cost),
+            // but don't swallow the failure silently — surface it in the log.
+            do {
+                try await channelPointsService.updateRewardCost(
+                    credentials: credentials, rewardID: rewardID, cost: cost)
+            } catch {
+                Log.warn(
+                    "TwitchChatService: Couldn't sync channel-point reward cost; the reward still works at its current cost - \(error.localizedDescription)",
+                    category: "Twitch")
+            }
             await subscribeToChannelPointsRedemption()
             setRedemptionStatus(.ok)
         } catch {
