@@ -301,7 +301,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// - Returns: `true` once a lookup has finished, regardless of outcome.
     func hasAttemptedTrackLinks(track: String, artist: String) -> Bool {
         let cacheKey = "\(artist)|\(track)"
-        return cacheQueue.sync { resolvedAt[cacheKey] != nil }
+        return cacheQueue.sync {
+            // Mirror `fetchTrackLinks`' TTL check: an expired miss is treated as
+            // not-yet-attempted so callers re-drive resolution instead of
+            // showing "No link found" forever past the lookup TTL.
+            guard let resolved = resolvedAt[cacheKey] else { return false }
+            return Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL
+        }
     }
 
     // MARK: - Cache Management
