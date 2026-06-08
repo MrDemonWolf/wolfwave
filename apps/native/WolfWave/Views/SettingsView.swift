@@ -97,15 +97,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - User Settings
-
-    /// Whether music tracking is currently enabled
-    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
-    private var trackingEnabled = true
-
-    @AppStorage(AppConstants.UserDefaults.dockVisibility)
-    private var dockVisibility = "both"
-
     // MARK: - State
 
     /// Twitch settings view model
@@ -211,7 +202,7 @@ struct SettingsView: View {
             idealHeight: AppConstants.SettingsUI.idealHeight
         )
         .navigationSplitViewStyle(.automatic)
-        .alert("Reset all settings?", isPresented: $showingResetAlert) {
+        .alert("Erase everything?", isPresented: $showingResetAlert) {
             TextField("Type \(resetConfirmWord) to confirm", text: $resetConfirmText)
                 .accessibilityLabel("Type \(resetConfirmWord) to confirm reset")
                 .accessibilityIdentifier("resetSettingsConfirmField")
@@ -221,16 +212,16 @@ struct SettingsView: View {
             .accessibilityHint("Cancels the reset and keeps current settings")
             .accessibilityIdentifier("resetSettingsCancelButton")
 
-            Button("Reset", role: .destructive) {
+            Button("Erase & Reset", role: .destructive) {
                 resetSettings()
                 resetConfirmText = ""
             }
             .disabled(resetConfirmText != resetConfirmWord)
-            .accessibilityLabel("Confirm reset")
-            .accessibilityHint("Permanently resets all settings and signs you out")
+            .accessibilityLabel("Confirm erase and reset")
+            .accessibilityHint("Permanently erases all data and relaunches WolfWave")
             .accessibilityIdentifier("resetSettingsConfirmButton")
         } message: {
-            Text("This erases every setting and signs you out of Twitch. WolfWave goes back to a fresh install, and it can't be undone.\n\nType \(resetConfirmWord) to confirm.")
+            Text("This wipes everything: settings, Twitch and Discord sign-in, logs, listening history, and the artwork cache. WolfWave restarts as a fresh install. This can't be undone.\n\nType \(resetConfirmWord) to confirm.")
         }
         // Clear on the source-of-truth lifecycle event so every dismissal path
         // (Cancel, Escape, click-away) starts the next attempt with an empty field.
@@ -376,43 +367,58 @@ struct SettingsView: View {
         }
     }
 
-    /// Posts a notification when music tracking is toggled on or off.
-    private func notifyTrackingSettingChanged(enabled: Bool) {
-        NotificationCenter.default.postEnabled(.trackingSettingChanged, enabled: enabled)
-    }
-
-    /// Resets all settings to their default values and clears the stored token.
+    /// Wipes every trace of the app's state and relaunches into a fresh
+    /// install. This is a true factory reset, not just a preferences reset.
     ///
-    /// This method:
-    /// 1. Removes all user preferences from UserDefaults
-    /// 2. Resets in-memory state to defaults
-    /// 3. Deletes the authentication token from Keychain
-    /// 4. Deletes Twitch credentials from Keychain
-    /// 5. Notifies the app that tracking has been re-enabled
+    /// Order matters: stop outward connections, then tear down their config.
+    /// 1. Disconnect Discord Rich Presence and the WebSocket overlay server
+    /// 2. Disconnect Twitch and clear its in-memory state
+    /// 3. Delete every Keychain credential (Twitch tokens + WebSocket token)
+    /// 4. Remove every UserDefaults key the app writes
+    /// 5. Delete the on-disk container (logs, listening history, artwork
+    ///    cache, crash markers, diagnostics)
+    /// 6. Relaunch into a clean state so onboarding returns and live services
+    ///    boot without stale in-memory state
     private func resetSettings() {
-        // Disconnect Discord before clearing UserDefaults
+        // Disconnect outward integrations before clearing their config.
         NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: false)
-
-        // Disconnect WebSocket server before clearing UserDefaults
         NotificationCenter.default.postWebSocketServerChanged(enabled: false)
 
-        // Clear UserDefaults (every key the app writes)
+        // Twitch: disconnect + clear in-memory view-model state.
+        twitchViewModel.clearCredentials()
+        twitchViewModel.leaveChannel()
+
+        // Keychain: wipe every stored credential in one sweep.
+        KeychainService.deleteAll()
+
+        // UserDefaults: remove every key the app writes.
         AppConstants.UserDefaults.allKeys.forEach {
             UserDefaults.standard.removeObject(forKey: $0)
         }
 
-        // Reset to defaults
-        trackingEnabled = true
-        dockVisibility = "both"
+        // On-disk data: logs, listening history, artwork cache, crash
+        // markers, diagnostics — the whole Application Support container.
+        AppContainer.wipe()
 
-        // Clear tokens and Twitch
-        twitchViewModel.clearCredentials()
+        // Relaunch into a clean, fresh-install state.
+        relaunchApp()
+    }
 
-        // Disconnect from Twitch
-        twitchViewModel.leaveChannel()
-
-        // Notify tracking re-enabled
-        notifyTrackingSettingChanged(enabled: true)
+    /// Relaunches WolfWave in a new process, then quits the current instance.
+    ///
+    /// Uses `NSWorkspace.openApplication`, which is sandbox-safe — spawning
+    /// `/usr/bin/open` or a raw `Process` is blocked under the App Sandbox.
+    /// `createsNewApplicationInstance` lets the new copy start while this one
+    /// is still terminating.
+    private func relaunchApp() {
+        let bundleURL = Bundle.main.bundleURL
+        let config = NSWorkspace.OpenConfiguration()
+        config.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, _ in
+            DispatchQueue.main.async {
+                NSApplication.shared.terminate(nil)
+            }
+        }
     }
 }
 
