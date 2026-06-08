@@ -10,7 +10,10 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-// Canvas (points). Window content area in create-dmg.sh matches this 1:1.
+// Canvas (points) = Finder's icon-view *content* area, which the background
+// fills. create-dmg.sh sets the window bounds to {200,200,800,602} (600x402);
+// the ~22px title-bar chrome is excluded, leaving a 600x380 content area that
+// matches this canvas 1:1.
 let canvasWidth = 600
 let canvasHeight = 380
 
