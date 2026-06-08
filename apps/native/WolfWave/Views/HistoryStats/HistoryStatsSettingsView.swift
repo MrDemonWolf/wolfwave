@@ -44,6 +44,12 @@ struct HistoryStatsSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.statsCommandAliases)
     private var statsCommandAliases = ""
 
+    @AppStorage(AppConstants.UserDefaults.statsCommandWindow)
+    private var statsCommandWindow = StatsWindow.default.rawValue
+
+    @AppStorage(AppConstants.UserDefaults.statsCommandParts)
+    private var statsCommandParts = StatsPart.encode(StatsPart.defaults)
+
     @AppStorage(AppConstants.UserDefaults.historyRetentionDays)
     private var historyRetentionDays = 0
 
@@ -261,13 +267,13 @@ struct HistoryStatsSettingsView: View {
             Divider().padding(.horizontal, AppConstants.SettingsUI.cardPadding)
 
             ToggleSettingRow(
-                title: "Stats & Charts",
+                title: "Show Stats & Charts",
                 subtitle: historyEnabled
-                    ? "Top artists, listening time, charts, and a monthly wrap."
+                    ? "Charts, top artists, listening by hour, and your Monthly Wrap."
                     : "Turn on Listening History first.",
                 isOn: $statsEnabled,
                 isDisabled: !historyEnabled || musicPermission == .denied,
-                accessibilityLabel: "Toggle Stats and Charts",
+                accessibilityLabel: "Toggle Show Stats and Charts",
                 accessibilityIdentifier: "statsEnabledToggle",
                 onChange: { handleStatsChange($0) }
             )
@@ -497,41 +503,47 @@ struct HistoryStatsSettingsView: View {
         let all = recentPlaysSorted
         let visible = Array(all.prefix(visibleRecentCount))
         let hasMore = visible.count < all.count
-        return VStack(alignment: .leading, spacing: DSSpace.s3) {
-            ForEach(visible, id: \.self) { play in
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "music.note")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .frame(width: DSSpace.s6)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(play.track)
-                            .font(.system(size: DSFont.Size.base))
-                            .lineLimit(1)
-                        Text(play.artist)
+        // Fixed-height scroll box so the card never grows with the list. Newest
+        // plays sit at the top; *Load more* appends below and the user scrolls.
+        return ScrollView {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                ForEach(visible, id: \.self) { play in
+                    HStack(spacing: DSSpace.s3) {
+                        Image(systemName: "music.note")
                             .font(.system(size: DSFont.Size.sm))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .frame(width: DSSpace.s6)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(play.track)
+                                .font(.system(size: DSFont.Size.base))
+                                .lineLimit(1)
+                            Text(play.artist)
+                                .font(.system(size: DSFont.Size.sm))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(HistoryFormat.relative(play.timestamp))
+                            .font(.system(size: DSFont.Size.sm))
+                            .foregroundStyle(.tertiary)
                     }
-                    Spacer()
-                    Text(HistoryFormat.relative(play.timestamp))
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
+                }
+                if hasMore {
+                    Button {
+                        visibleRecentCount += AppConstants.History.recentPageStep
+                    } label: {
+                        Label("Load \(AppConstants.History.recentPageStep) more", systemImage: "arrow.down.circle")
+                            .font(.system(size: DSFont.Size.sm))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Load \(AppConstants.History.recentPageStep) more plays")
+                    .accessibilityIdentifier("loadMoreHistoryButton")
+                    .padding(.top, DSSpace.s1)
                 }
             }
-            if hasMore {
-                Button {
-                    visibleRecentCount += AppConstants.History.recentPageStep
-                } label: {
-                    Label("Load \(AppConstants.History.recentPageStep) more", systemImage: "arrow.down.circle")
-                        .font(.system(size: DSFont.Size.sm))
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Load \(AppConstants.History.recentPageStep) more plays")
-                .accessibilityIdentifier("loadMoreHistoryButton")
-                .padding(.top, DSSpace.s1)
-            }
+            .padding(.trailing, DSSpace.s2)
         }
+        .frame(height: DSDimension.HistoryStats.recentCardMinHeight)
     }
 
     // MARK: - Twitch State
@@ -559,7 +571,7 @@ struct HistoryStatsSettingsView: View {
 
             ToggleSettingRow(
                 title: "!stats command",
-                subtitle: "Lets chat pull up today's top track. Set live-only for all commands in Twitch settings.",
+                subtitle: "Lets chat pull up your listening stats. Pick the window and what to show below. Set live-only for all commands in Twitch settings.",
                 isOn: $statsCommandEnabled,
                 accessibilityLabel: "Toggle the stats Twitch command",
                 accessibilityIdentifier: "statsCommandToggle"
@@ -604,10 +616,103 @@ struct HistoryStatsSettingsView: View {
                     accessibilityLabel: "Stats command aliases",
                     accessibilityIdentifier: "statsCommandAliases"
                 )
+
+                Divider()
+                statsWindowRow
+                statsPartsRow
+                statsPreviewRow
             }
         }
         .padding(AppConstants.SettingsUI.cardPadding)
         .cardStyleUnpadded()
+    }
+
+    /// Picks the time window the `!stats` reply covers.
+    private var statsWindowRow: some View {
+        HStack(spacing: DSSpace.s2) {
+            Text("Window")
+                .sectionEyebrow()
+            Spacer()
+            Picker("Stats window", selection: $statsCommandWindow) {
+                ForEach(StatsWindow.allCases) { window in
+                    Text(window.pickerLabel).tag(window.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .frame(maxWidth: AppConstants.SettingsUI.inlineFieldMaxWidth)
+            .accessibilityLabel("Stats command window")
+            .accessibilityIdentifier("statsCommandWindow")
+        }
+    }
+
+    /// Toggle chips choosing which facts the `!stats` reply includes. At least one
+    /// stays selected so the command never replies empty.
+    private var statsPartsRow: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            Text("Include")
+                .sectionEyebrow()
+            HStack(spacing: DSSpace.s2) {
+                ForEach(StatsPart.allCases) { part in
+                    Toggle(part.label, isOn: partBinding(for: part))
+                        .toggleStyle(.button)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("statsPart.\(part.rawValue)")
+                }
+            }
+        }
+    }
+
+    /// A live preview of the exact chat line, built from the real history so the
+    /// streamer sees what viewers will get for the current window + facts.
+    private var statsPreviewRow: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s1) {
+            Text("Example reply")
+                .sectionEyebrow()
+            Text(statsPreview)
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("statsCommandPreview")
+        }
+    }
+
+    // MARK: - !stats Command Helpers
+
+    /// The currently-selected facts, parsed from the stored comma list.
+    private var selectedParts: [StatsPart] {
+        StatsPart.decode(statsCommandParts)
+    }
+
+    /// A bool binding for one fact chip. Refuses to clear the last selected fact
+    /// so the reply can't become empty.
+    private func partBinding(for part: StatsPart) -> Binding<Bool> {
+        Binding(
+            get: { selectedParts.contains(part) },
+            set: { isOn in
+                var parts = Set(selectedParts)
+                if isOn {
+                    parts.insert(part)
+                } else {
+                    guard parts.count > 1 else { return }
+                    parts.remove(part)
+                }
+                statsCommandParts = StatsPart.encode(Array(parts))
+            }
+        )
+    }
+
+    /// Builds the live preview from the real listening history.
+    private var statsPreview: String {
+        let window = StatsWindow(rawValue: statsCommandWindow) ?? .default
+        let sessionStart = appDelegate?.twitchService?.currentStreamLiveSince
+        return service?.statsChatLine(
+            window: window,
+            parts: selectedParts,
+            sessionStart: sessionStart
+        ) ?? "🐺 Listening stats aren't turned on right now"
     }
 
     // MARK: - Retention
@@ -616,13 +721,13 @@ struct HistoryStatsSettingsView: View {
     /// keeps on disk before pruning. `0` means keep forever.
     private var retentionCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            CardEyebrowHeader("History retention", systemImage: "calendar")
+            CardEyebrowHeader("Keep history", systemImage: "calendar")
 
             HStack {
-                Text("Keep history for")
+                Text("Keep for")
                     .font(.system(size: DSFont.Size.body))
                 Spacer()
-                Picker("Keep history for", selection: $historyRetentionDays) {
+                Picker("Keep for", selection: $historyRetentionDays) {
                     Text("Forever").tag(0)
                     Text("7 days").tag(7)
                     Text("30 days").tag(30)
@@ -636,7 +741,7 @@ struct HistoryStatsSettingsView: View {
                 .accessibilityIdentifier("historyRetentionDays")
             }
 
-            Text("Older entries are pruned the next time the app launches.")
+            Text("Old plays clear on next launch.")
                 .font(.system(size: DSFont.Size.xs))
                 .foregroundStyle(.tertiary)
         }
@@ -652,7 +757,7 @@ struct HistoryStatsSettingsView: View {
     /// lives in the danger zone below, not here.
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
-            CardEyebrowHeader("Manage", systemImage: "slider.horizontal.3")
+            CardEyebrowHeader("Recap", systemImage: "sparkles")
 
             Button {
                 showWrapSheet = true
