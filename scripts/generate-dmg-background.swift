@@ -24,7 +24,7 @@ func generateBackground(width: Int, height: Int, scale: Int, outputPath: String)
         exit(1)
     }
 
-    // Background gradient — dark charcoal to slightly lighter
+    // Background gradient: dark charcoal to slightly lighter
     let gradientColors = [
         CGColor(red: 0.11, green: 0.11, blue: 0.13, alpha: 1.0),
         CGColor(red: 0.16, green: 0.16, blue: 0.19, alpha: 1.0),
