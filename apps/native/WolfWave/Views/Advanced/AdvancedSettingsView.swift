@@ -306,7 +306,7 @@ struct AdvancedSettingsView: View {
                     .accessibilityLabel("Danger Zone")
                     .accessibilityAddTraits(.isHeader)
 
-                    Text("Reset and Clear Logs can't be undone. Clearing the artwork cache just forces a fresh lookup.")
+                    Text("Erase & Reset wipes everything and restarts the app. Clear Logs can't be undone. Clearing the artwork cache just forces a fresh lookup.")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -330,12 +330,12 @@ struct AdvancedSettingsView: View {
                     .accessibilityHint("Erases saved album art links")
 
                     DestructiveButton(
-                        title: "Reset All Settings to Defaults",
+                        title: "Erase All Data & Reset",
                         systemImage: "trash",
                         accessibilityIdentifier: "resetAllSettingsButton",
                         action: { showingResetAlert = true }
                     )
-                    .accessibilityHint("Permanently delete all settings and stored credentials")
+                    .accessibilityHint("Permanently erase all settings, credentials, logs, listening history, and caches, then relaunch")
                 }
             }
             .cardStyle()
@@ -449,7 +449,7 @@ struct AdvancedSettingsView: View {
                 Text("Back Up Settings")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
-                Text("Save your preferences to a file, or restore them on another Mac. Accounts aren't included, so you'll reconnect Twitch after importing.")
+                Text("Save your preferences to a file, or restore them on another Mac. Accounts and permissions aren't included, so after importing you'll reconnect Twitch and re-grant access like Apple Music control.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
