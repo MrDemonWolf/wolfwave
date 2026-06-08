@@ -385,8 +385,8 @@ struct SettingsView: View {
         NotificationCenter.default.postWebSocketServerChanged(enabled: false)
 
         // Twitch: disconnect + clear in-memory view-model state.
+        // clearCredentials() leaves the channel first when connected.
         twitchViewModel.clearCredentials()
-        twitchViewModel.leaveChannel()
 
         // Keychain: wipe every stored credential in one sweep.
         KeychainService.deleteAll()
@@ -410,12 +410,27 @@ struct SettingsView: View {
     /// `/usr/bin/open` or a raw `Process` is blocked under the App Sandbox.
     /// `createsNewApplicationInstance` lets the new copy start while this one
     /// is still terminating.
+    ///
+    /// Terminates only when the new instance actually launched. If the launch
+    /// fails we keep this process alive rather than leaving the user with no
+    /// running app after a wipe.
     private func relaunchApp() {
         let bundleURL = Bundle.main.bundleURL
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { _, _ in
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: config) { app, error in
             DispatchQueue.main.async {
+                if let error {
+                    Log.error(
+                        "Relaunch after reset failed: \(error.localizedDescription)",
+                        category: "Reset"
+                    )
+                    return
+                }
+                guard app != nil else {
+                    Log.error("Relaunch after reset returned no app instance", category: "Reset")
+                    return
+                }
                 NSApplication.shared.terminate(nil)
             }
         }
