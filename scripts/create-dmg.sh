@@ -53,14 +53,14 @@ osascript \
     -e '    set current view of container window to icon view' \
     -e '    set toolbar visible of container window to false' \
     -e '    set statusbar visible of container window to false' \
-    -e '    set the bounds of container window to {200, 200, 860, 600}' \
+    -e '    set the bounds of container window to {200, 200, 800, 602}' \
     -e '    set viewOptions to the icon view options of container window' \
     -e '    set arrangement of viewOptions to not arranged' \
-    -e '    set icon size of viewOptions to 100' \
+    -e '    set icon size of viewOptions to 96' \
     -e '    set text size of viewOptions to 12' \
     ${BG_APPLESCRIPT:+-e "    $BG_APPLESCRIPT"} \
-    -e '    set position of item "WolfWave.app" of container window to {175, 190}' \
-    -e '    set position of item "Applications" of container window to {485, 190}' \
+    -e '    set position of item "WolfWave.app" of container window to {168, 182}' \
+    -e '    set position of item "Applications" of container window to {432, 182}' \
     -e '    close' \
     -e '    open' \
     -e '    delay 1' \
