@@ -565,6 +565,9 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             widgetPortText = String(storedWidgetPort)
         }
         .task {
+            // `.task` re-runs on every structural identity change; skip the
+            // Keychain round-trip once the token is already loaded.
+            guard currentToken.isEmpty else { return }
             let token = await Task.detached(priority: .userInitiated) {
                 WebSocketAuthToken.currentOrCreate()
             }.value
