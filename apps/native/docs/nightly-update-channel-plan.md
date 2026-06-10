@@ -156,9 +156,13 @@ optional).
 ## CI: new `.github/workflows/nightly.yml`
 
 Mirrors `build_release.yml`'s build → sign → notarize steps; differs only in version
-override, output naming, and publish target. Reuses the `release` environment + the same
-secrets (`DEVELOPER_ID_CERT_*`, `APPLE_*`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`,
-`SPARKLE_PRIVATE_KEY`).
+override, output naming, and publish target. Reads the same secrets
+(`DEVELOPER_ID_CERT_*`, `APPLE_*`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`,
+`SPARKLE_PRIVATE_KEY`), which are repo-level and therefore already available. No
+GitHub environment is used: the cron must run unattended, and an environment would
+only add the `release` env's manual-approval gate without scoping any secret we need.
+So there is no environment to create — the only one-time step is seeding the rolling
+release (rollout step 3).
 
 ```yaml
 on:

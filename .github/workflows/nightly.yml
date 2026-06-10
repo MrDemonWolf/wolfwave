@@ -6,12 +6,12 @@ name: Nightly
 #
 # Stable releases (build_release.yml) are untouched: this is a separate feed.
 #
-# Environment: uses a dedicated `nightly` environment so unattended cron runs do
-# NOT wait on the manual approval the `release` environment requires. Create a
-# `nightly` environment in repo Settings → Environments with NO required
-# reviewers and the same signing/notarization secrets as `release`
-# (DEVELOPER_ID_CERT_P12, DEVELOPER_ID_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID,
-# APPLE_APP_PASSWORD, SPARKLE_PRIVATE_KEY) plus TWITCH_CLIENT_ID / DISCORD_CLIENT_ID.
+# Secrets: the signing/notarization/build secrets (DEVELOPER_ID_CERT_P12,
+# DEVELOPER_ID_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD,
+# SPARKLE_PRIVATE_KEY, TWITCH_CLIENT_ID, DISCORD_CLIENT_ID) are repo-level, so
+# this workflow reads them directly. No GitHub environment is used: the cron
+# must run unattended, and an environment would only add a manual-approval gate
+# (the `release` env's purpose) without scoping any secret we need.
 
 on:
   schedule:
@@ -118,7 +118,6 @@ jobs:
     needs: [guard, test]
     if: needs.guard.outputs.should_build == 'true'
     runs-on: macos-26
-    environment: nightly
     permissions:
       contents: write
     steps:
