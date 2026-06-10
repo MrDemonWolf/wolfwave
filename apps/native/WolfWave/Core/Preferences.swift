@@ -63,8 +63,9 @@ nonisolated enum Preferences {
         defaults.string(forKey: AppConstants.UserDefaults.twitchChannelName) ?? ""
     }
 
-    /// Public song-list URL echoed by the `!playlist` / `!songlist` command.
-    /// Whitespace-trimmed; empty when the streamer hasn't shared one.
+    /// Public song-list URL echoed by the `!playlist` command (plus any
+    /// user-configured aliases; see `SongListCommand`). Whitespace-trimmed;
+    /// empty when the streamer hasn't shared one.
     static var songRequestSongListURL: String {
         (defaults.string(forKey: AppConstants.UserDefaults.songRequestSongListURL) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
