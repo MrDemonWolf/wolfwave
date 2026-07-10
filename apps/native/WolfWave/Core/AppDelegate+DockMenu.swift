@@ -49,7 +49,11 @@ extension AppDelegate {
         }
         guard musicRunning else { return }
 
-        let isPlaying = songRequestService?.musicController.isPlaying ?? false
+        // Derive Play/Pause from the cached playback snapshot pushed by the
+        // AppleMusicSource delegate, matching the menu-bar path. Building the
+        // Dock menu must return immediately, so avoid the blocking
+        // musicController.isPlaying read here.
+        let isPlaying = currentSong != nil && !currentIsPaused
 
         menu.addItem(NSMenuItem(
             title: isPlaying ? "Pause" : "Play",
