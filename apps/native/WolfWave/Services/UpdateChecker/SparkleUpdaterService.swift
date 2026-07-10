@@ -45,6 +45,13 @@ final class SparkleUpdaterService: NSObject {
     /// Sparkle's updater controller (manages the update process)
     private var updaterController: SPUStandardUpdaterController?
 
+    /// Whether the current update cycle already surfaced a found update.
+    /// Sparkle calls `didFinishUpdateCycleFor` with an error after
+    /// `failedToDownloadUpdate` in the same session; without this flag that
+    /// error path would post `isUpdateAvailable: false` and wipe the
+    /// already-announced update from the settings pane.
+    private var didSurfaceUpdateThisCycle = false
+
     /// The updater instance (for manual checks and configuration)
     private var updater: SPUUpdater? {
         updaterController?.updater
@@ -316,6 +323,7 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         let version = item.displayVersionString
         Log.info("SparkleUpdaterService: Update found: v\(version)", category: "Update")
 
+        didSurfaceUpdateThisCycle = true
         NotificationCenter.default.postUpdateState(
             isUpdateAvailable: true,
             latestVersion: version,
@@ -340,10 +348,17 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     /// no `updateStateChanged` fires and the settings pane's Check Now spinner
     /// sticks forever. Mirrors `updaterDidNotFindUpdate`'s payload so the UI
     /// resets to the current version.
+    ///
+    /// The reset is skipped when this cycle already surfaced an update:
+    /// Sparkle also finishes the cycle with an error after a failed download,
+    /// and wiping the state then would hide the update the user just saw.
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
+        let surfacedUpdate = didSurfaceUpdateThisCycle
+        didSurfaceUpdateThisCycle = false
         guard let error else { return }
         Log.info("SparkleUpdaterService: Update check finished with error: \(error.localizedDescription)", category: "Update")
 
+        guard !surfacedUpdate else { return }
         NotificationCenter.default.postUpdateState(
             isUpdateAvailable: false,
             latestVersion: AppConstants.AppInfo.shortVersion
