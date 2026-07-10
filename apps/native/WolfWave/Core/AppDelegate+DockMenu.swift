@@ -91,7 +91,7 @@ extension AppDelegate {
         menu.addItem(trackingItem)
 
         if KeychainService.loadTwitchToken() != nil {
-            let connected = twitchService?.isConnectedSnapshot.value ?? false
+            let connected = twitchService?.currentlyConnected ?? false
             let twitchItem = NSMenuItem(
                 title: "Twitch",
                 action: #selector(toggleTwitchConnection),
