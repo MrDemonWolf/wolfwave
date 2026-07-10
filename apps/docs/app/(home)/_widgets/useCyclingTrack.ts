@@ -30,6 +30,7 @@ let motion = true;
 let started = false;
 let dwellTimer: ReturnType<typeof setInterval> | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
+let motionMedia: MediaQueryList | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -61,26 +62,50 @@ function emit() {
   listeners.forEach((l) => l());
 }
 
+// Starts or stops the timers to match the current `motion` value. Idempotent,
+// so it is safe to call on every reduced-motion change.
+function applyTimers() {
+  if (motion) {
+    if (!dwellTimer) {
+      dwellTimer = setInterval(() => {
+        index = (index + 1) % SAMPLE_TRACKS.length;
+        elapsed = seededElapsed(index);
+        emit();
+      }, DWELL_MS);
+    }
+    if (!tickTimer) {
+      tickTimer = setInterval(() => {
+        const dur = SAMPLE_TRACKS[index].durationSec;
+        elapsed = Math.min(dur, elapsed + PLAYBACK_RATE * (TICK_MS / 1000));
+        emit();
+      }, TICK_MS);
+    }
+  } else {
+    if (dwellTimer) clearInterval(dwellTimer);
+    if (tickTimer) clearInterval(tickTimer);
+    dwellTimer = null;
+    tickTimer = null;
+  }
+}
+
+// Re-query the OS preference live so toggling reduced-motion while the page is
+// open starts/stops the animation instead of being stuck at page-load state.
+function handleMotionChange() {
+  motion = !(motionMedia?.matches ?? false);
+  applyTimers();
+  emit();
+}
+
 function start() {
   if (started) return;
   started = true;
   if (typeof window !== "undefined") {
-    motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
+    motion = !motionMedia.matches;
+    motionMedia.addEventListener("change", handleMotionChange);
   }
-  if (!motion) {
-    emit();
-    return;
-  }
-  dwellTimer = setInterval(() => {
-    index = (index + 1) % SAMPLE_TRACKS.length;
-    elapsed = seededElapsed(index);
-    emit();
-  }, DWELL_MS);
-  tickTimer = setInterval(() => {
-    const dur = SAMPLE_TRACKS[index].durationSec;
-    elapsed = Math.min(dur, elapsed + PLAYBACK_RATE * (TICK_MS / 1000));
-    emit();
-  }, TICK_MS);
+  applyTimers();
+  emit();
 }
 
 function stop() {
@@ -89,6 +114,10 @@ function stop() {
   if (tickTimer) clearInterval(tickTimer);
   dwellTimer = null;
   tickTimer = null;
+  if (motionMedia) {
+    motionMedia.removeEventListener("change", handleMotionChange);
+    motionMedia = null;
+  }
 }
 
 function subscribe(cb: () => void): () => void {

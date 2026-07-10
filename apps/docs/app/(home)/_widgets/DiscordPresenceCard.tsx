@@ -36,7 +36,7 @@ export function DiscordPresenceCard() {
     album: "rgba(255,255,255,0.55)",
     progressTrack: "rgba(255,255,255,0.10)",
     progressFill: "#FFFFFF",
-    counter: "rgba(255,255,255,0.45)",
+    counter: "rgba(255,255,255,0.55)",
     buttonBg: "#4E5058",
     buttonHoverBg: "#6D6F78",
     buttonText: "#FFFFFF",
