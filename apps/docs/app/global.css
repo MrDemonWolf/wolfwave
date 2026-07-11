@@ -971,23 +971,6 @@ article:has(.docs-hero) > p:first-of-type,
   margin-bottom: 1rem;
 }
 
-/* The docs route paints a per-page branded eyebrow ABOVE the title by reusing
-   the .docs-eyebrow class (a dedicated .docs-pagehead-eyebrow class gets purged
-   by Tailwind's content scan, which misses the [[...slug]] route file). The
-   page-head span sits OUTSIDE the prose wrapper, so the in-body hide rule below
-   does not touch it. */
-
-/* The old per-page eyebrow used to live in the MDX body, where it rendered
-   orphaned below the auto title/description. The route now paints the eyebrow
-   above the title, so hide the in-body copies. The /docs index keeps its own
-   inside .docs-hero. (Dead in-body spans remain in the MDX; harmless.) */
-[class*="prose"] .docs-eyebrow {
-  display: none;
-}
-.docs-hero .docs-eyebrow {
-  display: inline-block;
-}
-
 .docs-hero-title {
   font-family: var(--font-unbounded), -apple-system, BlinkMacSystemFont,
     "SF Pro Display", "Inter", system-ui, sans-serif;
