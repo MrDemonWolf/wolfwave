@@ -182,6 +182,14 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
         />
       )}
+      {/* Branded page-head eyebrow, above the title, so every interior docs
+          page opens with the same kicker rhythm as the landing sections.
+          Skipped on the /docs index, which renders its own .docs-hero. */}
+      {slug && (page.data.ogEyebrow ?? section) ? (
+        <span className="docs-eyebrow docs-pagehead-eyebrow">
+          {page.data.ogEyebrow ?? section}
+        </span>
+      ) : null}
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
