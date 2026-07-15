@@ -23,6 +23,11 @@ final class BotCommandDispatcher {
     /// "commands only while live" setting folded with stream-live state. Default
     /// `{ true }` so a bare dispatcher (and unit tests) respond unconditionally.
     private var globalGate: () -> Bool = { true }
+
+    /// Fetches live substitution values for custom-command variables (`$song`,
+    /// `$lastsong`). Wired by `TwitchChatService`; defaults to empty strings so a
+    /// bare dispatcher still renders custom commands (just without live values).
+    private var customCommandVariables: @Sendable () async -> CustomCommandVariables = { .empty }
     private let songCommand = TrackInfoCommand(
         triggers: ["!song", "!currentsong", "!nowplaying"],
         description: "Displays the currently playing track",
@@ -223,6 +228,30 @@ final class BotCommandDispatcher {
         }
     }
 
+    /// Wires the live-value provider for custom-command variables.
+    ///
+    /// - Parameter provider: Async closure returning the current/last song used
+    ///   to interpolate `$song` / `$lastsong` in custom command replies.
+    func setCustomCommandVariablesProvider(
+        _ provider: @escaping @Sendable () async -> CustomCommandVariables
+    ) {
+        lock.withLock {
+            customCommandVariables = provider
+        }
+    }
+
+    /// The full command table for a message: built-in commands plus the user's
+    /// enabled custom commands, rebuilt each message so edits in Settings apply
+    /// on the next chat line without re-registration.
+    private func commandSnapshot() -> [BotCommand] {
+        let builtins = lock.withLock { commands }
+        let vars = lock.withLock { customCommandVariables }
+        let custom = CustomCommandStore.shared.enabledCommands.map {
+            CustomBotCommand(definition: $0, variables: vars)
+        }
+        return builtins + custom
+    }
+
     /// Processes a chat message and returns a command response if matched.
     ///
     /// - Parameters:
@@ -270,7 +299,7 @@ final class BotCommandDispatcher {
         // equality routes each message to exactly one command.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
-        let snapshot = lock.withLock { commands }
+        let snapshot = commandSnapshot()
         for command in snapshot {
             // Use allTriggers (includes user-configured aliases)
             let triggers = command.allTriggers
@@ -279,6 +308,12 @@ final class BotCommandDispatcher {
                 if commandToken == triggerLowered {
                     // Check if command is enabled
                     guard command.isCommandEnabled else {
+                        return nil
+                    }
+
+                    // Permission gate (custom commands), before cooldown so a
+                    // denied viewer can't warm the shared cooldown.
+                    if let context, !command.isAllowed(context: context) {
                         return nil
                     }
 
@@ -365,7 +400,7 @@ final class BotCommandDispatcher {
         // First-token equality (see processMessage), avoids alias/prefix collisions.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
-        let snapshot = lock.withLock { commands }
+        let snapshot = commandSnapshot()
         for command in snapshot {
             let triggers = command.allTriggers
             for trigger in triggers {
@@ -374,6 +409,11 @@ final class BotCommandDispatcher {
                     Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
                     guard command.isCommandEnabled else {
                         Log.debug("BotCommandDispatcher: command \(trigger) disabled, bail", category: "Twitch")
+                        return nil
+                    }
+
+                    if let context, !command.isAllowed(context: context) {
+                        Log.debug("BotCommandDispatcher: command \(trigger) denied by permission, bail", category: "Twitch")
                         return nil
                     }
 
