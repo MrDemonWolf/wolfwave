@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Custom bot commands.** Make your own chat commands with a fixed reply, right in Settings → Twitch → Custom Commands. Drop in variables like `$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, and `$lastsong` and they fill in live. Each command gets its own aliases and Everyone / Per-person cooldowns, same as the built-ins.
+- **Pick who can run a command.** Set any custom command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Custom commands ride along with your settings backup.
+
+### Developer
+
+- New `BotCommand.isAllowed(context:)` permission hook and `allTriggers` protocol requirement (both default-preserving, so built-ins are unchanged). `CustomBotCommand` is an `AsyncBotCommand` built per message from `CustomCommandStore`, so edits apply on the next chat line without re-registration. Pure `CustomCommandRenderer` covers variable substitution; 21 new tests.
+
 ## [2.0.1] - 2026-07-11
 
 ### Fixed
