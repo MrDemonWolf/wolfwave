@@ -240,16 +240,21 @@ final class BotCommandDispatcher {
         }
     }
 
-    /// The full command table for a message: built-in commands plus the user's
-    /// enabled custom commands, rebuilt each message so edits in Settings apply
-    /// on the next chat line without re-registration.
+    /// The full command table for a message: the user's enabled custom commands
+    /// first, then the built-in commands. Rebuilt each message so edits in
+    /// Settings apply on the next chat line without re-registration.
+    ///
+    /// Custom commands come first so an enabled custom command that reuses a
+    /// built-in trigger (e.g. a custom `!song`) can override it. When that custom
+    /// command is disabled or denies the viewer, the dispatch loop `break`s to the
+    /// next match, falling back to the shadowed built-in.
     private func commandSnapshot() -> [BotCommand] {
         let builtins = lock.withLock { commands }
         let vars = lock.withLock { customCommandVariables }
         let custom = CustomCommandStore.shared.enabledCommands.map {
             CustomBotCommand(definition: $0, variables: vars)
         }
-        return builtins + custom
+        return custom + builtins
     }
 
     /// Processes a chat message and returns a command response if matched.
@@ -306,15 +311,18 @@ final class BotCommandDispatcher {
             for trigger in triggers {
                 let triggerLowered = trigger.lowercased()
                 if commandToken == triggerLowered {
-                    // Check if command is enabled
+                    // Check if command is enabled. `break` (not `return nil`) so a
+                    // disabled command falls through to another match on the same
+                    // trigger (e.g. a disabled custom command → its built-in).
                     guard command.isCommandEnabled else {
-                        return nil
+                        break
                     }
 
                     // Permission gate (custom commands), before cooldown so a
-                    // denied viewer can't warm the shared cooldown.
+                    // denied viewer can't warm the shared cooldown. `break` lets a
+                    // shadowed built-in with the same trigger still run.
                     if let context, !command.isAllowed(context: context) {
-                        return nil
+                        break
                     }
 
                     let canonical = command.triggers.first ?? trigger
@@ -407,14 +415,17 @@ final class BotCommandDispatcher {
                 let triggerLowered = trigger.lowercased()
                 if commandToken == triggerLowered {
                     Log.debug("BotCommandDispatcher: matched trigger \(trigger)", category: "Twitch")
+                    // `break` (not `return nil`) so a disabled/denied command
+                    // falls through to another match on the same trigger (e.g. a
+                    // disabled custom command → its shadowed built-in).
                     guard command.isCommandEnabled else {
-                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, bail", category: "Twitch")
-                        return nil
+                        Log.debug("BotCommandDispatcher: command \(trigger) disabled, try next match", category: "Twitch")
+                        break
                     }
 
                     if let context, !command.isAllowed(context: context) {
-                        Log.debug("BotCommandDispatcher: command \(trigger) denied by permission, bail", category: "Twitch")
-                        return nil
+                        Log.debug("BotCommandDispatcher: command \(trigger) denied by permission, try next match", category: "Twitch")
+                        break
                     }
 
                     let canonical = command.triggers.first ?? trigger
