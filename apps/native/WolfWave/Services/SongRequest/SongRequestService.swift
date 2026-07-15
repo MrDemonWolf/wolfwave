@@ -533,6 +533,8 @@ final class SongRequestService {
                 case .alreadyInQueue:
                     return .alreadyInQueue
                 case .userLimitReached(let max):
+                    // Defensive only: addPending is not per-user capped today, so
+                    // this never fires. Handled because AddResult is shared with add(_:).
                     return .userLimitReached(max: max)
                 }
             }
@@ -684,7 +686,10 @@ final class SongRequestService {
     func approve(id: UUID) async -> SongRequestItem? {
         guard let item = queue.takePending(id: id) else { return nil }
         guard case .added = queue.addApproved(item) else {
-            sendChatMessage?("Couldn't queue \"\(item.title)\" — the queue is full.")
+            // Live queue is full: put the request back in the pending pen so the
+            // streamer can retry once a slot frees up, instead of losing it.
+            queue.addPending(item)
+            sendChatMessage?("Couldn't queue \"\(item.title)\" — the queue is full. Still pending; approve again once there's room.")
             return nil
         }
         if musicController.isMusicAppRunning, !isHoldEnabled, queue.nowPlaying == nil {

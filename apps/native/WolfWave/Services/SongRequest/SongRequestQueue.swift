@@ -139,11 +139,17 @@ final class SongRequestQueue {
                 return .queueFull(max: maxQueueSize)
             }
             let lowered = item.requesterUsername.lowercased()
-            let isDuplicate = pending.contains {
+            // Dedupe across the pending pen, the live queue, and now-playing, so a
+            // song already queued/playing for a user can't be re-parked in pending
+            // and later approved as a duplicate. Mirrors `add(_:)`.
+            let matchesItem: (SongRequestItem) -> Bool = {
                 $0.title.lowercased() == item.title.lowercased()
                     && $0.artist.lowercased() == item.artist.lowercased()
                     && $0.requesterUsername.lowercased() == lowered
             }
+            let isDuplicate = pending.contains(where: matchesItem)
+                || items.contains(where: matchesItem)
+                || (nowPlaying.map(matchesItem) ?? false)
             guard !isDuplicate else { return .alreadyInQueue }
             pending.append(item)
             return .added(position: pending.count)

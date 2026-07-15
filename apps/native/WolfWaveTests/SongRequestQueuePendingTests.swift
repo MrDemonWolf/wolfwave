@@ -66,6 +66,43 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
         XCTAssertEqual(queue.pendingCount, 1, "only A was taken; B is still pending")
     }
 
+    func testAddPendingDedupesAgainstLiveQueueAndNowPlaying() {
+        let queued = SongRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
+        _ = queue.add(queued)
+        // Same song + user already in the live queue: must not park in pending.
+        let dupOfQueued = SongRequestItem(title: "live", artist: "wolf", requesterUsername: "VIEWER1")
+        guard case .alreadyInQueue = queue.addPending(dupOfQueued) else {
+            return XCTFail("expected dedupe against the live queue")
+        }
+        XCTAssertEqual(queue.pendingCount, 0)
+
+        // Same song + user now-playing: also rejected.
+        _ = queue.dequeue() // moves `queued` to nowPlaying
+        let dupOfNowPlaying = SongRequestItem(title: "Live", artist: "Wolf", requesterUsername: "viewer1")
+        guard case .alreadyInQueue = queue.addPending(dupOfNowPlaying) else {
+            return XCTFail("expected dedupe against now-playing")
+        }
+        XCTAssertEqual(queue.pendingCount, 0)
+    }
+
+    func testApproveRePendsWhenLiveQueueFull() async {
+        // Live queue capped at 1 and already full; approving a pending item must
+        // keep it in the pending pen rather than dropping it.
+        Foundation.UserDefaults.standard.set(1, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+        let service = SongRequestService(
+            queue: queue,
+            musicController: MockAppleMusicController()
+        )
+        _ = queue.add(SongRequestItem(title: "Occupant", artist: "Wolf", requesterUsername: "v1"))
+        let held = SongRequestItem(title: "Waiting", artist: "Wolf", requesterUsername: "v2")
+        _ = queue.addPending(held)
+
+        let approved = await service.approve(id: held.id)
+        XCTAssertNil(approved, "approve must fail when the queue is full")
+        XCTAssertEqual(queue.count, 1, "live queue unchanged")
+        XCTAssertEqual(queue.pendingCount, 1, "held request restored to pending")
+    }
+
     func testTakePendingUnknownIDReturnsNil() {
         XCTAssertNil(queue.takePending(id: UUID()))
     }
