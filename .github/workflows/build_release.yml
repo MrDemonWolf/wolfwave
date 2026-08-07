@@ -94,6 +94,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Full history: scripts/version.sh derives the build number from the
+          # commit count, and a shallow clone would report 1.
+          fetch-depth: 0
 
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -131,20 +135,14 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-              -configuration "$CONFIGURATION" -showBuildSettings 2>/dev/null \
-              | awk -F'= ' '/MARKETING_VERSION/ {gsub(/^[ \t]+/,"",$2); print $2; exit}')
-          fi
-          if [ -z "$VERSION" ]; then
-            echo "::error::Could not resolve VERSION (tag parse and MARKETING_VERSION extraction both came up empty)"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Single source of truth, shared with nightly.yml — see
+          # docs/build-versioning-standard.md. Stable and nightly draw from the
+          # SAME build-number counter so neither channel can strand the other.
+          RESOLVED=$(scripts/version.sh --format env)
+          echo "$RESOLVED" >> "$GITHUB_OUTPUT"
+          VERSION=$(echo "$RESOLVED" | sed -n 's/^marketing=//p')
           echo "dmg_name=WolfWave-${VERSION}.dmg" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+          echo "$RESOLVED"
 
       - name: Import Developer ID certificate
         env:
@@ -168,11 +166,20 @@ jobs:
           echo "Developer ID certificate imported"
 
       - name: Build Release (arm64)
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.marketing }}
+          RELEASE_BUILD: ${{ steps.version.outputs.build }}
         run: |
+          # Both values are injected, never read from the committed pbxproj:
+          # MARKETING_VERSION so a v* tag is authoritative over whatever is
+          # checked in, and CURRENT_PROJECT_VERSION so stable shares the single
+          # monotonic counter with nightly (Sparkle never offers a lower build).
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \
             -destination 'generic/platform=macOS' \
             ARCHS="arm64" \
+            MARKETING_VERSION="$RELEASE_VERSION" \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             PROVISIONING_PROFILE_SPECIFIER="" \
@@ -303,7 +310,7 @@ jobs:
       - name: Generate release notes for Sparkle
         env:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.marketing }}
         run: |
           # Render this version's CHANGELOG section to an HTML file named to
           # match the DMG (WolfWave-X.Y.Z.html next to WolfWave-X.Y.Z.dmg).
@@ -318,7 +325,7 @@ jobs:
       - name: Generate Sparkle appcast
         env:
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.marketing }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
@@ -352,7 +359,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.marketing }}
           DMG_NAME: ${{ steps.version.outputs.dmg_name }}
         run: |
           # Release notes are embedded inline in appcast.xml (see
