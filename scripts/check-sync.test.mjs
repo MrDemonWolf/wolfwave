@@ -24,6 +24,14 @@ test("findDuplicateTokenLists catches token copies but permits generated referen
   assert.deepEqual(findDuplicateTokenLists("static let themes = DSWidgetThemes.order", { themes: expected.themes }), []);
 });
 
+test("findDuplicateTokenLists catches one duplicate per commented Swift list", () => {
+  const lineComment = 'static let themes = ["Default", // first\n "Dark"]';
+  const blockComment = 'static let themes = ["Default", /* first */ "Dark"]';
+  assert.equal(findDuplicateTokenLists(lineComment, { themes: expected.themes }).length, 1);
+  assert.equal(findDuplicateTokenLists(blockComment, { themes: expected.themes }).length, 1);
+  assert.equal(findDuplicateTokenLists(`${lineComment}\n${blockComment}`, { themes: expected.themes }).length, 2);
+});
+
 test("checkRequiredHeadings enforces the catalog template order", () => {
   const valid = ["Purpose", "API", "Tokens used", "Anatomy", "Accessibility", "Do / Don't", "Example"]
     .map((heading) => `## ${heading}`)

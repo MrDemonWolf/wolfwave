@@ -101,7 +101,8 @@ make prod-install   # Release build → install to /Applications
 make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
 
-# Lint. All five also run as their own CI jobs; the last three are blocking hygiene gates.
+# Lint. Four validation targets run as blocking CI jobs; lint-baseline is maintenance-only.
+# CI also runs the separate blocking ds-lint design-system job.
 make lint           # SwiftLint against swiftlint-baseline.json
 make lint-baseline  # Regenerate that baseline (ratchet: it may only shrink)
 make lint-crash-safety # No new force_unwrapping / force_try / force_cast
