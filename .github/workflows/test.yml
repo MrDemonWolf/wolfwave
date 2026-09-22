@@ -61,6 +61,7 @@ jobs:
               # this, editing the gate skips the very job it gates.
               - 'scripts/check-test-results.sh'
               - '.github/actions/setup-native-build/**'
+              - '.github/workflows/test.yml'
               - 'package.json'
               - 'bun.lock'
               - 'turbo.json'
@@ -161,6 +162,35 @@ jobs:
         with:
           name: TestResults
           path: TestResults.xcresult
+
+  # Early warning for compiler and SDK changes. This deliberately does not
+  # gate stable PR or release workflows until the signal proves reliable.
+  xcode-compatibility:
+    name: Xcode Compatibility (informational)
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    continue-on-error: true
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Select newest available Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: latest
+
+      - name: Report selected toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - uses: ./.github/actions/setup-native-build
+
+      - name: Compatibility build
+        run: make build
 
   # XCUITests, on their own job and their own scheme. Deliberately NOT folded
   # into `test`: this one launches the real app and drives its windows, so it is
