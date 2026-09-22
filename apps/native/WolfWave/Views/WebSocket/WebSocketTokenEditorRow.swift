@@ -117,7 +117,8 @@ struct WebSocketTokenEditorRow: View {
                     accessibilityLabel: isOverlay
                         ? "Copy overlay token"
                         : "Copy Stream Deck control token",
-                    accessibilityIdentifier: copyButtonIdentifier
+                    accessibilityIdentifier: copyButtonIdentifier,
+                    isSensitive: true
                 )
             }
 

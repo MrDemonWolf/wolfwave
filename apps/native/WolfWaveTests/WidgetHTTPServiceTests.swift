@@ -214,6 +214,33 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Connection Lifecycle Tests
 
+    func testConnectionAdmissionReservesLoopbackCapacityAndCapsRemotePeers() {
+        XCTAssertTrue(WidgetHTTPService.shouldAcceptConnection(
+            activeCount: 0,
+            maximumCount: 32,
+            isLoopback: false,
+            peerConnectionCount: 0
+        ))
+        XCTAssertFalse(WidgetHTTPService.shouldAcceptConnection(
+            activeCount: 28,
+            maximumCount: 32,
+            isLoopback: false,
+            peerConnectionCount: 0
+        ))
+        XCTAssertTrue(WidgetHTTPService.shouldAcceptConnection(
+            activeCount: 28,
+            maximumCount: 32,
+            isLoopback: true,
+            peerConnectionCount: 0
+        ))
+        XCTAssertFalse(WidgetHTTPService.shouldAcceptConnection(
+            activeCount: 1,
+            maximumCount: 32,
+            isLoopback: false,
+            peerConnectionCount: 4
+        ))
+    }
+
     func testStopCancelsAcceptedIdleConnections() async throws {
         // Owns an OS-assigned port instead of pinning one. A hardcoded port fails
         // with `listenerFailed` whenever the previous run's socket is still in

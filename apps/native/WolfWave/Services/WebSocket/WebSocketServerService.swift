@@ -45,7 +45,10 @@ actor WebSocketServerService {
     /// authenticated peer to force an unbounded fragmented-message allocation.
     nonisolated static let maximumInboundMessageSize = 16 * 1024
     nonisolated static let maximumPendingConnectionCount = 16
+    nonisolated static let maximumRemotePendingConnectionCount = 12
+    nonisolated static let maximumPendingConnectionsPerRemotePeer = 2
     nonisolated static let maximumConnectionCount = 64
+    nonisolated static let maximumRemoteConnectionCount = maximumConnectionCount - 4
     private static let handshakeTimeout: Duration = .seconds(10)
 
     // MARK: - Types
@@ -727,12 +730,23 @@ actor WebSocketServerService {
         _ connection: NWConnection,
         listenerGeneration generation: UInt64
     ) {
+        let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
+        let peerKey = WebSocketAuthToken.peerKey(connection.endpoint)
+        let peerPendingCount = pendingConnections.lazy.filter {
+            WebSocketAuthToken.peerKey($0.endpoint) == peerKey
+        }.count
+        let remoteActiveCount = connections.lazy.filter {
+            !WebSocketAuthToken.isLoopbackEndpoint($0.endpoint)
+        }.count
         guard generation == listenerGeneration,
               isEnabled,
               listener != nil,
               Self.shouldAcceptNewConnection(
                   activeCount: connections.count,
-                  pendingCount: pendingConnections.count
+                  pendingCount: pendingConnections.count,
+                  isLoopback: isLoopback,
+                  peerPendingCount: peerPendingCount,
+                  remoteActiveCount: remoteActiveCount
               ) else {
             connection.cancel()
             return
@@ -899,12 +913,22 @@ actor WebSocketServerService {
 
     nonisolated static func shouldAcceptNewConnection(
         activeCount: Int,
-        pendingCount: Int
+        pendingCount: Int,
+        isLoopback: Bool = true,
+        peerPendingCount: Int = 0,
+        remoteActiveCount: Int = 0
     ) -> Bool {
-        activeCount >= 0
-            && pendingCount >= 0
-            && pendingCount < maximumPendingConnectionCount
-            && activeCount < maximumConnectionCount - pendingCount
+        guard activeCount >= 0,
+              pendingCount >= 0,
+              peerPendingCount >= 0,
+              remoteActiveCount >= 0,
+              pendingCount < maximumPendingConnectionCount,
+              activeCount < maximumConnectionCount - pendingCount else { return false }
+        return isLoopback || (
+            pendingCount < maximumRemotePendingConnectionCount
+                && peerPendingCount < maximumPendingConnectionsPerRemotePeer
+                && remoteActiveCount < maximumRemoteConnectionCount - pendingCount
+        )
     }
 
     /// Pure authorization seams shared by the ready-state gate and tests.

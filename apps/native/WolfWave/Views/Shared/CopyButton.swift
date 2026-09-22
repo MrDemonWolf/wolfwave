@@ -22,6 +22,9 @@ struct CopyButton: View {
     var accessibilityLabel: String
     var accessibilityIdentifier: String? = nil
     var feedbackDuration: TimeInterval = 2.0
+    /// Clears this value from the general pasteboard after a short delay, but
+    /// only if the user has not copied anything else in the meantime.
+    var isSensitive = false
     /// Optional side effect fired right after the text is copied (e.g. a parent
     /// status update). The pasteboard write + checkmark feedback are handled
     /// internally regardless.
@@ -33,7 +36,7 @@ struct CopyButton: View {
 
     var body: some View {
         let button = Button {
-            Pasteboard.copy(text)
+            Pasteboard.copy(text, sensitive: isSensitive)
             action?()
             copied = true
             Task { @MainActor in
