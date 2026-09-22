@@ -48,18 +48,92 @@ function sameMembers(actual, expected) {
   return actual.length === expected.length && expected.every((value) => actual.includes(value));
 }
 
+function skipSwiftBlockComment(source, start) {
+  let cursor = start + 2;
+  let depth = 1;
+  while (cursor < source.length && depth > 0) {
+    if (source.startsWith("/*", cursor)) {
+      depth += 1;
+      cursor += 2;
+    } else if (source.startsWith("*/", cursor)) {
+      depth -= 1;
+      cursor += 2;
+    } else {
+      cursor += 1;
+    }
+  }
+  return cursor;
+}
+
+function skipSwiftTrivia(source, start) {
+  let cursor = start;
+  while (cursor < source.length) {
+    if (/\s/.test(source[cursor])) {
+      cursor += 1;
+    } else if (source.startsWith("//", cursor)) {
+      const newline = source.indexOf("\n", cursor + 2);
+      cursor = newline === -1 ? source.length : newline + 1;
+    } else if (source.startsWith("/*", cursor)) {
+      cursor = skipSwiftBlockComment(source, cursor);
+    } else {
+      break;
+    }
+  }
+  return cursor;
+}
+
+function readSwiftString(source, start) {
+  let cursor = start + 1;
+  while (cursor < source.length) {
+    if (source[cursor] === "\\") cursor += 2;
+    else if (source[cursor] === '"') return { value: source.slice(start + 1, cursor), end: cursor + 1 };
+    else cursor += 1;
+  }
+  return null;
+}
+
+function parseSwiftStringArray(source, start) {
+  const values = [];
+  let cursor = skipSwiftTrivia(source, start + 1);
+  while (source[cursor] === '"') {
+    const string = readSwiftString(source, cursor);
+    if (!string) return null;
+    values.push(string.value);
+    cursor = skipSwiftTrivia(source, string.end);
+    if (source[cursor] !== ",") break;
+    cursor = skipSwiftTrivia(source, cursor + 1);
+  }
+  return values.length > 0 && source[cursor] === "]" ? { values, end: cursor + 1 } : null;
+}
+
 export function findDuplicateTokenLists(source, groups) {
   const failures = [];
-  const arrays = source.matchAll(/\[((?:\s*"[^"]+"\s*,?)+)\]/gs);
-  for (const match of arrays) {
-    const values = [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
-    for (const [label, expected] of Object.entries(groups)) {
-      if (sameMembers(values, expected)) {
-        failures.push({
-          line: lineAt(source, match.index),
-          message: `duplicates token-derived widget ${label}; reference the generated token list instead`,
-        });
+  let cursor = 0;
+  while (cursor < source.length) {
+    if (source.startsWith("//", cursor)) {
+      const newline = source.indexOf("\n", cursor + 2);
+      cursor = newline === -1 ? source.length : newline + 1;
+    } else if (source.startsWith("/*", cursor)) {
+      cursor = skipSwiftBlockComment(source, cursor);
+    } else if (source[cursor] === '"') {
+      cursor = readSwiftString(source, cursor)?.end ?? source.length;
+    } else if (source[cursor] === "[") {
+      const array = parseSwiftStringArray(source, cursor);
+      if (!array) {
+        cursor += 1;
+        continue;
       }
+      for (const [label, expected] of Object.entries(groups)) {
+        if (sameMembers(array.values, expected)) {
+          failures.push({
+            line: lineAt(source, cursor),
+            message: `duplicates token-derived widget ${label}; reference the generated token list instead`,
+          });
+        }
+      }
+      cursor = array.end;
+    } else {
+      cursor += 1;
     }
   }
   return failures;
