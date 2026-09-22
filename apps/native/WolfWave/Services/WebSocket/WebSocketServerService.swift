@@ -48,6 +48,7 @@ actor WebSocketServerService {
     nonisolated static let maximumRemotePendingConnectionCount = 12
     nonisolated static let maximumPendingConnectionsPerRemotePeer = 2
     nonisolated static let maximumConnectionCount = 64
+    nonisolated static let maximumRemoteConnectionCount = maximumConnectionCount - 4
     private static let handshakeTimeout: Duration = .seconds(10)
 
     // MARK: - Types
@@ -734,6 +735,9 @@ actor WebSocketServerService {
         let peerPendingCount = pendingConnections.lazy.filter {
             WebSocketAuthToken.peerKey($0.endpoint) == peerKey
         }.count
+        let remoteActiveCount = connections.lazy.filter {
+            !WebSocketAuthToken.isLoopbackEndpoint($0.endpoint)
+        }.count
         guard generation == listenerGeneration,
               isEnabled,
               listener != nil,
@@ -741,7 +745,8 @@ actor WebSocketServerService {
                   activeCount: connections.count,
                   pendingCount: pendingConnections.count,
                   isLoopback: isLoopback,
-                  peerPendingCount: peerPendingCount
+                  peerPendingCount: peerPendingCount,
+                  remoteActiveCount: remoteActiveCount
               ) else {
             connection.cancel()
             return
@@ -910,16 +915,19 @@ actor WebSocketServerService {
         activeCount: Int,
         pendingCount: Int,
         isLoopback: Bool = true,
-        peerPendingCount: Int = 0
+        peerPendingCount: Int = 0,
+        remoteActiveCount: Int = 0
     ) -> Bool {
         guard activeCount >= 0,
               pendingCount >= 0,
               peerPendingCount >= 0,
+              remoteActiveCount >= 0,
               pendingCount < maximumPendingConnectionCount,
               activeCount < maximumConnectionCount - pendingCount else { return false }
         return isLoopback || (
             pendingCount < maximumRemotePendingConnectionCount
                 && peerPendingCount < maximumPendingConnectionsPerRemotePeer
+                && remoteActiveCount < maximumRemoteConnectionCount - pendingCount
         )
     }
 
