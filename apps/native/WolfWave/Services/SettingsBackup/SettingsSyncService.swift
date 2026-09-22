@@ -126,14 +126,21 @@ final class SettingsSyncService {
     /// nothing exportable changed since the last push.
     func push(now: Date = Date()) {
         guard isEnabled else { return }
-        guard let payload = try? backup.makeBackup(exportedAt: now) else { return }
+        let lastApplied = defaults.double(
+            forKey: AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
+        // ISO-8601 encoding stores whole seconds, so advance by a full second.
+        let exportedAtSeconds = max(
+            now.timeIntervalSince1970.rounded(.down), lastApplied + 1)
+        let exportedAt = Date(
+            timeIntervalSince1970: exportedAtSeconds)
+        guard let payload = try? backup.makeBackup(exportedAt: exportedAt) else { return }
         guard payload.settings != lastPushedSettings else { return }
         guard let data = try? SettingsBackupCoder().encode(payload) else { return }
         store.set(data, forKey: Self.payloadKey)
         guard store.synchronize() else { return }
         lastPushedSettings = payload.settings
         isApplying = true
-        markApplied(now)
+        markApplied(payload.exportedAt)
         isApplying = false
         Log.info("SettingsSync: pushed settings to iCloud", category: .app)
     }

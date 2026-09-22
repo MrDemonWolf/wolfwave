@@ -117,6 +117,23 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
         XCTAssertEqual(store.writes, writes)
     }
 
+    func testPushUsesTimestampAfterFutureWatermark() throws {
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        defaults.set(
+            500.0, forKey: AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
+        let service = makeService()
+        service.setEnabled(true)
+
+        service.push(now: Date(timeIntervalSince1970: 100))
+
+        let data = try XCTUnwrap(store.storage[SettingsSyncService.payloadKey])
+        let exportedAt = try SettingsBackupCoder().decode(data).exportedAt.timeIntervalSince1970
+        XCTAssertGreaterThan(exportedAt, 500)
+        XCTAssertEqual(
+            defaults.double(forKey: AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt),
+            exportedAt)
+    }
+
     func testFailedSynchronizationLeavesPushRetryable() throws {
         defaults.set(true, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         store.synchronizeResult = false
