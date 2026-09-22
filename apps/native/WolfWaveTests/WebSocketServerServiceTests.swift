@@ -71,6 +71,28 @@ final class WebSocketServerServiceTests: XCTestCase {
             activeCount: -1,
             pendingCount: 0
         ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: WebSocketServerService.maximumRemotePendingConnectionCount,
+            isLoopback: false
+        ))
+        XCTAssertTrue(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: 0,
+            isLoopback: false,
+            peerPendingCount: 0
+        ))
+        XCTAssertTrue(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: WebSocketServerService.maximumRemotePendingConnectionCount,
+            isLoopback: true
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldAcceptNewConnection(
+            activeCount: 0,
+            pendingCount: 1,
+            isLoopback: false,
+            peerPendingCount: WebSocketServerService.maximumPendingConnectionsPerRemotePeer
+        ))
     }
 
     // MARK: - State Policy Tests

@@ -60,6 +60,7 @@ struct DeviceCodeView: View {
                     accessibilityLabel: "Copy sign-in code",
                     accessibilityIdentifier: "copyDeviceCodeButton",
                     feedbackDuration: 1.3,
+                    isSensitive: true,
                     action: onCopy
                 )
                 .help("Copy code")
@@ -111,7 +112,7 @@ struct DeviceCodeView: View {
     /// `onCopy`, and shows the "Copied to clipboard" toast for ~1.3 seconds.
     /// The explicit ``CopyButton`` provides its own checkmark feedback.
     private func copyDeviceCode() {
-        Pasteboard.copy(userCode)
+        Pasteboard.copy(userCode, sensitive: true)
         onCopy()
 
         withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
@@ -206,4 +207,3 @@ struct DeviceCodeView: View {
     .padding(DSSpace.s8)
     .frame(width: 400)
 }
-

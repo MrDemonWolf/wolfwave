@@ -297,9 +297,19 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Connections beyond `maxConcurrentConnections` are cancelled immediately.
     private func handleConnection(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
+        let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
+        let peerKey = WebSocketAuthToken.peerKey(connection.endpoint)
 
         let accepted: Bool = connectionsLock.withLock {
-            guard activeConnections.count < maxConcurrentConnections else { return false }
+            let peerConnectionCount = activeConnections.values.lazy.filter {
+                WebSocketAuthToken.peerKey($0.connection.endpoint) == peerKey
+            }.count
+            guard Self.shouldAcceptConnection(
+                activeCount: activeConnections.count,
+                maximumCount: maxConcurrentConnections,
+                isLoopback: isLoopback,
+                peerConnectionCount: peerConnectionCount
+            ) else { return false }
             activeConnections[id] = TrackedConnection(connection: connection)
             return true
         }
@@ -330,6 +340,22 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         connection.start(queue: queue)
         scheduleHeaderTimeout(for: connection)
         readRequestHeaders(from: connection, accumulated: Data())
+    }
+
+    nonisolated static func shouldAcceptConnection(
+        activeCount: Int,
+        maximumCount: Int,
+        isLoopback: Bool,
+        peerConnectionCount: Int
+    ) -> Bool {
+        guard activeCount >= 0,
+              maximumCount > 0,
+              peerConnectionCount >= 0,
+              activeCount < maximumCount else { return false }
+        guard !isLoopback else { return true }
+        let reservedLoopbackConnections = min(4, max(1, maximumCount / 4))
+        return activeCount < maximumCount - reservedLoopbackConnections
+            && peerConnectionCount < 4
     }
 
     /// Cancels `connection` if its request headers have not completed within

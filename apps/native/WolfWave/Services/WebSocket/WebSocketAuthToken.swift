@@ -245,6 +245,13 @@ nonisolated enum WebSocketAuthToken {
         }
     }
 
+    /// Stable peer identity for admission limits. Source ports are intentionally
+    /// ignored so reconnects from one host share the same budget.
+    static func peerKey(_ endpoint: NWEndpoint) -> String {
+        guard case .hostPort(let host, _) = endpoint else { return "unknown" }
+        return String(describing: host).lowercased()
+    }
+
     /// Compares two strings for equality without leaking matching prefix length.
     static func constantTimeEquals(_ lhs: String, _ rhs: String) -> Bool {
         let a = Array(lhs.utf8)
