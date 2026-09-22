@@ -354,6 +354,8 @@ function generateSwift(): string {
   lines.push(
     "/// Generated widget layout dimensions (points) used to size the preview.",
     "nonisolated enum DSWidgetLayouts {",
+    `    static let order: [String] = [${Object.keys(widgetLayouts).map((name) => `"${name}"`).join(", ")}]`,
+    "",
     "    static let sizes: [String: CGSize] = ["
   );
   for (const [name, dims] of Object.entries(widgetLayouts)) {

@@ -12,14 +12,11 @@
  * `#` starts a comment. Use sparingly; prefer fixing the source.
  *
  * Rules:
- *  - font(.system(size: N))     → use DSFont.Size.*
- *  - spacing: N) / .padding(N)  → use DSSpace.* (with carve-outs for 0/1/etc.
- *                                  values that have no DSSpace equivalent; 6 = DSSpace.s1h)
- *  - Animation literal durations (.easeInOut(duration: N), .spring(response: N),
- *    .easeOut(duration: N), .easeIn(duration: N), .linear(duration: N))
- *                               → use DSMotion.Duration.* tokens
- *  - Raw system colors in a `color:` / `statusColor:` argument
- *                               → use DSColor.success/.warning/.error/.info/.neutral
+ *  - `raw-font-size`: font(.system(size: N)) → use DSFont.Size.*
+ *  - `raw-spacing`: spacing: N → use DSSpace.*
+ *  - `raw-padding`: .padding(N) → use DSSpace.*
+ *  - `raw-animation-duration`: numeric animation duration/response → use DSMotion.Duration.*
+ *  - `raw-status-color`: raw colors in `color:` / `statusColor:` → use semantic DSColor tokens
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";

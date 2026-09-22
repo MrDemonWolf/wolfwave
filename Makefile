@@ -50,7 +50,7 @@ else
 UI_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget icons
+.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers lint-sync update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget icons
 
 help:
 	@echo "Available targets:"
@@ -63,6 +63,7 @@ help:
 	@echo "  lint-baseline  Regenerate the pinned SwiftLint baseline"
 	@echo "  lint-crash-safety  Run crash-safety SwiftLint (blocking CI gate)"
 	@echo "  lint-headers   Verify Swift file headers match the Xcode template"
+	@echo "  lint-sync      Verify source-derived lists, catalog entries, docs values, and lint claims"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
 	@echo "  prod-install   Release build + install to /Applications"
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"
@@ -194,6 +195,12 @@ lint-crash-safety:
 # file's git creation date. Mirrors the CI `lint-headers` job.
 lint-headers:
 	node scripts/check-headers.mjs
+
+# Blocking source/docs drift gate. Its focused unit tests run first so a broken
+# regex cannot silently turn the repository scan into a false green.
+lint-sync:
+	node --test scripts/check-sync.test.mjs
+	node scripts/check-sync.mjs
 
 update-deps:
 	xcodebuild -project $(PROJECT) -resolvePackageDependencies -quiet

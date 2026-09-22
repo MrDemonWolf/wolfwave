@@ -1,5 +1,7 @@
 # LabeledSlider
 
+**File:** [`apps/native/WolfWave/Views/Shared/LabeledSlider.swift`](../../apps/native/WolfWave/Views/Shared/LabeledSlider.swift)
+
 Slider row with a leading label and a trailing live value readout.
 
 ## Purpose

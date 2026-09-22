@@ -1,5 +1,7 @@
 # DestructiveButton
 
+**File:** [`apps/native/WolfWave/Views/Shared/DestructiveButton.swift`](../../apps/native/WolfWave/Views/Shared/DestructiveButton.swift)
+
 Neutral bordered pill with a red label (no red fill). The filled-red treatment is reserved for the primary action inside a confirm dialog.
 
 ## Purpose

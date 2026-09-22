@@ -101,11 +101,12 @@ make prod-install   # Release build → install to /Applications
 make notarize       # Notarize the DMG (requires Developer ID + env vars)
 make verify-notarize # Verify the notarization ticket is stapled
 
-# Lint. All four also run as their own CI jobs; the last two are blocking.
+# Lint. All five also run as their own CI jobs; the last three are blocking hygiene gates.
 make lint           # SwiftLint against swiftlint-baseline.json
 make lint-baseline  # Regenerate that baseline (ratchet: it may only shrink)
 make lint-crash-safety # No new force_unwrapping / force_try / force_cast
 make lint-headers   # Swift file-header convention check
+make lint-sync      # Source-derived lists, component catalog, docs values, and lint claims
 ```
 
 `sponsor-config` is a prerequisite of `build`, every `test*` target, and `prod-build`, so
@@ -411,6 +412,7 @@ scripts, so a green run locally means the same thing it means on a runner.
 | `.github/actions/setup-native-build` | CI `test`, Release ×2, Nightly ×2 | Bun + caches, `bun install`, design tokens + widget build, `Config.xcconfig`, `SponsorConfig`, SwiftPM cache. Takes `twitch-client-id` / `discord-client-id` inputs (default `placeholder` for test builds). |
 | `make test-ci` | CI, Release, Nightly | The single `xcodebuild test` invocation. Do not inline a different one in a workflow. |
 | `scripts/check-generated-drift.sh` | CI `test`, `make check-drift` | Fails on drift in `widget.html`, the five generated token outputs, `SponsorConfig.generated.swift`, or `AppIcon-Dev.icon`, naming the fix command per group. |
+| `scripts/check-sync.mjs` | CI `lint-sync`, `make lint-sync` | Fails when token-derived Swift lists are copied, component catalog coverage/template shape drifts, active widget docs disagree with source values, or `lint.ts` rule claims disagree with `RULES`. |
 | `scripts/import-signing-cert.sh` | Release, Nightly | Developer ID `.p12` into a throwaway keychain. |
 | `scripts/codesign-app.sh` | Release, Nightly | Inside-out app signing (never `--deep`; see the comments in the script before touching it). |
 | `scripts/notarize-dmg.sh` | Release, Nightly, `make notarize` | Sign + notarize + staple, dumping the notary log on rejection. |
@@ -428,6 +430,7 @@ scripts, so a green run locally means the same thing it means on a runner.
   | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
   | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
   | `lint-headers` | Swift file headers | **Blocking.** File-header convention |
+  | `lint-sync` | Source and docs sync | **Blocking.** Token-derived lists, component catalog parity/template shape, widget docs values, and design-system lint claims |
   | `ds-lint` | Design-system lint | `bun run ds:test` (pins the lint regexes against known-good and known-bad lines), `bun run ds:lint`, plus `bun run ds:schema`, which validates `tokens.json` against `tokens.schema.json` |
 
 - `.github/workflows/build_release.yml` - Builds, signs, notarizes, and creates a GitHub Release on tag push (`v*`). Required secrets: `DEVELOPER_ID_CERT_P12`, `DEVELOPER_ID_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, `TWITCH_CLIENT_ID`, `DISCORD_CLIENT_ID`, `SPARKLE_PRIVATE_KEY`.

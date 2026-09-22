@@ -270,6 +270,7 @@ Linting (all four also run as blocking CI jobs):
 - `make lint-baseline` regenerates that baseline. It may only shrink.
 - `make lint-crash-safety` fails on any new force unwrap, `try!`, or `as!`.
 - `make lint-headers` checks the Swift file header on every source file.
+- `make lint-sync` checks token-derived Swift lists, component catalog coverage, source-derived docs values, and design-system lint claims.
 
 ### Code Quality
 

@@ -18,7 +18,8 @@ ogEyebrow: Components
 ---
 
 WolfWave's native macOS app ships a library of reusable SwiftUI components under
-`apps/native/WolfWave/Views/Shared/` and `Views/Onboarding/Components/`. Every
+`apps/native/WolfWave/Views/Shared/`, `Views/Onboarding/Components/`, and
+`Views/HistoryStats/`. Every
 component has a markdown catalog entry in
 [`design-system/components/`](https://github.com/MrDemonWolf/wolfwave/tree/main/design-system/components)
 covering its API, the tokens it uses, an anatomy diagram, accessibility notes,
@@ -42,7 +43,8 @@ A few representative entries:
 
 ## How to add a component
 
-1. Build the SwiftUI view under `Views/Shared/` or `Views/Onboarding/Components/`.
+1. Build the SwiftUI view under `Views/Shared/`, `Views/Onboarding/Components/`, or `Views/HistoryStats/`.
 2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers, and no raw system colors as a status tint (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral` only). `bun run ds:lint` enforces both.
 3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md).
-4. The catalog README's status table is the index — update it in the same change.
+4. Add the entry to the catalog README index.
+5. Run `make lint-sync`; it blocks missing source/catalog pairs and incomplete templates.

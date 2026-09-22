@@ -507,6 +507,8 @@ nonisolated enum DSWidgetThemes {
 
 /// Generated widget layout dimensions (points) used to size the preview.
 nonisolated enum DSWidgetLayouts {
+    static let order: [String] = ["Horizontal", "Vertical", "Compact", "Vinyl", "Classic"]
+
     static let sizes: [String: CGSize] = [
         "Horizontal": CGSize(width: 500, height: 100),
         "Vertical": CGSize(width: 220, height: 280),
