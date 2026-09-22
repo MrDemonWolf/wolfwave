@@ -36,6 +36,7 @@ jobs:
       streamdeck: ${{ steps.filter.outputs.streamdeck }}
       ds: ${{ steps.filter.outputs.ds }}
       headers: ${{ steps.filter.outputs.headers }}
+      sync: ${{ steps.filter.outputs.sync }}
       swiftlint: ${{ steps.filter.outputs.swiftlint }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,6 +91,24 @@ jobs:
             headers:
               - 'apps/native/**'
               - 'scripts/check-headers.mjs'
+            sync:
+              - 'apps/native/WolfWave/Core/AppConstants.swift'
+              - 'apps/native/WolfWave/Views/Shared/**'
+              - 'apps/native/WolfWave/Views/Onboarding/Components/**'
+              - 'apps/native/WolfWave/Views/HistoryStats/**'
+              - 'design-system/components/**'
+              - 'design-system/scripts/generate.ts'
+              - 'design-system/scripts/lint.ts'
+              - 'design-system/tokens.json'
+              - 'apps/docs/content/docs/features.mdx'
+              - 'apps/docs/content/docs/widget.mdx'
+              - 'README.md'
+              - 'CONTRIBUTING.md'
+              - 'CLAUDE.md'
+              - 'scripts/check-sync.mjs'
+              - 'scripts/check-sync.test.mjs'
+              - 'Makefile'
+              - '.github/workflows/test.yml'
             swiftlint:
               - 'apps/native/**'
               - '.swiftlint.yml'
@@ -305,6 +324,19 @@ jobs:
 
       - name: Check Swift file headers
         run: make lint-headers
+
+  lint-sync:
+    name: Source and docs sync (blocking)
+    needs: changes
+    if: needs.changes.outputs.sync == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check source and documentation sync
+        run: make lint-sync
 
   ds-lint:
     name: Design-system lint

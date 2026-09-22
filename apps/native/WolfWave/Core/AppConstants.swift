@@ -239,10 +239,10 @@ nonisolated enum AppConstants {
         }
 
         /// Available widget themes
-        static let themes = ["Default", "Dark", "Light", "Glass", "Neon"]
+        static let themes = DSWidgetThemes.order
 
         /// Available widget layout styles
-        static let layouts = ["Horizontal", "Vertical", "Compact", "Vinyl", "Classic"]
+        static let layouts = DSWidgetLayouts.order
 
         /// Default values for the widget appearance prefs.
         ///
