@@ -31,6 +31,7 @@ extension NSUbiquitousKeyValueStore: SettingsSyncStore {
 
 // MARK: - Service
 
+// ponytail: LWW on whole blob; per-key merge if two Macs edit simultaneously becomes a real complaint.
 /// Mirrors the settings-backup payload to iCloud Key-Value Storage.
 ///
 /// Reuses `SettingsBackupService` wholesale: the cloud copy is byte-for-byte
@@ -40,7 +41,6 @@ extension NSUbiquitousKeyValueStore: SettingsSyncStore {
 ///
 /// Conflict rule: last write wins on the whole blob, ordered by
 /// `SettingsBackup.exportedAt`.
-// ponytail: LWW on whole blob; per-key merge if two Macs edit simultaneously becomes a real complaint.
 @MainActor
 final class SettingsSyncService {
 
@@ -54,6 +54,7 @@ final class SettingsSyncService {
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
     private let debounce: Duration
+    private let initialSyncDelay: Duration
     private var observers: [NSObjectProtocol] = []
     private var lastPushedSettings: [String: BackupValue]?
     /// Set while a pull is writing defaults so the local-change observer
@@ -72,32 +73,40 @@ final class SettingsSyncService {
         backup: SettingsBackupService = SettingsBackupService(),
         defaults: Foundation.UserDefaults = DefaultsStore.store,
         center: NotificationCenter = .default,
-        debounce: Duration = .seconds(2)
+        debounce: Duration = .seconds(2),
+        initialSyncDelay: Duration = .seconds(10)
     ) {
         self.store = store
         self.backup = backup
         self.defaults = defaults
         self.center = center
         self.debounce = debounce
+        self.initialSyncDelay = initialSyncDelay
     }
 
     // MARK: Public Methods
 
     /// Starts or stops mirroring. Turning it off leaves the cloud copy alone.
     func setEnabled(_ enabled: Bool) {
-        enabled ? start() : stop()
+        if enabled {
+            start()
+        } else {
+            stop()
+        }
     }
 
     /// Applies the cloud payload if it is newer than what this Mac last
     /// applied or pushed. Returns `true` when settings changed.
     @discardableResult
     func pull() async -> Bool {
+        guard !Task.isCancelled else { return false }
         guard let data = store.data(forKey: Self.payloadKey),
               let cloud = try? backup.decode(data)
         else { return false }
         let lastApplied = defaults.double(
             forKey: AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
         guard cloud.exportedAt.timeIntervalSince1970 > lastApplied else { return false }
+        guard !Task.isCancelled else { return false }
 
         isApplying = true
         defer { isApplying = false }
@@ -121,7 +130,7 @@ final class SettingsSyncService {
         guard payload.settings != lastPushedSettings else { return }
         guard let data = try? SettingsBackupCoder().encode(payload) else { return }
         store.set(data, forKey: Self.payloadKey)
-        store.synchronize()
+        guard store.synchronize() else { return }
         lastPushedSettings = payload.settings
         isApplying = true
         markApplied(now)
@@ -140,8 +149,9 @@ final class SettingsSyncService {
             queue: .main
         ) { _ in
             MainActor.assumeIsolated { [weak self] in
+                self?.pullTask?.cancel()
                 self?.pullTask = Task { [weak self] in
-                    await self?.pull()
+                    await self?.handleExternalChange()
                 }
             }
         })
@@ -155,9 +165,12 @@ final class SettingsSyncService {
             }
         })
         store.synchronize()
-        Task { [weak self] in
+        pullTask = Task { [weak self, initialSyncDelay] in
             guard let self else { return }
-            if await !pull() { push() }
+            if await pull() { return }
+            try? await Task.sleep(for: initialSyncDelay)
+            guard !Task.isCancelled, isEnabled else { return }
+            await handleExternalChange()
         }
     }
 
@@ -180,6 +193,28 @@ final class SettingsSyncService {
             guard !Task.isCancelled else { return }
             self?.push()
         }
+    }
+
+    private func handleExternalChange() async {
+        guard isEnabled, !Task.isCancelled else { return }
+        guard let data = store.data(forKey: Self.payloadKey),
+              let cloud = try? backup.decode(data)
+        else {
+            lastPushedSettings = nil
+            push()
+            return
+        }
+
+        let lastApplied = defaults.double(
+            forKey: AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
+        if cloud.exportedAt.timeIntervalSince1970 > lastApplied {
+            await pull()
+            return
+        }
+
+        guard let local = try? backup.makeBackup(), local.settings != cloud.settings else { return }
+        lastPushedSettings = nil
+        push()
     }
 
     private func markApplied(_ date: Date) {

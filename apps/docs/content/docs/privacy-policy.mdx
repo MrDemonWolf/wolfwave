@@ -88,13 +88,14 @@ We do **not** sell, rent, or share your personal information with third parties.
 
 ## Data Retention
 
-All data is stored locally on your device. You can clear each category at any time:
+WolfWave stores data on your devices, except for the settings payload you explicitly choose to sync through iCloud. You can clear each category at any time:
 
 | Category | Location | How to clear |
 |----------|----------|--------------|
 | Paid-event recovery records | `~/Library/Application Support/WolfWave/State/twitch-redemption-resolution-outbox.json*` | Removed automatically after processing; **Settings → Advanced → Reset Settings** clears all live or quarantined records |
 | Twitch account record / WebSocket tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
 | App preferences | UserDefaults | **Settings → Advanced → Reset Settings** |
+| Settings sync (opt-in) | Apple iCloud Key-Value Storage | Sync updated settings to replace it, or turn sync off on every Mac and delete WolfWave's stored data from your Apple Account's iCloud storage settings |
 | Application logs | `~/Library/Application Support/WolfWave/Logs/` | **Settings → Advanced → Clear Logs** |
 | Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
 | Song request blocklist | UserDefaults | **Settings → Song Requests → Blocklist → Clear All** (or per-entry remove) |
