@@ -64,7 +64,7 @@ final class SettingsSyncService {
     private(set) var isEnabled = false
     /// The debounced push in flight, if any. Tests await it.
     private(set) var pendingPush: Task<Void, Never>?
-    private var pullTask: Task<Void, Never>?
+    private(set) var pullTask: Task<Void, Never>?
 
     // MARK: Init
 
