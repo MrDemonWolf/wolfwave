@@ -264,12 +264,14 @@ Native app (Make):
 - `make verify-notarize` checks that the notarization ticket is stapled.
 - `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`). Run `bun run tokens` first when token definitions or their generator changed, or use the ordered root `bun run build`.
 
-Linting (all four also run as blocking CI jobs):
+Linting (the four validation targets run as blocking CI jobs; `make lint-baseline` is maintenance-only):
 
 - `make lint` runs SwiftLint against the tracked baseline.
 - `make lint-baseline` regenerates that baseline. It may only shrink.
 - `make lint-crash-safety` fails on any new force unwrap, `try!`, or `as!`.
 - `make lint-headers` checks the Swift file header on every source file.
+- `make lint-sync` checks token-derived Swift lists, component catalog coverage, source-derived docs values, and design-system lint claims.
+- The separate blocking `ds-lint` CI job runs the design-system tests, lint, and token schema validation.
 
 ### Code Quality
 

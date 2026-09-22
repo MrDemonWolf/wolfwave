@@ -1,5 +1,7 @@
 # Binding+Sanitized
 
+**File:** [`apps/native/WolfWave/Views/Shared/Binding+Sanitized.swift`](../../apps/native/WolfWave/Views/Shared/Binding+Sanitized.swift)
+
 Guards for `@AppStorage`-backed controls whose persisted value may fall outside
 what the control accepts.
 
@@ -51,6 +53,10 @@ Both delegate to the pure `Preferences.resolveAllowed` / `Preferences.resolveCla
 which are the same functions `Preferences.resolvedInt` / `resolvedDouble` use for
 service-side reads, so the UI and the read path cannot drift.
 
+## Tokens used
+
+None. This is a data-sanitizing `Binding` extension with no visual output.
+
 ## Why a derived Binding, and not the alternatives
 
 | Approach | Why not |
@@ -74,6 +80,12 @@ flowchart LR
     Safe --> Control["Picker / Slider"]
     Control -->|"set: pass through"| Raw
 ```
+
+## Accessibility
+
+- Prevents invalid persisted values from crashing a `Picker` or `Slider` before assistive technology can reach it.
+- Adds no accessibility element or label; the wrapped control remains responsible for its own semantics.
+- Preserves the control's live binding, so VoiceOver hears the same current value shown on screen.
 
 ## Do / Don't
 

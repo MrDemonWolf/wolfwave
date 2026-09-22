@@ -1,5 +1,7 @@
 # StatTile
 
+**File:** [`apps/native/WolfWave/Views/Shared/StatTile.swift`](../../apps/native/WolfWave/Views/Shared/StatTile.swift)
+
 A vertical stat tile: large primary value, optional secondary value, sentence-case caption beneath.
 
 ## Purpose

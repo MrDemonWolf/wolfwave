@@ -62,6 +62,8 @@ blocks declare; the Tokens section next to it renders every token family. When y
 
 | Component | File |
 |---|---|
+| HistoryStatsSettingsView | [history-stats-settings-view.md](history-stats-settings-view.md) |
+| StatsChartsView | [stats-charts-view.md](stats-charts-view.md) |
 | MonthlyWrapCard | [monthly-wrap-card.md](monthly-wrap-card.md) |
 
 ## Onboarding (`apps/native/WolfWave/Views/Onboarding/Components/`)
