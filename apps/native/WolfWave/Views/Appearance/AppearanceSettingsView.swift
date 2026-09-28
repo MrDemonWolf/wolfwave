@@ -308,7 +308,7 @@ private struct ThumbPalette {
 /// Bottom-trailing triangle used to clip the dark layer of the System tile, leaving
 /// the top-leading half showing the light layer.
 private struct DiagonalBottomTrailing: Shape {
-    func path(in rect: CGRect) -> Path {
+    nonisolated func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
@@ -320,7 +320,7 @@ private struct DiagonalBottomTrailing: Shape {
 
 /// The seam line of the System tile, from bottom-leading to top-trailing.
 private struct DiagonalSeam: Shape {
-    func path(in rect: CGRect) -> Path {
+    nonisolated func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
