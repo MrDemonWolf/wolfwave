@@ -12,7 +12,7 @@ TwitchGlitchShape()
     .frame(width: 16, height: 16)
 ```
 
-No parameters. Path is normalized into the supplied `rect` from a 24×28 reference grid (the official Twitch Glitch proportions).
+No parameters. Path is normalized into the supplied `rect` from a 24×28 reference grid (the official Twitch Glitch proportions). Its stateless `path(in:)` method is `nonisolated` so SwiftUI can render it off the main actor.
 
 ## Tokens used
 - Tint: `DSColor.partnerTwitch` (`#9146FF`) when filled with `.foregroundStyle(...)`

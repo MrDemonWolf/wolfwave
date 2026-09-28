@@ -410,9 +410,9 @@ struct SettingsView: View {
         selectedSection = link.pane
         guard let section = link.section else { return }
         deepLinkTask = Task { @MainActor in
-            // ponytail: one tick is enough for a pane switch to lay out; bump
-            // to a layout-driven signal if a heavy pane ever misses the scroll.
-            guard (try? await Task.sleep(for: .milliseconds(AppConstants.SettingsUI.deepLinkScrollDelayMs))) != nil else { return }
+            // ponytail: a short delay lets the pane mount; use a layout signal
+            // if a heavy pane ever misses the scroll.
+            guard (try? await Task.sleep(for: .milliseconds(120))) != nil else { return }
             withAnimation(.easeInOut(duration: DSMotion.Duration.slow)) {
                 proxy.scrollTo(DeepLinkAnchor(slug: section), anchor: .top)
             }
