@@ -76,29 +76,47 @@ const ACTION_ICONS: Array<[string, Glyph]> = [
  * clear of the bottom title strip rather than colliding with it.
  */
 const KEY_IMAGES: Array<[string, string]> = [
-  ["actions/playpause/key-paused", keyImage({ glyph: play, titled: true })],
+  ["actions/playpause/key-paused", keyImage({ glyph: play, label: "PLAY" })],
   [
     "actions/playpause/key-playing",
-    keyImage({ glyph: pause, tile: Palette.tile, titled: true }),
+    keyImage({ glyph: pause, label: "PAUSE", tile: Palette.tile }),
   ],
-  ["actions/skip/key", keyImage({ glyph: skip })],
-  ["actions/queuehold/key-running", keyImage({ glyph: hold })],
-  ["actions/queuehold/key-held", keyImage({ glyph: resume, tile: Palette.tile })],
-  ["actions/approvenext/key-empty", keyImage({ glyph: check, tint: Palette.dim })],
+  ["actions/skip/key", keyImage({ glyph: skip, label: "SKIP" })],
+  ["actions/queuehold/key-running", keyImage({ glyph: hold, label: "HOLD" })],
+  [
+    "actions/queuehold/key-held",
+    keyImage({ glyph: resume, label: "RESUME", tile: Palette.tile }),
+  ],
+  [
+    "actions/approvenext/key-empty",
+    keyImage({ glyph: check, label: "APPROVE", tint: Palette.dim }),
+  ],
   [
     "actions/approvenext/key-pending",
-    keyImage({ glyph: check, tile: Palette.warning }),
+    keyImage({ glyph: check, label: "APPROVE", tile: Palette.warning }),
   ],
-  ["actions/clearqueue/key", keyImage({ glyph: trash, tint: Palette.danger })],
-  ["actions/blockcurrent/key", keyImage({ glyph: ban, tint: Palette.danger })],
-  ["actions/overlaytoggle/key-off", keyImage({ glyph: monitor })],
+  [
+    "actions/clearqueue/key",
+    keyImage({ glyph: trash, label: "CLEAR", tint: Palette.danger }),
+  ],
+  [
+    "actions/blockcurrent/key",
+    keyImage({ glyph: ban, label: "SONG", tint: Palette.danger }),
+  ],
+  ["actions/overlaytoggle/key-off", keyImage({ glyph: monitor, label: "OVERLAY" })],
   [
     "actions/overlaytoggle/key-on",
-    keyImage({ glyph: monitor, tile: Palette.tile }),
+    keyImage({ glyph: monitor, label: "OVERLAY", tile: Palette.tile }),
   ],
-  ["actions/announcesong/key", keyImage({ glyph: announce })],
-  ["actions/rejectcurrent/key", keyImage({ glyph: rejectRequest, tint: Palette.danger })],
-  ["actions/blockrequester/key", keyImage({ glyph: personBlock, tint: Palette.danger })],
+  ["actions/announcesong/key", keyImage({ glyph: announce, label: "ANNOUNCE" })],
+  [
+    "actions/rejectcurrent/key",
+    keyImage({ glyph: rejectRequest, label: "REJECT", tint: Palette.danger }),
+  ],
+  [
+    "actions/blockrequester/key",
+    keyImage({ glyph: personBlock, label: "USER", tint: Palette.danger }),
+  ],
   // Repainted live with the current audience; these are the open and closed
   // ends of that range, and what the action list shows.
   [
@@ -110,10 +128,10 @@ const KEY_IMAGES: Array<[string, string]> = [
     labelKeyImage({ glyph: audienceGate, label: "SUB", tile: Palette.tile }),
   ],
   // Replaced by album art whenever it can be fetched.
-  ["actions/nowplaying/key-paused", keyImage({ glyph: note, titled: true })],
+  ["actions/nowplaying/key-paused", keyImage({ glyph: note, label: "NOW" })],
   [
     "actions/nowplaying/key-playing",
-    keyImage({ glyph: note, tile: Palette.tile, titled: true }),
+    keyImage({ glyph: note, label: "NOW", tile: Palette.tile }),
   ],
 ];
 

@@ -38,16 +38,16 @@ describe("keyImage", () => {
     expect(svg).toContain(`width="${KEY_SIZE}" height="${KEY_SIZE}"`);
   });
 
-  test("an on state fills the whole key and knocks the glyph out white", () => {
+  test("an on state fills the whole key and uses navy ink", () => {
     const svg = keyImage({ glyph: hold, tile: Palette.tile });
     expect(svg).toContain(
       `<rect width="${KEY_SIZE}" height="${KEY_SIZE}" fill="${Palette.tile}"`,
     );
-    expect(svg).toContain(Palette.white);
+    expect(svg).toContain(Palette.navy);
   });
 
-  test("an off state paints no field", () => {
-    expect(keyImage({ glyph: hold })).not.toContain("<rect");
+  test("an off state paints the WolfWave navy surface", () => {
+    expect(keyImage({ glyph: hold })).toContain(`fill="${Palette.surface}"`);
   });
 
   test("tint colours the glyph when there is no tile", () => {
@@ -62,6 +62,10 @@ describe("keyImage", () => {
     expect(titled).not.toBe(plain);
     // Same glyph, smaller box placed higher up.
     expect(offsetY(titled)).toBeLessThan(offsetY(plain));
+  });
+
+  test("bakes a short action label into the key", () => {
+    expect(textNodes(keyImage({ glyph: play, label: "PLAY" }))).toEqual(["PLAY"]);
   });
 });
 
@@ -86,7 +90,7 @@ describe("countKeyImage", () => {
     expect(textNodes(countKeyImage({ glyph: check, count: -1 }))).toEqual([]);
   });
 
-  test("the count inherits the tile's knocked-out white", () => {
+  test("the count uses dark ink on a warning tile", () => {
     const svg = countKeyImage({
       glyph: check,
       count: 3,
@@ -94,7 +98,7 @@ describe("countKeyImage", () => {
       tint: Palette.dim,
     });
     expect(svg).toContain(`fill="${Palette.warning}"`);
-    expect(svg).toContain(`fill="${Palette.white}"`);
+    expect(svg).toContain(`fill="${Palette.navy}"`);
     expect(svg).not.toContain(Palette.dim);
   });
 });
