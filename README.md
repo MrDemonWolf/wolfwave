@@ -67,7 +67,6 @@ Your music plays. Everything else keeps up.
 - **Stream Widgets.** Drop-in browser-source overlay powered by a local WebSocket server with a per-install read-only overlay token, five themes (`Default`, `Dark`, `Light`, `Glass`, `Neon`), and five layouts (`Horizontal`, `Vertical`, `Compact`, `Vinyl`, `Classic`). Two-PC streamers can receive now-playing data from a second machine on the LAN.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
-- **Settings deep links.** `wolfwave://settings/twitch/custom-commands` opens Settings on the Twitch pane, scrolls to Custom Commands, and flashes it. Every pane and card has a stable name, listed in the [Settings docs](https://mrdemonwolf.github.io/wolfwave/docs/settings#deep-links).
 - **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, announce, block, and overlay-toggle commands (control protocol v3, twelve keys) only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
@@ -83,7 +82,7 @@ Your music plays. Everything else keeps up.
 - **App Visibility.** Run menu-bar only, Dock only, or both, and set launch-at-login, from Settings > General. The menu bar icon stays reachable in every mode.
 - **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later.
 - **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and overlay/control tokens across the UI, so the app is safe to show on camera.
-- **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Credentials and private account IDs stay in Keychain; the public Twitch channel name travels with your preferences.
+- **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Credentials and private account IDs stay in Keychain; the public Twitch channel name travels with your preferences. Flip on **Sync with iCloud** and the same export follows you to your other Macs on its own.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
 - **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
