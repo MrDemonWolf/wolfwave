@@ -22,16 +22,18 @@ export const KEY_SIZE = 72;
 export const ACTION_ICON_SIZE = 20;
 
 export const Palette = {
-  /**
-   * Active tile. `color.brand.600`, not `500` — the default white Elgato title
-   * clears 4.5:1 on 600 and does not on 500.
-   */
-  tile: "#0066CC",
+  /** WolfWave navy gives every idle key an intentional, branded surface. */
+  surface: "#091533",
+  /** Recessed caption rail shared by every standard action key. */
+  rail: "#102A52",
+  /** Active tile. Navy ink on cyan stays legible and unmistakably WolfWave. */
+  tile: "#0FACED",
+  navy: "#091533",
   white: "#FFFFFF",
   /** Unavailable, not merely off. */
-  dim: "#8E8E93",
-  danger: "#FF453A",
-  warning: "#FF9F0A",
+  dim: "#73859F",
+  danger: "#D92D42",
+  warning: "#F5A524",
 } as const;
 
 /**
@@ -129,6 +131,8 @@ export interface KeyArtOptions {
   tile?: string;
   /** Glyph color when there is no tile. Defaults to white. */
   tint?: string;
+  /** Short action word baked into the key for recognition on the device. */
+  label?: string;
   /**
    * Set when the key carries an Elgato title. Lifts the glyph clear of the
    * bottom title strip instead of letting the two collide.
@@ -137,13 +141,44 @@ export interface KeyArtOptions {
 }
 
 /** A plain key: optional tile, one glyph. */
-export function keyImage({ glyph, tile, tint, titled }: KeyArtOptions): string {
-  const box = titled ? 46 : 54;
-  const centerY = titled ? 30 : KEY_SIZE / 2;
+export function keyImage({ glyph, tile, tint, label, titled }: KeyArtOptions): string {
+  const active = tile === Palette.tile;
+  const warning = tile === Palette.warning;
+  const danger = tint === Palette.danger;
+  const unavailable = tint === Palette.dim;
+  const box = label ? 30 : titled ? 40 : 44;
+  const centerY = label ? 22 : titled ? 30 : KEY_SIZE / 2;
+  const ink = active ? Palette.navy : warning ? Palette.warning : (tint ?? Palette.white);
+  const rail = active
+    ? Palette.navy
+    : warning
+      ? Palette.warning
+      : danger
+        ? Palette.danger
+        : Palette.rail;
+  const labelInk = active
+    ? Palette.tile
+    : warning
+      ? Palette.navy
+      : danger
+        ? Palette.white
+        : unavailable
+          ? Palette.dim
+          : Palette.white;
   return svg(
     KEY_SIZE,
-    (tile ? field(tile) : "") +
-      place(glyph(tile ? Palette.white : (tint ?? Palette.white), 1.25), box, centerY),
+    field(active ? Palette.tile : Palette.surface) +
+      place(glyph(ink, 1.35), box, centerY) +
+      (label
+        ? band(rail, 50, 22) +
+          text(
+            escapeText(label),
+            KEY_SIZE / 2,
+            65,
+            label.length > 6 ? 8 : label.length > 4 ? 9 : 10,
+            labelInk,
+          )
+        : ""),
   );
 }
 
@@ -157,7 +192,11 @@ export function countKeyImage(
 ): string {
   const { count } = options;
   if (count <= 0) return keyImage(options);
-  return labelKeyImage({ ...options, label: count > 99 ? "99+" : String(count) });
+  return labelKeyImage({
+    ...options,
+    label: count > 99 ? "99+" : String(count),
+    prominent: true,
+  });
 }
 
 /**
@@ -168,17 +207,25 @@ export function countKeyImage(
  * renders in whatever font and size they picked.
  */
 export function labelKeyImage(
-  options: KeyArtOptions & { label: string },
+  options: KeyArtOptions & { label: string; prominent?: boolean },
 ): string {
-  const { glyph, tile, tint, label } = options;
-  const ink = tile ? Palette.white : (tint ?? Palette.white);
+  const { glyph, tile, tint, label, prominent = false } = options;
+  const active = tile === Palette.tile;
+  const warning = tile === Palette.warning;
+  const ink = active ? Palette.navy : warning ? Palette.warning : (tint ?? Palette.white);
+  const rail = active ? Palette.navy : warning ? Palette.warning : Palette.rail;
   return svg(
     KEY_SIZE,
-    (tile ? field(tile) : "") +
-      place(glyph(ink, 1.1), 26, 19) +
-      // Three characters is the widest that stays legible at this size, so the
-      // type shrinks past two rather than overrunning the key.
-      text(label, KEY_SIZE / 2, 61, label.length > 2 ? 26 : 34, ink),
+    field(active ? Palette.tile : Palette.surface) +
+      place(glyph(ink, 1.15), prominent ? 28 : 30, prominent ? 18 : 22) +
+      band(rail, prominent ? 42 : 50, prominent ? 30 : 22) +
+      text(
+        label,
+        KEY_SIZE / 2,
+        prominent ? 64 : 65,
+        prominent ? (label.length > 2 ? 17 : 20) : label.length > 2 ? 9 : 10,
+        active ? Palette.tile : warning ? Palette.navy : ink,
+      ),
   );
 }
 
@@ -261,6 +308,11 @@ function svg(size: number, body: string): string {
 /** A solid field over the entire key. The key's own corner rounding clips it. */
 function field(color: string): string {
   return `<rect width="${KEY_SIZE}" height="${KEY_SIZE}" fill="${color}"/>`;
+}
+
+/** A solid control-label rail. Solid fills are reliable in Qt's SVG Tiny renderer. */
+function band(color: string, y: number, height: number): string {
+  return `<rect y="${y}" width="${KEY_SIZE}" height="${height}" fill="${color}"/>`;
 }
 
 /** Places a 24-grid glyph in a `box`-wide square centred at (36, centerY). */

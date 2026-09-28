@@ -2,7 +2,7 @@
 //  SettingsSyncServiceTests.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-09-01.
+//  Created by Nathanial Henniges on 2026-09-22.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 

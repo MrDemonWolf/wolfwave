@@ -101,7 +101,7 @@
       "Name": "Clear Queue",
       "UUID": "com.mrdemonwolf.wolfwave.clearqueue",
       "Icon": "imgs/actions/clearqueue/icon",
-      "Tooltip": "Clear the song-request queue.",
+      "Tooltip": "Clear the song-request queue. Hold to confirm.",
       "Controllers": [
         "Keypad"
       ],
