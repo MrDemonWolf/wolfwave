@@ -31,7 +31,7 @@ struct TwitchGlitchShape: Shape {
     /// - Parameter rect: Bounding rectangle to draw into.
     /// - Returns: A path with the outer silhouette plus two eye cutouts. Use
     ///   `FillStyle(eoFill: true)` to render the cutouts correctly.
-    func path(in rect: CGRect) -> Path {
+    nonisolated func path(in rect: CGRect) -> Path {
         let w = rect.width
         let h = rect.height
 
