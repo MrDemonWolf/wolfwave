@@ -144,8 +144,9 @@ export default function HomePage() {
                 <span className="ww-text-brand">live on your stream.</span>
               </h1>
               <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                A free Mac menu bar app. Press play once and your song shows up
-                in your Twitch chat, your Discord profile, and your OBS overlay.
+                Play a song in Apple Music and WolfWave updates Discord Rich
+                Presence and your OBS overlay. Twitch chat can request music or
+                ask what’s playing.
               </p>
               <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <Link
@@ -153,13 +154,13 @@ export default function HomePage() {
                   className="ww-btn ww-btn-primary w-full sm:w-auto"
                 >
                   <Download className="w-4 h-4" />
-                  Download for Mac
+                  Download WolfWave
                 </Link>
                 <Link
                   href="/docs"
                   className="ww-btn ww-btn-secondary w-full sm:w-auto"
                 >
-                  See how it works
+                  Explore the docs
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
