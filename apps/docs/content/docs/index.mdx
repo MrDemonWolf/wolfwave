@@ -2,7 +2,7 @@
 title: Documentation
 description: Install, configure, and extend the Apple Music → Twitch / Discord / OBS bridge for macOS. Free, open source, sandboxed.
 ogTitle: WolfWave Docs. Howl quietly. Stream loud.
-ogDescription: Install, configure, and extend the Apple Music → Twitch / Discord / OBS bridge for macOS. Free, open source, sandboxed.
+ogDescription: Set up Apple Music for Twitch, Discord, and OBS. Start with the guide that matches what you want to do.
 ogEyebrow: Documentation
 ogChips:
   - Install
@@ -24,7 +24,7 @@ keywords:
 
 <h1 className="docs-hero-title">Howl quietly.<br /><span className="accent">Stream loud.</span></h1>
 
-<p className="docs-hero-sub">WolfWave bridges Apple Music to Twitch, Discord, and OBS. Press play once and it keeps them in sync. These docs cover the whole loop, from your first launch to a custom overlay over WebSocket.</p>
+<p className="docs-hero-sub">Set up Apple Music for Twitch, Discord, and OBS. Start with the guide that matches what you want to do, or install WolfWave and follow along.</p>
 
 <div className="docs-hero-pills">
   <span className="ww-pill">Free · GPL-3.0</span>
@@ -36,31 +36,19 @@ keywords:
 
 ## Pick your path
 
-<Cards>
-  <Card title="For streamers" href="/docs/installation" description="Install, connect Twitch, drop the overlay into OBS. Five minutes, no terminal." />
-  <Card title="For builders" href="/docs/architecture" description="Native Swift. Local WebSocket. Fork it, wire it into your own overlay or Home Assistant." />
+<Cards className="lg:grid-cols-3">
+  <Card title="For streamers" href="/docs/installation" description="Install WolfWave, connect Twitch, and add the now-playing overlay to OBS." />
+  <Card title="For listeners" href="/docs/features#discord-status" description="Show the Apple Music track on your Discord profile with album art and live progress." />
+  <Card title="For builders" href="/docs/architecture" description="Explore the native app and local WebSocket, then build on the live music feed." />
 </Cards>
 
-### Streamers start here
+## Quick setup guides
 
 <Cards>
-  <Card title="Install" href="/docs/installation" description="DMG or Homebrew. Signed and notarized." />
-  <Card title="Use it" href="/docs/features" description="Menu bar, widget, song requests, Streamer Mode." />
-  <Card title="Bot commands" href="/docs/bot-commands" description="!song, !sr, !voteskip. Every trigger." />
-  <Card title="Settings" href="/docs/settings" description="Every pane, and what lives where." />
-  <Card title="Stream Deck" href="/docs/streamdeck" description="Twelve keys with live state. Play, skip, queue, overlay." />
-  <Card title="Troubleshooting" href="/docs/troubleshooting" description="Every error, by symptom, with the fix." />
-  <Card title="FAQ" href="/docs/faq" description="Spotify? Intel Mac? Second-PC OBS? Answered." />
-</Cards>
-
-### Builders start here
-
-<Cards>
-  <Card title="Architecture" href="/docs/architecture" description="MVVM + service-oriented Swift. ScriptingBridge → Apple Music." />
-  <Card title="Development" href="/docs/development" description="Build from source. Run the tests. Ship a PR." />
-  <Card title="OBS widget" href="/docs/widget" description="Tailwind + TypeScript workspace. Inlined into one HTML file." />
-  <Card title="Stream Deck API" href="/docs/stream-deck" description="Drive playback and the queue over a loopback-only control token." />
-  <Card title="Security" href="/docs/security" description="Keychain, App Sandbox, OAuth, EdDSA-signed updates." />
+  <Card title="Install WolfWave" href="/docs/installation" description="Download the signed app and complete first launch." />
+  <Card title="Connect Twitch" href="/docs/features#twitch-chat-bot" description="Authorize Twitch and choose which chat commands to enable." />
+  <Card title="Add the OBS overlay" href="/docs/features#now-playing-widget" description="Start the widget server and add one browser source." />
+  <Card title="Fix a problem" href="/docs/troubleshooting" description="Find an error by symptom and follow its recommended fix." />
 </Cards>
 
 ## Most-asked topics
