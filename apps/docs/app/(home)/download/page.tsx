@@ -7,11 +7,11 @@ import {
   Music2,
   Terminal,
 } from "lucide-react";
+import { getLatestDmgUrl, repoUrl } from "@/lib/site";
 import { CopyButton } from "./copy-button";
 
 // ── Constants ────────────────────────────────────────────────
-const REPO_URL = "https://github.com/MrDemonWolf/WolfWave";
-const LATEST_RELEASE_URL = `${REPO_URL}/releases/latest`;
+const REPO_URL = repoUrl;
 const BREW_CMD = "brew tap mrdemonwolf/den\nbrew install --cask wolfwave";
 
 export const metadata: Metadata = {
@@ -34,7 +34,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DownloadPage() {
+export default async function DownloadPage() {
+  const downloadUrl = await getLatestDmgUrl();
+
   return (
     <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
       {/* ═══════════════ HERO ═══════════════ */}
@@ -60,9 +62,7 @@ export default function DownloadPage() {
 
             <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href={LATEST_RELEASE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={downloadUrl}
                 className="ww-btn ww-btn-primary"
                 style={{ padding: "1rem 1.75rem", fontSize: "1rem" }}
               >
@@ -151,9 +151,7 @@ export default function DownloadPage() {
                 Drag to Applications. Auto-updates via Sparkle.
               </p>
               <a
-                href={LATEST_RELEASE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={downloadUrl}
                 className="ww-btn ww-btn-primary mt-6"
               >
                 <Download className="w-4 h-4" />
