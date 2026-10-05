@@ -167,38 +167,113 @@
   border-color: color-mix(in srgb, var(--hairline) 70%, transparent);
 }
 
-/* ── Apple-display hero scale ─────────────────────────────── */
+/* ── Landing hero ─────────────────────────────────────────── */
+.ww-home-hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  align-items: center;
+  gap: clamp(2.5rem, 5vw, 5rem);
+  width: min(100%, 75rem);
+  margin-inline: auto;
+  padding: clamp(4.5rem, 8vw, 7rem) 1.5rem clamp(4rem, 7vw, 6rem);
+}
+
+.ww-hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.ww-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1.25rem;
+  padding: 0.48rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--brand-500) 25%, var(--hairline));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-50) 68%, var(--bg-elev));
+  color: var(--brand-600);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dark .ww-hero-eyebrow {
+  color: var(--brand-500);
+}
+
+.ww-hero-eyebrow-dot,
+.ww-live-status > span,
+.ww-sync-destinations i,
+.ww-stage-caption > span {
+  width: 0.48rem;
+  height: 0.48rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #30d158;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #30d158 16%, transparent);
+}
+
 .ww-hero-headline {
   font-family: var(--font-instrument), -apple-system, BlinkMacSystemFont,
     "SF Pro Display", system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.015em;
-  line-height: 1.05;
-  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  line-height: 0.99;
+  font-size: clamp(2.85rem, 5.7vw, 4.75rem);
   margin: 0;
   text-wrap: balance;
 }
-@media (min-width: 1024px) {
-  .ww-hero-headline {
-    line-height: 1.02;
-    letter-spacing: -0.02em;
-  }
+
+.ww-hero-description {
+  max-width: 33rem;
+  margin: 1.5rem 0 0;
+  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+  line-height: 1.65;
 }
 
-/* ── Hero product card. Soft seated glow + idle float ────── */
-.ww-hero-card-glow {
-  position: absolute;
-  inset: 8% -6%;
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 70% 60% at 50% 50%,
-    rgba(10, 132, 255, 0.16) 0%,
-    transparent 70%
-  );
-  filter: blur(8px);
-  pointer-events: none;
+.ww-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.8rem;
 }
-/* ── Hero subtle radial (only decorative element) ────────── */
+
+.ww-download-cta {
+  min-height: 3.5rem;
+  box-shadow: 0 10px 28px -16px rgba(10, 132, 255, 0.7);
+}
+
+.ww-download-format {
+  margin-left: 0.2rem;
+  padding: 0.22rem 0.42rem;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ww-hero-reassurance {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  color: var(--txt-2);
+  font-size: 0.86rem;
+}
+
+.ww-hero-reassurance svg {
+  color: var(--brand-600);
+}
+
+.dark .ww-hero-reassurance svg {
+  color: var(--brand-500);
+}
+
 .ww-hero-glow {
   position: absolute;
   inset: -10% -10% auto -10%;
@@ -220,56 +295,299 @@
   );
 }
 
-/* ── Hero cluster (concept C). Real widgets layered around the
-   now-playing card. Mobile/tablet shows only the now-playing card;
-   the peeking widgets appear at lg and up. ─────────────────── */
-.ww-hero-cluster {
+.ww-hero-stage {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-}
-/* mobile/tablet: Discord + Twitch, centered, no overlap (OBS hidden) */
-.ww-hc-obs {
-  display: none;
-}
-.ww-hc-discord,
-.ww-hc-twitch {
   width: 100%;
-  max-width: 360px;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 1.5rem 0;
 }
-@media (min-width: 1024px) {
-  /* Staggered, NON-overlapping column. Flipped: the two streaming widgets on
-     top, Discord at the bottom. align-self zig-zags them left/right and a
-     tiny rotation adds life without colliding. */
-  .ww-hero-cluster {
-    gap: 16px;
-    /* Scale the whole cluster down so the hero fits above the fold. zoom
-       (unlike transform) also shrinks the reserved layout height. */
-    zoom: 0.8;
+
+.ww-hero-stage-glow {
+  position: absolute;
+  inset: 8% -12%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(10, 132, 255, 0.2), transparent 68%);
+  filter: blur(22px);
+  pointer-events: none;
+}
+
+.ww-product-window {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--hairline) 78%, var(--brand-500));
+  border-radius: 1.6rem;
+  background: color-mix(in srgb, var(--bg-elev) 94%, var(--brand-50));
+  box-shadow: 0 30px 80px -46px rgba(10, 132, 255, 0.52),
+    0 10px 28px -20px rgba(0, 0, 0, 0.3);
+  transform: rotate(1.2deg);
+}
+
+.dark .ww-product-window {
+  background: color-mix(in srgb, var(--bg-elev) 90%, #0a84ff 10%);
+}
+
+.ww-product-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 3.4rem;
+  padding: 0 1.1rem;
+  border-bottom: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+}
+
+.ww-window-dots {
+  display: flex;
+  gap: 0.38rem;
+}
+
+.ww-window-dots span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.ww-window-dots span:nth-child(2) { background: #febc2e; }
+.ww-window-dots span:nth-child(3) { background: #28c840; }
+
+.ww-window-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--txt-1);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.ww-window-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.48rem;
+  background: linear-gradient(145deg, #46b2ff, #0a84ff 58%, #2554cb);
+  color: white;
+}
+
+.ww-live-status {
+  display: inline-flex;
+  justify-self: end;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--txt-2);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.ww-live-status > span,
+.ww-sync-destinations i,
+.ww-stage-caption > span {
+  width: 0.42rem;
+  height: 0.42rem;
+}
+
+.ww-player-body {
+  padding: clamp(1.2rem, 4vw, 2rem);
+}
+
+.ww-player-overline,
+.ww-sync-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  color: var(--txt-2);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+
+.ww-player-track {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  margin-top: 1.2rem;
+}
+
+.ww-player-art {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: clamp(5rem, 12vw, 7rem);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: linear-gradient(140deg, #536dff 2%, #0a84ff 48%, #1d3caa 100%);
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 12px 32px -20px rgba(10, 132, 255, 0.8);
+}
+
+.ww-player-art > svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.2));
+}
+
+.ww-art-orbit {
+  position: absolute;
+  width: 74%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.8rem rgba(255, 255, 255, 0.06),
+    0 0 0 1.6rem rgba(255, 255, 255, 0.04);
+}
+
+.ww-player-metadata {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.33rem;
+}
+
+.ww-player-metadata strong {
+  overflow: hidden;
+  color: var(--txt-1);
+  font-size: clamp(1.15rem, 2.8vw, 1.55rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ww-player-metadata > span {
+  color: var(--txt-2);
+  font-size: 0.92rem;
+}
+
+.ww-player-metadata .ww-player-album {
+  margin-top: 0.15rem;
+  color: var(--brand-600);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.dark .ww-player-metadata .ww-player-album { color: var(--brand-500); }
+
+.ww-player-progress {
+  height: 0.3rem;
+  margin-top: 1.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--hairline);
+}
+
+.ww-player-progress span {
+  display: block;
+  width: 34%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5ac8fa, #0a84ff);
+}
+
+.ww-player-time {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.45rem;
+  color: var(--txt-2);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+}
+
+.ww-sync-divider {
+  height: 1px;
+  margin: 1.45rem 0 1.1rem;
+  background: var(--hairline);
+}
+
+.ww-sync-heading {
+  font-size: 0.62rem;
+}
+
+.ww-sync-heading span:last-child {
+  color: #248a43;
+}
+
+.dark .ww-sync-heading span:last-child { color: #30d158; }
+
+.ww-sync-destinations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+}
+
+.ww-sync-destinations > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+  padding: 0.55rem 0.68rem;
+  border: 1px solid var(--hairline);
+  border-radius: 0.7rem;
+  background: var(--bg-surface);
+  color: var(--txt-1);
+  font-size: 0.76rem;
+  font-weight: 550;
+}
+
+.ww-stage-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin: 1.15rem 0 0;
+  color: var(--txt-2);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  .ww-home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    max-width: 42rem;
+    padding-top: 4.25rem;
+    text-align: center;
   }
-  .ww-hc-obs {
-    display: block;
-    order: 1;
-    width: 360px;
-    align-self: flex-end;
-    transform: rotate(-1.5deg);
+
+  .ww-hero-eyebrow { margin-inline: auto; }
+  .ww-hero-description { margin-inline: auto; }
+  .ww-hero-actions { justify-content: center; }
+  .ww-hero-reassurance { justify-content: center; }
+  .ww-hero-stage { padding-top: 0.5rem; }
+}
+
+@media (max-width: 639px) {
+  .ww-home-hero {
+    gap: 1.45rem;
+    padding: 3.35rem 1.25rem 3.5rem;
   }
-  .ww-hc-twitch {
-    order: 2;
-    width: 320px;
-    max-width: none;
-    align-self: flex-start;
-    transform: rotate(1.5deg);
+
+  .ww-hero-headline {
+    font-size: clamp(2.7rem, 12vw, 3.5rem);
+    line-height: 1.01;
   }
-  .ww-hc-discord {
-    order: 3;
-    width: 340px;
-    max-width: none;
-    align-self: flex-end;
-    transform: rotate(-1.5deg);
-  }
+
+  .ww-hero-description { margin-top: 1.15rem; }
+  .ww-hero-actions { flex-direction: column; align-items: stretch; margin-top: 1.45rem; }
+  .ww-hero-actions > * { width: 100%; }
+  .ww-hero-reassurance { flex-wrap: wrap; font-size: 0.78rem; }
+  .ww-hero-stage { padding: 0; }
+  .ww-product-window { border-radius: 1.25rem; transform: none; }
+  .ww-product-header { min-height: 3.1rem; padding-inline: 0.85rem; }
+  .ww-player-body { padding: 1.1rem; }
+  .ww-player-track { gap: 0.9rem; }
+  .ww-player-metadata strong { font-size: 1.18rem; }
+  .ww-sync-destinations { gap: 0.42rem; }
+  .ww-sync-destinations > span { padding: 0.48rem 0.55rem; font-size: 0.7rem; }
+  .ww-stage-caption { font-size: 0.72rem; }
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */

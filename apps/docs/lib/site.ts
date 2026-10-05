@@ -40,6 +40,7 @@ export async function getLatestVersion(): Promise<string | null> {
         Accept: "application/vnd.github+json",
         "User-Agent": "wolfwave-docs",
       },
+      signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) return null;
     const rel = await res.json();
@@ -48,6 +49,17 @@ export async function getLatestVersion(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Direct link to the latest stable macOS installer. The release workflow
+ * publishes versioned DMGs; fall back to the release page if GitHub is
+ * unavailable during the static site build.
+ */
+export async function getLatestDmgUrl(): Promise<string> {
+  const version = await getLatestVersion();
+  if (!version) return `${repoUrl}/releases/latest`;
+  return `${repoUrl}/releases/download/v${version}/WolfWave-${version}.dmg`;
 }
 
 /**

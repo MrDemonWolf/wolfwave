@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { absoluteUrl, homepageSeo, repoUrl } from "@/lib/site";
+import { absoluteUrl, getLatestDmgUrl, homepageSeo, repoUrl } from "@/lib/site";
 import {
   ArrowRight,
   BookOpen,
@@ -126,81 +126,109 @@ function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const downloadUrl = await getLatestDmgUrl();
+
   return (
     <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">
         <div className="ww-hero-glow" aria-hidden="true" />
-        <div className="relative z-10 px-[10%] md:px-6 pt-12 pb-16 sm:pt-20 sm:pb-24">
-          <div className="mx-auto max-w-6xl grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-            {/* Claim */}
-            <div className="text-center lg:text-left">
-              <p className="ww-reveal ww-reveal-1 ww-text-brand text-sm font-semibold mb-5">
-                Built for Apple Music, not Spotify · macOS 26+
-              </p>
-              <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
-                Apple Music,{" "}
-                <span className="ww-text-brand">live on your stream.</span>
-              </h1>
-              <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Play a song in Apple Music and WolfWave updates Discord Rich
-                Presence and your OBS overlay. Twitch chat can request music or
-                ask what’s playing.
-              </p>
-              <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                <Link
-                  href="/download"
-                  className="ww-btn ww-btn-primary w-full sm:w-auto"
-                >
-                  <Download className="w-4 h-4" />
-                  Download WolfWave
-                </Link>
-                <Link
-                  href="/docs"
-                  className="ww-btn ww-btn-secondary w-full sm:w-auto"
-                >
-                  Explore the docs
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-              {/* Pre-click reassurance, right under the button. */}
-              <p className="ww-reveal ww-reveal-3 mt-4 text-sm ww-text-2">
-                <span className="ww-text-1 font-semibold">Free</span> · Open
-                source
-              </p>
+        <div className="ww-home-hero">
+          <div className="ww-hero-copy">
+            <p className="ww-reveal ww-reveal-1 ww-hero-eyebrow">
+              <span className="ww-hero-eyebrow-dot" aria-hidden="true" />
+              A native Mac app for Apple Music
+            </p>
+            <h1 className="ww-reveal ww-reveal-1 ww-hero-headline ww-text-1">
+              Apple Music,
+              <br />
+              <span className="ww-text-brand">live on your stream.</span>
+            </h1>
+            <p className="ww-reveal ww-reveal-2 ww-hero-description ww-text-2">
+              Press play once. WolfWave keeps your Twitch chat, Discord profile,
+              and OBS overlay in sync while you stream.
+            </p>
+            <div className="ww-reveal ww-reveal-3 ww-hero-actions">
+              <a
+                href={downloadUrl}
+                className="ww-btn ww-btn-primary ww-btn-lg ww-download-cta"
+              >
+                <Download className="w-4 h-4" aria-hidden="true" />
+                Download for Mac
+                <span className="ww-download-format">.dmg</span>
+              </a>
+              <Link href="/download" className="ww-btn ww-btn-secondary ww-btn-lg">
+                Other install options
+                <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </Link>
+            </div>
+            <p className="ww-reveal ww-reveal-3 ww-hero-reassurance">
+              <Check className="w-4 h-4" aria-hidden="true" />
+              macOS 26+ · Apple Silicon · Free and open source
+            </p>
+          </div>
 
-              {/* Secondary trust + platform facts. */}
-              <div className="ww-reveal ww-reveal-3 mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2">
-                <a
-                  href={REPO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ww-pill min-h-[40px]"
-                  aria-label="View WolfWave on GitHub"
-                >
-                  <Github className="w-3 h-3" /> Open source · GPL-3.0
-                </a>
-                <span className="ww-pill">macOS 26+ · Apple Silicon</span>
-                <span className="ww-pill">Under 10 MB download</span>
+          <div className="ww-reveal ww-reveal-2 ww-hero-stage">
+            <div className="ww-hero-stage-glow" aria-hidden="true" />
+            <div
+              className="ww-product-window"
+              role="img"
+              aria-label="WolfWave preview: Moonlit Howl is playing in Apple Music and syncing to Discord, Twitch, and OBS."
+            >
+              <div className="ww-product-header">
+                <div className="ww-window-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div className="ww-window-brand">
+                  <span className="ww-window-brand-icon">
+                    <Music className="w-4 h-4" aria-hidden="true" />
+                  </span>
+                  WolfWave
+                </div>
+                <span className="ww-live-status">
+                  <span aria-hidden="true" /> LIVE
+                </span>
+              </div>
+
+              <div className="ww-player-body">
+                <p className="ww-player-overline">NOW PLAYING FROM APPLE MUSIC</p>
+                <div className="ww-player-track">
+                  <div className="ww-player-art" aria-hidden="true">
+                    <Music className="w-8 h-8" />
+                    <span className="ww-art-orbit" />
+                  </div>
+                  <div className="ww-player-metadata">
+                    <strong>Moonlit Howl</strong>
+                    <span>Arctic Wolf</span>
+                    <span className="ww-player-album">Tundra Sessions</span>
+                  </div>
+                </div>
+                <div className="ww-player-progress" aria-hidden="true">
+                  <span />
+                </div>
+                <div className="ww-player-time" aria-hidden="true">
+                  <span>1:14</span>
+                  <span>3:38</span>
+                </div>
+
+                <div className="ww-sync-divider" />
+                <div className="ww-sync-heading">
+                  <span>YOUR STREAM, IN SYNC</span>
+                  <span>3 CONNECTED</span>
+                </div>
+                <div className="ww-sync-destinations">
+                  <span><i aria-hidden="true" /> Discord</span>
+                  <span><i aria-hidden="true" /> Twitch</span>
+                  <span><i aria-hidden="true" /> OBS Studio</span>
+                </div>
               </div>
             </div>
-
-            {/* Product cluster: real widgets in a staggered, non-overlapping
-                column. Decorative duplicates of the section widgets below, so
-                aria-hidden. Mobile shows the Discord + Twitch cards, centered. */}
-            <div className="ww-reveal ww-reveal-2 ww-hero-cluster">
-              <div aria-hidden="true" className="ww-hero-card-glow" />
-              <div className="ww-hc-discord" aria-hidden="true">
-                <DiscordPresenceCard />
-              </div>
-              <div className="ww-hc-obs" aria-hidden="true">
-                <OBSOverlayWidget controls={false} />
-              </div>
-              <div className="ww-hc-twitch" aria-hidden="true">
-                <TwitchChatPreview viewportHeight={150} />
-              </div>
-            </div>
+            <p className="ww-stage-caption">
+              <span aria-hidden="true" /> Your music, carried through the whole stream
+            </p>
           </div>
         </div>
       </section>
@@ -883,13 +911,10 @@ export default function HomePage() {
             <span className="ww-text-brand">We&apos;ll handle the rest.</span>
           </h2>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/download"
-              className="ww-btn ww-btn-primary w-full sm:w-auto"
-            >
+            <a href={downloadUrl} className="ww-btn ww-btn-primary w-full sm:w-auto">
               <Download className="w-4 h-4" />
-              Download WolfWave
-            </Link>
+              Download for Mac
+            </a>
             <Link
               href="/docs"
               className="ww-btn ww-btn-secondary w-full sm:w-auto"
