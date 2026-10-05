@@ -11,3 +11,7 @@ agent working in this repo, including Codex, identically.
 This file used to be a hand-maintained copy of CLAUDE.md. It drifted: it fell
 behind on several shipped features, hardcoded a stale test-file count, and a
 find/replace corrupted real paths. One file, one truth, no drift.
+
+For website work, follow the current **Docs website design flow** and
+**Landing page** guidance in `CLAUDE.md`. Keep `CLAUDE.md` as the source of
+truth instead of duplicating the design rules here.
