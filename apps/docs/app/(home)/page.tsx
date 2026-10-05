@@ -144,8 +144,9 @@ export default function HomePage() {
                 <span className="ww-text-brand">live on your stream.</span>
               </h1>
               <p className="ww-reveal ww-reveal-2 ww-text-2 text-lg sm:text-xl mt-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Play a song in Apple Music. WolfWave keeps Twitch chat, Discord
-                Rich Presence, and your OBS overlay in sync automatically.
+                Play a song in Apple Music and WolfWave updates Discord Rich
+                Presence and your OBS overlay. Twitch chat can request music or
+                ask what’s playing.
               </p>
               <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <Link
