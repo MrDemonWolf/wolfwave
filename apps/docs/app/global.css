@@ -964,6 +964,11 @@ html {
 [class*="prose"] p {
   margin-bottom: 1.25rem;
 }
+/* DocsPage already spaces its children. Avoid compounding that gap with the
+   default DocsDescription mb-8 before the first MDX paragraph or heading. */
+#nd-page > p.text-lg.text-fd-muted-foreground {
+  margin-bottom: 0.5rem;
+}
 .fd-prose h2,
 [class*="prose"] h2 {
   margin-top: 1.75rem;
