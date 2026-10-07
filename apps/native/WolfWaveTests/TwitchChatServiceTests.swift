@@ -1102,6 +1102,8 @@ struct TwitchChatServiceTests {
                 rawValue: defaults.string(forKey: statusKey) ?? "")
                 == .storageUnavailable)
         #expect(RedemptionStatus.storageUnavailable.bannerMessage != nil)
+        #expect(RedemptionStatus.resolutionStuck.bannerMessage != nil)
+        #expect(RedemptionStatus.notAffiliate.bannerMessage?.contains("Affiliate or Partner") == true)
         #expect(operations.value.contains {
             $0.url.contains("/channel_points/custom_rewards?")
                 && !$0.url.contains("/redemptions")

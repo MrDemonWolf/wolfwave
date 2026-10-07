@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Channel-point refunds no longer claim success before Twitch confirms them.** Rejected resolution requests are checked against Twitch and retried a bounded number of times; persistent conflicts are surfaced in Settings and stop blocking sign-out.
 - **Apple Music share links resolve to the selected track.** Song links now use their catalog ID, album links use the track ID in `?i=`, and link requests ask for Music access when needed.
 - **The Stream Deck `health` frame now reports whether Discord is actually connected.** It used to say Discord was up whenever the integration was switched on, even with Discord closed or the link dropped mid-stream. `discord` is now true only when Rich Presence is really connected, a new `discordState` field tells "off" from "disconnected", and the frame is re-sent the moment Discord connects or drops.
 - **The Stream Deck page's cards line up now.** The "Setting it up" card was drawn narrower than the two above it, because it holds only text and a button and so shrank to fit them instead of filling the page like its neighbours.

@@ -25,6 +25,11 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         let redemptionID: String
         let resolutionRawValue: String
         let createdAt: Date
+        var isDeadLetter: Bool? = nil
+        var failureAttempts: Int? = nil
+
+        var deadLetter: Bool { isDeadLetter == true }
+        var attemptCount: Int { max(0, failureAttempts ?? 0) }
 
         var resolution: TwitchChannelPointsService.Resolution? {
             TwitchChannelPointsService.Resolution(rawValue: resolutionRawValue)
@@ -95,6 +100,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// that complete local acceptance horizon without a count cap that busy
     /// channels could evict early.
     static let paidEventTombstoneRetention: TimeInterval = 10 * 60 + 30
+    static let maximumDeadLetterItems = 100
 
     private struct PersistedState: Codable {
         static let currentVersion = 1
@@ -335,7 +341,78 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
 
     /// Returns a stable oldest-first snapshot for replay.
     func pendingItems() -> [Item] {
-        lock.withLock { items.sorted { $0.createdAt < $1.createdAt } }
+        lock.withLock {
+            items.filter { !$0.deadLetter }.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
+    func deadLetterItems() -> [Item] {
+        lock.withLock { items.filter(\.deadLetter).sorted { $0.createdAt < $1.createdAt } }
+    }
+
+    @discardableResult
+    func recordFailureAttempt(_ id: Item.ID) throws -> Int {
+        try lock.withLock {
+            guard !existingStoreIsUnreadable else {
+                throw StoreError.unreadableExistingStore
+            }
+            guard let index = items.firstIndex(where: { $0.id == id }) else {
+                throw StoreError.missingItem
+            }
+            let current = items[index]
+            guard !current.deadLetter else { return current.attemptCount }
+            let attempts = current.attemptCount + 1
+            var replacement = items
+            replacement[index] = Item(
+                id: current.id,
+                broadcasterID: current.broadcasterID,
+                rewardID: current.rewardID,
+                redemptionID: current.redemptionID,
+                resolutionRawValue: current.resolutionRawValue,
+                createdAt: current.createdAt,
+                isDeadLetter: current.isDeadLetter,
+                failureAttempts: attempts)
+            try persist(
+                replacement,
+                bitsItems: bitsItems,
+                paidEventTombstones: paidEventTombstones,
+                acknowledgedRedemptionTombstones: acknowledgedRedemptionTombstones)
+            items = replacement
+            return attempts
+        }
+    }
+
+    func moveToDeadLetter(_ id: Item.ID) throws {
+        try lock.withLock {
+            guard !existingStoreIsUnreadable else {
+                throw StoreError.unreadableExistingStore
+            }
+            guard let index = items.firstIndex(where: { $0.id == id }) else {
+                throw StoreError.missingItem
+            }
+            let current = items[index]
+            guard !current.deadLetter else { return }
+            var replacement = items
+            replacement[index] = Item(
+                id: current.id,
+                broadcasterID: current.broadcasterID,
+                rewardID: current.rewardID,
+                redemptionID: current.redemptionID,
+                resolutionRawValue: current.resolutionRawValue,
+                createdAt: current.createdAt,
+                isDeadLetter: true,
+                failureAttempts: current.failureAttempts)
+            while replacement.filter(\.deadLetter).count > Self.maximumDeadLetterItems {
+                guard let oldest = replacement.firstIndex(where: \.deadLetter) else { break }
+                replacement.remove(at: oldest)
+            }
+            try persist(
+                replacement,
+                bitsItems: bitsItems,
+                paidEventTombstones: paidEventTombstones,
+                acknowledgedRedemptionTombstones: acknowledgedRedemptionTombstones)
+            items = replacement
+        }
     }
 
     /// Returns stable oldest-first replayable Bits events, optionally scoped to
@@ -646,7 +723,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 rewardID: current.rewardID,
                 redemptionID: current.redemptionID,
                 resolutionRawValue: resolution.rawValue,
-                createdAt: current.createdAt
+                createdAt: current.createdAt,
+                isDeadLetter: current.isDeadLetter,
+                failureAttempts: current.failureAttempts
             )
             var replacement = items
             replacement[index] = replacementItem
@@ -690,7 +769,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 rewardID: rewardID,
                 redemptionID: redemptionID,
                 resolutionRawValue: resolutionRawValue,
-                createdAt: now
+                createdAt: now,
+                isDeadLetter: false,
+                failureAttempts: 0
             )
             guard item.isValid else { throw StoreError.invalidItem }
             let replacement = items + [item]
