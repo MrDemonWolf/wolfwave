@@ -772,6 +772,102 @@ struct TwitchChatServiceTests {
         #expect(outbox.pendingItems().first?.resolution == .fulfilled)
     }
 
+    @Test("Non-unfulfilled channel-point events skip refund claims")
+    func testNonUnfulfilledEventStatusSkipsRefundClaim() async {
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-event-status")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        let service = TwitchChatService(redemptionResolutionOutbox: outbox)
+        installManagedRewardIdentity()
+        defer { clearManagedRewardIdentity() }
+
+        await service.configureBroadcasterRedemptionCredentialsForTesting(
+            broadcasterID: "broadcaster")
+        var payload = Self.redemptionPayload(id: "already-fulfilled")
+        if var event = payload["event"] as? [String: Any] {
+            event["status"] = "FULFILLED"
+            payload["event"] = event
+        }
+        await service.handleChannelPointsRedemption(payload)
+
+        #expect(outbox.pendingItems().isEmpty)
+        #expect(await service.activeRedemptionPipelineCountForTesting == 0)
+    }
+
+    @Test("Reconciliation waits for the live queue result before resuming recovery")
+    func testReconcileAwaitsInFlightPipelineBeforeUnpause() async throws {
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "token", userID: "broadcaster"))
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-reconcile-live")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(fileURL: directory.appending(path: "outbox.json"))
+        let intake = try outbox.enqueueIntake(
+            broadcasterID: "broadcaster", rewardID: "reward", redemptionID: "live").item
+        let gate = DeterministicAsyncGate()
+        let fetched = ThreadSafeBox(false)
+        let patches = ThreadSafeBox<[String]>([])
+        let handler: MockURLProtocol.Handler = { request in
+            if request.httpMethod == "GET" {
+                fetched.value = true
+                return (MockURLProtocol.httpResponse(for: request, status: 200),
+                        Data(#"{"data":[{"id":"live"}],"pagination":{}}"#.utf8))
+            }
+            patches.mutate { $0.append(requestBodyString(request)) }
+            return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        installManagedRewardIdentity()
+        defer { clearManagedRewardIdentity() }
+        await service.configureBroadcasterRedemptionCredentialsForTesting(broadcasterID: "broadcaster")
+        await service.installRedemptionPipelineForTesting(item: intake) {
+            await gate.suspend()
+            _ = try? outbox.updateResolution(intake.id, to: .fulfilled)
+        }
+        #expect(await waitUntil { await gate.suspended })
+        let recovery = Task {
+            await service.reconcileManagedRewardRedemptions(
+                credentials: .init(broadcasterID: "broadcaster", token: "token", clientID: "client"),
+                rewardID: "reward", receiveContext: nil)
+        }
+        #expect(await waitUntil { fetched.value })
+        await gate.resume()
+        #expect(await recovery.value != nil)
+        #expect(outbox.pendingItems().isEmpty)
+        #expect(patches.value.contains { $0.contains(#""status":"FULFILLED""#) })
+        #expect(!patches.value.contains { $0.contains(#""status":"CANCELED""#) })
+    }
+
+    @Test("Recovery does not re-enqueue an acknowledged redemption")
+    func testRecoveryEnqueueSkipsAcknowledgedTombstone() async throws {
+        let directory = makeIsolatedTempDirectory(prefix: "redemption-reconcile-tombstone")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(fileURL: directory.appending(path: "outbox.json"))
+        let intake = try outbox.enqueueIntake(
+            broadcasterID: "broadcaster", rewardID: "reward", redemptionID: "settled").item
+        try outbox.acknowledge(intake.id)
+        let patches = ThreadSafeBox(0)
+        let handler: MockURLProtocol.Handler = { request in
+            if request.httpMethod == "PATCH" { patches.mutate { $0 += 1 } }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"data":[{"id":"settled"}],"pagination":{}}"#.utf8))
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: outbox)
+        installManagedRewardIdentity()
+        defer { clearManagedRewardIdentity() }
+        await service.configureBroadcasterRedemptionCredentialsForTesting(broadcasterID: "broadcaster")
+        let result = await service.reconcileManagedRewardRedemptions(
+            credentials: .init(broadcasterID: "broadcaster", token: "token", clientID: "client"),
+            rewardID: "reward", receiveContext: nil)
+        #expect(result != nil)
+        #expect(outbox.pendingItems().isEmpty)
+        #expect(patches.value == 0)
+    }
+
     @Test("Atomic intake write failure pauses reward, exposes failure, and blocks later intake")
     func testAtomicIntakeWriteFailureFailsClosed() async {
         enum InjectedFailure: Error {
@@ -821,8 +917,8 @@ struct TwitchChatServiceTests {
             expectedWriteAttempts: 0)
     }
 
-    @Test("Outcome write failure immediately exposes failure, pauses, and refunds")
-    func testOutcomeWriteFailureImmediatelyFailsClosed() async {
+    @Test("Outcome write failure preserves the queue result while failing closed", arguments: [false, true])
+    func testOutboxWriteFailureAfterQueueAddKeepsFulfilled(queueSucceeds: Bool) async {
         enum InjectedFailure: Error {
             case write
         }
@@ -849,6 +945,9 @@ struct TwitchChatServiceTests {
         defer {
             clearManagedRewardIdentity()
             defaults.removeObject(forKey: statusKey)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
         }
 
         let operations = ThreadSafeBox<[(url: String, body: String)]>([])
@@ -868,8 +967,15 @@ struct TwitchChatServiceTests {
         await service.configureBroadcasterRedemptionCredentialsForTesting(
             broadcasterID: "broadcaster")
 
-        // No song service is wired, so intake is persisted first and then the
-        // conservative CANCELED outcome hits the injected second-write failure.
+        let music = MockAppleMusicController()
+        music.stubSearchSuccess()
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        let requests = SongRequestService(musicController: music)
+        if queueSucceeds {
+            await service.setSongRequestServiceReference(requests)
+        }
         await service.handleChannelPointsRedemption(
             Self.redemptionPayload(id: "outcome-failure"))
         await service.awaitRedemptionPipelinesForTesting()
@@ -878,6 +984,7 @@ struct TwitchChatServiceTests {
         #expect(writes.value == 2)
         #expect(outbox.intakeStorageIsUnavailable())
         #expect(outbox.pendingItems().count == 1)
+        #expect(requests.queue.count == (queueSucceeds ? 1 : 0))
         #expect(
             RedemptionStatus(rawValue: defaults.string(forKey: statusKey) ?? "")
                 == .storageUnavailable)
@@ -889,7 +996,7 @@ struct TwitchChatServiceTests {
         #expect(operations.value.contains {
             $0.url.contains("/redemptions?")
                 && $0.url.contains("id=outcome-failure")
-                && $0.body.contains(#""status":"CANCELED""#)
+                && $0.body.contains(queueSucceeds ? #""status":"FULFILLED""# : #""status":"CANCELED""#)
         })
     }
 

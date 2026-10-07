@@ -483,7 +483,7 @@ extension TwitchChatService {
     /// the fresh EventSub session may subscribe or make the reward redeemable.
     /// Existing outbox items are included so duplicate Helix results remain
     /// idempotent and prior crash recovery completes under the same hold.
-    private func reconcileManagedRewardRedemptions(
+    func reconcileManagedRewardRedemptions(
         credentials: TwitchChannelPointsService.Credentials,
         rewardID: String,
         receiveContext: EventSubReceiveContext?
@@ -501,6 +501,11 @@ extension TwitchChatService {
 
         do {
             for redemptionID in redemptionIDs {
+                guard !redemptionResolutionOutbox.hasAcknowledgedRedemption(
+                    broadcasterID: credentials.broadcasterID,
+                    rewardID: rewardID,
+                    redemptionID: redemptionID
+                ) else { continue }
                 _ = try redemptionResolutionOutbox.enqueueIntake(
                     broadcasterID: credentials.broadcasterID,
                     rewardID: rewardID,
@@ -521,6 +526,10 @@ extension TwitchChatService {
         }
         let recoveryItemIDs = Set(recoveryItems.map(\.id))
         if !recoveryItemIDs.isEmpty {
+            let liveWorkers = recoveryItemIDs.compactMap { redemptionTasks[$0] }
+            for worker in liveWorkers {
+                await worker.value
+            }
             replayPendingRedemptionResolutions()
             let workers = recoveryItemIDs.compactMap {
                 redemptionResolutionTasks[$0]
@@ -1188,6 +1197,14 @@ extension TwitchChatService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !redemptionID.isEmpty, !userName.isEmpty else { return }
 
+        if let status = event["status"] as? String,
+           status.caseInsensitiveCompare("unfulfilled") != .orderedSame {
+            Log.info(
+                "TwitchChatService: Skipping channel-point redemption \(redemptionID) with status \(status)",
+                category: .twitchRedeem)
+            return
+        }
+
         if redemptionResolutionOutbox.hasAcknowledgedRedemption(
             broadcasterID: eventBroadcasterID,
             rewardID: rewardID,
@@ -1797,7 +1814,7 @@ extension TwitchChatService {
                 broadcasterID: intake.broadcasterID,
                 rewardID: intake.rewardID,
                 redemptionID: intake.redemptionID,
-                resolution: .canceled)
+                resolution: resolution)
         }
     }
 
