@@ -16,6 +16,7 @@
   "packageManager": "bun@1.3.11",
   "devDependencies": {
     "ajv": "^8.20.0",
+    "sponsorkit": "^18.0.0",
     "turbo": "^2"
   }
 }

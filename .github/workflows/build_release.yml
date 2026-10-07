@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   SCHEME: WolfWave
   PROJECT: apps/native/WolfWave.xcodeproj

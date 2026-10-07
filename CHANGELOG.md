@@ -29,6 +29,9 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Hardened backup imports with bounded values, HTTPS URL validation, size checks, and explicit sharing/server settings review.
+- Restricted nightly builds to `main`, serialized release workflows, and validated Homebrew release versions.
+- Pin sponsor generation dependencies and publish sponsor updates with a step-scoped token.
 
 - **Channel-point refunds no longer claim success before Twitch confirms them.** Rejected resolution requests are checked against Twitch and retried a bounded number of times; persistent conflicts are surfaced in Settings and stop blocking sign-out.
 - **Apple Music share links resolve to the selected track.** Song links now use their catalog ID, album links use the track ID in `?i=`, and link requests ask for Music access when needed.
