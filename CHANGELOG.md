@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Apple Music share links resolve to the selected track.** Song links now use their catalog ID, album links use the track ID in `?i=`, and link requests ask for Music access when needed.
 - **The Stream Deck `health` frame now reports whether Discord is actually connected.** It used to say Discord was up whenever the integration was switched on, even with Discord closed or the link dropped mid-stream. `discord` is now true only when Rich Presence is really connected, a new `discordState` field tells "off" from "disconnected", and the frame is re-sent the moment Discord connects or drops.
 - **The Stream Deck page's cards line up now.** The "Setting it up" card was drawn narrower than the two above it, because it holds only text and a button and so shrank to fit them instead of filling the page like its neighbours.
 - **The Stream Deck setup steps described an install you can't do.** Step one told you to get the plugin from the Elgato Marketplace. It isn't there yet — you build it from the repo, which is what the setup guide has said all along. Step four also told you to leave the host alone; there is no host to change, so it now mentions only the port.

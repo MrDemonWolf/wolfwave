@@ -164,7 +164,7 @@ nonisolated final class LinkResolverService {
             guard path.count == 1 else { return nil }
             return .youtube
         case "music.apple.com":
-            guard isAppleMusicTrackPath(path) else { return nil }
+            guard isAppleMusicTrackPath(path, url: url) else { return nil }
             return .appleMusic
         default:
             return nil
@@ -185,14 +185,18 @@ nonisolated final class LinkResolverService {
 
     /// Apple Music share links use:
     /// /<storefront>/(album|song)/<slug>/<numeric catalog id>
-    private static func isAppleMusicTrackPath(_ path: [String]) -> Bool {
+    private static func isAppleMusicTrackPath(_ path: [String], url: URL) -> Bool {
         guard path.count == 4,
               path[0].utf8.count == 2,
               path[0].utf8.allSatisfy({ (97...122).contains(Int($0)) }),
               path[1] == "album" || path[1] == "song",
               !path[2].isEmpty
         else { return false }
-        return UInt64(path[3]) != nil
+        guard UInt64(path[3]) != nil else { return false }
+        if path[1] == "song" { return true }
+        guard let itemID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .first(where: { $0.name == "i" })?.value else { return false }
+        return UInt64(itemID) != nil
     }
 
     /// Resolve a link via an oEmbed endpoint.
