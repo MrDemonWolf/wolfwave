@@ -6,7 +6,7 @@ keywords:
   - mac streamer app no tracking
   - twitch bot privacy
   - apple music local first
-ogTitle: WolfWave Privacy. No Tracking, No Servers
+ogTitle: WolfWave Privacy. No Tracking or Cloud Servers
 ogDescription: Zero tracking. Zero analytics. Zero servers. Tokens stay in macOS Keychain. Local-first by design.
 ogChips:
   - No Tracking
@@ -40,7 +40,7 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 
 ### Information Collected Automatically
 
-- **Now Playing Data**. WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. This data is only used locally and shared with the services you explicitly enable (Twitch chat, Discord Rich Presence, WebSocket).
+- **Now Playing Data**. WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. It is shared only with services you enable (such as Twitch chat, Discord Rich Presence, or your local WebSocket overlay). Artwork lookups send track and artist search terms to Apple's iTunes Search API to find cover art.
 - **Listening History (opt-in)**. When you enable **Settings → History & Stats → Listening History**, WolfWave records each scrobbled play (track, artist, album, timestamp, duration) to a local NDJSON file under Application Support. Recording only happens while the toggle is on. You set the retention window in days (0 = keep everything) and can clear all recorded history at any time from the same pane.
 - **Twitch Viewer Activity.** When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Ordinary chat usernames and message bodies are held in memory for the queue or vote session and discarded when that state is cleared or the app quits. Paid song-request features also use a temporary recovery queue under Application Support. A channel-point record contains broadcaster, reward, and redemption IDs, its fulfill/refund state, and a timestamp; it does not contain the viewer name or request text. A qualifying Bits-cheer record contains the EventSub message and broadcaster IDs, viewer display name, Bits amount, the boost setting, the extracted song query, and a timestamp until the action is acknowledged. Completed paid-event identifiers remain for up to 10 minutes 30 seconds to suppress Twitch redelivery. Live records are removed after completion; a damaged queue file may be retained locally with a `.corrupt-*` suffix for recovery. Optional blocklist entries you create are also stored locally.
 
@@ -64,6 +64,8 @@ WolfWave includes an **optional, opt-in** diagnostics feature that is turned **o
 
 These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately.
 
+Application logs record app events, warnings, and errors to help troubleshoot problems. WolfWave redacts known sensitive values before writing them. The live log rotates at 5 MB and keeps three rotated files (up to about 20 MB total). Logs can still contain context you may not want to share, so review an exported log before posting or sending it.
+
 ## Data Storage
 
 - **Credentials and the configured Twitch channel** are stored in the macOS Keychain, encrypted by the operating system.
@@ -84,7 +86,7 @@ We encourage you to review these policies. WolfWave only sends the minimum data 
 
 ## Data Sharing
 
-We do **not** sell, rent, or share your personal information with third parties. WolfWave does not contain advertising or tracking SDKs.
+We do **not** sell or rent your personal information. WolfWave has no advertising or tracking SDKs. When you enable an integration, WolfWave sends the information that service needs to provide its features; see [Third-Party Services](#third-party-services).
 
 ## Data Retention
 
@@ -92,11 +94,12 @@ WolfWave stores data on your devices, except for the settings payload you explic
 
 | Category | Location | How to clear |
 |----------|----------|--------------|
-| Paid-event recovery records | `~/Library/Application Support/WolfWave/State/twitch-redemption-resolution-outbox.json*` | Removed automatically after processing; **Settings → Advanced → Reset Settings** clears all live or quarantined records |
-| Twitch account record / WebSocket tokens | macOS Keychain | **Settings → Advanced → Reset Settings** |
-| App preferences | UserDefaults | **Settings → Advanced → Reset Settings** |
+| Paid-event recovery records | `~/Library/Application Support/WolfWave/State/twitch-redemption-resolution-outbox.json*` | Removed automatically after processing; **Settings → Advanced → Erase All Data & Reset** clears all live or quarantined records |
+| Twitch account record / WebSocket tokens | macOS Keychain | **Settings → Advanced → Erase All Data & Reset** |
+| App preferences | UserDefaults | **Settings → Advanced → Erase All Data & Reset** |
 | Settings sync (opt-in) | Apple iCloud Key-Value Storage | Sync updated settings to replace it, or turn sync off on every Mac and delete WolfWave's stored data from your Apple Account's iCloud storage settings |
 | Application logs | `~/Library/Application Support/WolfWave/Logs/` | **Settings → Advanced → Clear Logs** |
+| Artwork and track links | `~/Library/Application Support/WolfWave/Cache/artwork-links.json` | **Settings → Advanced → Clear Artwork Cache**; **Erase All Data & Reset** also removes the Application Support container |
 | Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
 | Song request blocklist | UserDefaults | **Settings → Song Requests → Blocklist → Clear All** (or per-entry remove) |
 | Song request queue / vote-skip sessions | In-memory only | Quitting the app discards these immediately |
