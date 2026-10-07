@@ -35,6 +35,7 @@ struct SettingsImportSheet: View {
 
     /// Whether to restore the Twitch channel and prompt re-sign-in.
     @State private var reconnectTwitch = false
+    @State private var includeLocalSharingSettings = false
 
     // MARK: - Body
 
@@ -47,6 +48,19 @@ struct SettingsImportSheet: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             accountsSection
+
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                Text("These change what WolfWave shares or opens")
+                    .sectionEyebrow()
+                ToggleSettingRow(
+                    title: "Import local sharing and server settings",
+                    subtitle: "Includes diagnostics sharing, update channel, and local widget or Stream Deck servers.",
+                    isOn: $includeLocalSharingSettings,
+                    accessibilityLabel: "Import local sharing and server settings",
+                    accessibilityIdentifier: "importLocalSharingSettingsToggle"
+                )
+                .cardStyle()
+            }
 
             Text("Permissions don't carry over either. You may need to re-grant access like Apple Music control after importing.")
                 .font(.system(size: DSFont.Size.body))
@@ -105,7 +119,9 @@ struct SettingsImportSheet: View {
                 .keyboardShortcut(.cancelAction)
                 .pointerCursor()
             Button("Import") {
-                onConfirm(SettingsBackupCoder.ImportChoices(reconnectTwitch: reconnectTwitch))
+                onConfirm(SettingsBackupCoder.ImportChoices(
+                    reconnectTwitch: reconnectTwitch,
+                    includeLocalSharingSettings: includeLocalSharingSettings))
             }
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
