@@ -345,24 +345,45 @@ nonisolated enum CustomCommandRenderer {
             return first.hasPrefix("@") ? String(first.dropFirst()) : first
         }()
 
-        var out = template
-        // Longest-first so no token is a prefix of another it would corrupt.
-        let named: [(String, String)] = [
-            ("$lastsong", vars.lastSong),
-            ("$sender", sender),
-            ("$touser", touser),
-            ("$args", args.joined(separator: " ")),
-            ("$song", vars.currentSong),
-            ("$user", sender)
+        let named: [(String, String, Bool)] = [
+            ("$lastsong", vars.lastSong, false),
+            ("$sender", sender, true),
+            ("$touser", touser, true),
+            ("$args", args.joined(separator: " "), true),
+            ("$song", vars.currentSong, false),
+            ("$user", sender, true)
         ]
-        for (token, value) in named {
-            out = out.replacingOccurrences(of: token, with: value)
+        let orderedTokens = named.sorted { $0.0.count > $1.0.count }
+        var output = ""
+        var index = template.startIndex
+        var startsWithUserValue = false
+        while index < template.endIndex {
+            if template[index] == "$",
+               let (token, value, isUserValue) = orderedTokens.first(where: {
+                   template[index...].hasPrefix($0.0)
+               }) {
+                if output.isEmpty { startsWithUserValue = isUserValue }
+                output += value
+                index = template.index(index, offsetBy: token.count)
+                continue
+            }
+            if template[index] == "$",
+               template.index(after: index) < template.endIndex,
+               let position = template[template.index(after: index)].wholeNumberValue,
+               (1...9).contains(position) {
+                let next = template.index(after: index)
+                let value = position <= args.count ? args[position - 1] : ""
+                if output.isEmpty { startsWithUserValue = true }
+                output += value
+                index = template.index(after: next)
+                continue
+            }
+            output.append(template[index])
+            index = template.index(after: index)
         }
-        // Positional $1…$9 (absent args resolve to empty).
-        for index in 1...9 {
-            let value = index <= args.count ? args[index - 1] : ""
-            out = out.replacingOccurrences(of: "$\(index)", with: value)
+        if startsWithUserValue, let first = output.first, "!/.".contains(first) {
+            output.insert("\u{2063}", at: output.startIndex)
         }
-        return out.truncatedForChat()
+        return output.truncatedForChat()
     }
 }
