@@ -75,7 +75,7 @@ Your music plays. Everything else keeps up.
 ### History & Stats
 
 - **Listening History & Stats.** Opt-in, on-device log of what you actually play: top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
-- **Monthly Wrap.** A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **Monthly Wrap.** A personal "wrapped"-style summary for any month, exportable as a shareable PNG. Export failures show in the sheet, and temporary share images are removed when sharing finishes or is cancelled.
 - **`!stats` in Chat.** Viewers ask for today's top track. Replies only while you're live.
 
 ### Platform & Security

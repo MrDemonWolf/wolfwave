@@ -912,6 +912,11 @@ enum Log {
             )
             try? Data((header + "\n").utf8).write(to: url, options: .atomic)
 
+            for index in 1...rotationDepth {
+                try? FileManager.default.removeItem(
+                    at: url.deletingLastPathComponent().appending(path: "wolfwave.log.\(index)"))
+            }
+
             bannerPending = true
             lineCountCache = nil
         }

@@ -35,7 +35,7 @@ import Foundation
 /// 2. `readLogIncludingBackups` also checks the rotated backups, so a rotation
 ///    triggered elsewhere does not drop the message under test.
 @MainActor
-@Suite("Logger Tests", .serialized)
+@Suite("Logger Tests", .serialized, .isolatedSharedTestState)
 struct LoggerTests {
 
     // MARK: - Log Level Tests
@@ -470,6 +470,27 @@ struct LoggerTests {
         }
         #expect(record.message == "Log cleared by user")
         #expect(record.level == .info)
+    }
+
+    @Test("Clearing the log removes rotated backups")
+    func clearLogRemovesRotatedBackups() throws {
+        Log.error("Create current log", category: .dev)
+        Log.flush()
+        let url = try #require(Log.exportLogFile())
+        let backups = (1...3).map {
+            url.deletingLastPathComponent().appending(path: "wolfwave.log.\($0)")
+        }
+        for backup in backups {
+            try Data("old diagnostics".utf8).write(to: backup)
+        }
+        defer {
+            for backup in backups { try? FileManager.default.removeItem(at: backup) }
+        }
+        Log.clearLogFile()
+        for backup in backups {
+            #expect(!FileManager.default.fileExists(atPath: backup.path))
+        }
+        #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
     @Test("Clearing the log leaves no NUL padding behind")
