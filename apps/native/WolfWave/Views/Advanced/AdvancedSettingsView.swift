@@ -651,16 +651,17 @@ struct AdvancedSettingsView: View {
     /// an error alert.
     @MainActor
     private func loadImportFile(_ url: URL) {
-        do {
-            let data = try Data(contentsOf: url)
-            pendingBackup = try SettingsBackupService().decode(data)
-            showingImportSheet = true
-        } catch let error as SettingsBackupCoder.BackupError {
-            importErrorMessage = Self.message(for: error)
-            showingImportError = true
-        } catch {
-            importErrorMessage = "That file couldn't be read."
-            showingImportError = true
+        Task { @MainActor in
+            do {
+                pendingBackup = try await SettingsBackupService().decode(fileURL: url)
+                showingImportSheet = true
+            } catch let error as SettingsBackupCoder.BackupError {
+                importErrorMessage = Self.message(for: error)
+                showingImportError = true
+            } catch {
+                importErrorMessage = "That file couldn't be read."
+                showingImportError = true
+            }
         }
     }
 
@@ -704,6 +705,8 @@ struct AdvancedSettingsView: View {
             return "This backup uses an unsupported settings format."
         case .unsupportedNewerSchema:
             return "This backup was made by a newer version of WolfWave. Update WolfWave, then try again."
+        case .tooLarge:
+            return "That backup is too large to import. Choose a file under 1 MB."
         }
     }
 

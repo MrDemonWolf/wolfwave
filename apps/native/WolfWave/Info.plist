@@ -7,7 +7,7 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>WolfWave uses Apple Events to read Now Playing information and, when you use Song Requests or playback controls, play approved requests, skip tracks, and control Apple Music playback.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>WolfWave runs a local WebSocket and HTTP server on your Mac to stream now-playing data to OBS browser source overlays. No data is sent outside your local network.</string>
+	<string>WolfWave shares your now-playing info with OBS on this Mac or your local network. Only devices with your overlay link can see it.</string>
 	<key>CFBundleDisplayName</key>
 	<string>WolfWave</string>
 	<key>NSHumanReadableCopyright</key>

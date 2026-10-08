@@ -5,6 +5,8 @@
 ## Purpose
 Inline validation feedback rendered directly under a text field: verifying, verified, wrong value, or the check itself failed.
 
+The Song Requests setup share-link field uses `.invalid` for non-HTTPS or oversized links, with the same validator used by backup imports. Blank skips the optional link.
+
 Replaces three hand-rolled indicators that had drifted apart — the Twitch channel field, its diverged copy in the onboarding Twitch step, and the Stream Widgets token field. Between them they used three different error glyphs (`exclamationmark.octagon.fill`, `xmark.circle.fill`, `exclamationmark.circle.fill`) and raw `.red` / `.orange` instead of the semantic tokens.
 
 The behavior that matters: `.failed` shows the real reason **inline**. The Twitch field used to render "Couldn't check channel" and hide the actual cause in a `.help()` tooltip, invisible to anyone not hovering.

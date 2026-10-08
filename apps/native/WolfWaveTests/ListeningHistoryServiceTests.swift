@@ -77,7 +77,7 @@ private final class FailOnceTallyClear: @unchecked Sendable {
 
 /// Tests for the listening-history orchestrator: scrobble threshold, gating,
 /// recording, clearing, and the disk-load path.
-@Suite("Listening History Service Tests", .serialized)
+@Suite("Listening History Service Tests", .serialized, .isolatedSharedTestState)
 @MainActor
 struct ListeningHistoryServiceTests {
 
@@ -85,6 +85,90 @@ struct ListeningHistoryServiceTests {
 
     private func makeTempDirectory() -> URL {
         makeIsolatedTempDirectory(prefix: "history-svc-test")
+    }
+
+    @Test("Appending a play prunes expired records from memory and disk")
+    func appendPrunesExpiredRecords() async {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays) }
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+        store.replaceAll(with: [PlayRecord(
+            timestamp: Date().addingTimeInterval(-60 * 86_400),
+            track: "Expired", artist: "Wolf", album: "", duration: 200, playedSeconds: 200)])
+        let service = makeService(enabled: true, directory: dir, store: store)
+        await service.loadFromDisk()
+        DefaultsStore.store.set(30, forKey: AppConstants.UserDefaults.historyRetentionDays)
+        service.recordTrackChange(track: "Current", artist: "Wolf", album: "", duration: 200, playedSeconds: 200)
+        #expect(service.records.map(\.track) == ["Current"])
+        #expect(store.loadAll().map(\.track) == ["Current"])
+    }
+
+    @Test("Shortening retention immediately removes exactly the confirmation count")
+    func retentionChangePrunesImmediately() async {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays) }
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+        store.replaceAll(with: [60, 15, 1].map { age in
+            PlayRecord(timestamp: Date().addingTimeInterval(-Double(age) * 86_400),
+                       track: "\(age)", artist: "Wolf", album: "", duration: 200, playedSeconds: 200)
+        })
+        let service = makeService(enabled: true, directory: dir, store: store)
+        await service.loadFromDisk()
+        let count = service.expiredRecordCount(retentionDays: 7)
+        #expect(count == 2)
+        #expect(service.records.count == 3)
+        service.setRetentionDays(7)
+        #expect(service.records.count == 3 - count)
+        #expect(store.loadAll().map(\.track) == ["1"])
+        #expect(service.snapshot.totalPlays == 1)
+    }
+
+    @Test("Pruning never folds expired plays into lifetime totals")
+    func pruneDoesNotInflateLifetimeTally() async {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays) }
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+        store.replaceAll(with: [PlayRecord(
+            timestamp: Date().addingTimeInterval(-60 * 86_400),
+            track: "Expired", artist: "Wolf", album: "", duration: 200, playedSeconds: 200)])
+        let service = makeService(enabled: true, directory: dir, store: store)
+        await service.loadFromDisk()
+        service.setRetentionDays(7)
+        service.setRetentionDays(0)
+        service.shutdown()
+        #expect(service.snapshot.totalPlays == 0)
+        #expect(LifetimeTallyStore(directory: dir).load().isEmpty)
+        #expect(store.loadAll().isEmpty)
+    }
+
+    @Test("Confirmation count uses the same cutoff as pruning")
+    func pruneCountMatchesConfirmation() async {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays) }
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970))
+        let cutoff = now.addingTimeInterval(-7 * 86_400)
+        let store = PlayLogStore(directory: dir)
+        store.replaceAll(with: [-1.0, 0, 1].map { offset in
+            PlayRecord(timestamp: cutoff.addingTimeInterval(offset),
+                       track: "Boundary", artist: "Wolf", album: "", duration: 200, playedSeconds: 200)
+        })
+        let service = makeService(enabled: true, directory: dir, store: store)
+        await service.loadFromDisk()
+        #expect(service.expiredRecordCount(retentionDays: 0, now: now) == 0)
+        let count = service.expiredRecordCount(retentionDays: 7, now: now)
+        #expect(count == 1)
+        DefaultsStore.store.set(7, forKey: AppConstants.UserDefaults.historyRetentionDays)
+        service.prune(now: now)
+        #expect(service.records.count == 3 - count)
+        #expect(store.loadAll().count == 3 - count)
     }
 
     /// - Parameter store: Pass the same `PlayLogStore` the test asserts through

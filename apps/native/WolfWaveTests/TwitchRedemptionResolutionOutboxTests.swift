@@ -88,6 +88,33 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         )
     }
 
+    func testDeadLetterDoesNotBlockCredentialTeardown() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let store = TwitchRedemptionResolutionOutbox(fileURL: fixture.file)
+        let item = try store.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption",
+            resolution: .fulfilled)
+
+        for expectedAttempt in 1...5 {
+            XCTAssertEqual(try store.recordFailureAttempt(item.id), expectedAttempt)
+        }
+        XCTAssertEqual(
+            TwitchRedemptionResolutionOutbox(fileURL: fixture.file)
+                .pendingItems().first?.attemptCount,
+            5)
+
+        try store.moveToDeadLetter(item.id)
+
+        XCTAssertTrue(store.pendingItems().isEmpty)
+        XCTAssertEqual(store.deadLetterItems().map(\.id), [item.id])
+        XCTAssertEqual(
+            TwitchRedemptionResolutionOutbox(fileURL: fixture.file).deadLetterItems().map(\.id),
+            [item.id])
+    }
+
     func testStorageProbeUsesInjectedAtomicWriterAndCanRecover() throws {
         enum InjectedFailure: Error {
             case write

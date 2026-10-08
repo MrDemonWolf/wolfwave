@@ -29,6 +29,8 @@ nonisolated struct SettingsBackupCoder {
         case unsupportedOlderSchema(Int)
         /// A backup written by a newer WolfWave with an unsupported schema.
         case unsupportedNewerSchema(Int)
+        /// The selected backup exceeds the supported file size.
+        case tooLarge
     }
 
     // MARK: - Import Choices & Plan
@@ -37,9 +39,11 @@ nonisolated struct SettingsBackupCoder {
     struct ImportChoices: Equatable {
         /// Restore the Twitch channel and prompt a re-sign-in on import.
         var reconnectTwitch: Bool
+        var includeLocalSharingSettings: Bool
 
-        init(reconnectTwitch: Bool = false) {
+        init(reconnectTwitch: Bool = false, includeLocalSharingSettings: Bool = true) {
             self.reconnectTwitch = reconnectTwitch
+            self.includeLocalSharingSettings = includeLocalSharingSettings
         }
     }
 
@@ -191,8 +195,13 @@ nonisolated struct SettingsBackupCoder {
             }
             let stepCount = (number - domain.range.lowerBound) / domain.step
             return abs(stepCount - stepCount.rounded()) < 1e-9 ? value : nil
-        case (.string(let allowedValues), .string(let string)):
-            return (allowedValues?.contains(string) ?? true) ? value : nil
+        case (.string(let allowedValues, let maxLength), .string(let string)):
+            guard string.count <= maxLength,
+                  allowedValues?.contains(string) ?? true else { return nil }
+            return value
+        case (.httpsURL(let maxLength), .string(let string)):
+            guard let url = Preferences.normalizedHTTPSURL(string, maxLength: maxLength) else { return nil }
+            return .string(url)
         case (.stringList(let allowedValues), .string(let string)):
             let values = string
                 .split(separator: ",", omittingEmptySubsequences: false)
@@ -206,6 +215,12 @@ nonisolated struct SettingsBackupCoder {
             switch format {
             case .customCommands:
                 guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
+                      decoded.count <= 100,
+                      decoded.allSatisfy({
+                          $0.trigger.count <= 64
+                              && $0.response.count <= AppConstants.Twitch.maxMessageLength
+                              && $0.aliases.count <= 256
+                      }),
                       let normalized = normalizingLegacyStorage
                         ? CustomCommand.normalizedForExistingStorage(decoded)
                         : CustomCommand.normalizedForImport(decoded),
@@ -215,6 +230,8 @@ nonisolated struct SettingsBackupCoder {
                 return .data(encoded)
             case .songRequestBlocklist:
                 guard let decoded = try? JSONCoders.camelCase.decode([BlocklistItem].self, from: data),
+                      decoded.count <= 500,
+                      decoded.allSatisfy({ $0.value.count <= 256 }),
                       let normalized = BlocklistItem.normalizedForImport(decoded),
                       let encoded = try? JSONCoders.camelCaseEncoder.encode(normalized) else {
                     return nil
@@ -245,7 +262,10 @@ nonisolated struct SettingsBackupCoder {
         var set: [String: BackupValue] = [:]
         var ignored = 0
         for (key, value) in backup.settings {
-            if let rule = schema[key], let normalizedValue = normalizedValue(value, by: rule) {
+            if !choices.includeLocalSharingSettings,
+               Self.localSharingKeys.contains(key) {
+                ignored += 1
+            } else if let rule = schema[key], let normalizedValue = normalizedValue(value, by: rule) {
                 set[key] = normalizedValue
             } else {
                 ignored += 1
@@ -268,6 +288,17 @@ nonisolated struct SettingsBackupCoder {
             ignoredKeyCount: ignored
         )
     }
+
+    private static let localSharingKeys: Set<String> = [
+        AppConstants.UserDefaults.shareDiagnosticsEnabled,
+        AppConstants.UserDefaults.updateChannel,
+        AppConstants.UserDefaults.updateCheckEnabled,
+        AppConstants.UserDefaults.websocketEnabled,
+        AppConstants.UserDefaults.widgetHTTPEnabled,
+        AppConstants.UserDefaults.streamDeckControlEnabled,
+        AppConstants.UserDefaults.websocketServerPort,
+        AppConstants.UserDefaults.widgetPort,
+    ]
 
     /// How many portable preferences a backup would restore (for the import
     /// review summary). Uses the same validation as apply so the preview can

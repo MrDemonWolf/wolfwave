@@ -28,6 +28,38 @@ struct AppleMusicControllerTests {
         AppleMusicController()
     }
 
+    @Test("Apple Music song URLs resolve through their catalog ID")
+    func songPathResolvesByCatalogID() throws {
+        let url = try #require(URL(string: "https://music.apple.com/us/song/a-song/123456"))
+        #expect(AppleMusicController.appleMusicCatalogID(for: url) == "123456")
+    }
+
+    @Test("Apple Music album URLs use the item catalog ID")
+    func albumWithItemQueryUsesItemID() throws {
+        let url = try #require(URL(string: "https://music.apple.com/us/album/an-album/123?i=456"))
+        #expect(AppleMusicController.appleMusicCatalogID(for: url) == "456")
+    }
+
+    @Test("Apple Music album URLs without a track item do not resolve")
+    func albumWithoutItemIsNotFound() async throws {
+        var status = AppleMusicController.AuthStatus.notDetermined
+        var requestCount = 0
+        let controller = AppleMusicController(
+            authorizationStatusProvider: { status },
+            authorizationRequester: {
+                requestCount += 1
+                status = .authorized
+                return true
+            }
+        )
+
+        let albumURL = try #require(URL(string: "https://music.apple.com/us/album/an-album/123"))
+        let result = await controller.resolve(url: albumURL)
+
+        if case .notFound = result {} else { Issue.record("Expected album without item to be not found") }
+        #expect(requestCount == 1)
+    }
+
     // MARK: - Empty / Passthrough
 
     @Test("Empty string sanitizes to empty")

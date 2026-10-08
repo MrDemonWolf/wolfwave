@@ -54,6 +54,7 @@ final class LinkResolverServiceTests: XCTestCase {
     func testDetectsAppleMusicLink() {
         XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/x/1?i=2"))
         XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/gb/song/x/2"))
+        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/x/1"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://example.com"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("http://music.apple.com/us/album/x/1"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com.evil.test/us/album/x/1"))

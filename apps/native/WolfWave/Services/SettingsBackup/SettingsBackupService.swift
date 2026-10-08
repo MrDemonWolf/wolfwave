@@ -158,6 +158,21 @@ struct SettingsBackupService {
         try coder.decode(data)
     }
 
+    func decode(fileURL: URL) async throws -> SettingsBackup {
+        try await Task.detached(priority: .userInitiated) {
+            let maximumSize = 1_048_576
+            let fileSize = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            guard fileSize <= maximumSize else {
+                throw SettingsBackupCoder.BackupError.tooLarge
+            }
+            let data = try Data(contentsOf: fileURL)
+            guard data.count <= maximumSize else {
+                throw SettingsBackupCoder.BackupError.tooLarge
+            }
+            return try SettingsBackupCoder().decode(data)
+        }.value
+    }
+
     /// How many preferences a backup would restore (for the review summary).
     func restorableCount(_ backup: SettingsBackup) -> Int {
         resolvedImportPlan(

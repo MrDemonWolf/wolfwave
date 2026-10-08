@@ -7,8 +7,8 @@ type TabId = "overlay" | "ha" | "deck";
 
 const TABS: { id: TabId; label: string; lang: string }[] = [
   { id: "overlay", label: "Overlay", lang: "JS" },
-  { id: "ha", label: "Home Assistant", lang: "YAML" },
-  { id: "deck", label: "Stream Deck", lang: "Node" },
+  { id: "ha", label: "Browser source", lang: "HTML" },
+  { id: "deck", label: "Node client", lang: "Node" },
 ];
 
 const BRAND = "var(--brand-500)";
@@ -20,41 +20,39 @@ function span(color: string, text: string) {
 
 const SNIPPETS: Record<TabId, string> = {
   overlay: [
-    `${span(DIM, "// Subscribe to every track change in real time.")}`,
-    `${span(BRAND, "const")} ws = ${span(BRAND, "new")} WebSocket(${span(BRAND, '"ws://localhost:8080/now-playing"')});`,
+    `${span(DIM, "// Settings → Stream Widgets → Build your own overlay: copy token.")}`,
+    `${span(BRAND, "const")} token = ${span(BRAND, '"YOUR_OVERLAY_TOKEN"')};`,
+    `${span(BRAND, "const")} ws = ${span(BRAND, "new")} WebSocket(${span(BRAND, '"ws://localhost:8765"')}, [\`wolfwave.overlay.\${token}\`]);`,
     ``,
     `ws.onmessage = (event) =&gt; {`,
-    `  ${span(BRAND, "const")} { title, artist, artwork } = JSON.parse(event.data);`,
-    `  document.querySelector(${span(BRAND, '"#title"')}).textContent  = title;`,
+    `  ${span(BRAND, "const")} message = JSON.parse(event.data);`,
+    `  ${span(BRAND, "if")} (message.type !== ${span(BRAND, '"now_playing"')}) return;`,
+    `  ${span(BRAND, "const")} { track, artist, artworkURL } = message.data;`,
+    `  document.querySelector(${span(BRAND, '"#title"')}).textContent  = track;`,
     `  document.querySelector(${span(BRAND, '"#artist"')}).textContent = artist;`,
-    `  document.querySelector(${span(BRAND, '"#art"')}).src = artwork;`,
+    `  document.querySelector(${span(BRAND, '"#art"')}).src = artworkURL || ${span(BRAND, '""')};`,
     `};`,
   ].join("\n"),
 
   ha: [
-    `${span(DIM, "# configuration.yaml: render the now-playing card on a wall tablet.")}`,
-    `sensor:`,
-    `  - platform: ${span(BRAND, "rest")}`,
-    `    name: ${span(BRAND, '"WolfWave Now Playing"')}`,
-    `    resource: ${span(BRAND, "http://mac.local:8080/now-playing.json")}`,
-    `    value_template: ${span(BRAND, '"{{ value_json.title }}"')}`,
-    `    json_attributes:`,
-    `      - artist`,
-    `      - album`,
-    `      - artwork`,
-    `    scan_interval: ${span(BRAND, "5")}`,
+    `${span(DIM, "&lt;!-- Enable Stream Widgets in Settings first. --&gt;")}`,
+    `${span(DIM, "&lt;!-- Use your configured port if you changed the default. --&gt;")}`,
+    `&lt;iframe src=${span(BRAND, '"http://localhost:8766/"')}`,
+    `        title=${span(BRAND, '"WolfWave overlay"')}&gt;&lt;/iframe&gt;`,
   ].join("\n"),
 
   deck: [
-    `${span(DIM, "// Stream Deck plugin: flash the key when a new track lands.")}`,
+    `${span(DIM, "// Node client using the ws package and your overlay token.")}`,
     `${span(BRAND, "import")} WebSocket ${span(BRAND, "from")} ${span(BRAND, '"ws"')};`,
     ``,
-    `${span(BRAND, "const")} ws = ${span(BRAND, "new")} WebSocket(${span(BRAND, '"ws://localhost:8080/now-playing"')});`,
+    `${span(BRAND, "const")} token = process.env.WOLFWAVE_OVERLAY_TOKEN;`,
+    `${span(BRAND, "const")} ws = ${span(BRAND, "new")} WebSocket(${span(BRAND, '"ws://localhost:8765"')}, [\`wolfwave.overlay.\${token}\`]);`,
     ``,
     `ws.on(${span(BRAND, '"message"')}, (raw) =&gt; {`,
-    `  ${span(BRAND, "const")} { title, artist } = JSON.parse(raw);`,
-    `  streamDeck.setTitle(\`\${title}\\n\${artist}\`);`,
-    `  streamDeck.flash();`,
+    `  ${span(BRAND, "const")} message = JSON.parse(raw.toString());`,
+    `  ${span(BRAND, "if")} (message.type === ${span(BRAND, '"now_playing"')}) {`,
+    `    console.log(message.data.track, message.data.artist);`,
+    `  }`,
     `});`,
   ].join("\n"),
 };
@@ -99,7 +97,7 @@ export function DeveloperTabs() {
       <div className="ww-dev-status-row">
         <span className="ww-dev-status-pill ww-mono">
           <span className="ww-dev-dot" aria-hidden="true" />
-          LIVE · ws://localhost:8080
+          LOCAL · ws://localhost:8765
         </span>
       </div>
 
@@ -172,6 +170,8 @@ export function DeveloperTabs() {
 
       {/* hint */}
       <p className="ww-dev-hint ww-text-2">
+        Enable Stream Widgets in Settings and copy the token under Build your own overlay.
+        Defaults are WebSocket 8765 and widget HTTP 8766; use your configured ports.
         Need the payload schema?{" "}
         <Link href="/docs/architecture" className="ww-text-brand font-semibold">
           Read the architecture →

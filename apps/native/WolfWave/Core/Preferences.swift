@@ -76,8 +76,17 @@ nonisolated enum Preferences {
     /// user-configured aliases; see `SongListCommand`). Whitespace-trimmed;
     /// empty when the streamer hasn't shared one.
     static var songRequestSongListURL: String {
-        (defaults.string(forKey: AppConstants.UserDefaults.songRequestSongListURL) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        normalizedHTTPSURL(defaults.string(forKey: AppConstants.UserDefaults.songRequestSongListURL) ?? "") ?? ""
+    }
+
+    /// Empty clears an optional link; configured links must be bounded HTTPS URLs.
+    static func normalizedHTTPSURL(_ value: String, maxLength: Int = 2_048) -> String? {
+        guard value.count <= maxLength else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return "" }
+        guard let url = URL(string: trimmed), url.scheme?.lowercased() == "https",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url.absoluteString
     }
 
     /// Whether the most recent EventSub connection failed in a way that

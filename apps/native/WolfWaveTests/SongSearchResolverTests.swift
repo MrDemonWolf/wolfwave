@@ -67,7 +67,7 @@ final class SongSearchResolverTests: XCTestCase {
     func testAppleMusicLinkRoutesToControllerResolve() async {
         // controller.resolve reports .notFound → resolveLink maps to .linkNotFound.
         let result = await makeResolver()
-            .resolve(query: "check https://music.apple.com/us/album/x/1")
+            .resolve(query: "check https://music.apple.com/us/song/x/1")
 
         guard case .linkNotFound = result else {
             XCTFail("Expected .linkNotFound, got \(result)")

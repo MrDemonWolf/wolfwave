@@ -918,6 +918,7 @@ extension AppDelegate {
             flushCurrentPlayToHistoryOnce()
             historyService?.disable()
         }
+        historyService?.prune()
     }
 
     /// Flushes the in-progress play to history at most once per track.

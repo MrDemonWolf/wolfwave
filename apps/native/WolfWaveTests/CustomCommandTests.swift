@@ -121,6 +121,34 @@ struct CustomCommandRendererTests {
         #expect(out == "now Howl, was Moonrise")
     }
 
+    @Test("argument tokens are inserted literally")
+    func argsContainingSongTokenAreLiteral() {
+        let out = CustomCommandRenderer.render(
+            template: "$args", sender: "x", args: ["$song"], vars: vars)
+        #expect(out == "$song")
+    }
+
+    @Test("positional argument tokens are inserted literally")
+    func argsContainingPositionalTokenAreLiteral() {
+        let out = CustomCommandRenderer.render(
+            template: "$1", sender: "x", args: ["$1"], vars: vars)
+        #expect(out == "$1")
+    }
+
+    @Test("longest named token wins")
+    func longestTokenWins() {
+        let out = CustomCommandRenderer.render(
+            template: "$lastsong/$song", sender: "x", args: [], vars: vars)
+        #expect(out == "Moonrise/Howl")
+    }
+
+    @Test("leading command punctuation from user values is neutralized")
+    func leadingSlashFromUserValueIsNeutralised() {
+        let out = CustomCommandRenderer.render(
+            template: "$1", sender: "x", args: ["/ban viewer"], vars: vars)
+        #expect(out == "\u{2063}/ban viewer")
+    }
+
     @Test("arguments(from:) drops the trigger token")
     func arguments() {
         #expect(CustomCommandRenderer.arguments(from: "!hug @bob tightly") == ["@bob", "tightly"])
