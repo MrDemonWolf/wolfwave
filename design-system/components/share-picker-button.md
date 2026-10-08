@@ -15,6 +15,7 @@ SharePickerButton(makeItems: { [fileURL] })
 | `title` | `String` | Visible label. Default `"Share"`. |
 | `systemImage` | `String` | SF Symbol leading the title. Default `"square.and.arrow.up"`. |
 | `isProminent` | `Bool` | Fills the bezel with `controlAccentColor` and whitens label + glyph so it sits beside a SwiftUI `.borderedProminent` button. Default `false`. |
+| `onCompletion` | `(([Any]) -> Void)?` | Receives the original items after cancellation, successful sharing, or failure. Use to remove owned temporary files; selection alone does not finish sharing. Default `nil`. |
 | `makeItems` | `() -> [Any]?` | Builds the share items on click (main thread). Return `nil`/empty to suppress the picker (e.g. a render failed). Typically returns a temp file `URL`. |
 
 ## Tokens used
@@ -38,6 +39,7 @@ graph LR
 
 ## Do / Don't
 - ✅ Return a temp file `URL` from `makeItems` for image/file shares. Most services prefer a file over raw `NSImage`.
+- ✅ Give each temporary share file a unique name and remove it in `onCompletion`. The coordinator stays alive until sharing finishes, even if its SwiftUI sheet closes.
 - ✅ Gate visibility on "is there anything to share" at the call site (e.g. `if wrap.hasData`).
 - ✅ Wrap with `.fixedSize()` so it sizes to its content.
 - ❌ Don't try to present `NSSharingServicePicker` from a SwiftUI `Button`; it has no `NSView` to anchor to.
