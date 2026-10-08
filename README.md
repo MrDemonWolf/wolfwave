@@ -46,6 +46,8 @@ Your music plays. Everything else keeps up.
 ### Twitch
 
 - **Now Playing in Chat.** Viewers type `!song`, `!currentsong`, or `!nowplaying` and instantly see the track you're spinning.
+- **Music monitoring.** Paused tracks stay visible, rapid updates get a final check, and slow reads do not overlap.
+- **Local connection recovery.** Widget HTTP retries failed listeners; WebSockets detect broken peers and acknowledge commands when controls are unavailable.
 - **Song Requests.** Viewers request songs with `!sr <track>`. Requests play through Apple Music without stealing focus from OBS.
 - **Channel Points & Bits.** A WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost a queued track to the front. Paid point and qualifying Bits actions use a local recovery record; WolfWave pauses the managed reward and shows a warning if durable recovery is unavailable.
 - **Chat Vote-Skip.** Viewers vote off a song with `!voteskip` or `!vs`, in chat-tally mode or native Twitch Polls.

@@ -41,6 +41,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     var shouldThrowMusicAppNotRunning = false
     var shouldThrowNotPlayable = false
     var searchProvider: ((String) async -> AppleMusicController.SearchResult)?
+    var candidateSearchProvider: ((String, Int) async -> (songs: [Song], error: String?))?
     /// When > 0, `playNow` throws `notPlayable` and decrements; once 0 it succeeds.
     var notPlayableThrowsRemaining = 0
     /// Optional suspension seam for deterministic native-clear races.
@@ -74,6 +75,14 @@ final class MockAppleMusicController: AppleMusicControlling {
         }
     }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
+        if let candidateSearchProvider { return await candidateSearchProvider(query, limit) }
+        switch await search(query: query) {
+        case .found(let song): return ([song], nil)
+        case .notFound: return ([], nil)
+        case .error(let message): return ([], message)
+        }
+    }
     func playbackSnapshot() async -> PlaybackSnapshot? {
         playbackSnapshotCallCount += 1
         if let snapshotProvider { return snapshotProvider() }
@@ -294,6 +303,46 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+    }
+
+    func testMusicLaunchIgnoredWhenFeatureOff() async {
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        _ = queue.add(makeTestRequestItem(title: "Buffered", artist: "Artist", requesterUsername: "viewer"))
+        await service.handleMusicAppLaunched()
+        XCTAssertFalse(mockController.playNowCalled)
+        XCTAssertEqual(queue.items.count, 1)
+    }
+
+    func testMusicLaunchIgnoredWhenAutoAdvanceOff() async {
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestAutoAdvance)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestAutoAdvance) }
+        _ = queue.add(makeTestRequestItem(title: "Buffered", artist: "Artist", requesterUsername: "viewer"))
+        await service.handleMusicAppLaunched()
+        XCTAssertFalse(mockController.playNowCalled)
+        XCTAssertEqual(queue.items.count, 1)
+    }
+
+    func testMusicLaunchDoesNotStartFallbackWhenNowPlaying() async {
+        DefaultsStore.store.set("Fallback", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) }
+        _ = queue.add(makeTestRequestItem(title: "Playing", artist: "Artist", requesterUsername: "viewer"))
+        let playing = queue.dequeue()
+        mockController.isPlaying = true
+        await service.handleMusicAppLaunched()
+        XCTAssertFalse(mockController.playFallbackCalled)
+        XCTAssertEqual(queue.nowPlaying?.id, playing?.id)
+    }
+
+    func testMusicLaunchClearsStaleNowPlayingBeforeFallback() async {
+        DefaultsStore.store.set("Fallback", forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) }
+        _ = queue.add(makeTestRequestItem(title: "Old", artist: "Artist", requesterUsername: "viewer"))
+        _ = queue.dequeue()
+        mockController.isPlaying = false
+        mockController.isPaused = false
+        await service.handleMusicAppLaunched()
+        XCTAssertNil(queue.nowPlaying)
+        XCTAssertTrue(mockController.playFallbackCalled)
     }
 
     // MARK: - Audience Gate

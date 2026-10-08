@@ -152,7 +152,14 @@ final class SongRequestQueue {
         guard items.count < maxQueueSize else {
             return .queueFull(max: maxQueueSize)
         }
-        let index = fairShareEnabled ? fairShareInsertIndex(for: item) : items.count
+        let index: Int
+        if fairShareEnabled {
+            index = fairShareInsertIndex(for: item)
+        } else if item.isPriority {
+            index = items.firstIndex(where: { !$0.isPriority }) ?? items.count
+        } else {
+            index = items.count
+        }
         items.insert(item, at: index)
         return .added(position: index + 1)
     }

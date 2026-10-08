@@ -316,6 +316,12 @@ actor DiscordRPCService {
         let capturedAt: Date
     }
     private var lastPresence: LastPresence?
+    private var pendingActivity: [String: Any]?
+    private var presenceSendTask: Task<Void, Never>?
+    private var lastActivitySentAt: Date?
+    private var lastActivityNonce: String?
+    private var presenceRetryUsed = false
+    var presenceMinimumInterval: TimeInterval = 4
 
     /// Observer token for `discordPresenceSettingsChanged`.
     private nonisolated(unsafe) var settingsObserver: NSObjectProtocol?
@@ -379,6 +385,7 @@ actor DiscordRPCService {
         }
         pollTask?.cancel()
         reconnectTask?.cancel()
+        presenceSendTask?.cancel()
         if let ipcReadSource {
             // Its cancellation handler is now the descriptor's sole owner. It
             // closes only after any final event handler has returned.
@@ -595,6 +602,7 @@ actor DiscordRPCService {
     // MARK: - Presence Helpers
 
     private func performClearPresence(preservingLastPresence: Bool = false) async {
+        cancelPendingPresence()
         if !preservingLastPresence {
             lastPresence = nil
         }
@@ -669,17 +677,64 @@ actor DiscordRPCService {
     }
 
     /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
-    private func sendActivityFrame(_ activity: [String: Any]) async {
+    func sendActivityFrame(_ activity: [String: Any]) async {
+        guard isEnabled, state == .connected else { return }
+        pendingActivity = activity
+        presenceRetryUsed = false
+        if presenceSendTask != nil { return }
+        if let lastActivitySentAt, Date().timeIntervalSince(lastActivitySentAt) < presenceMinimumInterval {
+            schedulePendingPresence()
+        } else {
+            await flushPendingPresence(generation: connectionGeneration)
+        }
+    }
+
+    /// Only the latest pending payload survives a burst. Clear and disconnect cancel it.
+    private func schedulePendingPresence() {
+        guard presenceSendTask == nil else { return }
+        let generation = connectionGeneration
+        let delay = max(0, presenceMinimumInterval - Date().timeIntervalSince(lastActivitySentAt ?? .distantPast))
+        presenceSendTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.flushPendingPresence(generation: generation)
+        }
+    }
+
+    private func flushPendingPresence(generation: UInt64) async {
+        guard generation == connectionGeneration, isEnabled, state == .connected else { return }
+        presenceSendTask = nil
+        guard let activity = pendingActivity else { return }
+        pendingActivity = nil
+        let nonce = UUID().uuidString
+        lastActivityNonce = nonce
+        lastActivitySentAt = Date()
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
                 "pid": pid,
                 "activity": activity,
             ],
-            "nonce": UUID().uuidString,
+            "nonce": nonce,
         ]
 
         await sendCommandFrame(payload)
+    }
+
+    func cancelPendingPresence() {
+        presenceSendTask?.cancel()
+        presenceSendTask = nil
+        pendingActivity = nil
+        lastActivityNonce = nil
+    }
+
+    /// A rejected activity gets one delayed retry; newer updates own the pending slot.
+    func retryRejectedPresence(_ activity: [String: Any], nonce: String) {
+        guard isEnabled, state == .connected, lastPresence != nil,
+              nonce == lastActivityNonce, !presenceRetryUsed, pendingActivity == nil else { return }
+        presenceRetryUsed = true
+        pendingActivity = activity
+        schedulePendingPresence()
     }
 
     /// Re-sends the most recent presence with current settings applied.

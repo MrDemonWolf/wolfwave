@@ -263,6 +263,7 @@ extension TwitchChatService {
     /// existing scheduled attempt so we never have two pending at once.
     func scheduleReconnect() {
         guard !eventSubTeardownQuiescing.value else { return }
+        guard isNetworkReachable, !Preferences.twitchReauthNeeded else { return }
         guard let channelName = reconnectChannelName,
               let token = reconnectToken,
               let clientID = reconnectClientID else {
@@ -277,14 +278,15 @@ extension TwitchChatService {
                 "TwitchChatService: Max reconnection attempts reached",
                 category: .twitchEvents,
                 fields: ["limit": maxReconnectionAttempts])
-            // Keep the exhausted count intact. A manual connection may still
-            // start, and an accepted network-recovery cycle gets a fresh bounded
-            // budget; otherwise only session_welcome proves transport success.
-            return
+            broadcastConnectionState(
+                false,
+                error: "Twitch is still unavailable. Retrying in about a minute.")
         }
 
         // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        let delaySeconds = min(pow(2.0, Double(attempts)), 16.0)
+        let delaySeconds = attempts >= maxReconnectionAttempts
+            ? 60 + Double.random(in: 0...5)
+            : min(pow(2.0, Double(attempts)), 16.0)
 
         Log.info(
             "TwitchChatService: Scheduling reconnection",
@@ -302,6 +304,14 @@ extension TwitchChatService {
             if Task.isCancelled { return }
             await self?.attemptReconnect(channelName: channelName, token: token, clientID: clientID)
         }
+    }
+
+    /// A wake starts a fresh fast tier without changing credential ownership.
+    func handleSystemWake() {
+        reconnectionAttempts = 0
+        networkReconnectCycles = 0
+        lastNetworkReconnectTime = 0
+        if !isConnected, isNetworkReachable { scheduleReconnect() }
     }
 
     private func attemptReconnect(channelName: String, token: String, clientID: String) async {
@@ -340,15 +350,7 @@ extension TwitchChatService {
                 category: .twitchEvents)
             return
         }
-        guard let attemptNumber = Self.nextReconnectAttempt(
-            after: reconnectionAttempts,
-            maximum: maxReconnectionAttempts
-        ) else {
-            Log.error(
-                "TwitchChatService: Reconnection cap reached before attempt start",
-                category: .twitchEvents)
-            return
-        }
+        let attemptNumber = min(reconnectionAttempts + 1, maxReconnectionAttempts)
         reconnectionAttempts = attemptNumber
         let generation = beginConnectionAttempt()
 
@@ -385,7 +387,7 @@ extension TwitchChatService {
                 "TwitchChatService: Reconnection attempt failed",
                 category: .twitchEvents,
                 fields: ["attempt": attemptNumber, "error": error.localizedDescription])
-            if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+            if isNetworkReachable {
                 scheduleReconnect()
             } else if !isNetworkReachable {
                 Log.info(
@@ -473,7 +475,7 @@ extension TwitchChatService {
                         "TwitchChatService: Reconnect after refresh failed transiently - "
                             + error.localizedDescription,
                         category: .twitchEvents)
-                    if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+                    if isNetworkReachable {
                         scheduleReconnect()
                     } else if !isNetworkReachable {
                         Log.info(
@@ -503,7 +505,7 @@ extension TwitchChatService {
                 "TwitchChatService: Token refresh temporarily unavailable; keeping credentials",
                 category: .twitchEvents
             )
-            if reconnectionAttempts < maxReconnectionAttempts && isNetworkReachable {
+            if isNetworkReachable {
                 scheduleReconnect()
             }
         case .superseded:

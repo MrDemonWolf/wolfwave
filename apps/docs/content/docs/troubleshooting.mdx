@@ -28,6 +28,11 @@ there was one, and every log WolfWave still has. Logs contain no tokens.
 
 ## Twitch
 
+During a temporary outage, WolfWave retries quickly at first, then about once a
+minute while the network is available. Waking your Mac starts quick retries
+again. Temporary Keychain write failures are retried without discarding a
+rotated token or refreshing it again before saving it.
+
 ### Sign-in expired [#twitch-sign-in-expired]
 
 Twitch access tokens don't last forever. WolfWave refreshes yours in the
@@ -97,6 +102,10 @@ accounts.
 
 ## Apple Music
 
+Playback monitoring limits each Apple Event reply to two seconds and coalesces
+rapid notifications into a final check. A paused track remains visible; slow
+reads do not start overlapping polls.
+
 ### Let WolfWave read what's playing [#music-permission]
 
 macOS gates one app reading another's state behind Automation permission, and
@@ -126,7 +135,19 @@ playlist and requests have nothing to play from.
 **Fix:** in Music, Settings, General, turn on **Sync Library**, then click
 **Check Again** in WolfWave. Song requests keep running while you sort this out.
 
+### Artwork or track links unavailable
+
+Artwork lookups match both song title and artist. Temporary lookup failures wait
+at least a minute before retrying, with longer waits after repeated failures or
+rate limits. Restarting clears this temporary backoff.
+
 ## Discord
+
+Rapid presence changes are combined into the latest update, sent at most about
+once every four seconds. A rejected activity gets one delayed retry. Empty text
+fields are omitted and longer fields are capped at 128 characters. The settings
+preview uses the same button labels, toggles, and valid HTTPS links as the live
+presence. Before a connection attempt has finished, the status reads Connecting.
 
 ### Discord isn't connecting [#discord-not-connecting]
 
@@ -161,6 +182,11 @@ used the old one.
 ### Port already in use [#port-in-use]
 
 Another app on your Mac already holds that port.
+
+The widget HTTP server retries a failed listener up to five times with increasing
+delays. If the port remains occupied, use a different port or toggle Stream Widgets
+off and on after freeing it. HTTP connections have a ten-second request and write
+budget; WebSockets probe idle peers to remove broken connections.
 
 **Fix:** pick a different port in Settings, Stream Widgets, then update the URL
 in OBS to match.

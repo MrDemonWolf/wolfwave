@@ -189,18 +189,59 @@ final class AppleMusicSourceTests: XCTestCase {
         monitor.stopTracking()
         monitor.startTracking()
 
+        await Task.yield()
+        let countBeforeRelease = await probe.callCount
+        XCTAssertEqual(countBeforeRelease, 1)
+        await probe.releaseFirst(with: "NOT_RUNNING")
         let restartedProbePublished = await waitUntil {
             let callCount = await probe.callCount
             return callCount == 2 && capture.statuses == ["Music not running"]
         }
         XCTAssertTrue(restartedProbePublished)
 
-        await probe.releaseFirst(with: "NOT_RUNNING")
         let bothProbesCompleted = await waitUntil { completedChecks.value == 2 }
         XCTAssertTrue(bothProbesCompleted)
         await Task.yield()
 
         XCTAssertEqual(capture.statuses, ["Music not running"])
+    }
+
+    func testOverlappingChecksSkippedWithOneRerun() async {
+        let probe = SuspendedAppleMusicProbe()
+        monitor = AppleMusicSource(trackInfoProvider: { await probe.next() })
+        monitor.startTracking()
+        let started = await waitUntil { await probe.callCount == 1 }
+        XCTAssertTrue(started)
+        for _ in 0..<10 { monitor.forceRefresh() }
+        try? await Task.sleep(for: .milliseconds(50))
+        let inFlightCount = await probe.callCount
+        XCTAssertEqual(inFlightCount, 1)
+        await probe.releaseFirst(with: "NOT_RUNNING")
+        let reran = await waitUntil { await probe.callCount == 2 }
+        XCTAssertTrue(reran)
+        try? await Task.sleep(for: .milliseconds(50))
+        let finalCount = await probe.callCount
+        XCTAssertEqual(finalCount, 2)
+    }
+
+    func testBurstNotificationsProduceTrailingCheck() async {
+        let checks = ThreadSafeBox(0)
+        monitor = AppleMusicSource(trackInfoProvider: {
+            checks.mutate { $0 += 1 }
+            return "NOT_RUNNING"
+        })
+        monitor.startTracking()
+        let started = await waitUntil { checks.value == 1 }
+        XCTAssertTrue(started)
+        let notification = Notification(name: .init("com.apple.Music.playerInfo"), userInfo: ["Player State": "Paused"])
+        monitor.musicPlayerInfoChanged(notification)
+        let leading = await waitUntil { checks.value == 2 }
+        XCTAssertTrue(leading)
+        for _ in 0..<10 { monitor.musicPlayerInfoChanged(notification) }
+        let trailing = await waitUntil { checks.value == 3 }
+        XCTAssertTrue(trailing)
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(checks.value, 3)
     }
 
     // MARK: - extractPlayerState (tolerant FourCharCode parser)
