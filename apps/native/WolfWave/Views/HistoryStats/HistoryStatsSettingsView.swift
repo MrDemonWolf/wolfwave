@@ -60,6 +60,9 @@ struct HistoryStatsSettingsView: View {
     @State private var showWrapSheet = false
     @State private var showClearAlert = false
     @State private var showClearFailureAlert = false
+    @State private var showRetentionAlert = false
+    @State private var pendingRetentionDays = 0
+    @State private var pendingExpiredCount = 0
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
@@ -158,6 +161,32 @@ struct HistoryStatsSettingsView: View {
         } message: {
             Text("WolfWave will retry before saving any new plays.")
         }
+        .alert("Remove \(pendingExpiredCount) plays older than \(pendingRetentionDays) days?", isPresented: $showRetentionAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) {
+                applyRetentionDays(pendingRetentionDays)
+            }
+            .accessibilityIdentifier("historyRetentionConfirmButton")
+        } message: {
+            Text("These plays will be removed from history and statistics. Can't be undone.")
+        }
+    }
+
+    private func chooseRetentionDays(_ days: Int) {
+        let shorter = days > 0 && (historyRetentionDays == 0 || days < historyRetentionDays)
+        let count = service?.expiredRecordCount(retentionDays: days) ?? 0
+        if shorter, count > 0 {
+            pendingRetentionDays = days
+            pendingExpiredCount = count
+            showRetentionAlert = true
+        } else {
+            applyRetentionDays(days)
+        }
+    }
+
+    private func applyRetentionDays(_ days: Int) {
+        historyRetentionDays = days
+        service?.setRetentionDays(days)
     }
 
     // MARK: - Layout
@@ -752,8 +781,9 @@ struct HistoryStatsSettingsView: View {
                 // would be wrong for this key.
                 Picker(
                     "Keep for",
-                    selection: $historyRetentionDays.snapped(
-                        to: Self.retentionOptions, fallback: 0)
+                    selection: Binding(
+                        get: { Self.retentionOptions.contains(historyRetentionDays) ? historyRetentionDays : 0 },
+                        set: { chooseRetentionDays($0) })
                 ) {
                     Text("Forever").tag(0)
                     Text("7 days").tag(7)
@@ -766,11 +796,12 @@ struct HistoryStatsSettingsView: View {
                 .labelsHidden()
                 .frame(width: 120)
                 .accessibilityIdentifier("historyRetentionDays")
+                .disabled(service?.isLoaded != true)
             }
 
-            Text("Old plays clear on next launch.")
+            Text("Old plays clear automatically.")
                 .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(AppConstants.SettingsUI.cardPadding)
