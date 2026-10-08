@@ -31,6 +31,8 @@ scrollable pane:
 - **Music Sync** — the master switch. A hero now-playing card plus an
   integrations dashboard showing what's connected.
 - **App Visibility** — run WolfWave as a menu bar app, a Dock app, or both.
+  Launch at Login failures show a warning and a shortcut to Login Items; the
+  toggle keeps its previous value when registration fails.
 - **Appearance** — pick how WolfWave looks. Covers the whole app, menu bar menu
   included, and the picker shows preview thumbnails before you commit.
 
@@ -84,6 +86,8 @@ this Mac. Turning commands off leaves your overlay running. Full walkthrough:
 Opt-in, on-device listening history with charts and the Monthly Wrap. What
 counts as a play and how retention works:
 [Listening History](/docs/listening-history).
+Wrap export failures appear in the sheet. Temporary share images are removed
+after sharing finishes or is cancelled.
 
 ## Twitch
 
@@ -127,6 +131,8 @@ switch, log export, the bug-report flow, and opt-in on-device diagnostics.
 **Export Logs** writes one diagnostics file: an environment summary (version,
 macOS, install method), the last crash if there was one, and every rotated
 log, oldest first, so a bug report carries everything in a single attachment.
+Copy, reveal, and export report missing logs or failures. **Clear Logs** removes
+the current contents and rotated backups, then starts a fresh log.
 If WolfWave ever crashes, a one-time recovery callout appears here and says
 what crashed.
 

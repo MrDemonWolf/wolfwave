@@ -498,6 +498,20 @@ struct SettingsView: View {
         Task { @MainActor in await performResetSettings() }
     }
 
+    static func twitchResetError(clearCredentials: () async -> Bool) async -> UserFacingError? {
+        guard await clearCredentials() else {
+            return UserFacingError(
+                id: "settings.resetAborted.twitch",
+                title: "Reset stopped",
+                cause: "Twitch couldn't disconnect safely, so nothing was erased.",
+                fix: "Try again. If it keeps failing, restart WolfWave and retry.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
+        }
+        return nil
+    }
+
     /// Performs factory-reset teardown in order; notably, Twitch must finish
     /// leaving before a later account or relaunch can reuse the service.
     private func performResetSettings() async {
@@ -505,9 +519,10 @@ struct SettingsView: View {
         // disable unrelated outward integrations.
         // Twitch: disconnect + clear in-memory view-model state.
         // clearCredentials() leaves the channel first when connected.
-        guard await twitchViewModel.clearCredentials(
-            discardOpaqueRedemptionRecovery: true
-        ) else {
+        if let error = await Self.twitchResetError(clearCredentials: {
+            await twitchViewModel.clearCredentials(discardOpaqueRedemptionRecovery: true)
+        }) {
+            resetError = error
             Log.warn(
                 "SettingsView: Factory reset aborted because Twitch teardown was not safe",
                 category: .app)

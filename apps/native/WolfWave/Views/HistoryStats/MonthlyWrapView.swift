@@ -28,6 +28,7 @@ struct MonthlyWrapView: View {
 
     /// Set briefly after a successful export to confirm to the user.
     @State private var didExport = false
+    @State private var exportError: String?
 
     /// Color sampled from the top track's album art, blended into the card
     /// gradient. `nil` until artwork loads (or when there's no top track), in
@@ -74,6 +75,10 @@ struct MonthlyWrapView: View {
 
             MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory, tint: tint)
                 .frame(width: 380)
+
+            if let exportError {
+                CalloutBanner(exportError, style: .warning)
+            }
 
             footer
         }
@@ -127,7 +132,11 @@ struct MonthlyWrapView: View {
             Spacer()
 
             if wrap.hasData {
-                SharePickerButton(isProminent: true, makeItems: shareItems)
+                SharePickerButton(
+                    isProminent: true,
+                    onCompletion: Self.removeShareFiles,
+                    makeItems: shareItems
+                )
                     .frame(width: footerButtonWidth)
                     .accessibilityLabel("Share monthly wrap")
             }
@@ -188,11 +197,13 @@ struct MonthlyWrapView: View {
            next < earliest { return }
         month = next
         didExport = false
+        exportError = nil
     }
 
     /// Renders the wrap card to PNG data at 2x scale. Returns nil on render failure.
     @MainActor
     private func renderPNG() -> Data? {
+        exportError = nil
         let renderer = ImageRenderer(content:
             MonthlyWrapCard(data: wrap, hasAnyHistory: hasAnyHistory, tint: tint)
                 .frame(width: 380)
@@ -204,6 +215,7 @@ struct MonthlyWrapView: View {
         guard let image = renderer.nsImage,
               let png = image.pngData() else {
             Log.warn("MonthlyWrapView: Failed to render wrap image", category: .history)
+            exportError = "Couldn't render your wrap. Try again."
             return nil
         }
         return png
@@ -232,11 +244,12 @@ struct MonthlyWrapView: View {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try png.write(to: url)
+            try png.write(to: url, options: .atomic)
             withAnimation(reduceMotion ? nil : .default) { didExport = true }
             Log.info("MonthlyWrapView: Exported monthly wrap image", category: .history)
         } catch {
             Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: .history)
+            exportError = "Couldn't save your wrap. \(error.localizedDescription)"
         }
     }
 
@@ -246,14 +259,22 @@ struct MonthlyWrapView: View {
     private func shareItems() -> [Any]? {
         guard let png = renderPNG() else { return nil }
 
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(exportFileName)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString)-\(exportFileName)")
         do {
-            try png.write(to: url)
+            try png.write(to: url, options: .atomic)
         } catch {
             Log.error("MonthlyWrapView: Share render failed: \(error.localizedDescription)", category: .history)
+            exportError = "Couldn't prepare your wrap for sharing. \(error.localizedDescription)"
             return nil
         }
         return [url]
+    }
+
+    static func removeShareFiles(_ items: [Any]) {
+        for case let url as URL in items {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }
 

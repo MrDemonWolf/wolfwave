@@ -31,6 +31,7 @@ struct AppVisibilitySettingsView: View {
     /// user's approval in System Settings → General → Login Items. Drives the
     /// "Approve in Login Items" affordance; the toggle stays on.
     @State private var loginItemNeedsApproval = false
+    @State private var launchAtLoginError: String?
 
     // MARK: - Body
 
@@ -101,7 +102,9 @@ struct AppVisibilitySettingsView: View {
                 isOn: Binding(
                     get: { launchAtLogin },
                     set: { newValue in
-                        let outcome = LaunchAtLoginService.setEnabled(newValue)
+                        let result = Self.requestLaunchAtLogin(newValue)
+                        launchAtLoginError = result.error
+                        let outcome = result.outcome
                         switch outcome {
                         case .failure:
                             // SMAppService threw; leave the toggle where it was.
@@ -127,6 +130,14 @@ struct AppVisibilitySettingsView: View {
                 accessibilityIdentifier: "launchAtLoginToggle",
                 accessibilityHint: "Starts WolfWave automatically when you log in to your Mac"
             )
+
+            if let launchAtLoginError {
+                CalloutBanner(launchAtLoginError, style: .warning)
+                Button("Open Login Items") {
+                    LaunchAtLoginService.openLoginItemsSettings()
+                }
+                .pointerCursor()
+            }
 
             if loginItemNeedsApproval {
                 VStack(alignment: .leading, spacing: DSSpace.s2) {
@@ -191,6 +202,16 @@ struct AppVisibilitySettingsView: View {
     }
 
     // MARK: - Helpers
+
+    static func requestLaunchAtLogin(
+        _ enabled: Bool,
+        register: @MainActor (Bool) -> LaunchAtLoginService.RegistrationOutcome = LaunchAtLoginService.setEnabled
+    ) -> (outcome: LaunchAtLoginService.RegistrationOutcome, error: String?) {
+        let outcome = register(enabled)
+        return (outcome, outcome == .failure
+            ? "Couldn't change Launch at Login. Check WolfWave in Login Items and try again."
+            : nil)
+    }
 
     /// Posts a `dockVisibilityChanged` notification so `AppDelegate` updates
     /// the `NSApp.activationPolicy` and menu-bar visibility.
