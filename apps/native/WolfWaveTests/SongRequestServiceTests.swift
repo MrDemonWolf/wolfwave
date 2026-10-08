@@ -41,6 +41,7 @@ final class MockAppleMusicController: AppleMusicControlling {
     var shouldThrowMusicAppNotRunning = false
     var shouldThrowNotPlayable = false
     var searchProvider: ((String) async -> AppleMusicController.SearchResult)?
+    var candidateSearchProvider: ((String, Int) async -> (songs: [Song], error: String?))?
     /// When > 0, `playNow` throws `notPlayable` and decrements; once 0 it succeeds.
     var notPlayableThrowsRemaining = 0
     /// Optional suspension seam for deterministic native-clear races.
@@ -74,6 +75,14 @@ final class MockAppleMusicController: AppleMusicControlling {
         }
     }
     func resolve(url: URL) async -> AppleMusicController.SearchResult { .notFound }
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
+        if let candidateSearchProvider { return await candidateSearchProvider(query, limit) }
+        switch await search(query: query) {
+        case .found(let song): return ([song], nil)
+        case .notFound: return ([], nil)
+        case .error(let message): return ([], message)
+        }
+    }
     func playbackSnapshot() async -> PlaybackSnapshot? {
         playbackSnapshotCallCount += 1
         if let snapshotProvider { return snapshotProvider() }

@@ -59,6 +59,8 @@ so nothing half-configured ever goes live.
 - **`!sr <song or link>`.** Chat requests by name or by Apple Music, Spotify,
   or YouTube link; WolfWave resolves it to the matching Apple Music track and
   queues it.
+  Ambiguous Spotify or YouTube metadata is rejected instead of guessing a track;
+  try the artist and title or an Apple Music song link.
 - **Presets.** One-tap policies: **Open** (everyone; points and bits on),
   **Sub Only**, **Channel Point Only**, or **Custom** for fine-grained control
   over who can use `!sr` (Everyone, Subscribers, VIPs & Subscribers, Mods Only).

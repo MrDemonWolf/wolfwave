@@ -210,7 +210,8 @@ nonisolated enum TrackTextNormalizer {
 
     static func title(_ value: String) -> String {
         text(value.replacingOccurrences(
-            of: #"\s*(?:\([^()]*\)|\[[^\[\]]*\])\s*$"#,
-            with: "", options: .regularExpression))
+            of: #"\([^()]*\)|\[[^\[\]]*\]"#,
+            with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\s+-\s+Topic\s*$"#, with: "", options: .regularExpression))
     }
 }

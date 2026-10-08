@@ -131,6 +131,12 @@ playlist and requests have nothing to play from.
 **Fix:** in Music, Settings, General, turn on **Sync Library**, then click
 **Check Again** in WolfWave. Song requests keep running while you sort this out.
 
+### Artwork or track links unavailable
+
+Artwork lookups match both song title and artist. Temporary lookup failures wait
+at least a minute before retrying, with longer waits after repeated failures or
+rate limits. Restarting clears this temporary backoff.
+
 ## Discord
 
 ### Discord isn't connecting [#discord-not-connecting]
