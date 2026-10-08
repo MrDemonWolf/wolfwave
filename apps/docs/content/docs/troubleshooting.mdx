@@ -28,6 +28,11 @@ there was one, and every log WolfWave still has. Logs contain no tokens.
 
 ## Twitch
 
+During a temporary outage, WolfWave retries quickly at first, then about once a
+minute while the network is available. Waking your Mac starts quick retries
+again. Temporary Keychain write failures are retried without discarding a
+rotated token or refreshing it again before saving it.
+
 ### Sign-in expired [#twitch-sign-in-expired]
 
 Twitch access tokens don't last forever. WolfWave refreshes yours in the

@@ -62,6 +62,7 @@ struct TwitchChatServiceTests {
 
     /// Reset UserDefaults keys that tests depend on to prevent cross-test contamination.
     init() {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
         DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
         clearManagedRewardIdentity()
@@ -2116,6 +2117,28 @@ struct TwitchChatServiceTests {
         #expect(await service.networkReconnectCycles == 1)
     }
 
+    @Test("Exhausted fast reconnect budget enters the slow tier")
+    func reconnectEntersSlowTierAfterFastBudget() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.configureExhaustedReconnectForTesting()
+        await service.scheduleReconnect()
+        #expect(await service.hasScheduledReconnectForTesting)
+        #expect(await service.reconnectionAttempts == AppConstants.Twitch.maxReconnectionAttempts)
+        await service.handleNetworkReachabilityChange(false)
+    }
+
+    @Test("System wake resets the reconnect budget")
+    func wakeResetsReconnectBudget() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.configureExhaustedReconnectForTesting()
+        await service.handleSystemWake()
+        #expect(await service.reconnectionAttempts == 0)
+        #expect(await service.hasScheduledReconnectForTesting)
+        await service.handleNetworkReachabilityChange(false)
+    }
+
     @Test("Leaving cancels and clears the pending message retry lifecycle")
     func testLeaveClearsPendingMessageRetry() async {
         handlerStore.handler = { request in
@@ -2340,6 +2363,11 @@ private extension TwitchChatService {
         reconnectChannelName = "test-channel"
         reconnectToken = "test-token"
         reconnectClientID = "test-client"
+    }
+
+    func configureExhaustedReconnectForTesting() {
+        isNetworkReachable = true
+        reconnectionAttempts = maxReconnectionAttempts
     }
 
     var hasScheduledReconnectForTesting: Bool {

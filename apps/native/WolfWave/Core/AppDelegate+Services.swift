@@ -652,10 +652,11 @@ extension AppDelegate {
     /// (window-close filtering, notifications dropped with `_`) stay inline.
     private func observeOnMain(
         _ name: NSNotification.Name,
+        center: NotificationCenter = .default,
         _ handler: @escaping @MainActor (Notification) -> Void
     ) {
         notificationObservers.append(
-            NotificationCenter.default.addObserver(
+            center.addObserver(
                 forName: name,
                 object: nil,
                 queue: .main
@@ -676,6 +677,10 @@ extension AppDelegate {
         NotificationService.shared.installCenterDelegate()
 
         let nc = NotificationCenter.default
+
+        observeOnMain(NSWorkspace.didWakeNotification, center: NSWorkspace.shared.notificationCenter) { [weak self] _ in
+            Task { await self?.twitchService?.handleSystemWake() }
+        }
 
         observeOnMain(Notification.Name.trackingSettingChanged) { [weak self] n in
             self?.trackingSettingChanged(n)

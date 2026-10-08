@@ -380,7 +380,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         flushCurrentPlayToHistory()
         historyService?.shutdown()
         NotificationCenter.default.removeObserver(self)
-        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        notificationObservers.forEach {
+            NotificationCenter.default.removeObserver($0)
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
+        }
         notificationObservers.removeAll()
         Log.shutdown()
     }

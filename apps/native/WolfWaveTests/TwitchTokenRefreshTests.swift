@@ -1984,6 +1984,54 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
 
     // MARK: - Keychain accessor round-trip
 
+    func testRefreshCommitRetriesOnKeychainFailure() async throws {
+        await TwitchTokenRefresher.invalidateSession()
+        let failingBackend = InspectableKeychainBackend()
+        KeychainService.backend = failingBackend
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "old-access", refreshToken: "old-refresh"))
+        failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+        let calls = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            calls.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600}"#.utf8))
+        }
+        let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            sleep: { _ in })
+        XCTAssertEqual(result, .refreshed("new-access"))
+        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+        XCTAssertEqual(calls.value, 1)
+    }
+
+    func testHeldRotatedTokenCommittedBeforeNextRefresh() async throws {
+        await TwitchTokenRefresher.invalidateSession()
+        let failingBackend = InspectableKeychainBackend()
+        KeychainService.backend = failingBackend
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "old-access", refreshToken: "old-refresh"))
+        failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+        let calls = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            calls.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600}"#.utf8))
+        }
+        let session = MockURLProtocol.makeSession(handlerStore: handlerStore)
+        let first = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: session,
+            sleep: { _ in
+                failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+            })
+        XCTAssertEqual(first, .temporarilyUnavailable)
+        let second = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: session, sleep: { _ in })
+        XCTAssertEqual(second, .refreshed("new-access"))
+        XCTAssertEqual(calls.value, 1)
+        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+    }
+
     func testRefreshTokenKeychainRoundTrip() throws {
         XCTAssertNil(KeychainService.loadTwitchRefreshToken())
         try KeychainService.saveTwitchCredentialGrant(

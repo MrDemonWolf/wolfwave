@@ -1138,6 +1138,12 @@ actor TwitchTokenRefresher {
     }
 
     private var inFlight: InFlight?
+    private struct PendingRotation: Sendable {
+        let key: RefreshKey
+        let response: TwitchTokenResponse
+        let generation: UInt64
+    }
+    private var pendingRotation: PendingRotation?
     private var refreshGeneration: UInt64 = 0
 
     /// Supersedes and cancels a refresh owned by a prior account session.
@@ -1149,6 +1155,7 @@ actor TwitchTokenRefresher {
         refreshGeneration &+= 1
         inFlight?.task.cancel()
         inFlight = nil
+        pendingRotation = nil
     }
 
     /// Convenience for work that begins from the currently stored credential.
@@ -1293,8 +1300,18 @@ actor TwitchTokenRefresher {
 
         let generation = refreshGeneration
         let id = UUID()
+        let held = pendingRotation
         let task = Task<RefreshResult, Error> {
-            try await Self.performRefresh(
+            if let held, held.key == key, held.generation == generation {
+                return try await self.persist(
+                    held.response,
+                    replacing: sourceRefreshToken,
+                    expected: expected,
+                    generation: generation,
+                    clientID: clientID,
+                    sleep: sleep)
+            }
+            return try await Self.performRefresh(
                 clientID: clientID,
                 sourceRefreshToken: sourceRefreshToken,
                 expected: expected,
@@ -1378,11 +1395,13 @@ actor TwitchTokenRefresher {
                 let response = try await auth.refreshAccessToken(
                     refreshToken: sourceRefreshToken
                 )
-                return await shared.persist(
+                return try await shared.persist(
                     response,
                     replacing: sourceRefreshToken,
                     expected: expected,
-                    generation: generation
+                    generation: generation,
+                    clientID: clientID,
+                    sleep: sleep
                 )
             } catch is CancellationError {
                 throw CancellationError()
@@ -1433,24 +1452,38 @@ actor TwitchTokenRefresher {
         _ response: TwitchTokenResponse,
         replacing sourceRefreshToken: String,
         expected: TwitchCredentialStore.AccessExpectation,
-        generation: UInt64
-    ) -> RefreshResult {
+        generation: UInt64,
+        clientID: String,
+        sleep: @escaping @Sendable (Duration) async throws -> Void
+    ) async throws -> RefreshResult {
         guard generation == refreshGeneration else {
             return .superseded
         }
-        do {
-            return try TwitchCredentialStore.shared.commitRefreshGrant(
-                response,
-                replacing: sourceRefreshToken,
-                expected: expected
-            ) ? .refreshed(response.accessToken) : .superseded
-        } catch {
-            Log.warn(
-                "TwitchTokenRefresher: Refreshed but could not persist - \(error.localizedDescription)",
-                category: .twitchAuth)
-            return TwitchCredentialStore.shared.matches(expected)
-                ? .temporarilyUnavailable
-                : .superseded
+        let key = RefreshKey(
+            clientID: clientID, credentialRevision: expected.revision,
+            accessToken: expected.accessToken, sourceRefreshToken: sourceRefreshToken)
+        pendingRotation = PendingRotation(key: key, response: response, generation: generation)
+        for attempt in 1...3 {
+            try Task.checkCancellation()
+            guard generation == refreshGeneration, TwitchCredentialStore.shared.matches(expected) else {
+                if pendingRotation?.key == key, pendingRotation?.generation == generation {
+                    pendingRotation = nil
+                }
+                return .superseded
+            }
+            do {
+                let committed = try TwitchCredentialStore.shared.commitRefreshGrant(
+                    response, replacing: sourceRefreshToken, expected: expected)
+                if pendingRotation?.key == key, pendingRotation?.generation == generation {
+                    pendingRotation = nil
+                }
+                return committed ? .refreshed(response.accessToken) : .superseded
+            } catch {
+                Log.warn("TwitchTokenRefresher: Rotated grant commit failed; retaining for retry",
+                         category: .twitchAuth)
+                if attempt < 3 { try await sleep(.milliseconds(250 * attempt)) }
+            }
         }
+        return .temporarilyUnavailable
     }
 }
