@@ -353,6 +353,24 @@ extension AppDelegate {
 
     /// Creates the WebSocket server on the configured port and enables if configured.
     func setupWebSocketServer() {
+        Task { [weak self] in
+            let tokens = await Task.detached(priority: .utility) {
+                let overlay = WebSocketAuthToken.currentOrCreate(for: .overlay)
+                var control = WebSocketAuthToken.currentOrCreate(for: .control)
+                if WebSocketAuthToken.constantTimeEquals(overlay, control) {
+                    do { control = try WebSocketAuthToken.rotate(.control) }
+                    catch { Log.error("AppDelegate: Could not separate WebSocket credentials", category: .websocket) }
+                }
+                return (overlay, control)
+            }.value
+            guard let self else { return }
+            self.guardedStart("WebSocket") {
+                self.setupWebSocketServer(overlayToken: tokens.0, controlToken: tokens.1)
+            }
+        }
+    }
+
+    private func setupWebSocketServer(overlayToken: String, controlToken: String) {
         // One off-main scan primes the LAN IP cache. Network path updates refresh
         // it again after network-path changes.
         Task.detached(priority: .utility) {
@@ -361,19 +379,6 @@ extension AppDelegate {
 
         let port = Preferences.resolvedWebSocketServerPort
 
-        let overlayToken = WebSocketAuthToken.currentOrCreate(for: .overlay)
-        var controlToken = WebSocketAuthToken.currentOrCreate(for: .control)
-        if WebSocketAuthToken.constantTimeEquals(overlayToken, controlToken) {
-            do {
-                controlToken = try WebSocketAuthToken.rotate(.control)
-                Log.warn(
-                    "AppDelegate: Replaced a control token that matched the overlay token",
-                    category: .websocket
-                )
-            } catch {
-                Log.error("AppDelegate: Could not separate WebSocket credentials", category: .websocket)
-            }
-        }
         Log.info(
             "AppDelegate: WebSocket server initialized on port " + String(port)
                 + " (overlay=" + WebSocketAuthToken.redact(overlayToken)
@@ -393,6 +398,7 @@ extension AppDelegate {
                 await self?.handleStreamDeckCommand(command)
                     ?? CommandAck.failure(command.action.rawValue, "unavailable")
             }
+            if FeatureFlags.websocketEnabled { await server.setEnabled(true) }
         }
 
         let stateChanges = server.stateChanges
@@ -411,10 +417,6 @@ extension AppDelegate {
             }
         }
 
-        let enabled = FeatureFlags.websocketEnabled
-        if enabled {
-            Task { await server.setEnabled(true) }
-        }
     }
 
     /// Creates the Sparkle updater and starts automatic update checking.

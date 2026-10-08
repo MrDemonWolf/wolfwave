@@ -183,6 +183,11 @@ used the old one.
 
 Another app on your Mac already holds that port.
 
+The widget HTTP server retries a failed listener up to five times with increasing
+delays. If the port remains occupied, use a different port or toggle Stream Widgets
+off and on after freeing it. HTTP connections have a ten-second request and write
+budget; WebSockets probe idle peers to remove broken connections.
+
 **Fix:** pick a different port in Settings, Stream Widgets, then update the URL
 in OBS to match.
 
