@@ -102,6 +102,10 @@ accounts.
 
 ## Apple Music
 
+Playback monitoring limits each Apple Event reply to two seconds and coalesces
+rapid notifications into a final check. A paused track remains visible; slow
+reads do not start overlapping polls.
+
 ### Let WolfWave read what's playing [#music-permission]
 
 macOS gates one app reading another's state behind Automation permission, and
