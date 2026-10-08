@@ -14,6 +14,44 @@ final class SongBlocklistTests: WolfWaveTestCase {
 
     // MARK: - Empty Start
 
+    func testCollaborationArtistIsBlocked() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        await list.add(BlocklistItem(value: "Beyoncé", type: .artist))
+        for artist in ["Other, Beyoncé", "Other & Beyoncé", "Other feat. Beyoncé", "Other x Beyoncé"] {
+            let blocked = await list.isBlocked(title: "Song", artist: artist)
+            XCTAssertTrue(blocked, artist)
+        }
+    }
+
+    func testDiacriticAndCaseInsensitiveMatch() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        await list.add(BlocklistItem(value: "  CAFÉ   SONG  ", type: .song))
+        let blocked = await list.isBlocked(title: "cafe song", artist: "Other")
+        XCTAssertTrue(blocked)
+    }
+
+    func testBracketSuffixStripped() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        await list.add(BlocklistItem(value: "Song", type: .song))
+        for title in ["Song (Remastered)", "Song [Lyrics]"] {
+            let blocked = await list.isBlocked(title: title, artist: "Other")
+            XCTAssertTrue(blocked)
+        }
+    }
+
+    func testAddTrimsWhitespace() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        let item = BlocklistItem(value: "  Viewer  \n", type: .requester)
+        await list.add(item)
+        await list.add(BlocklistItem(value: "   ", type: .requester))
+        let entries = await list.allEntries
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.value, "Viewer")
+        XCTAssertEqual(entries.first?.id, item.id)
+        let blocked = await list.isBlockedRequester(" viewer ")
+        XCTAssertTrue(blocked)
+    }
+
     func testNewListIsEmpty() async {
         let storage = InMemoryBlocklistStorage()
         let list = SongBlocklist(storage: storage)

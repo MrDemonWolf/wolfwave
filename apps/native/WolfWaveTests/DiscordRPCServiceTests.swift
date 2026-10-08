@@ -13,6 +13,77 @@ import XCTest
 @MainActor
 final class DiscordRPCServiceTests: XCTestCase {
 
+    func testBurstOfUpdatesCoalescesToLatest() async throws {
+        var sockets: [Int32] = [-1, -1]
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
+        guard sockets.allSatisfy({ $0 >= 0 }) else { return }
+        let peerFD = sockets[1]
+        defer { Darwin.close(peerFD) }
+        XCTAssertTrue(configureTestSocketTimeouts(peerFD))
+        let service = DiscordRPCService(clientID: "test")
+        await service.installTestSocket(sockets[0], presenceInterval: 0.15)
+        let peer = Task.detached {
+            [try readAndAcknowledgeCommand(from: peerFD), try readAndAcknowledgeCommand(from: peerFD)]
+        }
+        do {
+            await service.sendActivityFrame(["details": "First"])
+            await service.sendActivityFrame(["details": "Middle"])
+            await service.sendActivityFrame(["details": "Latest"])
+            let frames = try await peer.value
+            XCTAssertEqual(frames.map(\.activityDetails), ["First", "Latest"])
+        } catch {
+            await service.releaseTestSocket()
+            throw error
+        }
+        await service.releaseTestSocket()
+    }
+
+    func testErrorReplyTriggersSingleResend() async throws {
+        var sockets: [Int32] = [-1, -1]
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
+        guard sockets.allSatisfy({ $0 >= 0 }) else { return }
+        let peerFD = sockets[1]
+        defer { Darwin.close(peerFD) }
+        XCTAssertTrue(configureTestSocketTimeouts(peerFD))
+        let service = DiscordRPCService(clientID: "test")
+        // Cache the latest presence while disconnected, avoiding artwork network work.
+        await service.updatePresence(track: "Retry", artist: "Artist", album: "Album", playlist: "")
+        await service.installTestSocket(sockets[0], presenceInterval: 0.05)
+        let peer = Task.detached {
+            [try readAndAcknowledgeCommand(from: peerFD, rejected: true),
+             try readAndAcknowledgeCommand(from: peerFD, rejected: true)]
+        }
+        do {
+            await service.sendActivityFrame(["details": "Retry"])
+            let frames = try await peer.value
+            XCTAssertEqual(frames.map(\.activityDetails), ["Retry", "Retry"])
+            let extraFrame = await waitUntil(timeout: .milliseconds(250)) {
+                var byte: UInt8 = 0
+                return recv(peerFD, &byte, 1, MSG_DONTWAIT) > 0
+            }
+            XCTAssertFalse(extraFrame, "A second rejection must not create an unbounded resend loop")
+        } catch {
+            await service.releaseTestSocket()
+            throw error
+        }
+        await service.releaseTestSocket()
+    }
+
+    func testDisableDuringHandshakeLeavesLastFailureNone() async {
+        var sockets: [Int32] = [-1, -1]
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
+        guard sockets.allSatisfy({ $0 >= 0 }) else { return }
+        defer { Darwin.close(sockets[1]) }
+        let service = DiscordRPCService(clientID: "test")
+        await service.installTestSocket(sockets[0], connected: false)
+        let generation = await service.connectionGeneration
+        await service.setEnabled(false)
+        let recorded = await service.recordHandshakeRejectionIfCurrent(fd: sockets[0], generation: generation)
+        XCTAssertFalse(recorded)
+        let failure = await service.lastFailure
+        XCTAssertEqual(failure, .none)
+    }
+
     // MARK: - Off-Executor I/O Tests (No Socket)
     //
     // The blocking IPC syscalls now run on a dedicated serial queue, bridged back
@@ -952,12 +1023,14 @@ private extension DiscordRPCService {
     func installTestSocket(
         _ fd: Int32,
         connected: Bool = true,
-        supersedingConnection: Bool = false
+        supersedingConnection: Bool = false,
+        presenceInterval: TimeInterval = 0
     ) {
         if supersedingConnection { connectionGeneration &+= 1 }
         socketFD = fd
         ipcReadBuffer = IPCReadBuffer()
         isEnabled = true
+        presenceMinimumInterval = presenceInterval
         state = connected ? .connected : .connecting
     }
 
@@ -1177,7 +1250,8 @@ private nonisolated func configureTestSocketTimeouts(_ fd: Int32) -> Bool {
 }
 
 private nonisolated func readAndAcknowledgeCommand(
-    from fd: Int32
+    from fd: Int32,
+    rejected: Bool = false
 ) throws -> DiscordCommandSnapshot {
     let payload = try readRPCPayload(from: fd)
     guard let command = payload["cmd"] as? String,
@@ -1186,7 +1260,7 @@ private nonisolated func readAndAcknowledgeCommand(
     }
 
     try writeRPCPayload(
-        ["cmd": command, "nonce": nonce],
+        rejected ? ["cmd": command, "nonce": nonce, "evt": "ERROR"] : ["cmd": command, "nonce": nonce],
         to: fd
     )
 

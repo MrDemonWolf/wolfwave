@@ -1191,6 +1191,7 @@ extension TwitchChatService {
         }
 
         let redemptionID = (event["id"] as? String) ?? ""
+        let requesterLogin = (event["user_login"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let userName = ((event["user_name"] as? String) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let userInput = ((event["user_input"] as? String) ?? "")
@@ -1271,6 +1272,7 @@ extension TwitchChatService {
                 rewardID: rewardID,
                 redemptionID: redemptionID,
                 userName: userName,
+                userLogin: requesterLogin,
                 userInput: userInput,
                 service: songRequestService,
                 generation: generation,
@@ -1288,6 +1290,7 @@ extension TwitchChatService {
         rewardID: String,
         redemptionID: String,
         userName: String,
+        userLogin: String?,
         userInput: String,
         service: SongRequestService?,
         generation: UInt64,
@@ -1330,8 +1333,9 @@ extension TwitchChatService {
 
         let result = await service.processRequest(
             query: userInput,
-            username: userName,
-            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
+            username: userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? userName,
+            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID),
+            displayName: userName)
         let (message, resolution) = redemptionOutcome(for: result, username: userName)
         // Record the queue outcome before another suspension. If the process
         // exits while sending chat, replay still knows whether to fulfil or
@@ -1388,6 +1392,7 @@ extension TwitchChatService {
         let boostEnabled = defaults.bool(
             forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         let query = Self.cleanBitsMessage(event["message"] as? [String: Any])
+        let userLogin = (event["user_login"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         do {
             let result = try redemptionResolutionOutbox.enqueueBits(
                 messageID: eventSubMessageID,
@@ -1395,7 +1400,8 @@ extension TwitchChatService {
                 userName: userName,
                 bits: bits,
                 boostEnabled: boostEnabled,
-                query: query)
+                query: query,
+                userLogin: userLogin)
             guard let item = result.item else { return }
             startBitsEvent(
                 item,
@@ -1414,7 +1420,8 @@ extension TwitchChatService {
                 userName: userName,
                 bits: bits,
                 boostEnabled: boostEnabled,
-                query: query
+                query: query,
+                userLogin: userLogin
             ) else {
                 return
             }
@@ -1453,7 +1460,8 @@ extension TwitchChatService {
         userName: String,
         bits: Int,
         boostEnabled: Bool,
-        query: String
+        query: String,
+        userLogin: String? = nil
     ) -> TwitchRedemptionResolutionOutbox.BitsItem? {
         pruneVolatileBitsFallbacks()
         let key = VolatileBitsFallbackKey(
@@ -1469,7 +1477,8 @@ extension TwitchChatService {
             bits: bits,
             boostEnabled: boostEnabled,
             query: query,
-            createdAt: now)
+            createdAt: now,
+            userLogin: userLogin)
         volatileBitsFallbacks[key] = VolatileBitsFallback(
             item: item,
             claimedAt: now,
@@ -1576,7 +1585,7 @@ extension TwitchChatService {
         guard !Task.isCancelled else { return (false, nil) }
 
         if item.boostEnabled,
-           let boosted = await service.boost(username: item.userName) {
+           let boosted = await service.boost(username: item.userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? item.userName) {
             return (
                 true,
                 "@\(item.userName) boosted \"\(boosted.title)\" to the front of the queue! (\(item.bits) bits)")
@@ -1592,8 +1601,9 @@ extension TwitchChatService {
 
         let result = await service.processRequest(
             query: item.query,
-            username: item.userName,
-            source: .bits(amount: item.bits))
+            username: item.userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? item.userName,
+            source: .bits(amount: item.bits),
+            displayName: item.userName)
         if case .cancelled = result {
             return (false, nil)
         }

@@ -341,6 +341,14 @@ final class SongRequestQueueTests: WolfWaveTestCase {
 
     // MARK: - Sub/VIP Priority (within fair-share rounds)
 
+    func testPriorityJumpsWithFairShareOff() {
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
+        _ = queue.add(makeTestRequestItem(title: "Normal", artist: "A", requesterUsername: "viewer"))
+        _ = queue.add(makeTestRequestItem(title: "Priority 1", artist: "A", requesterUsername: "sub1", isPriority: true))
+        _ = queue.add(makeTestRequestItem(title: "Priority 2", artist: "A", requesterUsername: "sub2", isPriority: true))
+        XCTAssertEqual(queue.items.map(\.title), ["Priority 1", "Priority 2", "Normal"])
+    }
+
     /// A priority request slots ahead of same-round non-priority requests, but
     /// stays behind earlier rounds. Normal requests never jump a priority one.
     func testPriorityJumpsAheadWithinRound() {
@@ -364,10 +372,10 @@ final class SongRequestQueueTests: WolfWaveTestCase {
 
     /// Priority is an in-round reorder, not a FIFO override: with fair-share off
     /// the queue stays classic first-in, first-out and ignores the flag.
-    func testPriorityIgnoredWhenFifo() {
+    func testPriorityHonoredWhenFifo() {
         DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestFairShare)
         _ = queue.add(makeTestRequestItem(title: "Normal", artist: "x", requesterUsername: "reg"))
         _ = queue.add(makeTestRequestItem(title: "Sub", artist: "x", requesterUsername: "sub", isPriority: true))
-        XCTAssertEqual(queue.items.map(\.title), ["Normal", "Sub"])
+        XCTAssertEqual(queue.items.map(\.title), ["Sub", "Normal"])
     }
 }

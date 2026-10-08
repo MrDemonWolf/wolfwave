@@ -109,6 +109,35 @@ final class DiscordPresenceBuilderTests: WolfWaveTestCase {
 
     // MARK: - buildActivity
 
+    func testLongTitleCappedTo128() {
+        let activity = DiscordPresenceBuilder.buildActivity(
+            track: String(repeating: "Title", count: 50), artist: "Artist",
+            album: String(repeating: "Album", count: 50), artworkURL: nil,
+            duration: 0, elapsed: 0, appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date())
+        XCTAssertEqual((activity["details"] as? String)?.count, 128)
+        XCTAssertEqual(((activity["assets"] as? [String: String])?["large_text"])?.count, 128)
+    }
+
+    func testEmptyAlbumOmitsLargeText() {
+        let activity = DiscordPresenceBuilder.buildActivity(
+            track: "Song", artist: "", album: "", artworkURL: nil,
+            duration: 0, elapsed: 0, appleMusicURL: nil, songLinkURL: nil,
+            defaults: defaults, now: Date())
+        XCTAssertNil(activity["state"])
+        XCTAssertNil((activity["assets"] as? [String: String])?["large_text"])
+    }
+
+    func testPreviewOmitsButtonWithInvalidURL() {
+        XCTAssertNil(DiscordSettingsView.previewButton(index: 1, url: "javascript:alert(1)", defaults: defaults))
+        XCTAssertNil(DiscordSettingsView.previewButton(index: 1, url: nil, defaults: defaults))
+        defaults.set("Custom label", forKey: AppConstants.UserDefaults.discordButton1Label)
+        let preview = DiscordSettingsView.previewButton(index: 1, url: "https://music.apple.com/song", defaults: defaults)
+        XCTAssertEqual(preview?.label, "Custom label")
+        defaults.set(false, forKey: AppConstants.UserDefaults.discordButtonsEnabled)
+        XCTAssertNil(DiscordSettingsView.previewButton(index: 1, url: "https://music.apple.com/song", defaults: defaults))
+    }
+
     func test_buildActivity_stateIsArtistWithoutByPrefix() {
         let activity = DiscordPresenceBuilder.buildActivity(
             track: "Smooth Operator",

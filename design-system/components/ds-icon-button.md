@@ -69,3 +69,6 @@ HStack(spacing: DSSpace.s1h) {
     )
 }
 ```
+
+The token editor disables its input and Save button while Keychain work runs off
+the UI thread, preventing repeated submissions during a save.

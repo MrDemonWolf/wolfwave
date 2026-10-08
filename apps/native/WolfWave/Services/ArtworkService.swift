@@ -73,6 +73,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// "already looked up recently", so callers within `AppConstants.API.artworkLookupTTL`
     /// short-circuit to the (possibly empty) cached value instead of re-querying.
     private var resolvedAt: [CacheKey: Date] = [:]
+    private struct TransientMiss {
+        let failures: Int
+        let retryAt: Date
+    }
+    private var transientMisses: [CacheKey: TransientMiss] = [:]
+    private let now: @Sendable () -> Date
 
     /// Insertion-ordered keys. Used to evict the oldest entry when caches are full.
     private var cacheKeyOrder: [CacheKey] = []
@@ -119,9 +125,14 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - persistenceURL: File backing the links cache. Defaults to the app's
     ///     Application Support directory. Pass nil to disable disk persistence
     ///     (used by tests).
-    init(session: URLSession = .shared, persistenceURL: URL? = ArtworkService.defaultPersistenceURL()) {
+    init(
+        session: URLSession = .shared,
+        persistenceURL: URL? = ArtworkService.defaultPersistenceURL(),
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.session = session
         self.persistenceURL = persistenceURL
+        self.now = now
         loadFromDisk()
     }
 
@@ -194,6 +205,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             if cached.artworkURL != nil {
                 return .hit(cached)
             }
+            if let miss = transientMisses[cacheKey], now() < miss.retryAt { return .hit(cached) }
             // Recently resolved (even to an empty result), serve the cached value
             // without re-querying. Stops repeat lookups for tracks not on iTunes.
             if let resolved = resolvedAt[cacheKey],
@@ -228,11 +240,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             )
             return
         }
-        components.queryItems = [
+        let queryCharacters = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "+&=?#"))
+        components.percentEncodedQueryItems = [
             URLQueryItem(name: "media", value: "music"),
             URLQueryItem(name: "entity", value: "song"),
-            URLQueryItem(name: "limit", value: "1"),
-            URLQueryItem(name: "term", value: "\(track) \(artist)"),
+            URLQueryItem(name: "limit", value: "5"),
+            URLQueryItem(name: "term", value: "\(track) \(artist)".addingPercentEncoding(withAllowedCharacters: queryCharacters)),
         ]
         guard let url = components.url else {
             finishInFlight(
@@ -251,6 +264,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes transport failed for \"\(track)\" by \(artist)",
                     category: .artwork
                 )
+                self.recordTransientMiss(inFlightKey)
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
@@ -261,6 +275,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes lookup returned HTTP \(status) for \"\(track)\"",
                     category: .artwork
                 )
+                self.recordTransientMiss(
+                    inFlightKey,
+                    retryAfter: (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Retry-After"))
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
@@ -270,11 +287,16 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     "Artwork: iTunes lookup returned malformed JSON for \"\(track)\"",
                     category: .artwork
                 )
+                self.recordTransientMiss(inFlightKey)
                 self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                 return
             }
 
-            guard let first = results.first else {
+            guard let first = results.first(where: {
+                guard let title = $0["trackName"] as? String, let name = $0["artistName"] as? String else { return false }
+                return TrackTextNormalizer.title(title) == TrackTextNormalizer.title(track)
+                    && TrackTextNormalizer.text(name) == TrackTextNormalizer.text(artist)
+            }) else {
                 // A valid 2xx empty result is a real miss. Persist only this case;
                 // transient transport/HTTP/decoding failures above remain retryable.
                 self.cacheQueue.sync {
@@ -311,6 +333,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Must be called while holding `cacheQueue`. Tracking misses here is what stops
     /// not-found tracks from re-querying the network on every playback tick.
     private func recordResolution(_ cacheKey: CacheKey) {
+        transientMisses.removeValue(forKey: cacheKey)
         if resolvedAt[cacheKey] == nil {
             cacheKeyOrder.append(cacheKey)
         }
@@ -323,6 +346,22 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             resolvedAt.removeValue(forKey: evicted)
         }
         scheduleSave()
+    }
+
+    /// Transient failures stay in memory, with bounded exponential retry delays.
+    private func recordTransientMiss(_ key: InFlightKey, retryAfter: String? = nil) {
+        cacheQueue.sync {
+            guard cacheGeneration == key.generation else { return }
+            let failures = min((transientMisses[key.cacheKey]?.failures ?? 0) + 1, 7)
+            let delay = max(
+                min(60 * pow(2, Double(failures - 1)), 3_600),
+                TwitchDeviceAuth.retryAfterSeconds(retryAfter, now: now()) ?? 0)
+            transientMisses[key.cacheKey] = TransientMiss(failures: failures, retryAt: now().addingTimeInterval(delay))
+            if transientMisses.count > cacheMaxEntries,
+               let oldest = transientMisses.min(by: { $0.value.retryAt < $1.value.retryAt })?.key {
+                transientMisses.removeValue(forKey: oldest)
+            }
+        }
     }
 
     /// Pops all pending waiters for `inFlightKey` and invokes them with `links`.
@@ -368,6 +407,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             // Mirror `fetchTrackLinks`' TTL check: an expired miss is treated as
             // not-yet-attempted so callers re-drive resolution instead of
             // showing "No link found" forever past the lookup TTL.
+            if let miss = transientMisses[cacheKey], now() < miss.retryAt { return true }
             guard let resolved = resolvedAt[cacheKey] else { return false }
             return Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL
         }
@@ -405,6 +445,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             trackViewURLCache.removeAll()
             songLinkURLCache.removeAll()
             resolvedAt.removeAll()
+            transientMisses.removeAll()
             cacheKeyOrder.removeAll()
 
             guard let url = persistenceURL else { return nil }

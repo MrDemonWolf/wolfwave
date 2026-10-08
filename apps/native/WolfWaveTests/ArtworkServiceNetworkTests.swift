@@ -43,7 +43,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testFetchTrackLinksParsesFieldsAndUpgradesArtworkResolution() async {
         handlerStore.handler = { request in
-            let result = #"{"artworkUrl100":"https://cdn.example/100x100bb.jpg","trackViewUrl":"https://music.apple.com/track","trackId":42}"#
+            let result = #"{"trackName":"Song","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100bb.jpg","trackViewUrl":"https://music.apple.com/track","trackId":42}"#
             let json = #"{"results":[\#(result)]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
@@ -67,25 +67,79 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertNil(links.songLinkURL)
     }
 
+    func testItunesMismatchTreatedAsMiss() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200),
+             Data(#"{"results":[{"trackName":"Wrong","artistName":"Artist","artworkUrl100":"https://cdn.example/wrong.jpg"}]}"#.utf8))
+        }
+        let links = await fetchLinks(track: "Song", artist: "Artist")
+        XCTAssertNil(links.artworkURL)
+        XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Song", artist: "Artist"))
+    }
+
+    func testItunesPicksMatchingMetadataBeyondFirst() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200),
+             Data(#"{"results":[{"trackName":"Song","artistName":"Wrong","artworkUrl100":"https://cdn.example/wrong.jpg"},{"trackName":"SONG (Remastered)","artistName":"Ártist","artworkUrl100":"https://cdn.example/right.jpg"}]}"#.utf8))
+        }
+        let links = await fetchLinks(track: "Song", artist: "Artist")
+        XCTAssertEqual(links.artworkURL, "https://cdn.example/right.jpg")
+    }
+
+    func testTermEscapesPlusAndAmpersand() async {
+        handlerStore.handler = { request in
+            let components = request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+            XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "term" })?.value, "A+B C&D")
+            XCTAssertTrue(components?.percentEncodedQuery?.contains("%2B") == true)
+            XCTAssertTrue(components?.percentEncodedQuery?.contains("%26") == true)
+            XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "limit" })?.value, "5")
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        _ = await fetchLinks(track: "A+B", artist: "C&D")
+    }
+
+    func testRetryAfterHonoured() async {
+        let clock = ThreadSafeBox(Date())
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil,
+            now: { clock.value })
+        let calls = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            calls.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 429, headers: ["Retry-After": "180"]), Data())
+        }
+        _ = await fetchLinks(track: "Rate limited", artist: "Artist")
+        clock.mutate { $0.addTimeInterval(61) }
+        _ = await fetchLinks(track: "Rate limited", artist: "Artist")
+        XCTAssertEqual(calls.value, 1)
+        clock.mutate { $0.addTimeInterval(120) }
+        _ = await fetchLinks(track: "Rate limited", artist: "Artist")
+        XCTAssertEqual(calls.value, 2)
+    }
+
     func testFetchTrackLinksHandlesNetworkError() async {
         handlerStore.handler = { _ in throw URLError(.timedOut) }
 
         let links = await fetchLinks(track: "Song", artist: "Artist")
 
         XCTAssertNil(links.artworkURL)
-        XCTAssertFalse(
+        XCTAssertTrue(
             service.hasAttemptedTrackLinks(track: "Song", artist: "Artist"),
-            "A transient transport failure must remain retryable"
+            "A transient transport failure is temporarily negatively cached"
         )
     }
 
-    func testTransportFailureIsRetriedInsteadOfNegativeCached() async {
+    func testTransientFailureNegativelyCachedFor60s() async {
+        let clock = ThreadSafeBox(Date())
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil,
+            now: { clock.value })
         let counter = ThreadSafeBox(0)
         handlerStore.handler = { request in
             counter.mutate { $0 += 1 }
             let attempt = counter.value
             if attempt == 1 { throw URLError(.timedOut) }
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg"}]}"#
+            let json = #"{"results":[{"trackName":"Retry","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -93,34 +147,42 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         let second = await fetchLinks(track: "Retry", artist: "Artist")
 
         XCTAssertNil(first.artworkURL)
-        XCTAssertEqual(second.artworkURL, "https://cdn.example/512x512.jpg")
+        XCTAssertNil(second.artworkURL)
+        XCTAssertEqual(counter.value, 1)
+        XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Retry", artist: "Artist"))
+        clock.mutate { $0.addTimeInterval(61) }
+        XCTAssertFalse(service.hasAttemptedTrackLinks(track: "Retry", artist: "Artist"))
+        let retried = await fetchLinks(track: "Retry", artist: "Artist")
+        XCTAssertEqual(retried.artworkURL, "https://cdn.example/512x512.jpg")
         XCTAssertEqual(counter.value, 2)
     }
 
-    func testServerFailureIsRetriedInsteadOfNegativeCached() async {
+    func testServerFailureRetryDelayEscalates() async {
+        let clock = ThreadSafeBox(Date())
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil,
+            now: { clock.value })
         let counter = ThreadSafeBox(0)
         handlerStore.handler = { request in
             counter.mutate { $0 += 1 }
-            let attempt = counter.value
-            if attempt == 1 {
-                return (MockURLProtocol.httpResponse(for: request, status: 503), Data())
-            }
-            return (
-                MockURLProtocol.httpResponse(for: request, status: 200),
-                Data(#"{"results":[]}"#.utf8)
-            )
+            return (MockURLProtocol.httpResponse(for: request, status: 503), Data())
         }
 
         _ = await fetchLinks(track: "Retry 503", artist: "Artist")
         _ = await fetchLinks(track: "Retry 503", artist: "Artist")
-
+        XCTAssertEqual(counter.value, 1)
+        clock.mutate { $0.addTimeInterval(61) }
+        _ = await fetchLinks(track: "Retry 503", artist: "Artist")
+        XCTAssertEqual(counter.value, 2)
+        clock.mutate { $0.addTimeInterval(61) }
+        _ = await fetchLinks(track: "Retry 503", artist: "Artist")
         XCTAssertEqual(counter.value, 2)
         XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Retry 503", artist: "Artist"))
     }
 
     func testFetchTrackLinksPopulatesCache() async {
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            let json = #"{"results":[{"trackName":"Cached","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -155,7 +217,9 @@ final class ArtworkServiceNetworkTests: XCTestCase {
             }
 
             counter.mutate { $0 += 1 }
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
+            let title = marker == "first" ? "C" : "B|C"
+            let artist = marker == "first" ? "A|B" : "A"
+            let json = #"{"results":[{"trackName":"\#(title)","artistName":"\#(artist)","artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -189,7 +253,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
 
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            let json = #"{"results":[{"trackName":"Persisted","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -221,7 +285,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
 
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            let json = #"{"results":[{"trackName":"Doomed","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -247,7 +311,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
 
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/old/100x100.jpg"}]}"#
+            let json = #"{"results":[{"trackName":"Old","artistName":"Artist","artworkUrl100":"https://cdn.example/old/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
 
@@ -263,7 +327,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         await svc.clearCache()
 
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/fresh/100x100.jpg"}]}"#
+            let json = #"{"results":[{"trackName":"Fresh","artistName":"Artist","artworkUrl100":"https://cdn.example/fresh/100x100.jpg"}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
         let fresh = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
@@ -335,7 +399,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
 
     func testCachedResultIsServedWithoutHittingNetwork() async {
         handlerStore.handler = { request in
-            let json = #"{"results":[{"artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            let json = #"{"results":[{"trackName":"Track","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
             return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
         }
         _ = await fetchLinks(track: "Track", artist: "Artist")
@@ -380,7 +444,7 @@ private final class ArtworkRequestGate: @unchecked Sendable {
                 throw URLError(.timedOut)
             }
         }
-        let json = #"{"results":[{"artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
+        let json = #"{"results":[{"trackName":"Same","artistName":"Artist","artworkUrl100":"https://cdn.example/\#(marker)/100x100.jpg"}]}"#
         return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
     }
 

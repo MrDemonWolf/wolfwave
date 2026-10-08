@@ -7,12 +7,29 @@
 //
 
 import XCTest
+import Network
 @testable import WolfWave
 
 /// Unit tests for WebSocket server state and admission policies. Network-bound
 /// lifecycle and frame delivery stay in `WebSocketServerIntegrationTests`.
 @MainActor
 final class WebSocketServerServiceTests: XCTestCase {
+
+    func testKeepaliveOptionsSet() throws {
+        let parameters = WebSocketServerService.makeTCPParameters()
+        let options = try XCTUnwrap(parameters.defaultProtocolStack.transportProtocol as? NWProtocolTCP.Options)
+        XCTAssertTrue(options.enableKeepalive)
+        XCTAssertEqual(options.keepaliveIdle, 30)
+        XCTAssertEqual(options.keepaliveInterval, 10)
+        XCTAssertEqual(options.keepaliveCount, 3)
+    }
+
+    func testCommandWithoutHandlerAcksUnavailable() async {
+        let service = WebSocketServerService()
+        let command = StreamDeckCommand(action: .playPause, args: [:])
+        let ack = await service.executeCommand(command)
+        XCTAssertEqual(ack, .failure(command.action.rawValue, "unavailable"))
+    }
 
     func testServiceInitializesWithDefaultPort() {
         let service = WebSocketServerService()

@@ -5,6 +5,9 @@
 ## Purpose
 Capsule-shaped status indicator (leading glyph + label) used in settings sections to show connection or server state. The glyph is a state-varying SF Symbol when `systemImage` is supplied, or a plain colored dot otherwise.
 
+Discord's enabled initial state uses **Connecting** with the warning tint.
+**Discord not running** is reserved for the explicit `notRunning` failure.
+
 ## API
 ```swift
 // Status chip: glyph + color carry the state together.

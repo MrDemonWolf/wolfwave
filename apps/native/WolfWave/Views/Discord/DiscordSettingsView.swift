@@ -369,16 +369,8 @@ struct DiscordSettingsView: View {
                 artist: previewStateLine,
                 album: nowPlaying.album,
                 artworkURL: nowPlaying.artworkURL.flatMap(URL.init(string:)),
-                button1: previewButton(
-                    enabled: button1Enabled,
-                    defaultLabel: AppConstants.Discord.defaultButton1Label,
-                    url: nowPlaying.appleMusicURL ?? "https://music.apple.com/"
-                ),
-                button2: previewButton(
-                    enabled: button2Enabled,
-                    defaultLabel: AppConstants.Discord.defaultButton2Label,
-                    url: nowPlaying.songLinkURL ?? "https://song.link/"
-                ),
+                button1: Self.previewButton(index: 1, url: nowPlaying.appleMusicURL, defaults: DefaultsStore.store),
+                button2: Self.previewButton(index: 2, url: nowPlaying.songLinkURL, defaults: DefaultsStore.store),
                 playlistTooltip: previewPlaylistTooltip
             )
             .padding(.horizontal, DSSpace.s1)
@@ -507,7 +499,8 @@ struct DiscordSettingsView: View {
             // "Discord not running" used to be asserted for every failure,
             // including a rejected handshake with Discord open on screen.
             switch connectionFailure {
-            case .notRunning, .none:    return "Discord not running"
+            case .notRunning:          return "Discord not running"
+            case .none:                return "Connecting"
             case .handshakeRejected:    return "Refused"
             case .socketUnavailable:    return "Blocked"
             case .notConfigured:        return "Not configured"
@@ -519,7 +512,7 @@ struct DiscordSettingsView: View {
         switch connectionState {
         case .connected:    return DSColor.success
         case .connecting:   return DSColor.warning
-        case .disconnected: return DSColor.neutral
+        case .disconnected: return presenceEnabled && connectionFailure == .none ? DSColor.warning : DSColor.neutral
         }
     }
 
@@ -529,13 +522,14 @@ struct DiscordSettingsView: View {
         return "\(count) of \(AppConstants.Discord.maxButtons) shown"
     }
 
-    private func previewButton(
-        enabled: Bool,
-        defaultLabel: String,
-        url: String
+    static func previewButton(
+        index: Int,
+        url: String?,
+        defaults: UserDefaults
     ) -> DiscordPreviewCard.PreviewButton? {
-        guard buttonsEnabled, enabled else { return nil }
-        return .init(label: defaultLabel, url: url)
+        guard let button = DiscordPresenceBuilder.resolveButton(index: index, url: url, defaults: defaults),
+              let label = button["label"], let url = button["url"] else { return nil }
+        return .init(label: label, url: url)
     }
 
     private func refreshConnectionState() {

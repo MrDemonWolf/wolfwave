@@ -9,6 +9,7 @@
 import AppKit
 import Foundation
 import Network
+import os
 
 // MARK: - Widget HTTP Service
 
@@ -81,7 +82,6 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// header timeout.
     private struct TrackedConnection {
         let connection: NWConnection
-        var headersComplete = false
     }
 
     /// Guards all reads and writes of `activeConnections` so the connection
@@ -122,7 +122,18 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// `networkQueue` state callback and an awaiting caller can race safely.
     private let readyLock = NSLock()
     private var isReady = false
+    private var terminalError: ReadyError?
+    private var isStarted = false
+    private var generation: UInt64 = 0
+    private var retryAttempt = 0
+    private var retryWork: DispatchWorkItem?
+    private let retryBaseDelay: TimeInterval
+    private let makeListener: @Sendable (NWParameters, NWEndpoint.Port) throws -> NWListener
     private var readyWaiters: [CheckedContinuation<Void, Error>] = []
+    private static let faviconCache = OSAllocatedUnfairLock<(body: Data?, loaded: Bool, count: Int)>(
+        initialState: (nil, false, 0)
+    )
+    static var faviconEncodingCount: Int { faviconCache.withLock { $0.count } }
 
     /// Sentinel string in the bundled `widget.html` that we replace with the
     /// live auth token before sending the response.
@@ -149,12 +160,18 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         port: UInt16,
         overlayToken: String? = nil,
         headerTimeout: TimeInterval = 10,
-        maxConcurrentConnections: Int = 32
+        maxConcurrentConnections: Int = 32,
+        retryBaseDelay: TimeInterval = 1,
+        makeListener: @escaping @Sendable (NWParameters, NWEndpoint.Port) throws -> NWListener = {
+            try NWListener(using: $0, on: $1)
+        }
     ) {
         self.port = port
         self.overlayToken = overlayToken
         self.headerTimeout = headerTimeout
         self.maxConcurrentConnections = maxConcurrentConnections
+        self.retryBaseDelay = max(retryBaseDelay, 0.01)
+        self.makeListener = makeListener
     }
 
     deinit {
@@ -168,45 +185,94 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// `serveWidget` for token injection. Idempotent. A second call while
     /// already running is a no-op.
     func start() {
-        guard listener == nil else { return }
+        let current = readyLock.withLock { () -> UInt64? in
+            guard !isStarted else { return nil }
+            isStarted = true
+            generation &+= 1
+            retryAttempt = 0
+            terminalError = nil
+            return generation
+        }
+        guard let current else { return }
+        startListener(generation: current)
+    }
+
+    private func startListener(generation current: UInt64) {
+        guard readyLock.withLock({ isStarted && generation == current }) else { return }
 
         let parameters = NWParameters.tcp
+        parameters.allowLocalEndpointReuse = true
 
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
             Log.error("WidgetHTTPService: Invalid port \(port)", category: .websocket)
+            failReadyWaiters(with: .listenerFailed, generation: current)
             return
         }
 
+        let newListener: NWListener
         do {
-            listener = try NWListener(using: parameters, on: nwPort)
+            newListener = try makeListener(parameters, nwPort)
         } catch {
             Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: .websocket)
+            failReadyWaiters(with: .listenerFailed, generation: current)
+            scheduleRetry(generation: current)
             return
         }
+        let installed = readyLock.withLock {
+            guard isStarted, generation == current else { return false }
+            terminalError = nil
+            listener = newListener
+            return true
+        }
+        guard installed else { newListener.cancel(); return }
 
-        listener?.stateUpdateHandler = { [weak self] state in
-            guard let self else { return }
+        newListener.stateUpdateHandler = { [weak self, weak newListener] state in
+            guard let self, let newListener,
+                  self.readyLock.withLock({ self.isStarted && self.generation == current
+                      && self.listener === newListener }) else { return }
             switch state {
             case .ready:
                 Log.info(
                     "WidgetHTTPService: Listening on port \(self.boundPort ?? self.port)",
                     category: .websocket
                 )
-                self.markReady()
+                self.markReady(generation: current)
             case .failed(let error):
                 Log.error("WidgetHTTPService: Listener failed: \(error)", category: .websocket)
-                self.listener = nil
-                self.failReadyWaiters(with: .listenerFailed)
+                newListener.cancel()
+                self.readyLock.withLock {
+                    if self.listener === newListener { self.listener = nil }
+                }
+                self.failReadyWaiters(with: .listenerFailed, generation: current)
+                self.scheduleRetry(generation: current)
             default:
                 break
             }
         }
 
-        listener?.newConnectionHandler = { [weak self] connection in
-            self?.handleConnection(connection)
+        newListener.newConnectionHandler = { [weak self] connection in
+            guard let self, self.readyLock.withLock({ self.isStarted && self.generation == current }) else {
+                connection.cancel()
+                return
+            }
+            self.handleConnection(connection)
         }
 
-        listener?.start(queue: queue)
+        newListener.start(queue: queue)
+    }
+
+    private func scheduleRetry(generation current: UInt64) {
+        let delay = readyLock.withLock { () -> TimeInterval? in
+            guard isStarted, generation == current, retryAttempt < 5 else { return nil }
+            let delay = min(retryBaseDelay * pow(2, Double(retryAttempt)), 30)
+            retryAttempt += 1
+            retryWork?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.startListener(generation: current) }
+            retryWork = work
+            queue.asyncAfter(deadline: .now() + delay, execute: work)
+            return delay
+        }
+        if let delay { Log.info("WidgetHTTPService: Retrying in \(delay)s", category: .websocket) }
     }
 
     /// Cancels the listener and tears down the bound port, then cancels every
@@ -214,8 +280,21 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// connection) cannot outlive the service. Safe to call when the service
     /// was never started or has already stopped.
     func stop() {
-        listener?.cancel()
-        listener = nil
+        let (stoppedListener, waiters) = readyLock.withLock { () -> (NWListener?, [CheckedContinuation<Void, Error>]) in
+            isStarted = false
+            generation &+= 1
+            isReady = false
+            terminalError = .stopped
+            retryWork?.cancel()
+            retryWork = nil
+            let current = listener
+            listener = nil
+            let waiters = readyWaiters
+            readyWaiters.removeAll()
+            return (current, waiters)
+        }
+        stoppedListener?.cancel()
+        for waiter in waiters { waiter.resume(throwing: ReadyError.stopped) }
         let openConnections: [NWConnection] = connectionsLock.withLock {
             let open = activeConnections.values.map(\.connection)
             activeConnections.removeAll()
@@ -224,10 +303,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         for connection in openConnections {
             connection.cancel()
         }
-        readyLock.withLock { isReady = false }
         // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
         // leave them suspended forever.
-        failReadyWaiters(with: .stopped)
         Log.info("WidgetHTTPService: Server stopped", category: .websocket)
     }
 
@@ -242,23 +319,24 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///   that will never reach `.ready`.
     func ready() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let alreadyReady: Bool = readyLock.withLock {
-                if isReady { return true }
+            let result: Result<Void, ReadyError>? = readyLock.withLock {
+                if let terminalError { return .failure(terminalError) }
+                if isReady { return .success(()) }
                 readyWaiters.append(continuation)
-                return false
+                return nil
             }
-            if alreadyReady {
-                continuation.resume()
-            }
+            if let result { continuation.resume(with: result.mapError { $0 as any Error }) }
         }
     }
 
     /// Latches readiness and resumes any callers awaiting `ready()`. Invoked
     /// once on the first `.ready` listener transition (on `queue`).
-    private func markReady() {
+    private func markReady(generation current: UInt64) {
         let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
-            guard !isReady else { return [] }
+            guard isStarted, generation == current, !isReady else { return [] }
             isReady = true
+            terminalError = nil
+            retryAttempt = 0
             let pending = readyWaiters
             readyWaiters.removeAll()
             return pending
@@ -271,8 +349,11 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Resumes any pending `ready()` waiters with the given failure, then clears
     /// the queue. Invoked when the listener fails to bind or when `stop()` tears
     /// the service down before it ever reaches `.ready`.
-    private func failReadyWaiters(with error: ReadyError) {
+    private func failReadyWaiters(with error: ReadyError, generation current: UInt64) {
         let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
+            guard generation == current, isStarted else { return [] }
+            isReady = false
+            terminalError = error
             let pending = readyWaiters
             readyWaiters.removeAll()
             return pending
@@ -358,9 +439,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             && peerConnectionCount < 4
     }
 
-    /// Cancels `connection` if its request headers have not completed within
-    /// `headerTimeout` of accept. Disarmed by `serveResponse` marking the
-    /// headers complete; a no-op once the connection has been untracked.
+    /// Bounds headers and response writes together; completed sends cancel the peer.
     private func scheduleHeaderTimeout(for connection: NWConnection) {
         let id = ObjectIdentifier(connection)
         queue.asyncAfter(deadline: .now() + headerTimeout) { [weak self, weak connection] in
@@ -368,22 +447,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             let stillAwaitingHeaders: Bool = self.connectionsLock.withLock {
                 guard let tracked = self.activeConnections[id],
                       tracked.connection === connection else { return false }
-                return !tracked.headersComplete
+                return true
             }
             guard stillAwaitingHeaders else { return }
             Log.warn(
-                "WidgetHTTPService: Cancelling connection with incomplete headers after \(self.headerTimeout)s",
+                "WidgetHTTPService: Cancelling unfinished response after \(self.headerTimeout)s",
                 category: .websocket
             )
             connection.cancel()
-        }
-    }
-
-    /// Disarms the header timeout for `connection` once its request headers
-    /// have fully arrived.
-    private func markHeadersComplete(for connection: NWConnection) {
-        connectionsLock.withLock {
-            activeConnections[ObjectIdentifier(connection)]?.headersComplete = true
         }
     }
 
@@ -434,7 +505,6 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// - `GET /favicon.ico` / `GET /favicon.png` → `serveFavicon`
     /// - Anything else → `send404`
     private func serveResponse(to connection: NWConnection, requestData: Data) {
-        markHeadersComplete(for: connection)
         let requestString = String(data: requestData, encoding: .utf8) ?? ""
         let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
         let parts = firstLine.components(separatedBy: " ")
@@ -524,8 +594,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Encodes the app icon as PNG and serves it with a one-day cache header.
     /// Used so browser tabs displaying the widget show a recognizable icon.
     private func serveFavicon(to connection: NWConnection) {
-        guard let image = NSImage(named: "AppIcon"),
-              let body = image.pngData() else {
+        guard let body = Self.faviconData() else {
             send404(to: connection)
             return
         }
@@ -535,6 +604,16 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             contentType: "image/png",
             body: body,
             extraHeaders: ["Cache-Control: public, max-age=86400"])
+    }
+
+    static func faviconData() -> Data? {
+        faviconCache.withLock { state in
+            guard !state.loaded else { return state.body }
+            state.loaded = true
+            state.count += 1
+            state.body = NSImage(named: "AppIcon")?.pngData()
+            return state.body
+        }
     }
 
     // MARK: - Peer Inspection

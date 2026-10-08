@@ -25,6 +25,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         let redemptionID: String
         let resolutionRawValue: String
         let createdAt: Date
+
         var isDeadLetter: Bool? = nil
         var failureAttempts: Int? = nil
 
@@ -57,6 +58,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         let boostEnabled: Bool
         let query: String
         let createdAt: Date
+        var userLogin: String? = nil
 
         var isValid: Bool {
             !messageID.isEmpty
@@ -439,7 +441,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         userName: String,
         bits: Int,
         boostEnabled: Bool,
-        query: String
+        query: String,
+        userLogin: String? = nil
     ) throws -> (item: BitsItem?, inserted: Bool) {
         guard !messageID.isEmpty,
               !broadcasterID.isEmpty,
@@ -493,7 +496,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 bits: bits,
                 boostEnabled: boostEnabled,
                 query: query,
-                createdAt: now)
+                createdAt: now,
+                userLogin: userLogin)
             let replacementBitsItems = bitsItems + [item]
             try persist(
                 items,

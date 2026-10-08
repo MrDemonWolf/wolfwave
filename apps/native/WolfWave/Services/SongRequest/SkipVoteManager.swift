@@ -407,6 +407,9 @@ actor SkipVoteManager {
             case pass(count: Int, target: PlaybackTarget)
         }
 
+        let previousSessionEnd = lastSessionEnd
+        let endingTrackGeneration = trackGeneration
+        let endingLifecycleGeneration = lifecycleGeneration
         let decision: Decision = {
             let now = Date()
 
@@ -463,11 +466,19 @@ actor SkipVoteManager {
             }
             return outcome
         case .pass(let count, let target):
+            var skipped = false
+            defer {
+                if trackGeneration == endingTrackGeneration,
+                   lifecycleGeneration == endingLifecycleGeneration {
+                    lastSessionEnd = skipped ? Date() : previousSessionEnd
+                }
+            }
             postState()
             guard !Task.isCancelled else { return .cancelled }
             guard await performSkip?(target) == true else {
                 return .skipUnavailable
             }
+            skipped = true
             guard !Task.isCancelled else { return .cancelled }
             onVoteEvent?(.passed)
             return .passed(count: count)

@@ -103,6 +103,9 @@ protocol AppleMusicControlling {
     /// Searches the catalog for the best match for `query`.
     func search(query: String) async -> AppleMusicController.SearchResult
 
+    /// Candidate catalog matches for validated link metadata.
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?)
+
     /// Resolves an Apple Music / Spotify / YouTube URL into a catalog track.
     func resolve(url: URL) async -> AppleMusicController.SearchResult
 
@@ -150,6 +153,13 @@ protocol AppleMusicControlling {
 }
 
 extension AppleMusicControlling {
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
+        switch await search(query: query) {
+        case .found(let song): return ([song], nil)
+        case .notFound: return ([], nil)
+        case .error(let message): return ([], message)
+        }
+    }
     /// Stubs and any future conformer default to "no information", which every
     /// caller already treats as "change nothing".
     func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility { .unknown }
@@ -380,21 +390,25 @@ final class AppleMusicController: AppleMusicControlling {
     /// - Parameter query: The search text (song name, artist, etc.).
     /// - Returns: The search result.
     func search(query: String) async -> SearchResult {
+        let result = await searchCandidates(query: query, limit: 1)
+        if let error = result.error { return .error(error) }
+        if let song = result.songs.first { return .found(song) }
+        return .notFound
+    }
+
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
         guard await ensureAuthorized() else {
-            return .error("Apple Music access not authorized. Enable it in Settings → Song Requests.")
+            return ([], "Apple Music access not authorized. Enable it in Settings → Song Requests.")
         }
 
         do {
             var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
-            request.limit = 1
+            request.limit = max(1, min(limit, 10))
             let response = try await request.response()
 
-            if let song = response.songs.first {
-                return .found(song)
-            }
-            return .notFound
+            return (Array(response.songs), nil)
         } catch {
-            return .error("Search failed: \(error.localizedDescription)")
+            return ([], "Search failed: \(error.localizedDescription)")
         }
     }
 

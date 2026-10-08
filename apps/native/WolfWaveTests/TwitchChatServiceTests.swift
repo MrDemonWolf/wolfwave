@@ -62,6 +62,7 @@ struct TwitchChatServiceTests {
 
     /// Reset UserDefaults keys that tests depend on to prevent cross-test contamination.
     init() {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
         DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.currentSongCommandEnabled)
         DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandEnabled)
         clearManagedRewardIdentity()
@@ -2116,6 +2117,28 @@ struct TwitchChatServiceTests {
         #expect(await service.networkReconnectCycles == 1)
     }
 
+    @Test("Exhausted fast reconnect budget enters the slow tier")
+    func reconnectEntersSlowTierAfterFastBudget() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.configureExhaustedReconnectForTesting()
+        await service.scheduleReconnect()
+        #expect(await service.hasScheduledReconnectForTesting)
+        #expect(await service.reconnectionAttempts == AppConstants.Twitch.maxReconnectionAttempts)
+        await service.handleNetworkReachabilityChange(false)
+    }
+
+    @Test("System wake resets the reconnect budget")
+    func wakeResetsReconnectBudget() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.configureExhaustedReconnectForTesting()
+        await service.handleSystemWake()
+        #expect(await service.reconnectionAttempts == 0)
+        #expect(await service.hasScheduledReconnectForTesting)
+        await service.handleNetworkReachabilityChange(false)
+    }
+
     @Test("Leaving cancels and clears the pending message retry lifecycle")
     func testLeaveClearsPendingMessageRetry() async {
         handlerStore.handler = { request in
@@ -2229,6 +2252,46 @@ struct TwitchChatServiceTests {
         ]
     }
 
+    @Test("Requester limits use login across localized display names")
+    func limitsKeyedOnLoginNotDisplayName() async {
+        let defaults = DefaultsStore.store
+        let keys = [
+            AppConstants.UserDefaults.songRequestEnabled,
+            AppConstants.UserDefaults.songRequestHoldEnabled,
+            AppConstants.UserDefaults.songRequestPerUserLimit,
+            AppConstants.UserDefaults.songRequestGlobalCooldown,
+            AppConstants.UserDefaults.songRequestUserCooldown,
+            AppConstants.UserDefaults.srCommandEnabled,
+        ]
+        defer { keys.forEach { defaults.removeObject(forKey: $0) } }
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.srCommandEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        defaults.set(0, forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        defaults.set(0, forKey: AppConstants.UserDefaults.songRequestUserCooldown)
+        let music = MockAppleMusicController()
+        music.stubSearchSuccess()
+        let requests = SongRequestService(musicController: music)
+        let service = TwitchChatService()
+        service.commandDispatcher.setSongRequestService(callback: { requests })
+        _ = await service.configureCommandSessionForTesting(broadcasterID: "channel")
+        for (index, displayName) in ["視聴者", "Viewer Renamed"].enumerated() {
+            await service.handleEventSubMessage([
+                "event": [
+                    "message_id": "identity-\(index)", "chatter_user_name": displayName,
+                    "chatter_user_login": "viewer", "chatter_user_id": "viewer-1",
+                    "broadcaster_user_id": "channel", "message": ["text": "!sr song-\(index)"],
+                    "badges": [],
+                ]
+            ])
+            #expect(await waitUntil { await service.activeCommandTaskCount == 0 })
+        }
+        #expect(requests.queue.items.count == 1)
+        #expect(requests.queue.items.first?.requesterUsername == "viewer")
+        await service.leaveChannel()
+    }
+
 }
 
 private extension TwitchChatService {
@@ -2340,6 +2403,11 @@ private extension TwitchChatService {
         reconnectChannelName = "test-channel"
         reconnectToken = "test-token"
         reconnectClientID = "test-client"
+    }
+
+    func configureExhaustedReconnectForTesting() {
+        isNetworkReachable = true
+        reconnectionAttempts = maxReconnectionAttempts
     }
 
     var hasScheduledReconnectForTesting: Bool {

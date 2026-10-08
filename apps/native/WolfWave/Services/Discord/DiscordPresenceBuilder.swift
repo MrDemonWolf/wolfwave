@@ -52,9 +52,11 @@ nonisolated enum DiscordPresenceBuilder {
 
         var activity: [String: Any] = [
             "type": AppConstants.Discord.listeningActivityType,
-            "details": track,
-            "state": stateLine(artist: artist, playlist: playlistDisplay, style: style),
         ]
+        if let details = activityText(track) { activity["details"] = details }
+        if let state = activityText(stateLine(artist: artist, playlist: playlistDisplay, style: style)) {
+            activity["state"] = state
+        }
 
         let largeImage = artworkURL ?? AppConstants.Discord.artAssetAppleMusic
         // When paused: swap the small badge to the "pause" art asset (uploaded
@@ -63,12 +65,13 @@ nonisolated enum DiscordPresenceBuilder {
         // album art still shows.
         let smallImageKey = isPaused ? AppConstants.Discord.artAssetPause : AppConstants.Discord.artAssetAppleMusic
         let smallTextValue = isPaused ? "Paused" : smallText(playlist: playlistDisplay, style: style)
-        activity["assets"] = [
+        var assets = [
             "large_image": largeImage,
-            "large_text": album,
             "small_image": smallImageKey,
             "small_text": smallTextValue,
         ]
+        if let album = activityText(album) { assets["large_text"] = album }
+        activity["assets"] = assets
 
         // Discord has no native paused flag. Omitting `timestamps` stops the
         // live ticker on the client so it doesn't keep counting up past the
@@ -102,6 +105,13 @@ nonisolated enum DiscordPresenceBuilder {
         }
 
         return activity
+    }
+
+    /// Discord text fields accept 2–128 characters; omit empty and tiny values.
+    private static func activityText(_ value: String) -> String? {
+        let capped = String(value.trimmingCharacters(in: .whitespacesAndNewlines)
+            .prefix(AppConstants.Discord.activityTextMaxLength))
+        return capped.count >= 2 ? capped : nil
     }
 
     /// Builds the minimal opt-in "Idle" activity payload (no track, timestamps,
@@ -138,7 +148,9 @@ nonisolated enum DiscordPresenceBuilder {
         url: String?,
         defaults: UserDefaults
     ) -> [String: String]? {
-        guard let url, !url.isEmpty else { return nil }
+        guard (defaults.object(forKey: AppConstants.UserDefaults.discordButtonsEnabled) as? Bool) ?? true,
+              let sourceURL = url, let url = Preferences.normalizedHTTPSURL(sourceURL, maxLength: 2_048),
+              !url.isEmpty else { return nil }
         guard let keys = buttonKeys(for: index) else { return nil }
 
         // Missing key defaults to enabled (true).
