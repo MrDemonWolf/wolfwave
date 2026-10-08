@@ -418,7 +418,7 @@ export default async function HomePage() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={{ background: "#28c840" }}
               />
-              <span className="ml-2">localhost:8080/now-playing</span>
+              <span className="ml-2">localhost:8766/</span>
             </div>
             <div
               style={{
@@ -527,7 +527,7 @@ export default async function HomePage() {
                 {
                   icon: Radio,
                   title: "Local WebSocket",
-                  body: "ws://localhost:8080/now-playing streams every track change in milliseconds. JSON payload, no auth gymnastics for loopback.",
+                  body: "ws://localhost:8765 streams track changes as JSON. Enable Stream Widgets in Settings and authenticate with your overlay token.",
                 },
                 {
                   icon: Github,
