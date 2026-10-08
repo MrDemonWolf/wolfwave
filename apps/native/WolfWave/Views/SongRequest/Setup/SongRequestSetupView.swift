@@ -321,6 +321,9 @@ struct SongRequestSetupView: View {
                     Text("Leave blank to skip. !playlist stays off until a link is set.")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.secondary)
+                    if Preferences.normalizedHTTPSURL(songListURL) == nil {
+                        FieldValidationRow(state: .invalid("Use an HTTPS link with a host, up to 2,048 characters."))
+                    }
                 }
             }
         )
@@ -364,7 +367,8 @@ struct SongRequestSetupView: View {
 
     /// Whether a `!playlist` share link is configured (drives the Done recap).
     private var hasSongListLink: Bool {
-        !songListURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard let link = Preferences.normalizedHTTPSURL(songListURL) else { return false }
+        return !link.isEmpty
     }
 
     /// One line in the Done-step recap: a filled check when done, a hollow circle
@@ -426,7 +430,8 @@ struct SongRequestSetupView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .pointerCursor()
-                .disabled(!viewModel.canAdvance)
+                .disabled(!viewModel.canAdvance || (viewModel.currentStep == .shareLink
+                    && Preferences.normalizedHTTPSURL(songListURL) == nil))
                 .accessibilityIdentifier("songRequestSetup.next")
             }
         }

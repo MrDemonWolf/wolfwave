@@ -418,7 +418,7 @@ export default async function HomePage() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={{ background: "#28c840" }}
               />
-              <span className="ml-2">localhost:8080/now-playing</span>
+              <span className="ml-2">localhost:8766/</span>
             </div>
             <div
               style={{
@@ -527,7 +527,7 @@ export default async function HomePage() {
                 {
                   icon: Radio,
                   title: "Local WebSocket",
-                  body: "ws://localhost:8080/now-playing streams every track change in milliseconds. JSON payload, no auth gymnastics for loopback.",
+                  body: "ws://localhost:8765 streams track changes as JSON. Enable Stream Widgets in Settings and authenticate with your overlay token.",
                 },
                 {
                   icon: Github,
@@ -721,12 +721,12 @@ export default async function HomePage() {
             <Kicker index="07">Private by default</Kicker>
           </div>
           <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
-            Your music stays on your Mac.
+            Private by default, with the services you choose.
           </h2>
           <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-            Nothing about what you play leaves your machine. Tokens sit in the
-            macOS Keychain. The app runs sandboxed. No telemetry, nothing to
-            phone home.
+            WolfWave has no cloud account or app servers. Your plays go only to
+            services you enable, and artwork lookups ask Apple for cover art.
+            Tokens stay in the macOS Keychain. No telemetry.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             {["Sandboxed", "Keychain", "No telemetry", "GPL-3.0 licensed"].map(
