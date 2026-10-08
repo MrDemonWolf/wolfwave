@@ -99,7 +99,7 @@ so nothing half-configured ever goes live.
   after a quit or outage. If storage is unavailable, it pauses the managed
   reward and shows a fix-it banner; an already-paid Bits cheer still gets one
   process-owned attempt.
-- **Bit boost.** When a viewer cheers past your minimum, their most-recent
+- **Bit boost.** When a viewer cheers past your minimum, their oldest
   queued request jumps to the front. Same queue, same blocklist, same rules.
 - **Same controls as `!sr`.** Points and bits respect the request audience,
   per-user limits, approval screening, and hold mode.
@@ -109,6 +109,11 @@ display name changes. Requester blocklists check both login and display name.
 Song and artist blocklists ignore accents, capitalization, and extra whitespace;
 artist entries also match collaborations, and song entries ignore bracketed
 title suffixes.
+
+Priority requests move ahead of ordinary requests with fair-share off, preserving
+order within the priority group. Bits boost the oldest queued request. Music
+launch starts buffered requests only when requests and auto-advance are enabled;
+it leaves an active request alone. A failed vote-skip can be retried immediately.
 
 ## Now-Playing Widget
 
