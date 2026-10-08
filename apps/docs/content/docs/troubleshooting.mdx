@@ -139,6 +139,12 @@ rate limits. Restarting clears this temporary backoff.
 
 ## Discord
 
+Rapid presence changes are combined into the latest update, sent at most about
+once every four seconds. A rejected activity gets one delayed retry. Empty text
+fields are omitted and longer fields are capped at 128 characters. The settings
+preview uses the same button labels, toggles, and valid HTTPS links as the live
+presence. Before a connection attempt has finished, the status reads Connecting.
+
 ### Discord isn't connecting [#discord-not-connecting]
 
 WolfWave tells these three apart, and they need different fixes.

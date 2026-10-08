@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Discord presence caps text fields, coalesces rapid updates, and retries a rejected activity once. Preview buttons now match live labels and valid links; initial connection status reads Connecting.
 - Spotify and YouTube requests reject ambiguous catalog matches. Artwork lookup validates title and artist, escapes search terms, and backs off after temporary network or rate-limit failures.
 - Failed vote-skips no longer consume the session cooldown. Music launch respects request and auto-advance settings, and priority queue jumps also work with fair-share off.
 - Song request limits, queue ownership, and Bits boosts use Twitch logins across display-name changes. Blocklists match collaborations, accents, whitespace, and bracketed title suffixes.
