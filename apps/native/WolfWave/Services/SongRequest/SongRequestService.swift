@@ -636,11 +636,14 @@ final class SongRequestService {
     ///
     /// - Parameters:
     ///   - query: Search string, Apple Music link, Spotify link, or YouTube link.
-    ///   - username: Twitch display name of the requester.
+    ///   - username: Twitch login of the requester (legacy callers may pass a display name).
+    ///   - displayName: Optional display name, checked against legacy blocklist entries.
     ///   - source: How the request arrived (chat command, channel points, bits).
     /// - Returns: A `RequestResult` describing the outcome (added, blocked,
     ///   queue-full, not-found, etc.)
-    func processRequest(query: String, username: String, source: RequestSource) async -> RequestResult {
+    func processRequest(
+        query: String, username: String, source: RequestSource, displayName: String? = nil
+    ) async -> RequestResult {
         guard !Task.isCancelled else { return .cancelled }
 
         // Master gate. The settings UI hides itself when this is off, but the
@@ -659,7 +662,18 @@ final class SongRequestService {
         // A blocked person is blocked whatever they ask for and however they
         // ask, so this runs before the audience-agnostic paths and before any
         // MusicKit lookup is spent on them.
-        if await blocklist.isBlockedRequester(username) {
+        let requesterLogin: String
+        let requesterDisplayName: String
+        if case .chatCommand(let context) = source {
+            requesterLogin = context.requesterLogin
+            requesterDisplayName = context.username
+        } else {
+            requesterLogin = username
+            requesterDisplayName = displayName ?? username
+        }
+        let blockedLogin = await blocklist.isBlockedRequester(requesterLogin)
+        let blockedDisplayName = await blocklist.isBlockedRequester(requesterDisplayName)
+        if blockedLogin || blockedDisplayName {
             guard !Task.isCancelled else { return .cancelled }
             return .blocked
         }
@@ -690,7 +704,7 @@ final class SongRequestService {
             } else {
                 isPriority = false
             }
-            let item = SongRequestItem(song: song, requesterUsername: username, isPriority: isPriority)
+            let item = SongRequestItem(song: song, requesterUsername: requesterLogin, isPriority: isPriority)
 
             // Approval mode: park the resolved request in the holding pen and let
             // the streamer approve/reject it from the Queue pane. The per-user and

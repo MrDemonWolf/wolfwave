@@ -43,6 +43,11 @@ nonisolated struct BotCommandContext: Sendable {
     /// Helix Send Chat Message endpoint.
     let messageID: String
 
+    /// Stable login used for queue ownership; legacy callers fall back to the display name.
+    var login: String? = nil
+
+    var requesterLogin: String { login.flatMap { $0.isEmpty ? nil : $0 } ?? username }
+
     // MARK: - Computed
 
     /// Whether this sender has elevated privileges: moderator or broadcaster.

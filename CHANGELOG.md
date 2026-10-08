@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Song request limits, queue ownership, and Bits boosts use Twitch logins across display-name changes. Blocklists match collaborations, accents, whitespace, and bracketed title suffixes.
 - Twitch reconnects continue with a slower retry tier after brief outages and retry promptly after system wake. Rotated tokens survive temporary Keychain write failures.
 - Landing-page integration examples now use the authenticated overlay protocol, correct local ports, and supported payloads.
 - Listening history now prunes expired plays during recording, daily checks, and retention changes; shortening retention confirms the number of plays removed.

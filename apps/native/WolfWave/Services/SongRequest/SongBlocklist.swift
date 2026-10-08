@@ -125,15 +125,20 @@ actor SongBlocklist {
     ///   - artist: The artist name to check.
     /// - Returns: `true` if the song or its artist is on the blocklist.
     func isBlocked(title: String, artist: String) -> Bool {
-        // Lowercase the inputs once instead of per entry in the scan.
-        let loweredTitle = title.lowercased()
-        let loweredArtist = artist.lowercased()
+        let loweredTitle = TrackTextNormalizer.title(title)
+        let loweredArtist = TrackTextNormalizer.text(artist)
+        let artists = loweredArtist.components(
+            separatedBy: " & ").flatMap { $0.components(separatedBy: ", ") }
+            .flatMap { $0.components(separatedBy: " feat. ") }
+            .flatMap { $0.components(separatedBy: " x ") }
+            .map(TrackTextNormalizer.text)
         return entries.contains { entry in
             switch entry.type {
             case .song:
-                return entry.value.lowercased() == loweredTitle
+                return TrackTextNormalizer.title(entry.value) == loweredTitle
             case .artist:
-                return entry.value.lowercased() == loweredArtist
+                let blockedArtist = TrackTextNormalizer.text(entry.value)
+                return blockedArtist == loweredArtist || artists.contains(blockedArtist)
             case .requester:
                 // A person, not a song. Checked by `isBlockedRequester`.
                 return false
@@ -150,9 +155,9 @@ actor SongBlocklist {
     /// - Parameter username: Twitch username, matched case-insensitively.
     /// - Returns: `true` when the username is on the blocklist.
     func isBlockedRequester(_ username: String) -> Bool {
-        let lowered = username.lowercased()
+        let lowered = TrackTextNormalizer.text(username)
         guard !lowered.isEmpty else { return false }
-        return entries.contains { $0.type == .requester && $0.value.lowercased() == lowered }
+        return entries.contains { $0.type == .requester && TrackTextNormalizer.text($0.value) == lowered }
     }
 
     /// Add a song or artist to the blocklist.
@@ -160,10 +165,12 @@ actor SongBlocklist {
     /// - Parameter item: The blocklist entry to add.
     func add(_ item: BlocklistItem) {
         guard acceptsMutations else { return }
+        let trimmed = item.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
         guard !entries.contains(where: {
-            $0.type == item.type && $0.value.lowercased() == item.value.lowercased()
+            $0.type == item.type && TrackTextNormalizer.text($0.value) == TrackTextNormalizer.text(trimmed)
         }) else { return }
-        entries.append(item)
+        entries.append(BlocklistItem(id: item.id, value: trimmed, type: item.type, addedAt: item.addedAt))
         save()
     }
 
@@ -191,5 +198,19 @@ actor SongBlocklist {
     private func save() {
         guard let data = try? JSONCoders.camelCaseEncoder.encode(entries) else { return }
         storage.write(data)
+    }
+}
+
+/// Shared comparison rules for track metadata and user-entered blocklist values.
+nonisolated enum TrackTextNormalizer {
+    static func text(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
+    static func title(_ value: String) -> String {
+        text(value.replacingOccurrences(
+            of: #"\s*(?:\([^()]*\)|\[[^\[\]]*\])\s*$"#,
+            with: "", options: .regularExpression))
     }
 }
