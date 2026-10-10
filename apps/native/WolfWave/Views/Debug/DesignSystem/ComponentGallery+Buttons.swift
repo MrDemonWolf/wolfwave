@@ -16,6 +16,9 @@ extension DebugComponentGalleryCard {
     /// Buttons: `DSIconButton`, `CopyButton`, `OpenInBrowserButton`,
     /// `DestructiveButton`, `AsyncActionButton`, `SharePickerButton`, `ActionGrid`.
     @ViewBuilder var buttonsSection: some View {
+        GalleryEntry(typeName: "MusicPermissionRecheckButton", note: "reports the actual Automation probe result") {
+            MusicPermissionRecheckButton(onTryAgain: { .unknown })
+        }
         GalleryEntry(typeName: "DSIconButton") {
             // The CopyButton neighbour is part of the component's own preview:
             // matching its frame is the reason DSIconButton exists.

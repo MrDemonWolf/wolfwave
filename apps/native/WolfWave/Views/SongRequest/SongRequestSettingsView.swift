@@ -14,6 +14,7 @@ import SwiftUI
 /// Decomposed into per-card subviews so each `@AppStorage` change only re-renders one card
 /// instead of the whole screen.
 struct SongRequestSettingsView: View {
+    var openTwitchSettings: () -> Void = {}
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
@@ -118,7 +119,7 @@ struct SongRequestSettingsView: View {
             refreshReauthState()
         }
         .sheet(isPresented: $showSetupSheet, onDismiss: { Task { await runHealthCheck() } }) {
-            SongRequestSetupView(startAt: setupStartStep)
+            SongRequestSetupView(startAt: setupStartStep, openTwitchSettings: openTwitchSettings)
         }
     }
 

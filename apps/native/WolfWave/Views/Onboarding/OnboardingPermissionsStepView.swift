@@ -34,6 +34,9 @@ struct OnboardingPermissionsStepView: View {
                     .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
         )
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            recheckTapped()
+        }
     }
 
     // MARK: - Apple Music Section

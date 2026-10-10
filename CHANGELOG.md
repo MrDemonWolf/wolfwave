@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Permission rechecks report the actual Automation result and close the instruction sheet after a grant. Setup and onboarding refresh permissions on return from System Settings, and Song Request setup links to Twitch settings.
 - Settings now explain aborted resets, login-item failures, and log or wrap export errors. Imports clearly identify overwritten settings; clearing logs removes rotated backups, and completed or cancelled wrap shares remove their temporary files.
 - Widget HTTP retries failed listeners, caches its favicon, and bounds response writes. WebSockets use TCP keepalive and acknowledge unavailable commands; token loading and saves run away from the UI thread.
 - Music polling limits slow Apple Event replies, prevents overlapping reads, and checks the latest state after notification bursts.

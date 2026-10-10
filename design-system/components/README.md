@@ -32,6 +32,7 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | IntegrationDashboardView | [integration-dashboard-view.md](integration-dashboard-view.md) |
 | MusicPermissionBanner | [music-permission-banner.md](music-permission-banner.md) |
 | AsyncActionButton | [async-action-button.md](async-action-button.md) |
+| MusicPermissionRecheckButton | [music-permission-recheck-button.md](music-permission-recheck-button.md) |
 | CopyButton | [copy-button.md](copy-button.md) |
 | DeepLinkAnchor | [deep-link-anchor.md](deep-link-anchor.md) |
 | CopyableURLRow | [copyable-url-row.md](copyable-url-row.md) |

@@ -30,6 +30,8 @@ scrollable pane:
 
 - **Music Sync** — the master switch. A hero now-playing card plus an
   integrations dashboard showing what's connected.
+  Permission rechecks show the actual result. If Music is closed, open it and
+  try again; the instruction sheet closes once Automation access is granted.
 - **App Visibility** — run WolfWave as a menu bar app, a Dock app, or both.
   Launch at Login failures show a warning and a shortcut to Login Items; the
   toggle keeps its previous value when registration fails.
@@ -49,6 +51,11 @@ Appearance and notification choices are preferences, so they travel with
 [Back Up & Restore](/docs/backup).
 
 ## Song Requests
+
+Setup refreshes Apple Music authorization when you return from System Settings.
+Denied MusicKit access links to **Media & Apple Music**, separate from the
+Automation permission used by Music Sync. If Twitch is disconnected, use
+**Open Twitch settings** to sign in, then return to setup.
 
 <small>Open in WolfWave: [`wolfwave://settings/song-requests`](wolfwave://settings/song-requests)</small>
 

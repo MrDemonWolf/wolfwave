@@ -12,6 +12,24 @@ import XCTest
 
 @MainActor
 final class SettingsFeedbackTests: XCTestCase {
+    func testSongRequestPermissionTargetIsSeparateFromAutomation() {
+        XCTAssertTrue(AppConstants.URLs.systemMusicSettings.hasSuffix("Privacy_Media"))
+        XCTAssertNotEqual(AppConstants.URLs.systemMusicSettings, AppConstants.URLs.systemAutomationSettings)
+    }
+
+    func testStillOffShownOnlyWhenDenied() async {
+        let denied = await MusicPermissionRecheckButton.recheckFeedback(using: { .denied })
+        XCTAssertTrue(denied?.hasPrefix("Still off") == true)
+        let granted = await MusicPermissionRecheckButton.recheckFeedback(using: { .granted })
+        XCTAssertNil(granted)
+    }
+
+    func testUnknownStateSuggestsOpeningMusic() async {
+        let unknown = await MusicPermissionRecheckButton.recheckFeedback(using: { .unknown })
+        XCTAssertEqual(unknown, "Open Music, then try again.")
+        XCTAssertFalse(unknown?.contains("Still off") == true)
+    }
+
     func testResetAbortSetsUserFacingError() async {
         let error = await SettingsView.twitchResetError(clearCredentials: { false })
         XCTAssertEqual(error?.id, "settings.resetAborted.twitch")

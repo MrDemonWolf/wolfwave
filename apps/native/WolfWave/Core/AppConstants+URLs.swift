@@ -94,6 +94,10 @@ extension AppConstants {
         static let systemAutomationSettings =
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
 
+        /// Song Requests uses MusicKit authorization, separate from Automation.
+        static let systemMusicSettings =
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Media"
+
         /// Returns `value` when it parses as an absolute URL with a scheme and
         /// host, otherwise `fallback`. Catches xcconfig `//`-truncated values
         /// like `https:` that would otherwise produce broken links.
