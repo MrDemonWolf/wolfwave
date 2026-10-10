@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Settings sidebar toggles no longer apply a spring to the entire detail layout or repeatedly reset the divider width. Now-playing progress redraws only when its inputs change, and the Debug motion demo pauses offscreen.
 - Widget HTTP retries failed listeners, caches its favicon, and bounds response writes. WebSockets use TCP keepalive and acknowledge unavailable commands; token loading and saves run away from the UI thread.
 - Music polling limits slow Apple Event replies, prevents overlapping reads, and checks the latest state after notification bursts.
 - Discord presence caps text fields, coalesces rapid updates, and retries a rejected activity once. Preview buttons now match live labels and valid links; initial connection status reads Connecting.
