@@ -2,9 +2,8 @@
 #
 # Generate and validate a Sparkle appcast for the DMGs in a build directory.
 #
-# Uses the generate_appcast from the Sparkle cask, reusing it if a previous step
-# already installed it. Set SPARKLE_BIN to a full path to generate_appcast to
-# bypass the lookup entirely.
+# Uses the tool bundled with the resolved Sparkle package, or reuses an existing
+# Homebrew install. Set SPARKLE_BIN to a full path to bypass the lookup.
 #
 # Env:
 #   SPARKLE_PRIVATE_KEY  the EdDSA private key (repo secret)
@@ -20,11 +19,9 @@ builds_dir="${3:-builds}"
 : "${SPARKLE_PRIVATE_KEY:?SPARKLE_PRIVATE_KEY is required}"
 
 find_tool() {
-  # Only one of the two Caskroom roots exists on any given Mac, so find exits 1
-  # after listing the other. Under pipefail that 1 survives `head`, and the
-  # `tool="$(find_tool)"` assignment turns it into a silent script death
-  # before the first echo (every nightly from 2026-08-15 to 2026-08-21).
-  find /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle \
+  # Workflows already resolve Sparkle through SPM; use its matching CLI first.
+  find SourcePackages/artifacts/sparkle/Sparkle/bin \
+    /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle \
     -name generate_appcast -type f 2>/dev/null | head -1 || true
 }
 
@@ -33,12 +30,7 @@ if [ -z "$tool" ]; then
   tool="$(find_tool)"
 fi
 if [ -z "$tool" ]; then
-  echo "Sparkle CLI tools not found; installing the cask"
-  brew install --cask sparkle
-  tool="$(find_tool)"
-fi
-if [ -z "$tool" ]; then
-  echo "::error::Could not locate generate_appcast after installing the Sparkle cask" >&2
+  echo "::error::Could not locate generate_appcast; resolve Sparkle package dependencies or set SPARKLE_BIN" >&2
   exit 1
 fi
 echo "Using $tool"
