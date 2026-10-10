@@ -133,6 +133,31 @@ final class SettingsUITests: WolfWaveUITestCase {
         XCTAssertTrue(app.windows[Self.settingsWindowTitle].exists)
     }
 
+    func testSidebarRepeatedlyHidesAndShowsWithoutChangingPane() {
+        let window = openSettings()
+        let toggle = window.buttons["sidebarToggleButton"]
+        expect(toggle, "the sidebar toggle")
+
+        var sections = ["General", "About"]
+        if app.staticTexts["settings.sidebar.Debug"].exists {
+            sections.append("Debug")
+        }
+        for section in sections {
+            select(section)
+            let row = app.staticTexts["settings.sidebar.\(section)"]
+            let pane = app.descendants(matching: .any)["settings.pane.\(section)"]
+            for _ in 0..<3 {
+                toggle.click()
+                XCTAssertTrue(row.waitForNonExistence(timeout: Self.timeout))
+                XCTAssertTrue(pane.exists, "Hiding the sidebar changed the selected pane")
+                toggle.click()
+                expect(row, "the \(section) row after showing the sidebar")
+                XCTAssertTrue(pane.exists, "Showing the sidebar changed the selected pane")
+            }
+        }
+        assertStillRunning(rendering: "repeated sidebar toggles")
+    }
+
     // MARK: - Helpers
 
     /// Clicks one sidebar row, activating first.

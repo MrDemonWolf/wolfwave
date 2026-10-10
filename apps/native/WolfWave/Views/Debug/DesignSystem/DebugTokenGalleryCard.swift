@@ -195,7 +195,7 @@ struct DebugTokenGalleryCard: View {
 
     private var motionGallerySection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            family("Motion gallery", symbol: "contentTransition · symbolEffect · TimelineView · AsyncImage")
+            family("Motion gallery", symbol: "contentTransition · symbolEffect · ProgressView · AsyncImage")
             MotionGallerySection()
         }
     }
