@@ -130,13 +130,11 @@ struct NowPlayingHeroCard: View {
     @ViewBuilder
     private var progressBar: some View {
         HStack(spacing: DSSpace.s3) {
-            TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion || isPaused)) { _ in
-                let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
-                ProgressView(value: fraction)
-                    .progressViewStyle(.linear)
-                    .tint(.primary)
-                    .frame(height: 3)
-            }
+            let fraction = duration > 0 ? min(max(elapsed / duration, 0), 1) : 0
+            ProgressView(value: fraction)
+                .progressViewStyle(.linear)
+                .tint(.primary)
+                .frame(height: 3)
 
             Text("\(HistoryFormat.clock(elapsed)) / \(HistoryFormat.clock(duration))")
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))

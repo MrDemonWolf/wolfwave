@@ -31,7 +31,7 @@ import SwiftUI
 /// - @State for UI state (section selection, sidebar visibility)
 ///
 /// Key Features:
-/// - Smooth sidebar toggle animation
+/// - Native sidebar visibility control
 /// - Keyboard shortcuts (Esc or Cmd+W to close)
 /// - Integration with AppDelegate services
 /// - Responsive to notifications from other parts of the app
@@ -473,12 +473,10 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     /// Toggles the sidebar column between visible (`.all`) and hidden
-    /// (`.detailOnly`), animated. Drives the detail-toolbar toggle button that
+    /// (`.detailOnly`). Drives the detail-toolbar toggle button that
     /// replaces SwiftUI's automatic sidebar-segment toggle (see `body`).
     private func toggleSidebar() {
-        withAnimation(DSMotion.Spring.snappy) {
-            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-        }
+        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
     }
 
     /// Wipes every trace of the app's state and relaunches into a fresh
@@ -608,20 +606,22 @@ struct SettingsView: View {
 /// and tracking separator stop overflowing into AppKit's `>>` clip chevron while
 /// the sidebar animates.
 ///
-/// Only cosmetic window properties are touched; `styleMask` is left to SwiftUI,
+/// Chrome and the initial sidebar width are configured; `styleMask` is left to SwiftUI,
 /// so `SettingsSceneBridge.settingsWindow()`'s titled / non-fullSizeContentView
 /// detection and the dock-visibility probe keep working.
-private struct SettingsWindowConfigurator: NSViewRepresentable {
+struct SettingsWindowConfigurator: NSViewRepresentable {
     /// Bound to the split view's column visibility so `updateNSView` fires on
-    /// every sidebar toggle. The value itself isn't read; it exists to make the
-    /// dependency explicit and guarantee the re-assert below runs.
+    /// every sidebar toggle and the initial width repair leaves a hidden column alone.
     let columnVisibility: NavigationSplitViewVisibility
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         // The host window isn't attached yet during `makeNSView`; defer one
         // runloop tick until `view.window` is populated.
-        DispatchQueue.main.async { configure(view.window) }
+        let coordinator = context.coordinator
+        DispatchQueue.main.async { coordinator.configure(view.window, visibility: columnVisibility) }
         return view
     }
 
@@ -631,43 +631,33 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
         // and opaque bar) on this same runloop pass, so a synchronous re-assert
         // here loses the race. Defer one tick so our chrome wins after the toggle's
         // re-theme commits.
-        DispatchQueue.main.async { configure(nsView.window) }
+        let coordinator = context.coordinator
+        DispatchQueue.main.async { coordinator.configure(nsView.window, visibility: columnVisibility) }
     }
 
     @MainActor
-    private func configure(_ window: NSWindow?) {
-        guard let window else { return }
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        pinSidebarWidth(in: window)
-    }
+    final class Coordinator {
+        private weak var repairedWindow: NSWindow?
 
-    /// Stops `NSSplitView` persisting the sidebar column and re-pins the divider to
-    /// the design token.
-    ///
-    /// SwiftUI's `NavigationSplitView` is backed by an `NSSplitView` that autosaves
-    /// its column frames under the scene id and restores them **without** clamping to
-    /// `navigationSplitViewColumnWidth`. Once a narrow frame was written (148pt in
-    /// practice, captured mid-collapse) it came back on every later open and truncated
-    /// every section label. Clearing `autosaveName` alone is not enough: by the time
-    /// this runs the bad width has already been restored, so the divider is also
-    /// pushed back to the token.
-    ///
-    /// The collapsed sidebar is left alone, otherwise re-pinning would fight the
-    /// hide/show toggle and force the sidebar back open.
-    @MainActor
-    private func pinSidebarWidth(in window: NSWindow) {
-        guard let contentView = window.contentView,
-              let split = Self.firstSplitView(in: contentView),
-              let sidebar = split.arrangedSubviews.first else { return }
+        func configure(_ window: NSWindow?, visibility: NavigationSplitViewVisibility) {
+            guard let window else { return }
+            if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+            if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
 
-        split.autosaveName = nil
+            guard repairedWindow !== window,
+                  let contentView = window.contentView,
+                  let split = SettingsWindowConfigurator.firstSplitView(in: contentView),
+                  let sidebar = split.arrangedSubviews.first else { return }
 
-        let target = AppConstants.SettingsUI.sidebarWidth
-        let current = sidebar.frame.width
-        // Collapsed (or mid-animation) sidebar: leave the toggle in control.
-        guard current > 1, abs(current - target) > 0.5 else { return }
-        split.setPosition(target, ofDividerAt: 0)
+            split.autosaveName = nil
+            guard visibility != .detailOnly, sidebar.frame.width > 1 else { return }
+            // Repair a restored narrow width once; later updates must not fight the toggle.
+            repairedWindow = window
+            let target = AppConstants.SettingsUI.sidebarWidth
+            if abs(sidebar.frame.width - target) > 0.5 {
+                split.setPosition(target, ofDividerAt: 0)
+            }
+        }
     }
 
     /// Depth-first search for the first `NSSplitView` under `view`.

@@ -42,9 +42,9 @@ NowPlayingHeroCard(
 - **Title swap:** `id(track ?? "")` + `.contentTransition(.opacity)` so each unique title gets its own identity and cross-fades into the next.
 - **Subtitle swap:** same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist · album`.
 - **Timecode:** `.contentTransition(.numericText())` on the `M:SS / M:SS` text. Digits tween instead of blink-replacing every second.
-- **Scrubber:** wrapped in `TimelineView(.animation(minimumInterval: 0.1, paused: reduceMotion))`. The `ProgressView(value:)` fraction is recomputed every 100ms inside the timeline, so the bar interpolates between the ~1s source updates instead of stepping.
+- **Scrubber:** `ProgressView(value:)` reads the supplied `elapsed` and `duration`. It updates when those inputs change, without a recurring timeline that redraws an unchanged value.
 - **Outer animation:** `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` so callers don't need to wrap track mutations in `withAnimation`.
-- All motion respects `accessibilityReduceMotion`: timeline pauses, animation becomes `nil`, contentTransitions degrade to instant swaps.
+- Track-change animations respect `accessibilityReduceMotion`; progress remains input-driven in either mode.
 
 ## Anatomy
 ```mermaid
@@ -54,7 +54,7 @@ graph LR
   Text --> Eyebrow[Text, NOW PLAYING uppercase]
   Text --> Title[Text, lg semibold .contentTransition .opacity id track]
   Text --> Subtitle[Text, base secondary .contentTransition .opacity id subtitle]
-  Text --> Progress[TimelineView .animation 0.1s]
+  Text --> Progress[Input-driven progress]
   Progress --> Bar[ProgressView linear, fraction]
   Progress --> Stamp[Text M:SS / M:SS, .contentTransition .numericText]
 ```
@@ -64,7 +64,7 @@ graph LR
 - Compound label: `"Now playing: <track>, by <artist>, on <album>"`; falls back to permission-state copy when no track.
 - When `duration > 0` the label appends the scrubber clock: `"…, <elapsed> elapsed, <remaining> remaining"` (formatted via `HistoryFormat.clock`), so VoiceOver announces playback position that the visual scrubber otherwise conveys only graphically.
 - `monospacedDigit()` keeps timestamps stable as the seconds tick.
-- Reduce Motion: scrubber timeline pauses (the static fraction still renders), title/subtitle contentTransitions degrade to step swaps, outer animation drops to `nil`.
+- Reduce Motion: track swaps are instant; scrubber updates still follow the supplied playback position.
 
 ## Do / Don't
 - ✅ Place at the top of the General tab, single instance per pane.

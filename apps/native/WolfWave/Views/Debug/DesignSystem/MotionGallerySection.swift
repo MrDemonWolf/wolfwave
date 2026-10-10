@@ -11,7 +11,7 @@ import SwiftUI
 
 /// Visual gallery for the polished SwiftUI transitions added in the
 /// Apple/SwiftUI modernization pass. Designers can verify `contentTransition`,
-/// `symbolEffect`, `TimelineView`, and the `AsyncImage` phased loading without
+/// `symbolEffect`, input-driven progress, and the `AsyncImage` phased loading without
 /// triggering real Twitch/Discord state.
 ///
 /// To validate Reduce Motion: flip System Settings → Accessibility → Reduce
@@ -24,6 +24,7 @@ struct MotionGallerySection: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var chipState: ChipDemoState = .off
+    @State private var chipCycleVisible = false
     @State private var trackIndex: Int = 0
     @State private var elapsed: TimeInterval = 0
     // Neutral placeholder image (not real album art) so the AsyncImage phased
@@ -128,14 +129,9 @@ struct MotionGallerySection: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-            // Structured .task loop advances the chip state every 1.2s and
-            // auto-cancels when the card disappears (matches the other Debug
-            // cards). A stored onAppear task would outlive the view and keep
-            // mutating state for the process lifetime on every pane revisit.
-            // Keyed on reduceMotion so flipping the system setting restarts
-            // (or stops) the loop; the Advance button still works either way.
-            .task(id: reduceMotion) {
-                guard !reduceMotion else { return }
+            // Pause offscreen or under Reduce Motion; manual Advance always works.
+            .task(id: reduceMotion || !chipCycleVisible) {
+                guard !reduceMotion, chipCycleVisible else { return }
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(1200))
                     guard !Task.isCancelled else { return }
@@ -143,13 +139,14 @@ struct MotionGallerySection: View {
                 }
             }
         }
+        .onScrollVisibilityChange(threshold: 0.01) { chipCycleVisible = $0 }
     }
 
     // MARK: Track swap
 
     private var trackSwapDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
-            Text("NowPlayingHeroCard: title contentTransition + TimelineView scrubber")
+            Text("NowPlayingHeroCard: title contentTransition + input-driven scrubber")
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.secondary)
 
