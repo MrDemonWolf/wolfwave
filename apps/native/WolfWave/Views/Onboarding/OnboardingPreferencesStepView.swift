@@ -17,6 +17,7 @@ struct OnboardingPreferencesStepView: View {
     // MARK: - Properties
 
     @Binding var launchAtLogin: Bool
+    @State private var launchAtLoginError: String?
 
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
     private var listeningHistoryEnabled = false
@@ -45,13 +46,25 @@ struct OnboardingPreferencesStepView: View {
                             set: { newValue in
                                 // `.requiresApproval` still counts as opted-in; only a
                                 // hard `.failure` leaves the toggle where it was.
-                                guard LaunchAtLoginService.setEnabled(newValue) != .failure else { return }
+                                let outcome = LaunchAtLoginService.setEnabled(newValue)
+                                launchAtLoginError = outcome == .failure
+                                    ? LaunchAtLoginService.registrationFailureMessage
+                                    : nil
+                                guard outcome != .failure else { return }
                                 launchAtLogin = newValue
                             }
                         ),
                         accessibilityLabel: "Start WolfWave at login",
                         accessibilityIdentifier: "onboardingLaunchAtLoginToggle"
                     )
+
+                    if let launchAtLoginError {
+                        CalloutBanner(launchAtLoginError, style: .warning)
+                        Button("Open Login Items") {
+                            LaunchAtLoginService.openLoginItemsSettings()
+                        }
+                        .pointerCursor()
+                    }
 
                     OnboardingToggleCard(
                         icon: "chart.bar.xaxis",

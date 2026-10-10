@@ -31,6 +31,7 @@ struct MusicMonitorSettingsView: View {
 
     @State private var permissionState: MusicPermissionState = .unknown
     @State private var showInstructionSheet = false
+    @State private var showPermissionRecovery = false
     @State private var isRequesting = false
     @State private var isRechecking = false
     @State private var recheckConfirmed = false
@@ -59,7 +60,7 @@ struct MusicMonitorSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
 
-            if permissionState == .denied {
+            if permissionState == .denied || showPermissionRecovery {
                 PermissionDeniedBanner(
                     onOpenSystemSettings: { MusicPermissionChecker.openAutomationSettings() },
                     onTryAgain: refreshPermission,
@@ -146,7 +147,7 @@ struct MusicMonitorSettingsView: View {
             if let cached = MusicPermissionCache.read() {
                 permissionState = cached
             } else {
-                refreshPermission()
+                _ = await refreshPermission()
             }
             loadCurrentTrack()
             if permissionState == .granted {
@@ -191,7 +192,15 @@ struct MusicMonitorSettingsView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            refreshPermission()
+            Task { _ = await refreshPermission() }
+        }
+        .onChange(of: permissionState) { _, next in
+            // A closed Music app must not remove the recheck's unknown-state feedback.
+            if next == .denied { showPermissionRecovery = true }
+            if next == .granted {
+                showPermissionRecovery = false
+                showInstructionSheet = false
+            }
         }
         .onReceive(notif(AppConstants.Notifications.musicPermissionDenied)) { _ in
             // The data path detected that Music.app is running but ScriptingBridge
@@ -383,23 +392,17 @@ struct MusicMonitorSettingsView: View {
     /// Re-queries Apple Music automation permission off the main actor, caches
     /// the result, and reloads the current track if permission is now granted.
     /// The Apple Events probe can take tens of milliseconds, keep it off main.
-    private func refreshPermission() {
-        Task.detached(priority: .userInitiated) {
-            let next = MusicPermissionChecker.currentState()
-            await MainActor.run {
-                MusicPermissionCache.write(next)
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                    permissionState = next
-                }
-                // If we're now granted, try to get the current track again.
-                if next == .granted {
-                    loadCurrentTrack()
-                    // Cached snap first so the UI doesn't briefly clear, then ask
-                    // the source for a fresh ScriptingBridge read.
-                    AppDelegate.shared?.refreshNowPlaying()
-                }
-            }
+    private func refreshPermission() async -> MusicPermissionState {
+        let next = await MusicPermissionChecker.recheck()
+        MusicPermissionCache.write(next)
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            permissionState = next
         }
+        if next == .granted {
+            loadCurrentTrack()
+            AppDelegate.shared?.refreshNowPlaying()
+        }
+        return next
     }
 
     /// Prompts the user for Apple Music automation permission, animates the

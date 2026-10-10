@@ -16,16 +16,8 @@ import AppKit
 struct PermissionDeniedBanner: View {
 
     var onOpenSystemSettings: () -> Void
-    var onTryAgain: () -> Void
+    var onTryAgain: () async -> MusicPermissionState
     var onShowInstructions: () -> Void
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// Brief recheck feedback so "Try again" never feels like a dead button.
-    /// If access is granted the parent unmounts this whole card, so a lingering
-    /// hint only ever means "still off".
-    @State private var isRechecking = false
-    @State private var showStillDenied = false
 
     var body: some View {
         HStack(alignment: .top, spacing: DSSpace.s7) {
@@ -63,68 +55,18 @@ struct PermissionDeniedBanner: View {
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
 
-                    tryAgainButton
+                    MusicPermissionRecheckButton(onTryAgain: onTryAgain)
 
                     Spacer(minLength: 0)
                 }
                 .padding(.top, DSSpace.s1)
 
-                if showStillDenied {
-                    Label(
-                        "Still off. In Automation, turn on Music under WolfWave.",
-                        systemImage: "info.circle"
-                    )
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .transition(.opacity)
-                }
             }
         }
         .padding(DSSpace.s7)
         .cardStyleUnpadded()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Music access denied. Open System Settings to grant Automation access for the Music app.")
-    }
-
-    /// "Try again" recheck with an inline spinner plus a transient "still off"
-    /// hint, so the button always acknowledges the tap even when nothing changed.
-    @ViewBuilder
-    private var tryAgainButton: some View {
-        Button {
-            guard !isRechecking else { return }
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
-                isRechecking = true
-                showStillDenied = false
-            }
-            onTryAgain()
-            Task {
-                // Give the off-main permission probe a beat to resolve. A grant
-                // unmounts this card; if we're still here afterwards it's denied.
-                try? await Task.sleep(nanoseconds: 700_000_000)
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                    isRechecking = false
-                    showStillDenied = true
-                }
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                    showStillDenied = false
-                }
-            }
-        } label: {
-            HStack(spacing: DSSpace.s1) {
-                if isRechecking {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .controlSize(.small)
-                }
-                Text("Try again")
-            }
-        }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .disabled(isRechecking)
-        .accessibilityLabel("Try again")
-        .accessibilityHint("Rechecks whether Apple Music access is now on")
+        .accessibilityLabel("Music access required. Open System Settings to grant Automation access for the Music app.")
     }
 
     /// Flat tinted circle + SF Symbol, matching the macOS System Settings
@@ -151,7 +93,7 @@ struct PermissionInstructionSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     var onOpenSystemSettings: () -> Void
-    var onTryAgain: () -> Void
+    var onTryAgain: () async -> MusicPermissionState
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s7) {
@@ -201,10 +143,7 @@ struct PermissionInstructionSheet: View {
                 Button("Not now") { dismiss() }
                     .buttonStyle(.borderless)
                 Spacer()
-                Button("Try Again") {
-                    onTryAgain()
-                }
-                .buttonStyle(.bordered)
+                MusicPermissionRecheckButton(onTryAgain: onTryAgain)
 
                 Button {
                     onOpenSystemSettings()
@@ -343,7 +282,7 @@ struct PermissionPausedNowPlayingCard: View {
 #Preview("Banner") {
     PermissionDeniedBanner(
         onOpenSystemSettings: {},
-        onTryAgain: {},
+        onTryAgain: { .denied },
         onShowInstructions: {}
     )
     .padding()
@@ -354,7 +293,7 @@ struct PermissionPausedNowPlayingCard: View {
 #Preview("Instruction sheet") {
     PermissionInstructionSheet(
         onOpenSystemSettings: {},
-        onTryAgain: {}
+        onTryAgain: { .denied }
     )
 }
 

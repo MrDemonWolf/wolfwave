@@ -133,8 +133,8 @@ struct SettingsImportSheet: View {
     // MARK: - Copy Helpers
 
     private var summaryLine: String {
-        let noun = SettingsBackupService.ApplySummary.preferenceNoun(restorableCount)
-        return "\(restorableCount) \(noun) will be restored. Existing settings not in the backup are left as they are."
+        "This replaces the \(restorableCount) matching settings on this Mac. "
+            + "Anything not in the backup stays as is."
     }
 
     private var sourceLine: String {

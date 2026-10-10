@@ -75,7 +75,7 @@ Your music plays. Everything else keeps up.
 ### History & Stats
 
 - **Listening History & Stats.** Opt-in, on-device log of what you actually play: top artists, listening time, 7-day trend, and a listening-by-hour chart built on SwiftUI Charts.
-- **Monthly Wrap.** A personal "wrapped"-style summary for any month, exportable as a shareable PNG.
+- **Monthly Wrap.** A personal "wrapped"-style summary for any month, exportable as a shareable PNG. Export failures show in the sheet, and temporary share images are removed when sharing finishes or is cancelled.
 - **`!stats` in Chat.** Viewers ask for today's top track. Replies only while you're live.
 
 ### Platform & Security
@@ -83,7 +83,7 @@ Your music plays. Everything else keeps up.
 - **macOS 26 Liquid Glass Design.** Refreshed onboarding, settings, and menu bar built for Tahoe.
 - **Light, Dark, or System.** Pick an appearance in Settings > General. System follows macOS; Light and Dark override it for the whole app, menu bar included.
 - **App Visibility.** Run menu-bar only, Dock only, or both, and set launch-at-login, from Settings > General. The menu bar icon stays reachable in every mode.
-- **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later.
+- **Guided Apple Music Access.** Onboarding requests the Automation permission for Music.app and shows a recovery screen with the exact fix if macOS denies it later. Permission screens refresh when returning from System Settings.
 - **Streamer Mode.** One-tap tray toggle that masks your Twitch channel name, widget URLs, and overlay/control tokens across the UI, so the app is safe to show on camera.
 - **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Credentials and private account IDs stay in Keychain; the public Twitch channel name travels with your preferences. Flip on **Sync with iCloud** and the same export follows you to your other Macs on its own.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.

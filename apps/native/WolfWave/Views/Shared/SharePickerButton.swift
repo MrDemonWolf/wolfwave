@@ -31,6 +31,9 @@ struct SharePickerButton: NSViewRepresentable {
     /// Matches SwiftUI's `.borderedProminent` so it can sit beside one.
     var isProminent: Bool = false
 
+    /// Called after cancellation, successful sharing, or a sharing failure.
+    var onCompletion: (([Any]) -> Void)?
+
     /// Produces the items to share when the button is clicked. Runs on the main
     /// thread. Return `nil` (or an empty array) to suppress the picker. e.g.
     /// when a render step failed and there's nothing to share.
@@ -52,6 +55,7 @@ struct SharePickerButton: NSViewRepresentable {
     func updateNSView(_ nsView: NSButton, context: Context) {
         applyStyle(to: nsView)
         context.coordinator.makeItems = makeItems
+        context.coordinator.onCompletion = onCompletion
     }
 
     /// Applies title, icon, and prominent fill so make/update stay in sync.
@@ -86,22 +90,64 @@ struct SharePickerButton: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(makeItems: makeItems)
+        Coordinator(makeItems: makeItems, onCompletion: onCompletion)
     }
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
         var makeItems: () -> [Any]?
+        var onCompletion: (([Any]) -> Void)?
+        private var completion: (() -> Void)?
+        private var picker: NSSharingServicePicker?
+        // Keep the delegate alive if the SwiftUI sheet closes during sharing.
+        private var sharingLifetime: Coordinator?
 
-        init(makeItems: @escaping () -> [Any]?) {
+        init(makeItems: @escaping () -> [Any]?, onCompletion: (([Any]) -> Void)? = nil) {
             self.makeItems = makeItems
+            self.onCompletion = onCompletion
         }
 
         @objc func share(_ sender: NSButton) {
+            guard sharingLifetime == nil else { return }
             guard let items = makeItems(), !items.isEmpty else { return }
+            prepareSharing(items)
             let picker = NSSharingServicePicker(items: items)
+            self.picker = picker
+            picker.delegate = self
             picker.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+        }
+
+        func prepareSharing(_ items: [Any]) {
+            let callback = onCompletion
+            completion = { callback?(items) }
+            sharingLifetime = self
+        }
+
+        func sharingServicePicker(_ picker: NSSharingServicePicker, didChoose service: NSSharingService?) {
+            if service == nil { finishSharing() }
+        }
+
+        func sharingServicePicker(
+            _ picker: NSSharingServicePicker, delegateFor service: NSSharingService
+        ) -> (any NSSharingServiceDelegate)? {
+            self
+        }
+
+        func sharingService(_ service: NSSharingService, didShareItems items: [Any]) {
+            finishSharing()
+        }
+
+        func sharingService(_ service: NSSharingService, didFailToShareItems items: [Any], error: any Error) {
+            finishSharing()
+        }
+
+        private func finishSharing() {
+            let callback = completion
+            completion = nil
+            picker = nil
+            sharingLifetime = nil
+            callback?()
         }
     }
 }
