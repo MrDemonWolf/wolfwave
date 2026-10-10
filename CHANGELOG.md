@@ -17,8 +17,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Docs search works on GitHub Pages.** Search now fetches its index from `/wolfwave/api/search` in production instead of requesting it from the site root.
 - **Stream Deck keys got a visual refresh.** The new artwork is easier to scan, and the Clear Queue confirmation tooltip now explains what it does.
-
 - **Buttons that do slow work now show they're working.** Approve, Skip, Hold, Fetch link, Check Again, Add to blocklist, and the developer service controls swap their label for a spinner while the work runs, ignore a second click, and flash a checkmark when they're done. Before, they looked untouched the whole time, so the only way to tell WolfWave had heard you was to click again and hope you hadn't just done it twice.
 - **Stream Deck has its own settings page.** It used to share Stream Widgets, with the control token sitting one divider below the overlay token in the same card. Those two do very different things: the overlay token is read-only and reachable from other machines on your network, while the control token runs commands and is only ever accepted from this Mac. Putting them side by side made them look interchangeable. Stream Deck is now its own page under On Stream, holding the control token, the setup steps, and a new **Allow Stream Deck commands** switch. Turn that off and WolfWave refuses every key press while your overlay keeps running, which is what you want if you like the now-playing box on stream but would rather nothing could drive playback. It's on by default, so nothing changes unless you change it.
 - **Stream Widgets reads in the order you actually set it up.** Turn the connection on, drop in the ready-made browser source, then style it. The port, the overlay token, and the raw WebSocket addresses moved to the bottom under "Build your own overlay", where they belong, because they're only needed if you're writing your own overlay. Leading with them made a two-click setup look like a programming job. The page also now tells you where the server can be reached (this Mac, or this Mac and your local network) instead of leaving you to guess, and the note explaining why the port is locked sits above the locked field rather than below it, where you'd only find it after wondering what was broken.
@@ -30,7 +30,22 @@ All notable changes to this project will be documented in this file.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed.
 
 ### Fixed
+- Widget HTTP retries failed listeners, caches its favicon, and bounds response writes. WebSockets use TCP keepalive and acknowledge unavailable commands; token loading and saves run away from the UI thread.
+- Music polling limits slow Apple Event replies, prevents overlapping reads, and checks the latest state after notification bursts.
+- Discord presence caps text fields, coalesces rapid updates, and retries a rejected activity once. Preview buttons now match live labels and valid links; initial connection status reads Connecting.
+- Spotify and YouTube requests reject ambiguous catalog matches. Artwork lookup validates title and artist, escapes search terms, and backs off after temporary network or rate-limit failures.
+- Failed vote-skips no longer consume the session cooldown. Music launch respects request and auto-advance settings, and priority queue jumps also work with fair-share off.
+- Song request limits, queue ownership, and Bits boosts use Twitch logins across display-name changes. Blocklists match collaborations, accents, whitespace, and bracketed title suffixes.
+- Twitch reconnects continue with a slower retry tier after brief outages and retry promptly after system wake. Rotated tokens survive temporary Keychain write failures.
+- Landing-page integration examples now use the authenticated overlay protocol, correct local ports, and supported payloads.
+- Listening history now prunes expired plays during recording, daily checks, and retention changes; shortening retention confirms the number of plays removed.
+- Corrected privacy copy for enabled integrations, local overlays, retained listening history, logs, artwork cache, and factory reset.
+- Hardened backup imports with bounded values, HTTPS URL validation, size checks, and explicit sharing/server settings review.
+- Restricted nightly builds to `main`, serialized release workflows, and validated Homebrew release versions.
+- Pin sponsor generation dependencies and publish sponsor updates with a step-scoped token.
 
+- **Channel-point refunds no longer claim success before Twitch confirms them.** Rejected resolution requests are checked against Twitch and retried a bounded number of times; persistent conflicts are surfaced in Settings and stop blocking sign-out.
+- **Apple Music share links resolve to the selected track.** Song links now use their catalog ID, album links use the track ID in `?i=`, and link requests ask for Music access when needed.
 - **The Stream Deck `health` frame now reports whether Discord is actually connected.** It used to say Discord was up whenever the integration was switched on, even with Discord closed or the link dropped mid-stream. `discord` is now true only when Rich Presence is really connected, a new `discordState` field tells "off" from "disconnected", and the frame is re-sent the moment Discord connects or drops.
 - **The Stream Deck page's cards line up now.** The "Setting it up" card was drawn narrower than the two above it, because it holds only text and a button and so shrank to fit them instead of filling the page like its neighbours.
 - **The Stream Deck setup steps described an install you can't do.** Step one told you to get the plugin from the Elgato Marketplace. It isn't there yet — you build it from the repo, which is what the setup guide has said all along. Step four also told you to leave the host alone; there is no host to change, so it now mentions only the port.

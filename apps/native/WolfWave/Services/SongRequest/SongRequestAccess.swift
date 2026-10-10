@@ -402,6 +402,10 @@ enum RedemptionStatus: String {
     /// Durable redemption intake cannot be written, so the managed reward is
     /// held until storage is healthy again.
     case storageUnavailable
+    /// A Twitch redemption stayed unresolved after bounded retries.
+    case resolutionStuck
+    /// The signed-in account cannot create custom channel-point rewards.
+    case notAffiliate
 
     /// Banner message shown to the streamer, or `nil` when everything is fine.
     var bannerMessage: String? {
@@ -417,6 +421,10 @@ enum RedemptionStatus: String {
         case .storageUnavailable:
             return "WolfWave paused channel-point requests because its recovery store is unavailable. "
                 + "Fix the storage issue, restart WolfWave, then reconnect to Twitch."
+        case .resolutionStuck:
+            return "A channel-point redemption is still unresolved. Check Twitch, then reconnect to retry it."
+        case .notAffiliate:
+            return "Channel points need Twitch Affiliate or Partner."
         }
     }
 }

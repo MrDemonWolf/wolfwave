@@ -162,7 +162,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     }
 
     func testAppleMusicLinkDetection() {
-        XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/song/123"))
+        XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/song/123?i=456"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("bohemian rhapsody"))
         XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://open.spotify.com/track/abc"))
     }
@@ -170,7 +170,7 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     func testMusicLinkDetection() {
         XCTAssertTrue(LinkResolverService.isMusicLink("https://open.spotify.com/track/abc123"))
         XCTAssertTrue(LinkResolverService.isMusicLink("https://youtu.be/abc123"))
-        XCTAssertTrue(LinkResolverService.isMusicLink("https://music.apple.com/us/album/song/123"))
+        XCTAssertTrue(LinkResolverService.isMusicLink("https://music.apple.com/us/album/song/123?i=456"))
         XCTAssertFalse(LinkResolverService.isMusicLink("just a song name"))
     }
 

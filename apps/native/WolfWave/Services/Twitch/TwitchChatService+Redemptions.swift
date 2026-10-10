@@ -329,6 +329,10 @@ extension TwitchChatService {
             Log.error(
                 "TwitchChatService: Failed to set up channel-point reward - \(error.localizedDescription)",
                 category: .twitchRedeem)
+            if case TwitchChannelPointsService.RewardError.http(status: 403, body: _) = error {
+                setRedemptionStatus(.notAffiliate)
+                return
+            }
             setRedemptionStatus(.subscribeFailed)
         }
     }
@@ -479,7 +483,7 @@ extension TwitchChatService {
     /// the fresh EventSub session may subscribe or make the reward redeemable.
     /// Existing outbox items are included so duplicate Helix results remain
     /// idempotent and prior crash recovery completes under the same hold.
-    private func reconcileManagedRewardRedemptions(
+    func reconcileManagedRewardRedemptions(
         credentials: TwitchChannelPointsService.Credentials,
         rewardID: String,
         receiveContext: EventSubReceiveContext?
@@ -497,6 +501,11 @@ extension TwitchChatService {
 
         do {
             for redemptionID in redemptionIDs {
+                guard !redemptionResolutionOutbox.hasAcknowledgedRedemption(
+                    broadcasterID: credentials.broadcasterID,
+                    rewardID: rewardID,
+                    redemptionID: redemptionID
+                ) else { continue }
                 _ = try redemptionResolutionOutbox.enqueueIntake(
                     broadcasterID: credentials.broadcasterID,
                     rewardID: rewardID,
@@ -517,6 +526,10 @@ extension TwitchChatService {
         }
         let recoveryItemIDs = Set(recoveryItems.map(\.id))
         if !recoveryItemIDs.isEmpty {
+            let liveWorkers = recoveryItemIDs.compactMap { redemptionTasks[$0] }
+            for worker in liveWorkers {
+                await worker.value
+            }
             replayPendingRedemptionResolutions()
             let workers = recoveryItemIDs.compactMap {
                 redemptionResolutionTasks[$0]
@@ -1178,11 +1191,20 @@ extension TwitchChatService {
         }
 
         let redemptionID = (event["id"] as? String) ?? ""
+        let requesterLogin = (event["user_login"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let userName = ((event["user_name"] as? String) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let userInput = ((event["user_input"] as? String) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !redemptionID.isEmpty, !userName.isEmpty else { return }
+
+        if let status = event["status"] as? String,
+           status.caseInsensitiveCompare("unfulfilled") != .orderedSame {
+            Log.info(
+                "TwitchChatService: Skipping channel-point redemption \(redemptionID) with status \(status)",
+                category: .twitchRedeem)
+            return
+        }
 
         if redemptionResolutionOutbox.hasAcknowledgedRedemption(
             broadcasterID: eventBroadcasterID,
@@ -1250,6 +1272,7 @@ extension TwitchChatService {
                 rewardID: rewardID,
                 redemptionID: redemptionID,
                 userName: userName,
+                userLogin: requesterLogin,
                 userInput: userInput,
                 service: songRequestService,
                 generation: generation,
@@ -1267,6 +1290,7 @@ extension TwitchChatService {
         rewardID: String,
         redemptionID: String,
         userName: String,
+        userLogin: String?,
         userInput: String,
         service: SongRequestService?,
         generation: UInt64,
@@ -1309,8 +1333,9 @@ extension TwitchChatService {
 
         let result = await service.processRequest(
             query: userInput,
-            username: userName,
-            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID))
+            username: userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? userName,
+            source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID),
+            displayName: userName)
         let (message, resolution) = redemptionOutcome(for: result, username: userName)
         // Record the queue outcome before another suspension. If the process
         // exits while sending chat, replay still knows whether to fulfil or
@@ -1367,6 +1392,7 @@ extension TwitchChatService {
         let boostEnabled = defaults.bool(
             forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         let query = Self.cleanBitsMessage(event["message"] as? [String: Any])
+        let userLogin = (event["user_login"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         do {
             let result = try redemptionResolutionOutbox.enqueueBits(
                 messageID: eventSubMessageID,
@@ -1374,7 +1400,8 @@ extension TwitchChatService {
                 userName: userName,
                 bits: bits,
                 boostEnabled: boostEnabled,
-                query: query)
+                query: query,
+                userLogin: userLogin)
             guard let item = result.item else { return }
             startBitsEvent(
                 item,
@@ -1393,7 +1420,8 @@ extension TwitchChatService {
                 userName: userName,
                 bits: bits,
                 boostEnabled: boostEnabled,
-                query: query
+                query: query,
+                userLogin: userLogin
             ) else {
                 return
             }
@@ -1432,7 +1460,8 @@ extension TwitchChatService {
         userName: String,
         bits: Int,
         boostEnabled: Bool,
-        query: String
+        query: String,
+        userLogin: String? = nil
     ) -> TwitchRedemptionResolutionOutbox.BitsItem? {
         pruneVolatileBitsFallbacks()
         let key = VolatileBitsFallbackKey(
@@ -1448,7 +1477,8 @@ extension TwitchChatService {
             bits: bits,
             boostEnabled: boostEnabled,
             query: query,
-            createdAt: now)
+            createdAt: now,
+            userLogin: userLogin)
         volatileBitsFallbacks[key] = VolatileBitsFallback(
             item: item,
             claimedAt: now,
@@ -1555,7 +1585,7 @@ extension TwitchChatService {
         guard !Task.isCancelled else { return (false, nil) }
 
         if item.boostEnabled,
-           let boosted = await service.boost(username: item.userName) {
+           let boosted = await service.boost(username: item.userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? item.userName) {
             return (
                 true,
                 "@\(item.userName) boosted \"\(boosted.title)\" to the front of the queue! (\(item.bits) bits)")
@@ -1571,8 +1601,9 @@ extension TwitchChatService {
 
         let result = await service.processRequest(
             query: item.query,
-            username: item.userName,
-            source: .bits(amount: item.bits))
+            username: item.userLogin.flatMap { $0.isEmpty ? nil : $0 } ?? item.userName,
+            source: .bits(amount: item.bits),
+            displayName: item.userName)
         if case .cancelled = result {
             return (false, nil)
         }
@@ -1793,7 +1824,7 @@ extension TwitchChatService {
                 broadcasterID: intake.broadcasterID,
                 rewardID: intake.rewardID,
                 redemptionID: intake.redemptionID,
-                resolution: .canceled)
+                resolution: resolution)
         }
     }
 
@@ -1891,81 +1922,16 @@ extension TwitchChatService {
             } catch let error as TwitchChannelPointsService.RedemptionResolutionError {
                 switch error {
                 case let .http(status, _, retryAfter):
-                    // A prior request may have reached Twitch just before the
-                    // process exited. "Not found" is the idempotent replay
-                    // terminal: there is no pending redemption left to resolve.
-                    if status == 404 {
-                        let identity = TwitchManagedRewardStore.Identity(
-                            rewardID: item.rewardID,
-                            broadcasterID: item.broadcasterID)
-                        guard TwitchManagedRewardStore.matches(identity) else {
-                            Log.error(
-                                "TwitchChatService: Keeping redemption "
-                                    + "\(item.redemptionID) because the managed reward "
-                                    + "owner changed before the 404 terminal",
-                                category: .twitchRedeem)
-                            return
-                        }
-                        acknowledgeRedemptionResolution(item)
-                        return
-                    }
-
-                    if status == 401 {
-                        do {
-                            switch try await reactiveTokenRefresh(
-                                resolvedClientID,
-                                expected: snapshot.accessExpectation
-                            ) {
-                            case let .refreshed(accessToken):
-                                let adopted = adoptRefreshedAccessCredential(
-                                    snapshot.accessExpectation.replacingAccessToken(
-                                        accessToken),
-                                    replacing: snapshot.accessExpectation
-                                )
-                                guard adopted else { return }
-                                transientAttempt = 0
-                                continue
-                            case .invalid:
-                                // The invalid result belongs only to the exact
-                                // account/token that authorized this PATCH. A
-                                // replacement account must never inherit its
-                                // re-auth side effect.
-                                guard TwitchCredentialStore.shared.matches(
-                                    snapshot.accessExpectation
-                                ) else { return }
-                                signalReauthNeededAndStop()
-                                return
-                            case .temporarilyUnavailable:
-                                break
-                            case .superseded:
-                                return
-                            }
-                        } catch is CancellationError {
-                            return
-                        } catch {
-                            // The persisted item remains available for a future
-                            // replay after this bounded attempt finishes.
-                        }
-                        transientAttempt += 1
-                        guard await sleepBeforeRedemptionRetry(
-                            attempt: transientAttempt,
-                            retryAfter: retryAfter
-                        ) else { return }
-                        continue
-                    }
-
-                    guard Self.shouldRetryRedemptionResolution(status: status) else {
-                        Log.error(
-                            "TwitchChatService: Keeping unresolved redemption "
-                                + "\(item.redemptionID) after HTTP \(status)",
-                            category: .twitchRedeem)
-                        return
-                    }
-                    transientAttempt += 1
-                    guard await sleepBeforeRedemptionRetry(
-                        attempt: transientAttempt,
-                        retryAfter: retryAfter
+                    guard let nextAttempt = await retryRedemptionAfterHTTPFailure(
+                        status: status,
+                        retryAfter: retryAfter,
+                        item: item,
+                        credentials: credentials,
+                        snapshot: snapshot,
+                        clientID: resolvedClientID,
+                        transientAttempt: transientAttempt
                     ) else { return }
+                    transientAttempt = nextAttempt
                 case .transport:
                     transientAttempt += 1
                     guard await sleepBeforeRedemptionRetry(
@@ -1996,11 +1962,164 @@ extension TwitchChatService {
         }
     }
 
+    private func retryRedemptionAfterHTTPFailure(
+        status: Int,
+        retryAfter: Duration?,
+        item: TwitchRedemptionResolutionOutbox.Item,
+        credentials: TwitchChannelPointsService.Credentials,
+        snapshot: TwitchCredentialStore.AccessSnapshot,
+        clientID: String,
+        transientAttempt: Int
+    ) async -> Int? {
+        if status == 404 {
+            let identity = TwitchManagedRewardStore.Identity(
+                rewardID: item.rewardID,
+                broadcasterID: item.broadcasterID)
+            guard TwitchManagedRewardStore.matches(identity) else {
+                Log.error(
+                    "TwitchChatService: Keeping redemption \(item.redemptionID) "
+                        + "because the managed reward owner changed before the 404 terminal",
+                    category: .twitchRedeem)
+                return nil
+            }
+            acknowledgeRedemptionResolution(item)
+            return nil
+        }
+        if status == 401 || status == 403 {
+            return await retryRedemptionAfterUnauthorized(
+                snapshot: snapshot,
+                clientID: clientID,
+                retryAfter: retryAfter,
+                transientAttempt: transientAttempt)
+        }
+        if [400, 409, 422].contains(status) {
+            return await retryRedemptionConflict(
+                status: status,
+                retryAfter: retryAfter,
+                item: item,
+                credentials: credentials,
+                transientAttempt: transientAttempt)
+        }
+        guard Self.shouldRetryRedemptionResolution(status: status) else {
+            if TwitchCredentialStore.shared.matches(snapshot.accessExpectation) {
+                setRedemptionStatus(.resolutionStuck)
+            }
+            Log.error(
+                "TwitchChatService: Keeping unresolved redemption \(item.redemptionID) after HTTP \(status)",
+                category: .twitchRedeem)
+            return nil
+        }
+        let nextAttempt = transientAttempt + 1
+        guard await sleepBeforeRedemptionRetry(attempt: nextAttempt, retryAfter: retryAfter) else {
+            return nil
+        }
+        return nextAttempt
+    }
+
+    private func retryRedemptionAfterUnauthorized(
+        snapshot: TwitchCredentialStore.AccessSnapshot,
+        clientID: String,
+        retryAfter: Duration?,
+        transientAttempt: Int
+    ) async -> Int? {
+        do {
+            switch try await reactiveTokenRefresh(
+                clientID,
+                expected: snapshot.accessExpectation
+            ) {
+            case let .refreshed(accessToken):
+                let adopted = adoptRefreshedAccessCredential(
+                    snapshot.accessExpectation.replacingAccessToken(accessToken),
+                    replacing: snapshot.accessExpectation)
+                return adopted ? 0 : nil
+            case .invalid:
+                guard TwitchCredentialStore.shared.matches(snapshot.accessExpectation) else {
+                    return nil
+                }
+                signalReauthNeededAndStop()
+                return nil
+            case .temporarilyUnavailable:
+                break
+            case .superseded:
+                return nil
+            }
+        } catch is CancellationError {
+            return nil
+        } catch {
+            // Leave the durable item for a later retry after a transient refresh failure.
+        }
+        let nextAttempt = transientAttempt + 1
+        guard await sleepBeforeRedemptionRetry(attempt: nextAttempt, retryAfter: retryAfter) else {
+            return nil
+        }
+        return nextAttempt
+    }
+
+    private func retryRedemptionConflict(
+        status: Int,
+        retryAfter: Duration?,
+        item: TwitchRedemptionResolutionOutbox.Item,
+        credentials: TwitchChannelPointsService.Credentials,
+        transientAttempt: Int
+    ) async -> Int? {
+        do {
+            let isUnfulfilled = try await channelPointsService.isRedemptionUnfulfilled(
+                credentials: credentials,
+                rewardID: item.rewardID,
+                redemptionID: item.redemptionID)
+            guard isUnfulfilled else {
+                acknowledgeRedemptionResolution(item)
+                return nil
+            }
+        } catch {
+            Log.error(
+                "TwitchChatService: Could not verify redemption \(item.redemptionID) "
+                    + "after HTTP \(status): \(error.localizedDescription)",
+                category: .twitchRedeem)
+        }
+
+        let failureAttempts: Int
+        do {
+            failureAttempts = try redemptionResolutionOutbox.recordFailureAttempt(item.id)
+        } catch {
+            setRedemptionStatus(.storageUnavailable)
+            Log.error(
+                "TwitchChatService: Could not record failed resolution attempt for "
+                    + "redemption \(item.redemptionID): \(error.localizedDescription)",
+                category: .twitchRedeem)
+            return nil
+        }
+        if failureAttempts >= 5 {
+            do {
+                try redemptionResolutionOutbox.moveToDeadLetter(item.id)
+                setRedemptionStatus(.resolutionStuck)
+            } catch {
+                setRedemptionStatus(.storageUnavailable)
+                Log.error(
+                    "TwitchChatService: Could not dead-letter redemption \(item.redemptionID): "
+                        + error.localizedDescription,
+                    category: .twitchRedeem)
+            }
+            return nil
+        }
+        let nextAttempt = transientAttempt + 1
+        guard await sleepBeforeRedemptionRetry(attempt: nextAttempt, retryAfter: retryAfter) else {
+            return nil
+        }
+        return nextAttempt
+    }
+
     private func acknowledgeRedemptionResolution(
         _ item: TwitchRedemptionResolutionOutbox.Item
     ) {
         do {
             try redemptionResolutionOutbox.acknowledge(item.id)
+            if RedemptionStatus(
+                rawValue: DefaultsStore.store.string(
+                    forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""
+            ) == .resolutionStuck {
+                setRedemptionStatus(.ok)
+            }
         } catch {
             // A replay may repeat the already-applied PATCH, which is safe: the
             // 404 terminal above then retries this local acknowledgement.
@@ -2088,24 +2207,24 @@ extension TwitchChatService {
                 "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval.",
                 .fulfilled)
         case let .queueFull(max):
-            return ("@\(username) the queue is full (\(max)). Points refunded.", .canceled)
+            return ("@\(username) the queue is full (\(max)). Refunding your points.", .canceled)
         case let .userLimitReached(max):
-            return ("@\(username) you already have \(max) songs queued. Points refunded.", .canceled)
+            return ("@\(username) you already have \(max) songs queued. Refunding your points.", .canceled)
         case .alreadyInQueue:
-            return ("@\(username) that song is already queued. Points refunded.", .canceled)
+            return ("@\(username) that song is already queued. Refunding your points.", .canceled)
         case .blocked:
-            return ("@\(username) that song is on the blocklist. Points refunded.", .canceled)
+            return ("@\(username) that song is on the blocklist. Refunding your points.", .canceled)
         case let .notFound(query):
             let truncated = StringFormatting.truncatedWithEllipsis(query)
-            return ("@\(username) no results for \"\(truncated)\". Points refunded.", .canceled)
+            return ("@\(username) no results for \"\(truncated)\". Refunding your points.", .canceled)
         case .linkNotFound:
-            return ("@\(username) couldn't find that on Apple Music. Points refunded.", .canceled)
+            return ("@\(username) couldn't find that on Apple Music. Refunding your points.", .canceled)
         case .notAuthorized:
-            return ("@\(username) song requests aren't available right now. Points refunded.", .canceled)
+            return ("@\(username) song requests aren't available right now. Refunding your points.", .canceled)
         case .featureDisabled:
-            return ("@\(username) song requests are off right now. Points refunded.", .canceled)
+            return ("@\(username) song requests are off right now. Refunding your points.", .canceled)
         case let .error(message):
-            return ("@\(username) \(message) Points refunded.", .canceled)
+            return ("@\(username) \(message) Refunding your points.", .canceled)
         }
     }
 

@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import MusicKit
 import XCTest
 
 @testable import WolfWave
@@ -16,9 +17,7 @@ import XCTest
 /// `MockAppleMusicController` (declared in `SongRequestServiceTests`) and a
 /// `MockURLProtocol`-backed `LinkResolverService`.
 ///
-/// The `.found` result is not exercised here: it requires a MusicKit `Song`,
-/// which cannot be constructed in a unit test. Routing is verified via the
-/// distinct non-found results each path produces.
+/// MusicKit song fixtures verify candidate matching without catalog requests.
 @MainActor
 final class SongSearchResolverTests: XCTestCase {
 
@@ -67,7 +66,7 @@ final class SongSearchResolverTests: XCTestCase {
     func testAppleMusicLinkRoutesToControllerResolve() async {
         // controller.resolve reports .notFound → resolveLink maps to .linkNotFound.
         let result = await makeResolver()
-            .resolve(query: "check https://music.apple.com/us/album/x/1")
+            .resolve(query: "check https://music.apple.com/us/song/x/1")
 
         guard case .linkNotFound = result else {
             XCTFail("Expected .linkNotFound, got \(result)")
@@ -85,10 +84,50 @@ final class SongSearchResolverTests: XCTestCase {
             .resolve(query: "https://open.spotify.com/track/abc")
 
         // oEmbed yields "Tune" + "Band" → catalog search for "Tune Band".
-        guard case .notFound(let query) = result else {
-            XCTFail("Expected .notFound, got \(result)")
+        guard case .linkNotFound = result else {
+            XCTFail("Expected .linkNotFound, got \(result)")
             return
         }
-        XCTAssertEqual(query, "Tune Band")
+    }
+
+    func testOembedPicksBestMatchNotFirst() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200),
+             Data(#"{"title":"Tune","author_name":"Band"}"#.utf8))
+        }
+        controller.candidateSearchProvider = { query, limit in
+            XCTAssertEqual(query, "Tune Band")
+            XCTAssertEqual(limit, 10)
+            return ([makeTestSong(id: "wrong", title: "Other", artist: "Band"),
+                     makeTestSong(id: "right", title: "Tune", artist: "Band")], nil)
+        }
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .found(let song) = result else { XCTFail("Expected confident match"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testLowConfidenceReturnsLinkNotFound() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"title":"Tune"}"#.utf8))
+        }
+        controller.candidateSearchProvider = { _, _ in
+            ([makeTestSong(id: "one", title: "Tune", artist: "Band A"),
+              makeTestSong(id: "two", title: "Tune", artist: "Band B")], nil)
+        }
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .linkNotFound = result else { XCTFail("Ambiguous titles must not pick an artist"); return }
+    }
+
+    func testYouTubeTitleStripsOfficialSuffix() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200),
+             Data(#"{"title":"Band - Tune (Official Video) [Lyrics]","author_name":"Band - Topic"}"#.utf8))
+        }
+        controller.candidateSearchProvider = { _, _ in
+            ([makeTestSong(id: "right", title: "Tune", artist: "Band")], nil)
+        }
+        let result = await makeResolver().resolve(query: "https://www.youtube.com/watch?v=abc")
+        guard case .found(let song) = result else { XCTFail("Expected normalized YouTube match"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
     }
 }

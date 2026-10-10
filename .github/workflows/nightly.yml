@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
 env:
   SCHEME: WolfWave
   PROJECT: apps/native/WolfWave.xcodeproj
@@ -42,7 +46,7 @@ jobs:
   # build: the cron would otherwise fail daily on missing signing secrets.
   guard:
     name: Decide whether to build
-    if: github.repository == 'MrDemonWolf/wolfwave'
+    if: github.repository == 'MrDemonWolf/wolfwave' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.decide.outputs.should_build }}
@@ -96,7 +100,7 @@ jobs:
   test:
     name: Run Tests
     needs: guard
-    if: needs.guard.outputs.should_build == 'true'
+    if: github.ref == 'refs/heads/main' && needs.guard.outputs.should_build == 'true'
     runs-on: macos-26
     steps:
       - name: Checkout
@@ -125,7 +129,7 @@ jobs:
   build-and-publish:
     name: Build & Publish Nightly
     needs: [guard, test]
-    if: needs.guard.outputs.should_build == 'true'
+    if: github.ref == 'refs/heads/main' && needs.guard.outputs.should_build == 'true'
     runs-on: macos-26
     permissions:
       contents: write
@@ -244,16 +248,23 @@ jobs:
           TITLE="WolfWave Nightly ($SHORT_SHA)"
           NOTES="$(printf 'Automated build off main. Unstable; for testing only.\n\nVersion: %s\nbuilt-from: %s' "$VERSION" "$GITHUB_SHA")"
           if gh release view "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "$TITLE" --notes "$NOTES" --prerelease
+            gh release upload "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+              "builds/$DMG_NAME" "builds/appcast-nightly.xml" --clobber
           else
             gh release create "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "$TITLE" --notes "$NOTES" --prerelease --target main
+              "builds/$DMG_NAME" "builds/appcast-nightly.xml" \
+              --title "$TITLE" --notes "Publishing nightly assets." --prerelease --target main
           fi
-          # --clobber keeps the release (and its stable asset URLs) while
-          # replacing the bytes. Never delete+recreate (would 404 the feed).
-          gh release upload "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
-            "builds/$DMG_NAME" "builds/appcast-nightly.xml" --clobber
+          assets=$(gh release view "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '[.assets[].name] | join(" ")')
+          for asset in "$DMG_NAME" appcast-nightly.xml; do
+            case " $assets " in
+              *" $asset "*) ;;
+              *) echo "::error::Nightly asset $asset is missing after upload"; exit 1 ;;
+            esac
+          done
+          gh release edit "$NIGHTLY_TAG" --repo "$GITHUB_REPOSITORY" \
+            --title "$TITLE" --notes "$NOTES" --prerelease
 
       - name: Cleanup keychain
         if: always()

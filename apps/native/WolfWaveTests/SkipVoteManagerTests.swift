@@ -310,6 +310,22 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     // MARK: - Cooldown
 
+    func testFailedSkipDoesNotStartCooldown() async {
+        enableFeature(minVotes: 1, cooldown: 60)
+        let manager = SkipVoteManager()
+        let succeeds = ThreadSafeBox(false)
+        await manager.configure(
+            capturePlaybackTarget: { PlaybackTarget(trackKey: "track", revision: 1) },
+            performSkip: { _ in succeeds.value }, sendChatMessage: nil, createPoll: nil, onVoteEvent: nil)
+        let failed = await manager.recordVote(context: context(userID: "1"))
+        XCTAssertEqual(failed, .skipUnavailable)
+        succeeds.set(true)
+        let retry = await manager.recordVote(context: context(userID: "2"))
+        XCTAssertEqual(retry, .passed(count: 1))
+        let third = await manager.recordVote(context: context(userID: "3"))
+        if case .onCooldown = third {} else { XCTFail("Successful skip should start cooldown: \(third)") }
+    }
+
     func testCooldownBlocksRapidReVote() async {
         enableFeature(minVotes: 1, cooldown: 60)
         let manager = SkipVoteManager()

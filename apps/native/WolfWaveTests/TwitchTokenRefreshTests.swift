@@ -22,7 +22,7 @@ import XCTest
 /// The live socket orchestration around the refresh is not integration-tested
 /// here; a second 401 requests re-auth while transient failures keep backing off.
 @MainActor
-final class TwitchTokenRefreshTests: XCTestCase {
+final class TwitchTokenRefreshTests: WolfWaveTestCase {
 
     private var previousBackend: KeychainBackend!
     private var backend: InMemoryKeychainBackend!
@@ -31,9 +31,6 @@ final class TwitchTokenRefreshTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         handlerStore.handler = nil
-        // Acquire before touching DefaultsStore.store: an unguarded reset here
-        // is the same cross-suite race SharedTestStateIsolation exists to close.
-        await SharedTestStateIsolation.acquireAsync()
         Self.resetRedemptionDefaults()
         previousBackend = KeychainService.backend
         backend = InMemoryKeychainBackend()
@@ -44,7 +41,6 @@ final class TwitchTokenRefreshTests: XCTestCase {
         Self.resetRedemptionDefaults()
         handlerStore.handler = nil
         KeychainService.backend = previousBackend
-        SharedTestStateIsolation.release()
         try await super.tearDown()
     }
 
@@ -1564,7 +1560,101 @@ final class TwitchTokenRefreshTests: XCTestCase {
                     broadcasterID: "other-account")))
     }
 
+    func testPatch409WithResolvedStatusAcknowledgesOutboxItem() async throws {
+        storeManagedRewardIdentity(rewardID: "reward")
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "ACCESS", userID: "broadcaster"))
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "wolfwave-redemption-409-resolved-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        _ = try outbox.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption",
+            resolution: .canceled)
+        let requests = ThreadSafeBox<[URLRequest]>([])
+        handlerStore.handler = { request in
+            requests.mutate { $0.append(request) }
+            if request.httpMethod == "PATCH" {
+                return (MockURLProtocol.httpResponse(for: request, status: 409), Data())
+            }
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"id":"redemption","status":"CANCELED"}]}"#.utf8))
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handlerStore: handlerStore)),
+            redemptionResolutionOutbox: outbox,
+            redemptionClientIDProvider: { "client" })
+
+        await service.replayPendingRedemptionResolutions()
+        await service.awaitRedemptionResolutionWorkersForTesting()
+
+        XCTAssertTrue(outbox.pendingItems().isEmpty)
+        XCTAssertEqual(requests.value.map(\.httpMethod), ["PATCH", "GET"])
+    }
+
+    func testPatch400StillUnfulfilledDeadLettersAfterFiveAttempts() async throws {
+        storeManagedRewardIdentity(rewardID: "reward")
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "ACCESS", userID: "broadcaster"))
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "wolfwave-redemption-400-unfulfilled-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"))
+        _ = try outbox.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption",
+            resolution: .canceled)
+        let requests = ThreadSafeBox<[URLRequest]>([])
+        handlerStore.handler = { request in
+            requests.mutate { $0.append(request) }
+            if request.httpMethod == "PATCH" {
+                return (MockURLProtocol.httpResponse(for: request, status: 400), Data())
+            }
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"id":"redemption","status":"UNFULFILLED"}]}"#.utf8))
+        }
+        let service = TwitchChatService(
+            channelPointsService: TwitchChannelPointsService(
+                session: MockURLProtocol.makeSession(handlerStore: handlerStore)),
+            redemptionResolutionOutbox: outbox,
+            redemptionClientIDProvider: { "client" })
+        await service.setRedemptionResolutionSleep { _ in }
+
+        await service.replayPendingRedemptionResolutions()
+        await service.awaitRedemptionResolutionWorkersForTesting()
+
+        let deadLetter = try XCTUnwrap(outbox.deadLetterItems().first)
+        XCTAssertEqual(deadLetter.attemptCount, 5)
+        XCTAssertTrue(outbox.pendingItems().isEmpty)
+        XCTAssertEqual(
+            RedemptionStatus(rawValue: DefaultsStore.store.string(
+                forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""),
+            .resolutionStuck)
+
+        await service.acknowledgeRedemptionResolutionForTesting(deadLetter)
+        XCTAssertEqual(
+            RedemptionStatus(rawValue: DefaultsStore.store.string(
+                forKey: AppConstants.UserDefaults.songRequestRedemptionStatus) ?? ""),
+            .ok)
+    }
+
     func testPersistedRedemption401AdoptsRotatedTokenBeforeRetry() async throws {
+        try await assertPersistedRedemptionAdoptsRotatedToken(status: 401)
+    }
+
+    func testPersistedRedemption403AdoptsRotatedTokenBeforeRetry() async throws {
+        try await assertPersistedRedemptionAdoptsRotatedToken(status: 403)
+    }
+
+    private func assertPersistedRedemptionAdoptsRotatedToken(status unauthorizedStatus: Int) async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1594,7 +1684,7 @@ final class TwitchTokenRefreshTests: XCTestCase {
                 $0 += 1
                 attempt = $0
             }
-            let status = attempt == 1 ? 401 : 204
+            let status = attempt == 1 ? unauthorizedStatus : 204
             return (MockURLProtocol.httpResponse(for: request, status: status), Data())
         }
         let staleReconnectCancelled = ThreadSafeBox(false)
@@ -1893,6 +1983,54 @@ final class TwitchTokenRefreshTests: XCTestCase {
     }
 
     // MARK: - Keychain accessor round-trip
+
+    func testRefreshCommitRetriesOnKeychainFailure() async throws {
+        await TwitchTokenRefresher.invalidateSession()
+        let failingBackend = InspectableKeychainBackend()
+        KeychainService.backend = failingBackend
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "old-access", refreshToken: "old-refresh"))
+        failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+        let calls = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            calls.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600}"#.utf8))
+        }
+        let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            sleep: { _ in })
+        XCTAssertEqual(result, .refreshed("new-access"))
+        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+        XCTAssertEqual(calls.value, 1)
+    }
+
+    func testHeldRotatedTokenCommittedBeforeNextRefresh() async throws {
+        await TwitchTokenRefresher.invalidateSession()
+        let failingBackend = InspectableKeychainBackend()
+        KeychainService.backend = failingBackend
+        try KeychainService.saveTwitchCredentialGrant(
+            .init(accessToken: "old-access", refreshToken: "old-refresh"))
+        failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+        let calls = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            calls.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600}"#.utf8))
+        }
+        let session = MockURLProtocol.makeSession(handlerStore: handlerStore)
+        let first = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: session,
+            sleep: { _ in
+                failingBackend.failNextSave(for: KeychainService.twitchCredentialGrantAccount)
+            })
+        XCTAssertEqual(first, .temporarilyUnavailable)
+        let second = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "test-client", session: session, sleep: { _ in })
+        XCTAssertEqual(second, .refreshed("new-access"))
+        XCTAssertEqual(calls.value, 1)
+        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+    }
 
     func testRefreshTokenKeychainRoundTrip() throws {
         XCTAssertNil(KeychainService.loadTwitchRefreshToken())

@@ -548,6 +548,20 @@ actor WebSocketServerService {
 
     // MARK: - Server Lifecycle
 
+    nonisolated static func makeTCPParameters() -> NWParameters {
+        let tcp = NWProtocolTCP.Options()
+        tcp.enableKeepalive = true
+        tcp.keepaliveIdle = 30
+        tcp.keepaliveInterval = 10
+        tcp.keepaliveCount = 3
+        return NWParameters(tls: nil, tcp: tcp)
+    }
+
+    func executeCommand(_ command: StreamDeckCommand) async -> CommandAck {
+        guard let onCommand else { return .failure(command.action.rawValue, "unavailable") }
+        return await onCommand(command)
+    }
+
     /// Brings up the `NWListener` on the configured port and wires state and
     /// connection callbacks. Network.framework callbacks fire on `networkQueue`
     /// and hop back into the actor.
@@ -559,7 +573,7 @@ actor WebSocketServerService {
 
         transition(to: .starting)
 
-        let parameters = NWParameters.tcp
+        let parameters = Self.makeTCPParameters()
         let wsOptions = NWProtocolWebSocket.Options()
         wsOptions.autoReplyPing = true
         wsOptions.maximumMessageSize = Self.maximumInboundMessageSize
@@ -843,7 +857,10 @@ actor WebSocketServerService {
                 from: connection,
                 role: role,
                 isLoopback: isLoopback,
-                onCommand: onCommand
+                onCommand: { [weak self] command in
+                    await self?.executeCommand(command)
+                        ?? CommandAck.failure(command.action.rawValue, "unavailable")
+                }
             )
             reconcileProgressTimer()
         case .failed(let error):
@@ -963,7 +980,7 @@ actor WebSocketServerService {
         onCommand: (@Sendable (StreamDeckCommand) async -> CommandAck)?
     ) {
         connection.receiveMessage { data, context, _, error in
-            if error != nil { return }
+            if error != nil { connection.cancel(); return }
 
             if let metadata = context?.protocolMetadata(definition: NWProtocolWebSocket.definition)
                 as? NWProtocolWebSocket.Metadata, metadata.opcode == .close {
@@ -984,6 +1001,8 @@ actor WebSocketServerService {
                             let ack = await onCommand(command)
                             sendJSON(ack.jsonObject, to: connection)
                         }
+                    } else {
+                        sendJSON(CommandAck.failure(command.action.rawValue, "unavailable").jsonObject, to: connection)
                     }
                 case .reject(let ack):
                     sendJSON(ack.jsonObject, to: connection)

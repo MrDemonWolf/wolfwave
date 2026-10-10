@@ -51,6 +51,8 @@ extension TwitchChatService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let username = (event["chatter_user_name"] as? String ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        let login = (event["chatter_user_login"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let userID = (event["chatter_user_id"] as? String ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let broadcasterID = event["broadcaster_user_id"] as? String ?? ""
@@ -126,7 +128,8 @@ extension TwitchChatService {
                     isBroadcaster: !treatAsViewer && roles.isBroadcaster,
                     isSubscriber: !treatAsViewer && roles.isSubscriber,
                     isVIP: !treatAsViewer && roles.isVIP,
-                    messageID: messageID
+                    messageID: messageID,
+                    login: login
                 )
 
                 startCommandDispatch(

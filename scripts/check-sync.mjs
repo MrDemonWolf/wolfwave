@@ -247,6 +247,20 @@ export function checkDocsText(text, expected) {
   return failures;
 }
 
+export function checkLandingProtocol(text, { webSocketPort, widgetPort }) {
+  const failures = [];
+  for (const match of text.matchAll(/\b(ws|http):\/\/(?:localhost|mac\.local):(\d+)([^\s"'<>`]*)/g)) {
+    const expected = match[1] === "ws" ? webSocketPort : widgetPort;
+    if (Number(match[2]) !== expected || /now-playing/.test(match[3])) {
+      failures.push({ line: lineAt(text, match.index), message: "landing example does not match the local server protocol" });
+    }
+  }
+  if (/no auth gymnastics|now-playing\.json/.test(text)) {
+    failures.push({ line: 1, message: "landing claims an unsupported unauthenticated JSON endpoint" });
+  }
+  return failures;
+}
+
 function projectExpected(root) {
   const tokens = JSON.parse(readFileSync(resolve(root, "design-system/tokens.json"), "utf8"));
   const themes = Object.entries(tokens.widget.themes).filter(([, value]) => !value.hidden).map(([name]) => name);
@@ -257,7 +271,9 @@ function projectExpected(root) {
   const appConstants = readFileSync(resolve(root, "apps/native/WolfWave/Core/AppConstants.swift"), "utf8");
   const viewportPadding = Number(appConstants.match(/static let viewportPadding = (\d+)/)?.[1]);
   if (!Number.isFinite(viewportPadding)) throw new Error("Could not read AppConstants.Widget.viewportPadding");
-  return { themes, layouts, layoutSizes, viewportPadding };
+  const webSocketPort = Number(appConstants.match(/static let defaultPort: UInt16 = (\d+)/)?.[1]);
+  const widgetPort = Number(appConstants.match(/static let widgetDefaultPort: UInt16 = (\d+)/)?.[1]);
+  return { themes, layouts, layoutSizes, viewportPadding, webSocketPort, widgetPort };
 }
 
 function catalogFailures(root) {
@@ -321,6 +337,11 @@ export function runChecks(root = ROOT) {
   }
 
   failures.push(...catalogFailures(root));
+
+  for (const file of ["apps/docs/app/(home)/page.tsx", "apps/docs/app/(home)/DeveloperTabs.tsx"]) {
+    const text = readFileSync(resolve(root, file), "utf8");
+    for (const failure of checkLandingProtocol(text, expected)) failures.push({ file, ...failure });
+  }
 
   for (const file of DOC_FILES) {
     const text = readFileSync(resolve(root, file), "utf8");

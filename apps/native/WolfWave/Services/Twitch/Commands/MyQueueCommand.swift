@@ -47,7 +47,7 @@ final class MyQueueCommand: AsyncBotCommand {
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard let queue = getQueue?() else { return nil }
 
-        let positions = queue.positions(for: context.username)
+        let positions = queue.positions(for: context.requesterLogin)
         guard !positions.isEmpty else {
             return "You don't have any songs in the queue. Use !sr <song name> to request one!"
         }

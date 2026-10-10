@@ -17,6 +17,46 @@ import XCTest
 @MainActor
 final class WidgetHTTPServiceTests: XCTestCase {
 
+    func testReadyAfterStopResumesWithError() async {
+        let service = WidgetHTTPService(port: 0)
+        service.stop()
+        do {
+            try await service.ready()
+            XCTFail("Stopped service must throw")
+        } catch WidgetHTTPService.ReadyError.stopped {
+        } catch { XCTFail("Unexpected readiness error: \(error)") }
+    }
+
+    func testListenerFailureRetriesAndRecovers() async throws {
+        let attempts = ThreadSafeBox(0)
+        let service = WidgetHTTPService(port: 0, retryBaseDelay: 0.1, makeListener: { parameters, port in
+            attempts.mutate { $0 += 1 }
+            if attempts.value == 1 { throw NWError.posix(.EADDRINUSE) }
+            return try NWListener(using: parameters, on: port)
+        })
+        defer { service.stop() }
+        service.start()
+        do {
+            try await service.ready()
+            XCTFail("Injected failure must fail its first bind")
+        } catch WidgetHTTPService.ReadyError.listenerFailed {
+        }
+        let recovered = await waitUntil(timeout: .seconds(5)) {
+            do { try await service.ready(); return true }
+            catch { return false }
+        }
+        XCTAssertTrue(recovered)
+        XCTAssertNotNil(service.boundPort)
+        XCTAssertEqual(attempts.value, 2)
+    }
+
+    func testFaviconEncodedOnce() {
+        let first = WidgetHTTPService.faviconData()
+        let second = WidgetHTTPService.faviconData()
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(WidgetHTTPService.faviconEncodingCount, 1)
+    }
+
     // MARK: - Request Policy Tests
 
     func testTokenInjectionRequiresLoopbackPeerAndLiteralLocalHost() {

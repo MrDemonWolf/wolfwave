@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   checkDocsText,
+  checkLandingProtocol,
   checkLintRuleParity,
   checkRequiredHeadings,
   findDuplicateTokenLists,
@@ -17,6 +18,13 @@ const expected = {
   },
   viewportPadding: 32,
 };
+
+test("landing port drift fails against native server defaults", () => {
+  const ports = { webSocketPort: 8765, widgetPort: 8766 };
+  assert.deepEqual(checkLandingProtocol('ws://localhost:8765 http://localhost:8766/', ports), []);
+  assert.equal(checkLandingProtocol('ws://localhost:8080/now-playing', ports).length, 1);
+  assert.equal(checkLandingProtocol('http://mac.local:8080/now-playing.json', ports).length, 2);
+});
 
 test("findDuplicateTokenLists catches token copies but permits generated references", () => {
   const copied = 'static let themes = ["Default", "Dark"]';

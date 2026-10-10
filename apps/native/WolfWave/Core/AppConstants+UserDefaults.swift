@@ -626,7 +626,8 @@ extension AppConstants {
             case bool
             case int(ExportedIntegerDomain)
             case double(ExportedDoubleDomain)
-            case string(Set<String>?)
+            case string(Set<String>?, maxLength: Int)
+            case httpsURL(maxLength: Int)
             case stringList(Set<String>)
             case data(ExportedDataFormat)
         }
@@ -672,7 +673,9 @@ extension AppConstants {
             _ key: String,
             allowedValues: [String]? = nil
         ) -> ExportablePreference {
-            ExportablePreference(key: key, rule: .string(allowedValues.map { Set($0) }))
+            ExportablePreference(
+                key: key,
+                rule: .string(allowedValues.map { Set($0) }, maxLength: 256))
         }
 
         private static func portableStringList(
@@ -783,7 +786,7 @@ extension AppConstants {
             portableString(clearQueueCommandAliases),
             portableBool(songListCommandEnabled),
             portableString(songListCommandAliases),
-            portableString(songRequestSongListURL),
+            ExportablePreference(key: songRequestSongListURL, rule: .httpsURL(maxLength: 2_048)),
             portableDouble(songRequestGlobalCooldown, in: 0...30, step: 5),
             portableDouble(songRequestUserCooldown, in: 0...60, step: 5),
             portableString(songRequestFallbackPlaylist),

@@ -28,6 +28,20 @@ final class SettingsBackupServiceTests: XCTestCase {
         try await super.tearDown()
     }
 
+    func testOversizedFileRejectedWithTooLarge() async throws {
+        let file = FileManager.default.temporaryDirectory
+            .appending(path: "wolfwave-backup-oversized-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try Data(repeating: 0x20, count: 1_048_577).write(to: file)
+
+        do {
+            _ = try await SettingsBackupService().decode(fileURL: file)
+            XCTFail("Expected oversized backup rejection")
+        } catch let error as SettingsBackupCoder.BackupError {
+            XCTAssertEqual(error, .tooLarge)
+        }
+    }
+
     func testApplyBroadcastsCompleteResolvedOverlayConfiguration() async {
         let suiteName = "SettingsBackupServiceTests.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {

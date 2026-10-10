@@ -103,6 +103,9 @@ protocol AppleMusicControlling {
     /// Searches the catalog for the best match for `query`.
     func search(query: String) async -> AppleMusicController.SearchResult
 
+    /// Candidate catalog matches for validated link metadata.
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?)
+
     /// Resolves an Apple Music / Spotify / YouTube URL into a catalog track.
     func resolve(url: URL) async -> AppleMusicController.SearchResult
 
@@ -150,6 +153,13 @@ protocol AppleMusicControlling {
 }
 
 extension AppleMusicControlling {
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
+        switch await search(query: query) {
+        case .found(let song): return ([song], nil)
+        case .notFound: return ([], nil)
+        case .error(let message): return ([], message)
+        }
+    }
     /// Stubs and any future conformer default to "no information", which every
     /// caller already treats as "change nothing".
     func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility { .unknown }
@@ -260,10 +270,23 @@ final class AppleMusicController: AppleMusicControlling {
     /// Maximum number of compiled scripts retained before the small cache clears.
     private static let compiledScriptsCap = 32
 
+    private var authorizationStatusProvider: (() -> AuthStatus)?
+    private var authorizationRequester: (() async -> Bool)?
+
+    /// Injectable MusicKit authorization boundary for deterministic tests.
+    init(
+        authorizationStatusProvider: (() -> AuthStatus)? = nil,
+        authorizationRequester: (() async -> Bool)? = nil
+    ) {
+        self.authorizationStatusProvider = authorizationStatusProvider
+        self.authorizationRequester = authorizationRequester
+    }
+
     // MARK: - Authorization Status
 
     /// Current MusicKit authorization status.
     var authStatus: AuthStatus {
+        if let authorizationStatusProvider { return authorizationStatusProvider() }
         switch MusicAuthorization.currentStatus {
         case .notDetermined: return .notDetermined
         case .authorized: return .authorized
@@ -349,8 +372,14 @@ final class AppleMusicController: AppleMusicControlling {
     /// Request MusicKit authorization from the user.
     @discardableResult
     func requestAuthorization() async -> Bool {
+        if let authorizationRequester { return await authorizationRequester() }
         let status = await MusicAuthorization.request()
         return status == .authorized
+    }
+
+    private func ensureAuthorized() async -> Bool {
+        if authStatus == .notDetermined, !(await requestAuthorization()) { return false }
+        return isAuthorized
     }
 
     // MARK: - Search (MusicKit)
@@ -361,28 +390,25 @@ final class AppleMusicController: AppleMusicControlling {
     /// - Parameter query: The search text (song name, artist, etc.).
     /// - Returns: The search result.
     func search(query: String) async -> SearchResult {
-        if authStatus == .notDetermined {
-            let granted = await requestAuthorization()
-            if !granted {
-                return .error("Apple Music access not authorized")
-            }
-        }
+        let result = await searchCandidates(query: query, limit: 1)
+        if let error = result.error { return .error(error) }
+        if let song = result.songs.first { return .found(song) }
+        return .notFound
+    }
 
-        guard isAuthorized else {
-            return .error("Apple Music access not authorized. Enable it in Settings → Song Requests.")
+    func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
+        guard await ensureAuthorized() else {
+            return ([], "Apple Music access not authorized. Enable it in Settings → Song Requests.")
         }
 
         do {
             var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
-            request.limit = 1
+            request.limit = max(1, min(limit, 10))
             let response = try await request.response()
 
-            if let song = response.songs.first {
-                return .found(song)
-            }
-            return .notFound
+            return (Array(response.songs), nil)
         } catch {
-            return .error("Search failed: \(error.localizedDescription)")
+            return ([], "Search failed: \(error.localizedDescription)")
         }
     }
 
@@ -390,34 +416,47 @@ final class AppleMusicController: AppleMusicControlling {
     ///
     /// Used after oEmbed returns an Apple Music URL from a Spotify/YouTube link.
     func resolve(url: URL) async -> SearchResult {
-        guard isAuthorized else {
-            return .error("Apple Music access not authorized")
+        guard await ensureAuthorized() else {
+            return .error("Apple Music access not authorized. Enable it in Settings → Song Requests.")
         }
 
-        // Try to extract the song catalog ID from the URL
-        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let songID = components.queryItems?.first(where: { $0.name == "i" })?.value {
+        if let catalogID = Self.appleMusicCatalogID(for: url) {
             do {
-                let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songID))
+                let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(catalogID))
                 let response = try await request.response()
                 if let song = response.items.first {
                     return .found(song)
                 }
             } catch {
                 Log.debug(
-                    "AppleMusicController: Failed to resolve by ID, falling back to URL search: \(error)",
+                    "AppleMusicController: Failed to resolve catalog ID, falling back to URL search: \(error)",
                     category: .songRequest)
             }
         }
 
-        // Fallback: extract song name from URL path and search
-        let pathComponents = url.pathComponents
-        if let songSlug = pathComponents.last {
+        let pathComponents = url.path.split(separator: "/").map(String.init)
+        if pathComponents.count >= 3, pathComponents[1] == "song",
+           let songSlug = pathComponents.dropFirst(2).first {
             let searchTerm = songSlug.replacingOccurrences(of: "-", with: " ")
             return await search(query: searchTerm)
         }
 
         return .notFound
+    }
+
+    static func appleMusicCatalogID(for url: URL) -> String? {
+        let path = url.path.split(separator: "/").map(String.init)
+        guard path.count >= 3 else { return nil }
+        if path[1] == "song", path.count == 4, UInt64(path[3]) != nil {
+            return path[3]
+        }
+        if path[1] == "album",
+           let itemID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .first(where: { $0.name == "i" })?.value,
+           UInt64(itemID) != nil {
+            return itemID
+        }
+        return nil
     }
 
     // MARK: - Playback (via AppleScript → Music.app)

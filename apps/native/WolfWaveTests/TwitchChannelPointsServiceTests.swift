@@ -218,6 +218,35 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         }
     }
 
+    func testRedemptionStatusLookupDistinguishesUnfulfilledAndResolved() async throws {
+        storeManagedReward("reward_abc")
+        let status = ThreadSafeBox("UNFULFILLED")
+        handlerStore.handler = { request in
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(
+                URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "id" })?.value,
+                "redemption_123")
+            return (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Self.encodeJSON(["data": [["id": "redemption_123", "status": status.value]]])
+            )
+        }
+
+        let service = makeService()
+        let isUnfulfilled = try await service.isRedemptionUnfulfilled(
+            credentials: creds,
+            rewardID: "reward_abc",
+            redemptionID: "redemption_123")
+        XCTAssertTrue(isUnfulfilled)
+        status.value = "FULFILLED"
+        let isStillUnfulfilled = try await service.isRedemptionUnfulfilled(
+            credentials: creds,
+            rewardID: "reward_abc",
+            redemptionID: "redemption_123")
+        XCTAssertFalse(isStillUnfulfilled)
+    }
+
     func testUnfulfilledRedemptionsRejectsRepeatedCursor() async {
         storeManagedReward("reward_abc")
         handlerStore.handler = { request in

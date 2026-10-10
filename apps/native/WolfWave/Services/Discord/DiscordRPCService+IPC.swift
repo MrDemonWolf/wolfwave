@@ -29,6 +29,7 @@ extension DiscordRPCService {
         // new `.connecting` state after the final user intent is already off.
         guard isEnabled else { return }
         guard state == .disconnected else { return }
+        lastFailure = .none
         guard !clientID.isEmpty else {
             Log.warn("DiscordRPCService: No client ID configured: skipping connection", category: .discord)
             lastFailure = .notConfigured
@@ -113,10 +114,10 @@ extension DiscordRPCService {
                     startIPCReadPump()
                     return
                 } else {
+                    guard recordHandshakeRejectionIfCurrent(fd: fd, generation: attemptGeneration) else { return }
                     Log.warn("DiscordRPCService: Handshake failed on slot \(slot)", category: .discord)
                     // A socket existed and Discord refused us, so this is not
                     // "Discord isn't running" however the loop ends.
-                    lastFailure = .handshakeRejected
                     // performHandshake may have already torn down via
                     // handleConnectionLost -> disconnect(), which closes the fd
                     // and resets socketFD to -1. Only close here if the fd is
@@ -352,6 +353,7 @@ extension DiscordRPCService {
     /// ``ipcQueue`` so it serializes after any queued read/write still holding the
     /// captured fd, never racing them or closing a recycled descriptor.
     func disconnect() async {
+        cancelPendingPresence()
         connectionGeneration &+= 1
 
         guard socketFD >= 0 else {
@@ -802,8 +804,19 @@ extension DiscordRPCService {
 
         if responsePayload["evt"] as? String == "ERROR" {
             Log.warn("DiscordRPCService: Discord rejected \(command)", category: .discord)
+            if command == "SET_ACTIVITY",
+               let args = payload["args"] as? [String: Any], let activity = args["activity"] as? [String: Any] {
+                retryRejectedPresence(activity, nonce: nonce)
+            }
             return false
         }
+        return true
+    }
+
+    /// A rejected handshake belongs only to the still-enabled socket generation.
+    func recordHandshakeRejectionIfCurrent(fd: Int32, generation: UInt64) -> Bool {
+        guard ownsConnection(fd: fd, generation: generation), isEnabled else { return false }
+        lastFailure = .handshakeRejected
         return true
     }
 

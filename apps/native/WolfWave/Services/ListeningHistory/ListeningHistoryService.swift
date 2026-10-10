@@ -77,6 +77,7 @@ final class ListeningHistoryService {
     /// single running load instead of starting a second one that would interleave
     /// the shared stores and re-fold overflow.
     private var loadTask: Task<Void, Never>?
+    private var retentionTask: Task<Void, Never>?
     /// Invalidates disk-load results captured before a user clear. The detached
     /// reader is side-effect free; only a matching generation may publish.
     private var historyGeneration = 0
@@ -136,6 +137,17 @@ final class ListeningHistoryService {
     /// and tally stores and re-fold overflow or drop a deferred play.
     private func scheduleLoad() {
         guard loadTask == nil else { return }
+        if retentionTask == nil {
+            retentionTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    do {
+                        try await Task.sleep(for: .seconds(86_400))
+                    } catch { return }
+                    guard let self else { return }
+                    self.prune()
+                }
+            }
+        }
         // Claim load ownership before spawning the task. A track callback can
         // run immediately after start()/enable() returns and must be buffered.
         isLoading = true
@@ -163,6 +175,8 @@ final class ListeningHistoryService {
     /// before `applicationWillTerminate` returns and the process exits, a
     /// detached `Task` would be racing termination.
     func shutdown() {
+        retentionTask?.cancel()
+        retentionTask = nil
         guard completePendingClear() else {
             store.flush()
             return
@@ -268,6 +282,7 @@ final class ListeningHistoryService {
         let record = recordWithSequence(pendingRecord)
         store.append(record)
         records.append(record)
+        prune()
         let preserveLifetime = usesLifetimeTally
         if !preserveLifetime, !lifetime.isEmpty {
             lifetime = .empty
@@ -294,6 +309,43 @@ final class ListeningHistoryService {
             "ListeningHistoryService: Recorded play: \(record.track) (\(Int(record.playedSeconds))s)",
             category: .history
         )
+    }
+
+    /// Counts plays a finite retention window would remove, without mutating it.
+    func expiredRecordCount(retentionDays: Int, now: Date = Date()) -> Int {
+        guard retentionDays > 0 else { return 0 }
+        let cutoff = now.addingTimeInterval(-Double(retentionDays) * 86_400)
+        return records.lazy.filter { $0.timestamp < cutoff }.count
+    }
+
+    /// Applies a new retention window immediately after user confirmation.
+    func setRetentionDays(_ days: Int) {
+        DefaultsStore.store.set(days, forKey: AppConstants.UserDefaults.historyRetentionDays)
+        prune()
+    }
+
+    /// Removes expired plays without adding them to lifetime statistics.
+    func prune(now: Date = Date()) {
+        guard isLoaded, !isLoading, !clearIsPending, !clearMarkerStore.isPending else { return }
+        let days = DefaultsStore.store.integer(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        guard days > 0 else { return }
+        let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
+        let hadExpiredRecords = records.contains { $0.timestamp < cutoff }
+        guard hadExpiredRecords || !lifetime.isEmpty || needsTallyPersistence || needsCompaction else { return }
+        if !lifetime.isEmpty || needsTallyPersistence {
+            lifetime = .empty
+            needsTallyPersistence = !tallyStore.clear()
+        }
+        if hadExpiredRecords {
+            records.removeAll { $0.timestamp < cutoff }
+            needsCompaction = true
+        }
+        // Preserve source lines until the tally deletion is durable, matching
+        // load/shutdown ordering so a later Forever window cannot resurrect it.
+        if needsCompaction, !needsTallyPersistence {
+            needsCompaction = !store.replaceAll(with: records)
+        }
+        rebuildSnapshot()
     }
 
     /// Deletes all recorded history, on disk and in memory.
@@ -638,6 +690,9 @@ final class ListeningHistoryService {
             && !tallyIsDurable
         needsCompaction = result.shouldRewrite && !rewriteSucceeded
         finishLoading()
+        if DefaultsStore.store.integer(forKey: AppConstants.UserDefaults.historyRetentionDays) != retentionDays {
+            prune()
+        }
 
         if result.foldedCount > 0 {
             Log.info(

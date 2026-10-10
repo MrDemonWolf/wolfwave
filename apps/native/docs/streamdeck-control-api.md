@@ -47,6 +47,10 @@ Decoding is pure (`StreamDeckControl.parse`) and unit-tested
 
 Every command that runs (or is rejected) gets a reply on the same connection:
 
+If the app's command handler is not installed yet, the reply is
+`ok: false, error: "unavailable"`. Existing connections use a newly installed
+handler on their next command.
+
 ```json
 { "type": "ack", "action": "skip", "ok": true }
 { "type": "ack", "action": "skip", "ok": false, "error": "music" }
