@@ -24,6 +24,7 @@ struct SongRequestSetupView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var viewModel: SongRequestSetupViewModel
+    var openTwitchSettings: () -> Void
 
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
     @State private var isRequestingMusicAuth = false
@@ -55,8 +56,9 @@ struct SongRequestSetupView: View {
 
     /// - Parameter startAt: Step to open on. `.intro` for a fresh setup, or
     ///   `.shareLink` when launched from the "Re-share Playlist" banner.
-    init(startAt: SongRequestSetupViewModel.Step = .intro) {
+    init(startAt: SongRequestSetupViewModel.Step = .intro, openTwitchSettings: @escaping () -> Void = {}) {
         _viewModel = State(initialValue: SongRequestSetupViewModel(startAt: startAt))
+        self.openTwitchSettings = openTwitchSettings
     }
 
     // MARK: - Body
@@ -89,6 +91,10 @@ struct SongRequestSetupView: View {
             syncAuth(MusicAuthorization.currentStatus)
         }
         .onChange(of: musicAuthStatus) { _, new in syncAuth(new) }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            syncAuth(MusicAuthorization.currentStatus)
+            refreshTwitchState()
+        }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { note in
             if let connected = note.isConnectedFlag {
                 viewModel.isTwitchConnected = connected
@@ -173,10 +179,16 @@ struct SongRequestSetupView: View {
                         CalloutBanner("Twitch is connected. You're good to go.", style: .success)
                     } else {
                         CalloutBanner(
-                            "Connect with Twitch first, then come back here. Song requests arrive through your chat.",
+                            "Next unlocks once Twitch is connected. Song requests arrive through your chat.",
                             style: .info,
                             systemImage: "lock.fill"
                         )
+                        Button("Open Twitch settings") {
+                            dismiss()
+                            openTwitchSettings()
+                        }
+                        .pointerCursor()
+                        .accessibilityIdentifier("songRequestSetupOpenTwitchSettings")
                     }
                 }
             }
@@ -197,6 +209,15 @@ struct SongRequestSetupView: View {
                     } else if musicAuthStatus == .denied {
                         CalloutBanner(
                             "Apple Music access was denied. Turn it on in System Settings, Privacy & Security, then Media & Apple Music.",
+                            style: .warning
+                        )
+                        Button("Open System Settings") {
+                            ExternalLink.open(AppConstants.URLs.systemMusicSettings)
+                        }
+                        .pointerCursor()
+                    } else if musicAuthStatus == .restricted {
+                        CalloutBanner(
+                            "Apple Music access is restricted on this Mac. Check parental controls or ask its administrator.",
                             style: .warning
                         )
                     } else {

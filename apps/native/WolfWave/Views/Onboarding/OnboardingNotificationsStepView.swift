@@ -47,6 +47,9 @@ struct OnboardingNotificationsStepView: View {
         .task {
             await refreshNotificationStatus()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await refreshNotificationStatus() }
+        }
     }
 
     // MARK: - Notifications Section

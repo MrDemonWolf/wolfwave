@@ -8,9 +8,8 @@
 
 import SwiftUI
 
-/// Apple Music permission step. Asks for the one system grant WolfWave needs to
-/// work: **Apple Music** automation (the TCC bucket the app reads the current
-/// track from via Apple Events). We never read the catalog or library.
+/// Music Sync uses Apple Events for the current track; optional Song Requests
+/// use separate MusicKit access for catalog and playlist operations.
 /// Notification alerts live on their own step right after this one.
 struct OnboardingPermissionsStepView: View {
 
@@ -25,7 +24,7 @@ struct OnboardingPermissionsStepView: View {
     var body: some View {
         OnboardingStepScaffold(
             title: "Let WolfWave read your music",
-            description: "WolfWave reads the current track from the Music app so it can share what you're playing. That's the only access it needs.",
+            description: "The Automation permission lets Music Sync read the current track from Music. Song Requests use Apple Music access separately.",
             icon: {
                 BrandTileGlyph.symbol("lock.shield.fill", tint: Color.accentColor)
             },
@@ -34,6 +33,9 @@ struct OnboardingPermissionsStepView: View {
                     .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
         )
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            recheckTapped()
+        }
     }
 
     // MARK: - Apple Music Section

@@ -313,7 +313,7 @@ struct SettingsView: View {
         if selectedSection == .general {
             generalDetail
         } else if selectedSection == .songRequests {
-            SongRequestSettingsView()
+            SongRequestSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
         } else if selectedSection == .historyStats {
             HistoryStatsSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
         } else {
