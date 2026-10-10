@@ -330,7 +330,7 @@ A UI test runs the app in its **own process**, so `WolfWaveApp.isRunningTests` i
 - `SongRequestServiceTests.swift`, `SongRequestQueueTests.swift`, `SongRequestCommandTests.swift`, `HoldCommandTests.swift`, `SongBlocklistTests.swift` - Song Request system (queue, hold mode, request command parse, blocklist)
 - `SkipVoteManagerTests.swift`, `VoteSkipCommandTests.swift` - Chat vote-to-skip (threshold, dedup, window expiry, cooldown, subscriber gate, Polls mode, reply formatting)
 - `SongRequestAccessTests.swift` - `RequestAudience` permission rules, `SongRequestPreset` apply/detect, `RedemptionStatus` banner messages
-- `SongRequestQueueBoostTests.swift` - bit-cheer boost: moves a user's most-recent queued item to the front
+- `SongRequestQueueBoostTests.swift` - bit-cheer boost: moves a user's oldest queued item to the front
 - `TwitchChannelPointsServiceTests.swift` - Helix create / reconcile / fulfill / cancel for the WolfWave-managed "Request a Song" reward
 - `TwitchBitsParsingTests.swift` - `channel.bits.use` message parsing (cheermote fragment stripping)
 - `StatsCommandTests.swift` - `!stats` live-gating via `stream.online` / `stream.offline` EventSub

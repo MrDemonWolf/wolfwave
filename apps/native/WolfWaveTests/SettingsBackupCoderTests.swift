@@ -33,6 +33,73 @@ struct SettingsBackupCoderTests {
         )
     }
 
+    @Test func freeTextOverCapRejected() {
+        let key = AppConstants.UserDefaults.discordButton1Label
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[key] = .string(String(repeating: "x", count: 257))
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: .init(),
+            exportablePreferences: exportable)
+        #expect(plan.set[key] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+    }
+
+    @Test func songListURLRequiresHTTPS() {
+        let key = AppConstants.UserDefaults.songRequestSongListURL
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[key] = .string("http://example.com/list")
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: .init(),
+            exportablePreferences: exportable)
+        #expect(plan.set[key] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+        #expect(Preferences.normalizedHTTPSURL("javascript:alert(1)") == nil)
+        #expect(Preferences.normalizedHTTPSURL("https://") == nil)
+        #expect(Preferences.normalizedHTTPSURL("https://example.com/" + String(repeating: "a", count: 2_048)) == nil)
+        #expect(Preferences.normalizedHTTPSURL(" https://example.com/list ") == "https://example.com/list")
+        backup.settings[key] = .string("")
+        let cleared = coder.makeApplyPlan(backup: backup, choices: .init(), exportablePreferences: exportable)
+        #expect(cleared.set[key] == .string(""))
+    }
+
+    @Test func customCommandArrayOverLimitRejected() throws {
+        let key = AppConstants.UserDefaults.customCommands
+        let command = CustomCommand(trigger: "one", response: "ok")
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[key] = .data(try JSONCoders.defaultEncoder.encode(
+            Array(repeating: command, count: 101)))
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: .init(),
+            exportablePreferences: exportable)
+        #expect(plan.set[key] == nil)
+    }
+
+    @Test func exposureKeysNotAppliedFromFileImport() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [
+            keys.shareDiagnosticsEnabled: true,
+            keys.websocketEnabled: true,
+            keys.widgetPort: 8765,
+        ])
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: .init(includeLocalSharingSettings: false),
+            exportablePreferences: exportable)
+        #expect(plan.set[keys.shareDiagnosticsEnabled] == nil)
+        #expect(plan.set[keys.websocketEnabled] == nil)
+        #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 3)
+        backup = makeBackup(snapshot: [keys.websocketEnabled: true])
+        let cloudPlan = coder.makeApplyPlan(
+            backup: backup,
+            choices: .init(),
+            exportablePreferences: exportable)
+        #expect(cloudPlan.set[keys.websocketEnabled] == .bool(true))
+    }
+
     // MARK: - BackupValue typing
 
     @Test func backupValueClassifiesSupportedTypes() {

@@ -32,6 +32,9 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
         let type: String
         let data: DataPayload?
+        let action: String?
+        let ok: Bool?
+        let error: String?
     }
 
     private enum FrameDecodingError: Error {
@@ -39,6 +42,35 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     }
 
     // MARK: - Helpers
+
+    func testCommandUsesHandlerInstalledAfterConnection() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, client) = try makeControlClient(port: port)
+        defer { session.invalidateAndCancel() }
+        client.resume()
+        let connected = expectation(description: "control connected")
+        let observer = observe(service, fulfilling: connected) { _, count in count == 1 }
+        await fulfillment(of: [connected], timeout: 5)
+        observer.cancel()
+        let unavailable = expectation(description: "unavailable acknowledgement")
+        Self.receiveFrame(type: "ack", from: client, fulfilling: unavailable) { frame in
+            XCTAssertEqual(frame.error, "unavailable")
+            XCTAssertEqual(frame.ok, false)
+        }
+        let command = "{\"type\":\"command\",\"protocol\":\(StreamDeckControl.protocolVersion),\"action\":\"play_pause\"}"
+        try await client.send(.string(command))
+        await fulfillment(of: [unavailable], timeout: 5)
+        await service.setCommandHandler { .success($0.action) }
+        let handled = expectation(description: "new handler acknowledgement")
+        Self.receiveFrame(type: "ack", from: client, fulfilling: handled) { frame in
+            XCTAssertEqual(frame.action, "play_pause")
+            XCTAssertEqual(frame.ok, true)
+        }
+        try await client.send(.string(command))
+        await fulfillment(of: [handled], timeout: 5)
+        client.cancel(with: .normalClosure, reason: nil)
+        await service.setEnabled(false)
+    }
 
     /// Waits for predicate to return true for an emitted state/count event.
     /// Returns the consumer task so the caller can cancel it after the wait.

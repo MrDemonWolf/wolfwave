@@ -454,6 +454,41 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         return redemptionIDs
     }
 
+    /// Checks whether one redemption still needs resolution after Twitch
+    /// rejects a replayed PATCH with a state-conflict response.
+    func isRedemptionUnfulfilled(
+        credentials: Credentials,
+        rewardID: String,
+        redemptionID: String
+    ) async throws -> Bool {
+        try await requireResolutionManagedRewardIdentity(
+            credentials: credentials, rewardID: rewardID)
+        var components = URLComponents(
+            string: baseURL + "/channel_points/custom_rewards/redemptions")
+        components?.queryItems = [
+            URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
+            URLQueryItem(name: "reward_id", value: rewardID),
+            URLQueryItem(name: "id", value: redemptionID),
+        ]
+        guard let url = components?.url else { throw RewardError.malformedResponse }
+        do {
+            let json = try await helix.sendJSON(
+                url: url,
+                method: "GET",
+                credentials: credentials.helix)
+            guard let data = json?["data"] as? [[String: Any]] else {
+                throw RewardError.malformedResponse
+            }
+            guard let redemption = data.first else { return false }
+            guard let status = redemption["status"] as? String else {
+                throw RewardError.malformedResponse
+            }
+            return status.uppercased() == "UNFULFILLED"
+        } catch let error as HelixClient.HelixError {
+            throw RewardError.from(error)
+        }
+    }
+
     /// Resolves a redemption. `fulfilled` spends the points, `canceled` refunds
     /// them. A failure here is non-fatal (the song may still have queued); the
     /// caller should log and continue.

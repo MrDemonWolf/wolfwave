@@ -132,6 +132,9 @@ final class AppleMusicSource: @unchecked Sendable {
     nonisolated(unsafe) private var lastLoggedTrack: String?
     nonisolated(unsafe) private var lastTrackSeenAt: ContinuousClock.Instant?
     nonisolated(unsafe) private var lastNotificationAt: ContinuousClock.Instant?
+    nonisolated(unsafe) private var pendingTrailingNotification = false
+    nonisolated(unsafe) private var checkInFlight = false
+    nonisolated(unsafe) private var pendingTrackCheck = false
     nonisolated(unsafe) private var isTracking = false
     /// Monotonic identity for one start/stop lifecycle. A plain `isTracking`
     /// check cannot distinguish work from before a stop/start ABA transition.
@@ -193,6 +196,8 @@ final class AppleMusicSource: @unchecked Sendable {
             guard isTracking else { return false }
             isTracking = false
             trackingGeneration &+= 1
+            pendingTrailingNotification = false
+            pendingTrackCheck = false
             return true
         }
         guard wasTracking else { return }
@@ -244,21 +249,34 @@ final class AppleMusicSource: @unchecked Sendable {
 
     // MARK: - Playback Monitoring
 
-    @objc nonisolated private func musicPlayerInfoChanged(_ notification: Notification) {
+    @objc nonisolated func musicPlayerInfoChanged(_ notification: Notification) {
         let now = clock.now
-        let generation = stateLock.withLock { () -> UInt64? in
-            guard isTracking else { return nil }
-            guard Self.intervalElapsed(
+        let stopped = Self.isStoppedNotification(notification.userInfo)
+        let (generation, trailing) = stateLock.withLock { () -> (UInt64?, Bool) in
+            guard isTracking else { return (nil, false) }
+            let elapsed = Self.intervalElapsed(
                 since: lastNotificationAt,
                 now: now,
                 minimum: Constants.notificationDedupWindow
-            ) else {
-                return nil
-            }
+            )
             lastNotificationAt = now
-            return trackingGeneration
+            if stopped {
+                pendingTrailingNotification = false
+                pendingTrackCheck = false
+                return (trackingGeneration, false)
+            }
+            guard elapsed else {
+                guard !pendingTrailingNotification else { return (nil, false) }
+                pendingTrailingNotification = true
+                return (trackingGeneration, true)
+            }
+            return (trackingGeneration, false)
         }
         guard let generation else { return }
+        if trailing {
+            scheduleTrackCheck(after: 0.75, reason: "notification-trailing", generation: generation)
+            return
+        }
 
         // Music fires a final "Stopped" `playerInfo` notification as it quits.
         // Round-tripping an Apple event back to a quitting app is exactly what
@@ -337,8 +355,25 @@ final class AppleMusicSource: @unchecked Sendable {
     /// requires main-thread access. We hop to `@MainActor` for the SB calls
     /// and back out for the cheap string/delegate work.
     nonisolated private func checkCurrentTrack(generation: UInt64) async {
-        guard isCurrentTrackingGeneration(generation) else { return }
-        defer { didCompleteTrackCheck?() }
+        let admitted = stateLock.withLock {
+            guard isTracking, trackingGeneration == generation else { return false }
+            guard !checkInFlight else {
+                pendingTrackCheck = true
+                return false
+            }
+            checkInFlight = true
+            return true
+        }
+        guard admitted else { return }
+        defer {
+            let rerun = stateLock.withLock { () -> UInt64? in
+                checkInFlight = false
+                defer { pendingTrackCheck = false }
+                return isTracking && pendingTrackCheck ? trackingGeneration : nil
+            }
+            didCompleteTrackCheck?()
+            if let rerun { scheduleTrackCheck(reason: "overlap-trailing", generation: rerun) }
+        }
         if let trackInfoProvider {
             let trackInfo = await trackInfoProvider()
             guard isCurrentTrackingGeneration(generation) else { return }
@@ -364,6 +399,7 @@ final class AppleMusicSource: @unchecked Sendable {
             guard let musicApp = SBApplication(processIdentifier: pid) else {
                 return (Constants.Status.scriptBridgeNil, nil)
             }
+            musicApp.timeout = 120 // Apple Event ticks: two seconds per reply.
             let bridgeDelegate = scriptingBridgeErrorDelegate
             bridgeDelegate.reset()
             musicApp.delegate = bridgeDelegate
@@ -761,6 +797,26 @@ final class AppleMusicSource: @unchecked Sendable {
         guard isCurrentTrackingGeneration(generation) else { return }
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
+            if reason == "notification-trailing" {
+                guard let self else { return }
+                let remaining = self.stateLock.withLock { () -> Duration? in
+                    guard self.isTracking, self.trackingGeneration == generation,
+                          self.pendingTrailingNotification else { return nil }
+                    if let last = self.lastNotificationAt {
+                        let remaining = Constants.notificationDedupWindow - last.duration(to: self.clock.now)
+                        if remaining > .zero { return remaining }
+                    }
+                    self.pendingTrailingNotification = false
+                    return .zero
+                }
+                guard let remaining else { return }
+                if remaining > .zero {
+                    let parts = remaining.components
+                    let seconds = Double(parts.seconds) + Double(parts.attoseconds) / 1e18
+                    self.scheduleTrackCheck(after: seconds, reason: reason, generation: generation)
+                    return
+                }
+            }
             Log.debug("AppleMusicSource: delayed track check fired (\(reason))", category: .music)
             await self?.checkCurrentTrack(generation: generation)
         }

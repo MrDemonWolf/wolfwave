@@ -25,6 +25,7 @@ struct WebSocketTokenEditorRow: View {
     @State private var isTokenRevealed = false
     @State private var tokenError: String?
     @State private var showingRegenerateConfirm = false
+    @State private var isSavingToken = false
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
@@ -99,6 +100,7 @@ struct WebSocketTokenEditorRow: View {
                             .accessibilityIdentifier(hiddenFieldIdentifier)
                     }
                 }
+                .disabled(isSavingToken)
 
                 DSIconButton(
                     systemImage: isTokenRevealed ? "eye.slash" : "eye",
@@ -152,7 +154,7 @@ struct WebSocketTokenEditorRow: View {
                     Button("Save") { saveTokenEdit() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
-                        .disabled(streamerMode)
+                        .disabled(streamerMode || isSavingToken)
                         .accessibilityIdentifier(saveButtonIdentifier)
 
                     Button("Cancel") {
@@ -198,6 +200,13 @@ struct WebSocketTokenEditorRow: View {
     }
 
     private func saveTokenEdit() {
+        Task { await persistTokenEdit() }
+    }
+
+    private func persistTokenEdit() async {
+        guard !isSavingToken else { return }
+        isSavingToken = true
+        defer { isSavingToken = false }
         let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != currentToken else {
             tokenDraft = currentToken
@@ -218,7 +227,10 @@ struct WebSocketTokenEditorRow: View {
         //
         // Falls back to the cached value only if the Keychain read fails, which
         // keeps the guard strictly no weaker than before.
-        let counterpart = WebSocketAuthToken.currentOrCreate(for: role.counterpart)
+        let counterpartRole = role.counterpart
+        let counterpart = await Task.detached(priority: .userInitiated) {
+            WebSocketAuthToken.currentOrCreate(for: counterpartRole)
+        }.value
         let liveOther = counterpart.isEmpty ? otherToken : counterpart
         guard liveOther.isEmpty || !WebSocketAuthToken.constantTimeEquals(trimmed, liveOther) else {
             tokenError = "Overlay and control tokens must be different."
@@ -226,7 +238,10 @@ struct WebSocketTokenEditorRow: View {
         }
 
         do {
-            try WebSocketAuthToken.persist(trimmed, for: role)
+            let savedRole = role
+            try await Task.detached(priority: .userInitiated) {
+                try WebSocketAuthToken.persist(trimmed, for: savedRole)
+            }.value
             currentToken = trimmed
             tokenDraft = trimmed
             tokenError = nil

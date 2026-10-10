@@ -1,5 +1,9 @@
 # AlbumArtView
 
+The Discord settings preview resolves buttons through `DiscordPresenceBuilder`,
+so custom labels, toggles, missing links, and invalid URLs match the live presence
+alongside the artwork.
+
 **File:** [`apps/native/WolfWave/Views/Shared/AlbumArtView.swift`](../../apps/native/WolfWave/Views/Shared/AlbumArtView.swift)
 
 ## Purpose

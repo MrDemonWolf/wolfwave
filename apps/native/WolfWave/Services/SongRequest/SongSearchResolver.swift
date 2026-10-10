@@ -84,10 +84,32 @@ final class SongSearchResolver {
             }
 
         case .found(let title, let artist):
-            // oEmbed gave us title/artist, search MusicKit
             let searchQuery = artist.map { "\(title) \($0)" } ?? title
             Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: .songRequest)
-            return await resolveText(searchQuery)
+            let candidates = await musicController.searchCandidates(query: searchQuery, limit: 10)
+            if let error = candidates.error { return .error(error) }
+            let host = URL(string: urlString)?.host ?? ""
+            let youtube = host.hasSuffix("youtube.com") || host == "youtu.be"
+            let pieces = TrackTextNormalizer.title(title).components(separatedBy: " - ")
+            let expectedTitle = youtube && pieces.count == 2 ? pieces[1] : TrackTextNormalizer.title(title)
+            let expectedArtist = youtube && pieces.count == 2 ? pieces[0] : artist.map(TrackTextNormalizer.title)
+            guard !expectedTitle.isEmpty else { return .linkNotFound }
+            let expectedWords = Set(expectedTitle.split(separator: " "))
+            let scored = candidates.songs.map { song -> (song: Song, score: Double) in
+                let words = Set(TrackTextNormalizer.title(song.title).split(separator: " "))
+                let titleScore = Double(words.intersection(expectedWords).count)
+                    / Double(max(1, words.union(expectedWords).count))
+                let score: Double
+                if let expectedArtist, !expectedArtist.isEmpty {
+                    score = titleScore * 0.8 + (TrackTextNormalizer.title(song.artistName) == expectedArtist ? 0.2 : 0)
+                } else {
+                    score = titleScore
+                }
+                return (song, score)
+            }.sorted { $0.score > $1.score }
+            guard let best = scored.first, best.score >= 0.9,
+                  scored.count == 1 || best.score > scored[1].score else { return .linkNotFound }
+            return .found(best.song)
 
         case .notFound:
             return .linkNotFound
