@@ -77,7 +77,8 @@ bun run --filter streamdeck test         # Stream Deck plugin tests (bun test)
 > that is **committed** to the repo. Xcode does **not** rebuild it; the
 > native build ships the committed file as-is, so contributors who only
 > touch Swift never need `bun`. If you edit `apps/widget/`, run `make widget`
-> (or `bun run --filter widget build`). If you edit design tokens or their
+> (or `bun run --filter widget build`) with the pinned Bun from `package.json`
+> `packageManager`: other Bun releases minify differently, so the drift check fails. If you edit design tokens or their
 > generator, run `bun run tokens` first, or use the ordered root
 > `bun run build`. Commit the regenerated `widget.html` (and any token
 > outputs) with the source change. CI regenerates both layers and fails the
