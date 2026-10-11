@@ -6,6 +6,9 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <span data-ww-brand className="inline-flex items-center gap-2.5">
+          {/* Static export with a base path: a plain <img> is the right tag for a
+              tiny inline SVG logo; next/image would add a loader for no gain. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={getAssetPath("/logo.svg")}
             alt=""
