@@ -57,6 +57,15 @@ updates:
     labels:
       - dependencies
       - javascript
+    # The Stream Deck plugin runs on the Node version pinned in its
+    # manifest.json ("Nodejs": { "Version": "20" }), so its @types/node must
+    # track that runtime, not the newest Node. This block covers every
+    # workspace (one root bun.lock), so the ignore applies repo-wide: bump
+    # @types/node majors by hand, moving the plugin's manifest and types together.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       bun-minor-and-patch:
         update-types:

@@ -16,19 +16,18 @@ import {
   BookOpen,
   Check,
   Download,
-  Github,
   Radio,
   Shield,
   ShieldCheck,
   Star,
   Tag,
   Music,
-  Code2,
+  CodeXml,
   Headphones,
   Terminal,
-  Twitch,
   X as XIcon,
 } from "lucide-react";
+import { GithubIcon, TwitchIcon } from "@/components/icons";
 import { DeveloperTabs } from "./DeveloperTabs";
 import { DiscordPresenceCard } from "./_widgets/DiscordPresenceCard";
 import { OBSOverlayWidget } from "./_widgets/OBSOverlayWidget";
@@ -239,7 +238,7 @@ export default async function HomePage() {
                   rel="noopener noreferrer"
                   className="ww-proof-chip"
                 >
-                  <Github className="w-3.5 h-3.5" aria-hidden="true" />
+                  <GithubIcon className="w-3.5 h-3.5" aria-hidden="true" />
                   Open source
                 </a>
               </li>
@@ -339,7 +338,7 @@ export default async function HomePage() {
           <div className="mt-14 grid md:grid-cols-3 gap-5">
             {[
               {
-                icon: Twitch,
+                icon: TwitchIcon,
                 title: "For streamers",
                 body: "Go live on Apple Music without the hacks. !song replies, chat song requests, and a real-time overlay. Optional Stream Deck keys too (manual install for now).",
                 href: "/docs/features#twitch-chat-bot",
@@ -353,7 +352,7 @@ export default async function HomePage() {
                 cta: "What's included",
               },
               {
-                icon: Code2,
+                icon: CodeXml,
                 title: "For developers",
                 body: "A real Apple Music feed to build on. A local WebSocket streams every play, pause, and skip. Wire it into anything in about 20 lines.",
                 href: "/docs/architecture",
@@ -669,7 +668,7 @@ export default async function HomePage() {
             <div className="grid md:grid-cols-3 gap-4">
               {[
                 {
-                  icon: Code2,
+                  icon: CodeXml,
                   title: "Native Swift",
                   body: "A real macOS menu-bar app. Not an Electron wrapper, not a browser extension. Sandboxed, signed, and notarized.",
                 },
@@ -679,7 +678,7 @@ export default async function HomePage() {
                   body: "ws://localhost:8765 streams track changes as JSON. Enable Stream Widgets in Settings and authenticate with your overlay token.",
                 },
                 {
-                  icon: Github,
+                  icon: GithubIcon,
                   title: "Open source, GPL-3.0",
                   body: "Read the whole codebase on GitHub. Fork it, audit the security model, ship a custom build for your stream.",
                 },
@@ -742,7 +741,7 @@ export default async function HomePage() {
                   external: false,
                 },
                 {
-                  icon: Github,
+                  icon: GithubIcon,
                   title: "GitHub",
                   body: "Star the repo, fork it, or file an issue with reproduction steps.",
                   href: REPO_URL,
@@ -914,7 +913,7 @@ export default async function HomePage() {
               rel="noopener noreferrer"
               className="ww-btn ww-btn-ghost w-full sm:w-auto"
             >
-              <Github className="w-4 h-4" />
+              <GithubIcon className="w-4 h-4" />
               Star on GitHub
             </a>
           </div>

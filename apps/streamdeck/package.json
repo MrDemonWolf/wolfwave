@@ -13,14 +13,14 @@
   },
   "dependencies": {
     "@elgato/streamdeck": "^2.1.0",
-    "ws": "^8.21.2"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@elgato/cli": "^1.4.0",
+    "@elgato/cli": "^1.10.1",
     "@resvg/resvg-js": "^2.6.2",
-    "@types/bun": "^1.1.0",
+    "@types/bun": "^1.4.2",
     "@types/node": "^20.14.0",
-    "@types/ws": "^8.5.12",
+    "@types/ws": "^8.18.2",
     "typescript": "^5.6.0"
   }
 }
