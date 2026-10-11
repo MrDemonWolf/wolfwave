@@ -17,6 +17,8 @@ MonthlyWrapCard(data: wrap)
 
 Card width is owner-controlled (production callers use `380`). Height grows to content.
 
+The hosting Monthly Wrap sheet shows a warning callout for rendering or file-write failures. Share exports use unique temporary PNG files, removed when sharing completes or is cancelled.
+
 ## Tokens used
 - Background gradient: `AppConstants.Brand.wolfwaveGradientStart` → `wolfwaveGradientEnd` (`DSColor.partnerWolfwaveGradientStart` / `End`, `#0A2540` → `#2563EB`)
 - Type: `DSFont.Size.xs` (eyebrow + row caption + footer), `DSFont.Size.md` (row value), `DSFont.Size.x2xl` (month label), `DSFont.Size.x3xl` (stat values), `DSFont.Size.sm` (stat subtitle), `DSFont.Size.base` (empty state). This is the one share-card surface sanctioned to use the `x3xl` (26) display rung; it renders to an exported image, not settings chrome.

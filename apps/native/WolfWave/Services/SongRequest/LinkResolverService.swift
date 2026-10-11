@@ -16,7 +16,10 @@ nonisolated final class LinkResolverService {
     // MARK: - Types
 
     /// Supported destination identified from a validated URL.
-    private enum MusicService: Equatable, Sendable {
+    ///
+    /// Internal (not private) only so tests can assert per-service detection
+    /// through ``service(for:)``.
+    enum MusicService: Equatable, Sendable {
         case spotify
         case youtube
         case appleMusic
@@ -55,26 +58,6 @@ nonisolated final class LinkResolverService {
     }
 
     // MARK: - Link Detection
-
-    /// Detect if a string contains a Spotify track URL.
-    static func isSpotifyLink(_ text: String) -> Bool {
-        containsService(.spotify, in: text)
-    }
-
-    /// Detect if a string contains a YouTube music URL.
-    static func isYouTubeLink(_ text: String) -> Bool {
-        containsService(.youtube, in: text)
-    }
-
-    /// Detect if a string contains an Apple Music URL.
-    static func isAppleMusicLink(_ text: String) -> Bool {
-        containsService(.appleMusic, in: text)
-    }
-
-    /// Detect if a string is any supported music service link.
-    static func isMusicLink(_ text: String) -> Bool {
-        detectedURLs(in: text).contains { service(for: $0) != nil }
-    }
 
     /// Extract the first supported music URL from a chat message.
     static func extractURL(from text: String) -> String? {
@@ -127,13 +110,12 @@ nonisolated final class LinkResolverService {
             .compactMap { $0.url }
     }
 
-    private static func containsService(_ expected: MusicService, in text: String) -> Bool {
-        detectedURLs(in: text).contains { service(for: $0) == expected }
-    }
-
     /// Validates transport, exact host, and service-specific path before a URL
     /// can enter either MusicKit or an oEmbed request.
-    private static func service(for url: URL) -> MusicService? {
+    ///
+    /// Internal (not private) so tests can assert per-service detection
+    /// without stubbing the oEmbed network path.
+    static func service(for url: URL) -> MusicService? {
         guard url.scheme?.lowercased() == "https",
               url.user == nil,
               url.password == nil,

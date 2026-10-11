@@ -304,7 +304,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
         }
 
-        try await makeService().resolveRedemption(
+        try await makeService().resolveRedemptionWithMetadata(
             credentials: creds,
             rewardID: "reward_abc",
             redemptionID: "redemp_1",
@@ -333,7 +333,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
         }
 
-        try await makeService().resolveRedemption(
+        try await makeService().resolveRedemptionWithMetadata(
             credentials: creds,
             rewardID: "reward_abc",
             redemptionID: "redemp_2",

@@ -402,6 +402,6 @@ jobs:
 
       # tokens.json drives the generated platform outputs and generate.ts does
       # not check shape before emitting, so a typo'd namespace would reach the
-      # Swift app, the docs CSS, the widget, and the Remotion projects at once.
+      # Swift app, the docs CSS, the widget, and the landing-page previews at once.
       - name: Validate tokens.json against its schema
         run: bun run ds:schema

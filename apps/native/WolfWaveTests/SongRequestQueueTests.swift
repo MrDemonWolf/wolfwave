@@ -33,7 +33,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     func testQueueStartsEmpty() {
         XCTAssertTrue(queue.isEmpty)
         XCTAssertEqual(queue.count, 0)
-        XCTAssertFalse(queue.isFull)
         XCTAssertNil(queue.nowPlaying)
     }
 
@@ -80,14 +79,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
     func testClearNowPlaying() {
         queue.clearNowPlaying()
         XCTAssertNil(queue.nowPlaying)
-    }
-
-    // MARK: - Move Operations
-
-    func testMoveWithEmptyQueue() {
-        // Should not crash
-        queue.move(from: IndexSet(), to: 0)
-        XCTAssertTrue(queue.isEmpty)
     }
 
     // MARK: - Remove by ID
@@ -241,18 +232,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertTrue(queue.isEmpty)
     }
 
-    // MARK: - Move
-
-    func testMoveReordersItems() {
-        _ = queue.add(makeTestRequestItem(title: "Song A", artist: "A", requesterUsername: "user1"))
-        _ = queue.add(makeTestRequestItem(title: "Song B", artist: "B", requesterUsername: "user2"))
-        _ = queue.add(makeTestRequestItem(title: "Song C", artist: "C", requesterUsername: "user3"))
-        // Move Song C (index 2) to position 0
-        queue.move(from: IndexSet(integer: 2), to: 0)
-        XCTAssertEqual(queue.items[0].title, "Song C")
-        XCTAssertEqual(queue.items[1].title, "Song A")
-    }
-
     // MARK: - Positions
 
     func testPositionsForUser() {
@@ -266,15 +245,6 @@ final class SongRequestQueueTests: WolfWaveTestCase {
         XCTAssertEqual(positions[0].item.title, "Song 1")
         XCTAssertEqual(positions[1].position, 3)
         XCTAssertEqual(positions[1].item.title, "Song 2")
-    }
-
-    func testIsFull() {
-        DefaultsStore.store.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
-        DefaultsStore.store.set(5, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
-        XCTAssertFalse(queue.isFull)
-        _ = queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
-        _ = queue.add(makeTestRequestItem(title: "Song 2", artist: "B", requesterUsername: "user2"))
-        XCTAssertTrue(queue.isFull)
     }
 
     // MARK: - Upcoming (overlay queue ticker, WW-42)

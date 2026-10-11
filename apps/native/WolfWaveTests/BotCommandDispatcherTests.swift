@@ -23,78 +23,90 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
         try await super.tearDown()
     }
 
+    // MARK: - Helpers
+
+    /// Runs `message` through the production dispatch path
+    /// (`processMessageReplyAsync`) without a chat context.
+    private func dispatch(
+        _ message: String,
+        userID: String = "",
+        isModerator: Bool = false
+    ) async -> String? {
+        await dispatcher.processMessageAsync(message, userID: userID, isModerator: isModerator, context: nil)
+    }
+
     // MARK: - Default Command Tests
 
-    func testDefaultSongCommandRegistered() {
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
-        let result = dispatcher.processMessage("!song")
+    func testDefaultSongCommandRegistered() async {
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
+        let result = await dispatch("!song")
         XCTAssertEqual(result, "Artist - Song")
     }
 
-    func testDefaultLastCommandRegistered() {
-        dispatcher.setLastSongInfo { "Previous Artist - Song" }
-        let result = dispatcher.processMessage("!last")
+    func testDefaultLastCommandRegistered() async {
+        dispatcher.setLastSongInfoAsync { "Previous Artist - Song" }
+        let result = await dispatch("!last")
         XCTAssertEqual(result, "Previous Artist - Song")
     }
 
     // MARK: - Non-Command Messages
 
-    func testNonCommandReturnsNil() {
-        let result = dispatcher.processMessage("hello")
+    func testNonCommandReturnsNil() async {
+        let result = await dispatch("hello")
         XCTAssertNil(result)
     }
 
-    func testEmptyStringReturnsNil() {
-        let result = dispatcher.processMessage("")
+    func testEmptyStringReturnsNil() async {
+        let result = await dispatch("")
         XCTAssertNil(result)
     }
 
-    func testOverLengthMessageReturnsNil() {
+    func testOverLengthMessageReturnsNil() async {
         let longMessage = String(repeating: "a", count: 501)
-        let result = dispatcher.processMessage(longMessage)
+        let result = await dispatch(longMessage)
         XCTAssertNil(result)
     }
 
-    func testExactly500CharsProcessed() {
+    func testExactly500CharsProcessed() async {
         // "!song" + space + filler = 500 chars. Routing matches on the first
         // whitespace token, so the trailing filler must be separated by a space
         // to register as a real command invocation.
         let message = "!song " + String(repeating: "x", count: 494)
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
-        let result = dispatcher.processMessage(message)
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
+        let result = await dispatch(message)
         XCTAssertNotNil(result)
     }
 
-    func testWhitespaceOnlyReturnsNil() {
-        let result = dispatcher.processMessage("   ")
+    func testWhitespaceOnlyReturnsNil() async {
+        let result = await dispatch("   ")
         XCTAssertNil(result)
     }
 
     // MARK: - Callback Wiring Tests
 
-    func testSetCurrentSongInfoCallback() {
-        dispatcher.setCurrentSongInfo { "Test Track" }
-        let result = dispatcher.processMessage("!song")
+    func testSetCurrentSongInfoCallback() async {
+        dispatcher.setCurrentSongInfoAsync { "Test Track" }
+        let result = await dispatch("!song")
         XCTAssertEqual(result, "Test Track")
     }
 
-    func testSetLastSongInfoCallback() {
-        dispatcher.setLastSongInfo { "Previous Track" }
-        let result = dispatcher.processMessage("!last")
+    func testSetLastSongInfoCallback() async {
+        dispatcher.setLastSongInfoAsync { "Previous Track" }
+        let result = await dispatch("!last")
         XCTAssertEqual(result, "Previous Track")
     }
 
-    func testDisableCurrentSongCommand() {
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
+    func testDisableCurrentSongCommand() async {
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
         dispatcher.setCurrentSongCommandEnabled { false }
-        let result = dispatcher.processMessage("!song")
+        let result = await dispatch("!song")
         XCTAssertNil(result)
     }
 
-    func testDisableLastSongCommand() {
-        dispatcher.setLastSongInfo { "Artist - Song" }
+    func testDisableLastSongCommand() async {
+        dispatcher.setLastSongInfoAsync { "Artist - Song" }
         dispatcher.setLastSongCommandEnabled { false }
-        let result = dispatcher.processMessage("!last")
+        let result = await dispatch("!last")
         XCTAssertNil(result)
     }
 
@@ -155,80 +167,138 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
 
     // MARK: - Whitespace Handling
 
-    func testLeadingWhitespaceTrimmed() {
-        dispatcher.setCurrentSongInfo { "Track" }
-        let result = dispatcher.processMessage("  !song")
+    func testLeadingWhitespaceTrimmed() async {
+        dispatcher.setCurrentSongInfoAsync { "Track" }
+        let result = await dispatch("  !song")
         XCTAssertEqual(result, "Track")
     }
 
-    func testTrailingWhitespaceTrimmed() {
-        dispatcher.setCurrentSongInfo { "Track" }
-        let result = dispatcher.processMessage("!song  ")
+    func testTrailingWhitespaceTrimmed() async {
+        dispatcher.setCurrentSongInfoAsync { "Track" }
+        let result = await dispatch("!song  ")
         XCTAssertEqual(result, "Track")
     }
 
     // MARK: - Alias Cooldown Grouping Tests
 
-    func testSongAliasesShareCooldown() {
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
+    func testSongAliasesShareCooldown() async {
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
 
         // Set a non-zero cooldown so the second call is blocked
         let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        }
 
-        let first = dispatcher.processMessage("!song", userID: "user1")
+        let first = await dispatch("!song", userID: "user1")
         XCTAssertNotNil(first, "First !song call should succeed")
 
-        let second = dispatcher.processMessage("!currentsong", userID: "user1")
+        let second = await dispatch("!currentsong", userID: "user1")
         XCTAssertNil(second, "!currentsong should be blocked by shared cooldown with !song")
 
-        let third = dispatcher.processMessage("!nowplaying", userID: "user1")
+        let third = await dispatch("!nowplaying", userID: "user1")
         XCTAssertNil(third, "!nowplaying should be blocked by shared cooldown with !song")
-
-        // Cleanup
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
     }
 
-    func testBroadcasterAlwaysBypassesCooldown() {
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
+    func testBroadcasterAlwaysBypassesCooldown() async {
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
 
         let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        }
 
         // Broadcaster always bypasses cooldowns (isModerator: true)
-        let first = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: true)
+        let first = await dispatch("!song", userID: "broadcaster1", isModerator: true)
         XCTAssertNotNil(first, "First !song call should succeed")
 
-        let second = dispatcher.processMessage("!song", userID: "broadcaster1", isModerator: true)
+        let second = await dispatch("!song", userID: "broadcaster1", isModerator: true)
         XCTAssertNotNil(second, "Broadcaster should always bypass cooldown")
-
-        // Cleanup
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
     }
 
-    func testLastSongAliasesShareCooldown() {
-        dispatcher.setLastSongInfo { "Previous Artist - Song" }
+    func testLastSongAliasesShareCooldown() async {
+        dispatcher.setLastSongInfoAsync { "Previous Artist - Song" }
 
         let defaults = DefaultsStore.store
         defaults.set(15.0, forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
         defaults.set(15.0, forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
+        }
 
-        let first = dispatcher.processMessage("!last", userID: "user1")
+        let first = await dispatch("!last", userID: "user1")
         XCTAssertNotNil(first, "First !last call should succeed")
 
-        let second = dispatcher.processMessage("!lastsong", userID: "user1")
+        let second = await dispatch("!lastsong", userID: "user1")
         XCTAssertNil(second, "!lastsong should be blocked by shared cooldown with !last")
 
-        let third = dispatcher.processMessage("!prevsong", userID: "user1")
+        let third = await dispatch("!prevsong", userID: "user1")
         XCTAssertNil(third, "!prevsong should be blocked by shared cooldown with !last")
+    }
 
-        // Cleanup
-        defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
-        defaults.removeObject(forKey: AppConstants.UserDefaults.lastSongCommandUserCooldown)
+    // MARK: - Concurrent Dispatch
+
+    /// Two `!song` messages that overlap while the first is suspended in its
+    /// provider: the global cooldown must hold the second back. Before the slot
+    /// was claimed ahead of the `await`, both passed the check and both replied.
+    func testConcurrentSongCommandsRespectGlobalCooldown() async throws {
+        let provider = HeldTrackProvider()
+        dispatcher.setCurrentSongInfoAsync { await provider.next() }
+
+        let defaults = DefaultsStore.store
+        defaults.set(5.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+        defaults.set(0.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        }
+
+        let dispatcher = try XCTUnwrap(self.dispatcher)
+        let first = Task {
+            await dispatcher.processMessageAsync("!song", userID: "viewer-1", context: nil)
+        }
+        await provider.waitUntilFirstCallParked()
+
+        // The first message is parked mid-command. A second viewer's !song must
+        // be refused now, not pass the check and race to a reply.
+        let second = await dispatch("!song", userID: "viewer-2")
+        await provider.release()
+        let firstResult = await first.value
+
+        XCTAssertEqual(firstResult, "Artist - Song")
+        XCTAssertNil(second, "Overlapping !song must be held back by the global cooldown")
+        let callCount = await provider.callCount
+        XCTAssertEqual(callCount, 1, "The refused message must never reach the provider")
+    }
+
+    /// A track command that produces no reply gives its cooldown slot back, so
+    /// the next message is not blocked by a reply that was never sent.
+    func testSilentTrackCommandReleasesCooldown() async {
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
+        var enabled = false
+        dispatcher.setCurrentSongCommandEnabled { enabled }
+
+        let defaults = DefaultsStore.store
+        defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+        defaults.set(15.0, forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandGlobalCooldown)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songCommandUserCooldown)
+        }
+
+        let silent = await dispatch("!song", userID: "user1")
+        XCTAssertNil(silent)
+
+        enabled = true
+        let replied = await dispatch("!song", userID: "user1")
+        XCTAssertEqual(replied, "Artist - Song", "A silent !song must not warm the cooldown")
     }
 
     // MARK: - Reply delivery
@@ -242,7 +312,7 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
         }
         store.clearAll()
         store.add(CustomCommand(trigger: "hype", response: "HYPE", delivery: .announce))
-        dispatcher.setCurrentSongInfo { "Artist - Song" }
+        dispatcher.setCurrentSongInfoAsync { "Artist - Song" }
         let context = BotCommandContext(
             userID: "1", username: "v", isModerator: false, isBroadcaster: false,
             isSubscriber: false, isVIP: false, messageID: "m")
@@ -295,5 +365,39 @@ private final class PrivilegedCooldownTestCommand: @MainActor ServiceBoundComman
         guard context.isPrivileged else { return nil }
         executionCount += 1
         return "privileged response"
+    }
+}
+
+/// Track provider whose first call parks until `release()`. Later calls answer
+/// at once, so a second dispatch that wrongly reaches the provider returns a
+/// reply the test can see instead of hanging.
+private actor HeldTrackProvider {
+    private(set) var callCount = 0
+    private var parked: CheckedContinuation<Void, Never>?
+    private var parkWaiters: [CheckedContinuation<Void, Never>] = []
+    private var isReleased = false
+
+    func next() async -> String {
+        callCount += 1
+        if callCount == 1, !isReleased {
+            await withCheckedContinuation { continuation in
+                parked = continuation
+                parkWaiters.forEach { $0.resume() }
+                parkWaiters.removeAll()
+            }
+        }
+        return "Artist - Song"
+    }
+
+    /// Returns once the first call is parked inside `next()`.
+    func waitUntilFirstCallParked() async {
+        if parked != nil || isReleased { return }
+        await withCheckedContinuation { parkWaiters.append($0) }
+    }
+
+    func release() {
+        isReleased = true
+        parked?.resume()
+        parked = nil
     }
 }

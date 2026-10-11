@@ -829,26 +829,6 @@ final class SongRequestService {
         return PlaybackTarget(trackKey: trackKey, revision: revision)
     }
 
-    /// Skips whatever is currently playing, used by direct/internal callers.
-    ///
-    /// The target is captured first and then routed through the same atomic
-    /// target-bound path as a Twitch poll result.
-    ///
-    /// When a queued request is playing, this delegates to `skip()` so the next
-    /// request takes over. When the queue is idle, it advances Apple Music's own
-    /// player so vote-skip still works during normal playback.
-    ///
-    /// - Returns: The newly-playing request when one exists, otherwise `nil`.
-    @discardableResult
-    func voteSkip() async -> SongRequestItem? {
-        guard !Task.isCancelled else { return nil }
-        guard let target = await capturePlaybackTarget() else { return nil }
-        guard !Task.isCancelled else { return nil }
-        let priorID = queue.nowPlaying?.id
-        guard await voteSkip(target: target) else { return nil }
-        return queue.nowPlaying?.id == priorID ? nil : queue.nowPlaying
-    }
-
     /// Applies a passed vote only while Music.app still has `target` loaded.
     ///
     /// Queue policy is selected before the await, but neither the pending head
@@ -1044,12 +1024,6 @@ final class SongRequestService {
         // its own "Now playing" line, putting the two messages out of order.
         _ = await skip()
         return current
-    }
-
-    /// Drop every held request without approving any. Returns the number removed.
-    @discardableResult
-    func clearPending() -> Int {
-        queue.clearPending()
     }
 
     // MARK: - Private Helpers

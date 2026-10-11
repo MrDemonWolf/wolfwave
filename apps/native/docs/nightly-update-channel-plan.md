@@ -136,6 +136,8 @@ enum UpdateChannel: String, CaseIterable, Identifiable {
 }
 ```
 
+> Later removed: `isPrerelease` had no readers, so it was deleted as unused.
+
 ### 3. `Services/UpdateChecker/SparkleUpdaterService.swift`
 
 - Add a persisted channel property:

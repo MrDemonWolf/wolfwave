@@ -8,6 +8,25 @@
 
 import Foundation
 
+// MARK: - Cooldown Claim
+
+/// A cooldown slot taken by `CooldownManager.tryClaim`.
+///
+/// Carries the timestamps the claim overwrote so `CooldownManager.release` can
+/// put them back when the command ends up producing no reply.
+nonisolated struct CooldownClaim: Sendable, Equatable {
+    /// Canonical command trigger the slot belongs to.
+    let trigger: String
+    /// Per-user cooldown key (`"userID:trigger"`).
+    let userKey: String
+    /// Global timestamp in place before the claim, or `nil` if there was none.
+    let previousGlobal: Date?
+    /// Per-user timestamp in place before the claim, or `nil` if there was none.
+    let previousUser: Date?
+    /// Timestamp the claim wrote to both maps.
+    let claimedAt: Date
+}
+
 // MARK: - Cooldown Manager
 
 /// Manages global and per-user cooldowns for bot commands.
@@ -62,24 +81,84 @@ final class CooldownManager {
         let now = Date()
 
         return lock.withLock {
-            // Check global cooldown
-            if globalCooldown > 0, let lastGlobal = globalCooldowns[trigger] {
-                if now.timeIntervalSince(lastGlobal) < globalCooldown {
-                    return true
-                }
+            isCoolingDownLocked(
+                trigger: trigger,
+                userKey: Self.userKey(userID: userID, trigger: trigger),
+                globalCooldown: globalCooldown,
+                userCooldown: userCooldown,
+                now: now
+            )
+        }
+    }
+
+    /// Checks the cooldown and, when it is free, records the use, as one atomic step.
+    ///
+    /// Use this instead of `isOnCooldown` + `recordUse` whenever the command
+    /// suspends between the two. Checking first and recording after an `await`
+    /// lets every message that arrives during the suspension pass the check.
+    /// Moderators and perk-bypassers skip the check but are still recorded, the
+    /// same as `recordUse` after a bypassed `isOnCooldown`.
+    ///
+    /// - Parameters:
+    ///   - trigger: The command trigger string (canonical key).
+    ///   - userID: The Twitch user ID of the caller.
+    ///   - isModerator: Whether the user has moderator badge (skips the check).
+    ///   - bypassesCooldown: Whether the caller earned a cooldown bypass.
+    ///   - globalCooldown: Global cooldown duration in seconds (0 = disabled).
+    ///   - userCooldown: Per-user cooldown duration in seconds (0 = disabled).
+    /// - Returns: The claim to hand to `release` if the command ends up silent,
+    ///   or `nil` when the command is on cooldown and should be skipped.
+    func tryClaim(
+        trigger: String,
+        userID: String,
+        isModerator: Bool,
+        bypassesCooldown: Bool = false,
+        globalCooldown: TimeInterval,
+        userCooldown: TimeInterval
+    ) -> CooldownClaim? {
+        let now = Date()
+        let userKey = Self.userKey(userID: userID, trigger: trigger)
+        let bypass = isModerator || bypassesCooldown
+
+        return lock.withLock {
+            if !bypass, isCoolingDownLocked(
+                trigger: trigger,
+                userKey: userKey,
+                globalCooldown: globalCooldown,
+                userCooldown: userCooldown,
+                now: now
+            ) {
+                return nil
             }
 
-            // Check per-user cooldown
-            if userCooldown > 0 {
-                let userKey = "\(userID):\(trigger)"
-                if let lastUser = userCooldowns[userKey] {
-                    if now.timeIntervalSince(lastUser) < userCooldown {
-                        return true
-                    }
-                }
-            }
+            let claim = CooldownClaim(
+                trigger: trigger,
+                userKey: userKey,
+                previousGlobal: globalCooldowns[trigger],
+                previousUser: userCooldowns[userKey],
+                claimedAt: now
+            )
+            globalCooldowns[trigger] = now
+            userCooldowns[userKey] = now
+            pruneExpiredCooldownsIfNeeded()
+            return claim
+        }
+    }
 
-            return false
+    /// Gives back a slot taken by `tryClaim`, restoring the timestamps it replaced.
+    ///
+    /// Each map is restored only while it still holds this claim's timestamp, so
+    /// a later claim that overwrote the slot in the meantime is left intact.
+    ///
+    /// - Parameter claim: The value `tryClaim` returned.
+    func release(_ claim: CooldownClaim) {
+        lock.withLock {
+            if globalCooldowns[claim.trigger] == claim.claimedAt {
+                globalCooldowns[claim.trigger] = claim.previousGlobal
+            }
+            if userCooldowns[claim.userKey] == claim.claimedAt {
+                userCooldowns[claim.userKey] = claim.previousUser
+            }
         }
     }
 
@@ -90,7 +169,7 @@ final class CooldownManager {
     ///   - userID: The Twitch user ID of the caller.
     func recordUse(trigger: String, userID: String) {
         let now = Date()
-        let userKey = "\(userID):\(trigger)"
+        let userKey = Self.userKey(userID: userID, trigger: trigger)
 
         lock.withLock {
             globalCooldowns[trigger] = now
@@ -100,6 +179,30 @@ final class CooldownManager {
     }
 
     // MARK: - Private Helpers
+
+    /// Per-user cooldown dictionary key.
+    private static func userKey(userID: String, trigger: String) -> String {
+        "\(userID):\(trigger)"
+    }
+
+    /// Whether either cooldown window is still open. Must be called while holding `lock`.
+    private func isCoolingDownLocked(
+        trigger: String,
+        userKey: String,
+        globalCooldown: TimeInterval,
+        userCooldown: TimeInterval,
+        now: Date
+    ) -> Bool {
+        if globalCooldown > 0, let lastGlobal = globalCooldowns[trigger],
+           now.timeIntervalSince(lastGlobal) < globalCooldown {
+            return true
+        }
+        if userCooldown > 0, let lastUser = userCooldowns[userKey],
+           now.timeIntervalSince(lastUser) < userCooldown {
+            return true
+        }
+        return false
+    }
 
     /// Prunes per-user cooldown entries to prevent unbounded memory growth.
     ///
@@ -148,7 +251,7 @@ final class CooldownManager {
             }
 
             let perUserRemaining: TimeInterval
-            if userCooldown > 0, let lastUser = userCooldowns["\(userID):\(trigger)"] {
+            if userCooldown > 0, let lastUser = userCooldowns[Self.userKey(userID: userID, trigger: trigger)] {
                 perUserRemaining = max(0, userCooldown - now.timeIntervalSince(lastUser))
             } else {
                 perUserRemaining = 0
@@ -158,7 +261,8 @@ final class CooldownManager {
         }
     }
 
-    /// Clears all cooldown state (e.g., on disconnect).
+    /// Clears all cooldown state. Not wired to any production event today
+    /// (cooldowns survive a reconnect); kept for tests that need a clean slate.
     func reset() {
         lock.withLock {
             globalCooldowns.removeAll()

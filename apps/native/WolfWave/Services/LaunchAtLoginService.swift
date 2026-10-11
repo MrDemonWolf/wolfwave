@@ -41,6 +41,9 @@ enum LaunchAtLoginService {
 
     // MARK: - Public API
 
+    static let registrationFailureMessage =
+        "Couldn't change Launch at Login. Check WolfWave in Login Items and try again."
+
     /// Whether the app is currently an active login item.
     ///
     /// Returns `true` for both `.enabled` and `.requiresApproval`: in the

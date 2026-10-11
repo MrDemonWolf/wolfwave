@@ -42,7 +42,7 @@ graph TD
 
 - ✅ Use `.brandGradient` on hero surfaces.
 - ✅ Use `.mono(.primary)` or `.mono(.secondary)` for inline marks.
-- ✅ Change geometry in `assets/logo.svg`, then regenerate or synchronize `WolfMark.svg` and the other documented derivatives.
+- ✅ Change geometry in `assets/logo.svg`, then regenerate or synchronize `WolfMark.svg`, `assets/logo-mono.svg`, and the `assets/logo-128.png` / `logo-256.png` exports.
 - ❌ Don't redraw or paste the SVG path into Swift.
 - ❌ Don't use partner colors as the WolfWave tint.
 

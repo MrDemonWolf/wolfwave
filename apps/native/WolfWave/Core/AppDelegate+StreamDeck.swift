@@ -75,7 +75,13 @@ extension AppDelegate {
             return .success(action)
 
         case .clearQueue:
-            songRequestService?.queue.clear()
+            // The service-level clear, not `queue.clear()`: it also empties
+            // Music.app's native queue and invalidates an in-flight playback
+            // start, the same path the tray's "Clear Queue" takes.
+            guard let service = songRequestService else {
+                return .failure(action.rawValue, "unavailable")
+            }
+            _ = await service.clearQueue()
             return .success(action)
 
         case .blockCurrent:

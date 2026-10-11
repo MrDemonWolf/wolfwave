@@ -142,4 +142,36 @@ struct LifetimeTallyTests {
         store.clear()
         #expect(store.load().isEmpty)
     }
+
+    @Test("An undecodable tally loads empty and is backed up before a save can overwrite it")
+    func testCorruptTallyIsBackedUp() throws {
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let store = LifetimeTallyStore(directory: dir)
+        try Data("{bad".utf8).write(to: store.fileURL)
+
+        #expect(store.load().isEmpty)
+        let backup = dir.appending(path: "lifetime-tally.corrupt.json")
+        #expect(try Data(contentsOf: backup) == Data("{bad".utf8))
+
+        // A second load (the app loads at least twice per launch) must not
+        // replace the preserved copy.
+        try Data("{worse".utf8).write(to: store.fileURL)
+        #expect(store.load().isEmpty)
+        #expect(try Data(contentsOf: backup) == Data("{bad".utf8))
+    }
+
+    @Test("A missing or empty tally file loads empty without a backup")
+    func testMissingOrEmptyTallyMakesNoBackup() throws {
+        let dir = makeIsolatedTempDirectory(prefix: "wolfwave-tally")
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let store = LifetimeTallyStore(directory: dir)
+        #expect(store.load().isEmpty)
+        try Data().write(to: store.fileURL)
+        #expect(store.load().isEmpty)
+        let backup = dir.appending(path: "lifetime-tally.corrupt.json")
+        #expect(!FileManager.default.fileExists(atPath: backup.path))
+    }
 }

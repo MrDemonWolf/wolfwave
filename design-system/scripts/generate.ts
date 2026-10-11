@@ -6,7 +6,6 @@
  *   - Swift        → apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift
  *   - CSS          → apps/docs/app/tokens.generated.css
  *   - Widget JS    → apps/native/WolfWave/Resources/widget-tokens.generated.js
- *   - Marketing TS → apps/marketing/shared/tokens.generated.ts
  *   - Docs TS      → apps/docs/app/(home)/_widgets/widget-themes.generated.ts
  *
  * Idempotent: re-running produces identical files. CI may diff to detect drift.
@@ -487,12 +486,6 @@ function generateDocsWidgetThemes(): string {
   ].join("\n");
 }
 
-// ── Marketing TS ──────────────────────────────────────────────────────────
-function generateTS(): string {
-  const banner = `/*\n * ${BANNER_LINES.join("\n * ")}\n */`;
-  return `${banner}\n\nexport const tokens = ${JSON.stringify(tokens, null, 2)} as const;\n\nexport type Tokens = typeof tokens;\n`;
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -516,7 +509,6 @@ write(
   "apps/native/WolfWave/Resources/widget-tokens.generated.js",
   generateWidgetJS()
 );
-write("apps/marketing/shared/tokens.generated.ts", generateTS());
 write(
   "apps/docs/app/(home)/_widgets/widget-themes.generated.ts",
   generateDocsWidgetThemes()

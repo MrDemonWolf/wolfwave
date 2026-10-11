@@ -97,30 +97,6 @@ nonisolated struct HTTPClient: Sendable {
         return try await perform(request)
     }
 
-    /// Performs a POST request with a URL-form-encoded body and decodes the
-    /// JSON response.
-    ///
-    /// - Parameters:
-    ///   - url: Target URL.
-    ///   - form: Key/value pairs to be percent-encoded as
-    ///     `application/x-www-form-urlencoded`.
-    ///   - headers: Additional HTTP headers.
-    /// - Returns: A value of type `T` decoded from the response body.
-    /// - Throws: `HTTPError` on non-2xx status, decoding failure, or transport
-    ///   error.
-    func postForm<T: Decodable>(
-        url: URL,
-        form: [String: String],
-        headers: [String: String] = [:]
-    ) async throws -> T {
-        var combinedHeaders = headers
-        combinedHeaders["Content-Type"] = "application/x-www-form-urlencoded"
-
-        let body = Self.formURLEncodedBody(form)
-        let request = makeRequest(url: url, method: "POST", headers: combinedHeaders, body: body)
-        return try await perform(request)
-    }
-
     // MARK: - Form Encoding
 
     /// RFC 3986 unreserved characters. The only bytes left un-escaped in a form
@@ -133,9 +109,9 @@ nonisolated struct HTTPClient: Sendable {
 
     /// Percent-encodes `form` as an `application/x-www-form-urlencoded` body.
     ///
-    /// Shared by ``postForm(url:form:headers:)`` and OAuth flows that build the
-    /// request by hand (e.g. device-code polling), so the escaping rule lives in
-    /// one place instead of drifting per call site.
+    /// Used by OAuth flows that build the request by hand (e.g. device-code
+    /// polling), so the escaping rule lives in one place instead of drifting per
+    /// call site.
     ///
     /// - Parameter form: Key/value pairs to encode.
     /// - Returns: The UTF-8 encoded body.

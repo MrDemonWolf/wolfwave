@@ -36,7 +36,6 @@ struct AdvancedSettingsView: View {
     /// `applicationDidFinishLaunching`). Drives the "Recovered from a crash"
     /// callout at the top of this pane.
     @AppStorage(AppConstants.UserDefaults.lastLaunchCrashed) private var lastLaunchCrashed = false
-    @AppStorage(AppConstants.UserDefaults.lastCrashSummary) private var lastCrashSummary: String?
 
     /// Mirrors the opt-in MetricKit diagnostics toggle so the crash callout can
     /// point the user at it without enabling anything on their behalf.
@@ -92,6 +91,8 @@ struct AdvancedSettingsView: View {
     private func requireLogFile(orWarn reason: String) -> URL? {
         guard let logURL = Log.exportLogFile() else {
             Log.warn("No log file available \(reason)", category: .app)
+            exportErrorMessage = "No logs yet."
+            showingExportError = true
             return nil
         }
         return logURL
@@ -143,6 +144,8 @@ struct AdvancedSettingsView: View {
                         fields: ["file": destination.lastPathComponent, "bytes": text.utf8.count])
                     refreshLogStats()
                 } catch {
+                    exportErrorMessage = "Couldn't export logs. \(error.localizedDescription)"
+                    showingExportError = true
                     Log.error(
                         "Failed to export diagnostics",
                         category: .app,
@@ -197,6 +200,8 @@ struct AdvancedSettingsView: View {
             Log.info("Logs copied to clipboard", category: .app)
         } catch {
             Log.error("Failed to copy logs: \(error.localizedDescription)", category: .app)
+            exportErrorMessage = "Couldn't copy logs. \(error.localizedDescription)"
+            showingExportError = true
         }
     }
 
@@ -578,7 +583,7 @@ struct AdvancedSettingsView: View {
         } message: {
             Text(importSuccessMessage ?? "Your settings were restored.")
         }
-        .alert("Couldn't Export", isPresented: $showingExportError) {
+        .alert("Couldn't Complete Action", isPresented: $showingExportError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(exportErrorMessage ?? "Couldn't save your backup.")

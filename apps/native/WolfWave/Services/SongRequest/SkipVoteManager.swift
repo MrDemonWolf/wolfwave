@@ -29,8 +29,8 @@ nonisolated enum SkipPollCreationOutcome: Equatable, Sendable {
 /// - **Twitch Polls**: a moderator's `!voteskip` opens a native Twitch poll and the
 ///   `channel.poll.end` result drives the skip.
 ///
-/// State is polled (settings view) or observed via `.voteSkipStateChanged`, so this
-/// type does not adopt `@Observable`. Implemented as an `actor` so mutation safety
+/// State is observed via `.voteSkipStateChanged`, so this type does not adopt
+/// `@Observable`. Implemented as an `actor` so mutation safety
 /// is enforced by the compiler. Replaces the prior `final class + NSLock`.
 actor SkipVoteManager {
 
@@ -269,7 +269,10 @@ actor SkipVoteManager {
     }
 
     /// Reports the active session's progress, or `nil` when no session is running.
-    /// Used by the settings view and an optional menu-bar indicator.
+    ///
+    /// Read-only state check. Its only callers are unit tests
+    /// (`SkipVoteManagerTests`); the app observes progress through
+    /// `.voteSkipStateChanged` instead.
     func currentVoteState() -> (count: Int, needed: Int)? {
         guard sessionStart != nil else { return nil }
         return (voters.count, minVotes)
@@ -277,6 +280,9 @@ actor SkipVoteManager {
 
     /// Reports whether a vote-skip Twitch poll is in flight (created, but its
     /// `channel.poll.end` result not yet received or timed out).
+    ///
+    /// Read-only state check. Its only callers are unit tests
+    /// (`SkipVoteManagerTests`).
     func isPollInProgress() -> Bool {
         pollActive
     }

@@ -223,7 +223,7 @@ it.
 ### Every key reads Update [#streamdeck-update]
 
 WolfWave and the plugin disagree on the control-protocol version. Either side
-can be the old one. WolfWave 2.1.1 moved to protocol v3.
+can be the old one. WolfWave 2.2.0 moved to protocol v3.
 
 **Fix:** update WolfWave and reinstall the current plugin, then reload the
 plugin in the Stream Deck app. Setup steps: [Stream Deck](/docs/streamdeck).
@@ -232,7 +232,8 @@ plugin in the Stream Deck app. Setup steps: [Stream Deck](/docs/streamdeck).
 
 ### Reset stopped partway [#reset-stopped-partway]
 
-Erase & Reset removes your saved sign-ins first, and stops if macOS refuses.
+Erase & Reset first checks that Twitch can disconnect safely, then removes
+your saved sign-ins. It stops if either step fails.
 **Nothing was erased.** WolfWave says so explicitly rather than leaving you to
 guess.
 

@@ -14,6 +14,7 @@ import SwiftUI
 /// Decomposed into per-card subviews so each `@AppStorage` change only re-renders one card
 /// instead of the whole screen.
 struct SongRequestSettingsView: View {
+    var openTwitchSettings: () -> Void = {}
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
@@ -118,7 +119,7 @@ struct SongRequestSettingsView: View {
             refreshReauthState()
         }
         .sheet(isPresented: $showSetupSheet, onDismiss: { Task { await runHealthCheck() } }) {
-            SongRequestSetupView(startAt: setupStartStep)
+            SongRequestSetupView(startAt: setupStartStep, openTwitchSettings: openTwitchSettings)
         }
     }
 
@@ -1373,6 +1374,11 @@ fileprivate struct SongRequestBlocklistCard: View {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: DSFont.Size.body))
                                     .foregroundStyle(.secondary)
+                                    .frame(
+                                        minWidth: DSDimension.IconButton.minWidth,
+                                        minHeight: DSDimension.IconButton.minHeight
+                                    )
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove from blocklist")

@@ -114,24 +114,6 @@ final class BotCommandDispatcher {
         }
     }
 
-    /// Wires the now-playing string provider into the `!song` command.
-    ///
-    /// - Parameter callback: Closure returning the current track info.
-    func setCurrentSongInfo(callback: @escaping () -> String) {
-        lock.withLock {
-            songCommand.getTrackInfo = callback
-        }
-    }
-
-    /// Wires the previously-played-track provider into the `!last` command.
-    ///
-    /// - Parameter callback: Closure returning the previous track info.
-    func setLastSongInfo(callback: @escaping () -> String) {
-        lock.withLock {
-            lastSongCommand.getTrackInfo = callback
-        }
-    }
-
     /// Wires the enabled-state provider for the `!song` command.
     ///
     /// - Parameter callback: Closure returning `true` if `!song` should respond.
@@ -150,18 +132,9 @@ final class BotCommandDispatcher {
         }
     }
 
-    /// Wires the listening-stats provider into the `!stats` command.
-    ///
-    /// - Parameter callback: Closure returning the current stats string.
-    func setStatsInfo(callback: @escaping () -> String) {
-        lock.withLock {
-            statsCommand.getTrackInfo = callback
-        }
-    }
+    // MARK: - Async Provider Wiring
 
-    // MARK: - Async Provider Wiring (Production Path)
-
-    /// Wires the async `!song` provider. Preferred by `processMessageAsync`,
+    /// Wires the async `!song` provider. Awaited by `processMessageReplyAsync`;
     /// bridges MainActor-isolated AppDelegate state without the deprecated
     /// `runSync` semaphore that previously deadlocked MainActor.
     func setCurrentSongInfoAsync(callback: @Sendable @escaping () async -> String) {
@@ -265,124 +238,9 @@ final class BotCommandDispatcher {
         return custom + builtins
     }
 
-    /// Processes a chat message and returns a command response if matched.
-    ///
-    /// - Parameters:
-    ///   - message: The chat message text.
-    ///   - userID: The Twitch user ID of the sender (for per-user cooldowns).
-    ///   - isModerator: Whether the user has a moderator badge (bypasses cooldowns).
-    /// - Returns: The command response string, or nil if no command matched or on cooldown.
-    func processMessage(_ message: String, userID: String = "", isModerator: Bool = false) -> String? {
-        processMessage(message, userID: userID, isModerator: isModerator, context: nil)
-    }
-
-    /// Processes a chat message synchronously for legacy providers and tests.
-    ///
-    /// - Parameters:
-    ///   - message: The chat message text.
-    ///   - userID: The Twitch user ID of the sender (for per-user cooldowns).
-    ///   - isModerator: Whether the user has a moderator badge (bypasses cooldowns).
-    ///   - context: Full user context for permission and cooldown decisions.
-    /// - Returns: The command response string, or nil for async/no match/on cooldown.
-    func processMessage(
-        _ message: String,
-        userID: String = "",
-        isModerator: Bool = false,
-        context: BotCommandContext?
-    ) -> String? {
-        let trimmedMessage = message.trimmingCharacters(in: .whitespaces)
-
-        guard !trimmedMessage.isEmpty, trimmedMessage.count <= AppConstants.Twitch.maxMessageLength else {
-            return nil
-        }
-
-        // Global pre-flight gate ("commands only while live"). Closed → every
-        // command stays silent regardless of its own enable state.
-        let gate = lock.withLock { globalGate }
-        guard gate() else {
-            return nil
-        }
-
-        let lowered = trimmedMessage.lowercased()
-        // Match on the first whitespace-delimited token, not a prefix. Prefix
-        // matching let a short alias (e.g. "!s") capture longer commands
-        // ("!skip") and let "!song" swallow "!songrequest". Exact first-token
-        // equality routes each message to exactly one command.
-        let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
-
-        // Every trigger (built-in, alias, and custom) is normalized to a leading
-        // "!", so a token without one can't match. Bail before the snapshot copy
-        // and the per-command alias reads for the common non-command chat line.
-        guard commandToken.hasPrefix("!") else { return nil }
-
-        let snapshot = commandSnapshot()
-        for command in snapshot {
-            // Use allTriggers (includes user-configured aliases)
-            let triggers = command.allTriggers
-            for trigger in triggers {
-                let triggerLowered = trigger.lowercased()
-                if commandToken == triggerLowered {
-                    // Check if command is enabled. `break` (not `return nil`) so a
-                    // disabled command falls through to another match on the same
-                    // trigger (e.g. a disabled custom command → its built-in).
-                    guard command.isCommandEnabled else {
-                        break
-                    }
-
-                    // Permission gate (custom commands), before cooldown so a
-                    // denied viewer can't warm the shared cooldown. `break` lets a
-                    // shadowed built-in with the same trigger still run.
-                    if let context, !command.isAllowed(context: context) {
-                        break
-                    }
-
-                    let canonical = command.triggers.first ?? trigger
-                    // Load cooldown overrides from UserDefaults
-                    let (globalCD, userCD) = cooldownValues(for: trigger, command: command)
-
-                    // Check cooldown using canonical key (mods bypass)
-                    if cooldownManager.isOnCooldown(
-                        trigger: canonical,
-                        userID: userID,
-                        isModerator: isModerator,
-                        bypassesCooldown: command.bypassesCooldown(context: context),
-                        globalCooldown: globalCD,
-                        userCooldown: userCD
-                    ) {
-                        let remaining = cooldownManager.remainingCooldown(
-                            trigger: canonical,
-                            userID: userID,
-                            globalCooldown: globalCD,
-                            userCooldown: userCD
-                        )
-                        Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) on cooldown for user \(userID), global: \(String(format: "%.1f", remaining.global))s remaining, per-user: \(String(format: "%.1f", remaining.perUser))s remaining",
-                            category: .twitchChat)
-                        return nil
-                    }
-
-                    // Sync command
-                    if let response = command.execute(message: trimmedMessage) {
-                        cooldownManager.recordUse(trigger: canonical, userID: userID)
-                        Log.debug(
-                            "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
-                            category: .twitchChat)
-                        return response
-                    }
-                    break
-                }
-            }
-        }
-
-        return nil
-    }
-
-    /// Async variant of `processMessage` for the production chat-message path.
-    ///
-    /// Mirrors `processMessage` but awaits `TrackInfoCommand.executeAsync`,
-    /// so async providers (`setCurrentSongInfoAsync`, etc.) can reach
-    /// MainActor-isolated app state without the deprecated `runSync`
-    /// semaphore bridge.
+    /// `processMessageReplyAsync` without the delivery mode. Test convenience:
+    /// production calls `processMessageReplyAsync` directly, so this exercises the
+    /// exact path chat messages take.
     func processMessageAsync(
         _ message: String,
         userID: String = "",
@@ -392,8 +250,18 @@ final class BotCommandDispatcher {
         await processMessageReplyAsync(message, userID: userID, isModerator: isModerator, context: context)?.text
     }
 
-    /// Same as `processMessageAsync`, but also reports how the matched command
-    /// wants its response delivered (reply / plain message / announcement).
+    /// Production chat-message path. Awaits `TrackInfoCommand.executeAsync`, so
+    /// async providers (`setCurrentSongInfoAsync`, etc.) can reach
+    /// MainActor-isolated app state without the deprecated `runSync` semaphore
+    /// bridge, and reports how the matched command wants its response delivered
+    /// (reply / plain message / announcement).
+    ///
+    /// The cooldown slot is claimed atomically (`CooldownManager.tryClaim`)
+    /// before any `await`. The dispatcher is MainActor-isolated, so each await
+    /// is a reentrancy point: checking first and recording only after the await
+    /// let a burst of concurrent `!song` messages all pass the check and all
+    /// reply. A claimed slot is released again when the command produces no
+    /// reply, so a silent command never warms the cooldown.
     func processMessageReplyAsync(
         _ message: String,
         userID: String = "",
@@ -452,16 +320,16 @@ final class BotCommandDispatcher {
                     }
 
                     let canonical = command.triggers.first ?? trigger
-                    let (globalCD, userCD) = cooldownValues(for: trigger, command: command)
+                    let (globalCD, userCD) = cooldownValues(for: command)
 
-                    if cooldownManager.isOnCooldown(
+                    guard let claim = cooldownManager.tryClaim(
                         trigger: canonical,
                         userID: userID,
                         isModerator: isModerator,
                         bypassesCooldown: command.bypassesCooldown(context: context),
                         globalCooldown: globalCD,
                         userCooldown: userCD
-                    ) {
+                    ) else {
                         let remaining = cooldownManager.remainingCooldown(
                             trigger: canonical,
                             userID: userID,
@@ -475,9 +343,13 @@ final class BotCommandDispatcher {
                     }
 
                     if let asyncCommand = command as? AsyncBotCommand, let ctx = context {
-                        guard !Task.isCancelled else { return nil }
-                        cooldownManager.recordUse(trigger: canonical, userID: userID)
-                        guard !Task.isCancelled else { return nil }
+                        guard !Task.isCancelled else {
+                            cooldownManager.release(claim)
+                            return nil
+                        }
+                        // Async commands keep the slot even when they return nil:
+                        // they may already have acted (queued, skipped) before
+                        // deciding to stay silent.
                         let response = await asyncCommand.execute(message: trimmedMessage, context: ctx)
                         guard !Task.isCancelled else { return nil }
                         Log.debug(
@@ -488,29 +360,37 @@ final class BotCommandDispatcher {
 
                     let response: String?
                     if let track = command as? TrackInfoCommand {
-                        guard !Task.isCancelled else { return nil }
+                        guard !Task.isCancelled else {
+                            cooldownManager.release(claim)
+                            return nil
+                        }
                         Log.debug(
                             "BotCommandDispatcher: TrackInfoCommand.executeAsync start \(trigger)",
                             category: .twitchChat)
-                        response = await track.executeAsync(message: trimmedMessage)
+                        let trackResponse = await track.executeAsync(message: trimmedMessage)
                         Log.debug(
                             "BotCommandDispatcher: TrackInfoCommand.executeAsync done",
                             category: .twitchChat,
                             fields: [
                                 "trigger": trigger,
-                                "response": response?.prefix(40) ?? "nil"
+                                "response": trackResponse?.prefix(40) ?? "nil"
                             ])
+                        guard !Task.isCancelled else {
+                            cooldownManager.release(claim)
+                            return nil
+                        }
+                        response = trackResponse
                     } else {
                         response = command.execute(message: trimmedMessage)
                     }
 
                     if let response {
-                        cooldownManager.recordUse(trigger: canonical, userID: userID)
                         Log.debug(
                             "BotCommandDispatcher: Command '\(trigger)' (group: \(canonical)) executed, cooldown set: global=\(String(format: "%.1f", globalCD))s, per-user=\(String(format: "%.1f", userCD))s",
                             category: .twitchChat)
                         return CommandReply(text: response, delivery: command.delivery)
                     }
+                    cooldownManager.release(claim)
                     break
                 }
             }
@@ -519,18 +399,13 @@ final class BotCommandDispatcher {
         return nil
     }
 
-    /// Resets all cooldown state (e.g., on disconnect).
-    func resetCooldowns() {
-        cooldownManager.reset()
-    }
-
     // MARK: - Private Helpers
 
     /// Returns the effective cooldown values for a command, checking UserDefaults overrides.
     ///
     /// Commands declare their own UserDefaults keys via `globalCooldownKey`/`userCooldownKey`.
     /// If a key is nil or the stored value is absent, the command's default is used.
-    private func cooldownValues(for trigger: String, command: BotCommand) -> (TimeInterval, TimeInterval) {
+    private func cooldownValues(for command: BotCommand) -> (TimeInterval, TimeInterval) {
         let defaults = DefaultsStore.store
         let globalCD = command.globalCooldownKey
             .flatMap { defaults.object(forKey: $0) as? TimeInterval }

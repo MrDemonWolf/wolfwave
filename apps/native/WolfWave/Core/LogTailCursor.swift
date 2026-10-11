@@ -78,11 +78,4 @@ nonisolated struct LogTailCursor: Equatable {
         carry = pieces.removeLast()
         return pieces
     }
-
-    /// Drops all position state so the next plan re-primes.
-    mutating func reset() {
-        offset = 0
-        carry = ""
-        primed = false
-    }
 }

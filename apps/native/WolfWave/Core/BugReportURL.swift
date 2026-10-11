@@ -21,51 +21,22 @@ import Foundation
 /// Kept as a pure value type to allow unit testing without UI dependencies.
 enum BugReportURL {
 
-    // MARK: - Install Method
-
-    /// How WolfWave was installed on the user's machine.
-    enum InstallMethod: String {
-        case homebrew = "Homebrew"
-        case dmg = "DMG"
-    }
-
     // MARK: - Building
 
-    /// Builds the GitHub issue URL.
+    /// Builds the GitHub issue URL from a captured ``DiagnosticSnapshot``.
+    ///
+    /// The snapshot carries the crash flag, log size, and diagnostics opt-in
+    /// alongside the version, OS, architecture, and install method. "Report a
+    /// Bug" is the primary button on the crash-recovery callout, so the form it
+    /// opens has to say something about the crash.
     ///
     /// - Parameters:
     ///   - base: Base new-issue URL (e.g. `AppConstants.URLs.githubIssuesNew`).
-    ///   - appVersion: Marketing version string (e.g. "1.2.0").
-    ///   - build: Build number string.
-    ///   - osVersion: Operating system version description.
-    ///   - arch: CPU architecture identifier (e.g. "arm64").
-    ///   - install: How the app was installed.
+    ///   - snapshot: The environment to embed in the issue body.
     /// - Returns: A URL pointing to the GitHub issue form with prefilled body,
     ///   or `nil` if the base URL is malformed.
-    /// Builds the issue URL from a captured ``DiagnosticSnapshot``.
-    ///
-    /// Preferred over the field-by-field overload: the snapshot also carries the
-    /// crash flag, log size, and diagnostics opt-in. "Report a Bug" is the
-    /// primary button on the crash-recovery callout, and it used to open a form
-    /// that said nothing about the crash at all.
     static func make(base: String, snapshot: DiagnosticSnapshot) -> URL? {
         make(base: base, environment: snapshot.markdownBullets)
-    }
-
-    static func make(
-        base: String,
-        appVersion: String,
-        build: String,
-        osVersion: String,
-        arch: String,
-        install: InstallMethod
-    ) -> URL? {
-        make(base: base, environment: """
-            - **App version:** \(appVersion) (build \(build))
-            - **macOS:** \(osVersion)
-            - **Architecture:** \(arch)
-            - **Install method:** \(install.rawValue)
-            """)
     }
 
     private static func make(base: String, environment: String) -> URL? {

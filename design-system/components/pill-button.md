@@ -12,7 +12,7 @@ PillButton(
     action: { startTwitchAuth() }
 ) {
     HStack(spacing: 8) {
-        TwitchGlitchShape().fill(style: FillStyle(eoFill: true)).frame(width: 14, height: 14)
+        Image("TwitchLogo").renderingMode(.template).resizable().frame(width: 14, height: 14)
         Text("Sign in with Twitch")
     }
 }

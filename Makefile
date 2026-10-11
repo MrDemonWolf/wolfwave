@@ -50,7 +50,7 @@ else
 UI_SIGN = CODE_SIGN_IDENTITY="$(LOCAL_SIGN_ID)" CODE_SIGN_STYLE=Manual
 endif
 
-.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers lint-sync update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget icons
+.PHONY: help build clean test test-verbose test-ui test-ci check-drift lint lint-baseline lint-crash-safety lint-headers lint-sync update-deps open-xcode ci prod-build prod-install notarize verify-notarize sponsor-config widget icons clean-dev
 
 help:
 	@echo "Available targets:"
@@ -58,6 +58,7 @@ help:
 	@echo "  widget         Rebuild the OBS overlay widget (apps/widget -> Resources/widget.html)"
 	@echo "  icons          Regenerate the Debug app icon (AppIcon.icon -> AppIcon-Dev.icon)"
 	@echo "  clean          Clean build artifacts"
+	@echo "  clean-dev      Reset WolfWave Dev: quit it, delete its UserDefaults and Keychain entry, make clean, remove DerivedData and /Applications/WolfWave Dev.app (never touches the production app)"
 	@echo "  test           Run tests"
 	@echo "  lint           Run pinned SwiftLint in Docker"
 	@echo "  lint-baseline  Regenerate the pinned SwiftLint baseline"
@@ -106,6 +107,13 @@ clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 		-destination '$(DESTINATION)' clean -quiet
 	rm -rf $(BUILD_DIR) $(BUILDS_DIR)
+
+# Full reset of the Debug app for a fresh first-run. Runs scripts/clean-dev.sh:
+# quits "WolfWave Dev", deletes the com.mrdemonwolf.wolfwave.dev UserDefaults
+# domain and Keychain entry, runs `make clean`, removes DerivedData and
+# /Applications/WolfWave Dev.app. The Release app (com.mrdemonwolf.wolfwave) is untouched.
+clean-dev:
+	@bash scripts/clean-dev.sh
 
 test: sponsor-config
 	@xcodebuild -project $(PROJECT) -scheme $(SCHEME) \

@@ -180,7 +180,7 @@ unsupported.
 - **`src/wolfwave/protocol.ts`** — pure wire layer and the TypeScript mirror of
   `StreamDeckCommand.swift`. Its `ACTIONS` list is the Swift enum's raw values
   and `PROTOCOL_VERSION` must equal `StreamDeckControl.protocolVersion`; a test
-  pins the full v2 set so the two can't drift silently.
+  pins the full v3 set so the two can't drift silently.
 - **`src/wolfwave/state.ts`** — pure reducer folding inbound frames into the
   state keys render from. Returns the same object reference when nothing
   changed, so per-second `progress` frames don't repaint every key.

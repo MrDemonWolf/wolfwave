@@ -30,6 +30,10 @@ struct WebSocketCustomOverlayCard: View {
 
     @State private var portText: String = ""
 
+    /// Commits a typed port when the field loses focus, so Tab or a click
+    /// elsewhere keeps the edit instead of silently discarding it.
+    @FocusState private var portFocused: Bool
+
     /// Currently-persisted overlay token. Seeded empty so struct init doesn't hit
     /// the Keychain. Populated by `.task` off-main on first appear, and re-read
     /// after edits or regenerations so the address rows stay in sync.
@@ -183,20 +187,27 @@ struct WebSocketCustomOverlayCard: View {
                     .frame(width: 80)
                     .multilineTextAlignment(.center)
                     .disabled(websocketEnabled)
+                    .focused($portFocused)
                     .accessibilityLabel("Server port")
                     .accessibilityIdentifier("websocketPortField")
                     .onSubmit { applyPort() }
+                    .onChange(of: portFocused) { _, focused in
+                        if !focused { applyPort() }
+                    }
+                    .onChange(of: websocketEnabled) { _, enabled in
+                        // Turning the server on locks the field; keep a typed port
+                        // the click on the toggle would otherwise skip.
+                        if enabled { applyPort() }
+                    }
             }
             .opacity(websocketEnabled ? 0.5 : 1.0)
 
             if !portText.isEmpty && !isPortValid {
-                HStack(spacing: DSSpace.s1h) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: DSFont.Size.sm))
-                    Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
-                        .font(.system(size: DSFont.Size.sm))
-                }
-                .foregroundStyle(.red)
+                FieldValidationRow(
+                    state: .invalid(
+                        "Port must be between \(AppConstants.WebSocketServer.minPort) "
+                            + "and \(AppConstants.WebSocketServer.maxPort).")
+                )
             }
         }
         .padding(.horizontal, cardPadding)
@@ -207,7 +218,7 @@ struct WebSocketCustomOverlayCard: View {
     /// UserDefaults and posts a `websocketServerChanged` notification so the
     /// server restarts on the new port.
     private func applyPort() {
-        guard isPortValid, let port = UInt16(portText) else { return }
+        guard isPortValid, let port = UInt16(portText), Int(port) != storedPort else { return }
         storedPort = Int(port)
         NotificationCenter.default.postWebSocketServerChanged(port: port)
     }

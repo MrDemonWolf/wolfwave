@@ -42,8 +42,11 @@ final class TrackInfoCommand: BotCommand {
 
     private var _getTrackInfo: (() -> String)?
 
-    /// Closure that returns the current track info string. Backed by a lock-
-    /// guarded property (defense-in-depth on the MainActor-isolated type).
+    /// Synchronous track-info provider behind `execute(message:)`, the
+    /// `BotCommand` requirement. Production never sets it: the dispatcher wires
+    /// `getTrackInfoAsync` instead. Kept as the seam for tests that drive the
+    /// command directly. Backed by a lock-guarded property (defense-in-depth on
+    /// the MainActor-isolated type).
     var getTrackInfo: (() -> String)? {
         get { lock.withLock { _getTrackInfo } }
         set { lock.withLock { _getTrackInfo = newValue } }

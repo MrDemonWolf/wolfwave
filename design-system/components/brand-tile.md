@@ -56,9 +56,6 @@ graph TB
 BrandTile(
     background: DSColor.partnerTwitch,
     glowColor: DSColor.partnerTwitch,
-    glyph: TwitchGlitchShape()
-        .fill(style: FillStyle(eoFill: true))
-        .foregroundStyle(.white)
-        .frame(width: 28, height: 28)
+    glyph: BrandTileGlyph.asset("TwitchLogo")
 )
 ```

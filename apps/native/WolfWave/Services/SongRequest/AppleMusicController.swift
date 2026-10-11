@@ -112,9 +112,6 @@ protocol AppleMusicControlling {
     /// Replaces the current track and starts playback immediately.
     func playNow(song: Song) async throws
 
-    /// Appends a track to the playback queue without interrupting playback.
-    func enqueue(song: Song) async throws
-
     /// Advances to the next track in Music.app's player queue.
     func skipToNext() async throws
 
@@ -590,17 +587,6 @@ final class AppleMusicController: AppleMusicControlling {
         return .unavailable
     }
 
-    /// Note that a song has been queued internally.
-    ///
-    /// macOS has no public API to insert songs into Music.app's Up Next queue.
-    /// The internal `SongRequestQueue` tracks sequence; `SongRequestService` calls
-    /// `playNow` for each song when it's ready to play.
-    func enqueue(song: Song) async throws {
-        Log.debug(
-            "AppleMusicController: Queued internally: \"\(song.title)\" by \(song.artistName)",
-            category: .songRequest)
-    }
-
     /// Skip the current song in Music.app via AppleScript.
     ///
     /// Throws when Music.app is closed or rejects the command. The event is
@@ -961,13 +947,21 @@ final class AppleMusicController: AppleMusicControlling {
     /// Runs NSAppleScript on the main actor, Foundation's documented supported
     /// execution context. ScriptTimeout bounds how long a wedged target can
     /// block that actor.
+    ///
+    /// `targetPID` is a cheap pre-filter, not the address: requiring it makes
+    /// callers resolve Music's pid first, so a quit Music short-circuits before
+    /// any script runs. The event itself is addressed by bundle id, because a
+    /// raw kernel-pid descriptor is not an application specifier. See
+    /// `musicTargetedScript` for why, and for the in-script `is running` guard
+    /// that closes the check-then-send window this pre-filter alone would leave
+    /// open.
     @MainActor
     @discardableResult
     private func runAppleScript(
         _ source: String,
-        targetPID: pid_t
+        targetPID _: pid_t
     ) -> ScriptExecutionResult {
-        executeAppleScript(source, targetPID: targetPID)
+        executeAppleScript(source)
     }
 
     /// Returns a cached compiled script, clearing the small bounded cache before
@@ -984,17 +978,7 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Executes the script and preserves the Apple Event error number instead of
     /// collapsing every failure into a successful nil result.
-    ///
-    /// `targetPID` is a cheap pre-filter, not the address: callers resolve Music's
-    /// pid first so a quit Music short-circuits before any script runs. The event
-    /// itself is addressed by bundle id, because a raw kernel-pid descriptor is
-    /// not an application specifier. See `musicTargetedScript` for why, and for
-    /// the in-script `is running` guard that closes the check-then-send window
-    /// this pre-filter alone would leave open.
-    private func executeAppleScript(
-        _ source: String,
-        targetPID: pid_t
-    ) -> ScriptExecutionResult {
+    private func executeAppleScript(_ source: String) -> ScriptExecutionResult {
         guard let script = compiledScript(for: source) else {
             return .failure(ScriptFailure(
                 number: nil,

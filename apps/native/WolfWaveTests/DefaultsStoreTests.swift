@@ -16,7 +16,7 @@ import Testing
 ///
 /// This is the one file in the repo allowed to name `UserDefaults.standard`:
 /// proving the seam does *not* resolve to it requires referring to it.
-@Suite("DefaultsStore Isolation")
+@Suite("DefaultsStore Isolation", .isolatedSharedTestState)
 struct DefaultsStoreTests {
 
     @Test("A test host resolves to the isolated suite, never the live domain")

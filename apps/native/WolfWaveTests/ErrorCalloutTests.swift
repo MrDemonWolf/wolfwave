@@ -91,9 +91,17 @@ final class ErrorCalloutTests: XCTestCase {
         XCTAssertEqual(received, [.retry, .reportBug])
     }
 
+    /// The default `{ _ in }` handler is intentionally a no-op. Rendering the
+    /// default-init callout and invoking it guards against a trap or a layout
+    /// regression on that path.
     func testDefaultHandlerIsHarmless() {
         let callout = ErrorCallout(error: makeError())
         callout.onAction(.reconnectTwitch)
+
+        let host = NSHostingView(rootView: callout)
+        host.setFrameSize(NSSize(width: 480, height: 0))
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
     // MARK: - Retry Countdown

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mrdemonwolf.github.io/wolfwave/design-system/tokens.schema.json",
   "title": "WolfWave design tokens",
-  "description": "Shape of design-system/tokens.json. The consumer is design-system/scripts/generate.ts, which reads these namespaces by name and emits five platform outputs. A missing or misnamed namespace breaks the Swift app, the docs CSS, the OBS widget, and the Remotion projects at once.",
+  "description": "Shape of design-system/tokens.json. The consumer is design-system/scripts/generate.ts, which reads these namespaces by name and emits four platform outputs. A missing or misnamed namespace breaks the Swift app, the docs CSS, the OBS widget, and the docs widget previews at once.",
   "type": "object",
   "required": [
     "meta",
