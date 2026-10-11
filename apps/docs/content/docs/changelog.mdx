@@ -39,6 +39,19 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Export Logs now exports everything, not just the newest file.** Settings → Advanced → Export Logs writes a single file containing your app version, macOS version, and install method, the details of the last crash if there was one, and every rotated log file rather than only the current one. Before, if the log had just rolled over you'd send us a nearly empty file while the lines about your problem sat in a backup we never saw. The file is named with the date and time so a second export doesn't overwrite the first, and Copy to Clipboard now includes the same version header.
 - **The crash notice says what actually crashed.** After an unexpected quit, the notice in Settings → Advanced now names the fault and when it happened instead of just saying something went wrong, and those details are written into your log so they're in the file you send us. "Report a Bug" also fills in the crash, your install method, and log size for you.
 - **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed. Export your logs from Settings → Advanced.
+- **Custom commands can be set up before you connect Twitch.** Create and edit them any time; they start replying once you connect. The editor now says exactly what's wrong (a space in a trigger, an empty reply, a name another command already uses, a reply over 500 characters) under the field to fix, and shows a live character counter. See [Bot Commands](/docs/bot-commands#custom-commands).
+- **Twitch sign-in is easier to follow.** The sign-in code shows how long it has left and offers "Get a new code" when it expires. Log Out asks for confirmation first, and the signed-in row is now called "Bot account". See [Troubleshooting](/docs/troubleshooting#twitch-code-expired).
+- **Paid request switches live in one place.** The channel point and Bits request toggles now sit only in Channel Points & Bits. Who Can Request shows a "Paid requests" summary with a button that jumps there. See [Settings, Song Requests](/docs/settings#song-requests).
+- **Stream Widgets says what happened.** Port fields revert an invalid entry and confirm a saved one, and the copy buttons and the Widget Webpage switch say why they're greyed out. See [Settings, Stream Widgets](/docs/settings#stream-widgets).
+- **Advanced and About are tidier.** Clear Logs now sits with the other log actions and Clear Artwork Cache sits in the Artwork Cache card, so the Danger Zone holds only Erase All Data & Reset. The MetricKit card is now "Share Diagnostics". About has one Docs button instead of separate Website and Documentation buttons, and the Rerun Setup Wizard alert's button reads "Open Wizard". See [Settings, Advanced](/docs/settings#advanced).
+- **The last `!stats` fact can't be switched off.** Its chip locks with "Keep at least one." instead of quietly ignoring your click.
+- **Turning off on-device diagnostics deletes saved reports.** While it's on, WolfWave keeps only the newest 50 reports from the last 30 days.
+- **The menu bar asks before it deletes.** Clear Queue and Restart Integrations confirm first, and Clear Queue sits apart from Skip. Help has a Check for Updates item, and long song or request titles are shortened, with the full text in the tooltip.
+- **The setup wizard is easier to drive.** Return moves to the next step (on the Twitch step, Return submits the channel name instead). Optional steps are labelled "Optional", Skip All ends on a short "Skipped" screen, and the finish screen has a Done button and stays open while VoiceOver is on.
+- **Status colors and motion are friendlier to your eyes and to VoiceOver.** In Light mode, status chips, callout icons, and the selected settings rail row use darker glyph colors so they stay readable on their tinted backgrounds. VoiceOver no longer reads status chips twice and announces the selected row in the settings jump rail, and jumping to a settings section no longer animates when Reduce Motion is on.
+- **Song Requests settings work better with VoiceOver and the keyboard.** Every picker has a spoken name, blocklist Remove buttons say which entry they remove, and pressing Return adds a blocklist entry.
+- **The Stream Deck panel tells you whether the token works.** It saves the control token as soon as a valid one is pasted and shows "Connected", "WolfWave rejected this token", or "Update the plugin". The old green message now reads "Token format is valid", because it only checks the shape. See [Stream Deck](/docs/streamdeck).
+- **Phones get a "Send to my Mac" button on the website.** A phone can't install a .dmg, so the hero, the closing call to action, and the download page swap the download for a button that shares the link. The song-requests pitch moved into the Twitch section, every demo widget is labelled as a demo with made-up songs, and the hero shows the real latest version.
 
 ### Fixed
 - Permission rechecks report the actual Automation result and close the instruction sheet after a grant. Setup and onboarding refresh permissions on return from System Settings, and Song Request setup links to Twitch settings.
@@ -53,7 +66,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - Twitch reconnects continue with a slower retry tier after brief outages and retry promptly after system wake. Rotated tokens survive temporary Keychain write failures.
 - `!song`, `!last`, and `!stats` no longer all reply when several viewers spam them at once. The cooldown now holds.
 - WolfWave no longer stays disconnected from Twitch after a quick Wi-Fi or VPN switch.
-- Song Request queue Decline and Remove buttons are easier to click, and the queue uses the standard warning and success colors.
+- Song Request queue Decline and Remove buttons are easier to click and now have tooltips, and the queue's status pills (On hold, Music closed, N in queue) use the standard colors and match the rest of the app.
 - The Twitch sign-in code copies through the Copy button only, so VoiceOver and keyboard users get one clear control.
 - VoiceOver can reach the Open Music button on the Now Playing card, and the Open System Settings, Show me how, and Try again buttons on the Music Access screen.
 - The pause icon on the Now Playing card fades instead of popping.
@@ -73,6 +86,23 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **"Your sign-in is fine" when it is.** If Twitch is down, rate limiting us, or you're offline, WolfWave used to blame your sign-in and send you to reconnect, which never helped. Those now say what actually happened.
 - **Erase & Reset no longer stops silently.** If macOS refused to remove your saved sign-ins, the reset stopped partway and said nothing, so it looked like everything had been erased when nothing had. It now tells you plainly that nothing was erased.
 - **Discord says what went wrong.** "Discord not running" was shown for every connection problem, including ones that happen with Discord open in front of you. WolfWave now distinguishes Discord being closed, Discord refusing the connection, and macOS blocking it. See [Settings, Discord](/docs/settings#discord).
+- A custom command trigger or alias with a space (like `!hug me`) could be saved but never fired. The editor now blocks spaces. Saved commands with a spaced trigger get the spaces removed and are turned off so you can check them, and spaced aliases are dropped.
+- Chat replies full of emoji or flags could go over Twitch's 500-character limit and get rejected. WolfWave now counts the way Twitch does and trims without cutting an emoji in half.
+- A failed Twitch sign-in no longer shows its error twice, and an old error clears when you try again. Try Again now retries the sign-in (or the sign-out, if that is what failed) instead of trying to join a channel.
+- Blocking an artist with a comma in the name (like "Tyler, The Creator") now also blocks their collaborations, and "ft." and "featuring" credits are checked too.
+- `!skip` no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."
+- A viewer who isn't allowed to request no longer puts `!sr` on cooldown for everyone else, and neither does `!sr` while requests are off. Those refusal replies are throttled so they can't flood chat. See [Bot Commands](/docs/bot-commands#song-requests).
+- An `!sr` alias that starts with a built-in trigger (like `!srq`) now searches for the full song name.
+- Apple Music song links without a song name in the URL (`music.apple.com/us/song/<id>`) now work with `!sr`.
+- The Resume button now shows when the request queue is on hold and empty, with a note that explains the hold.
+- The Stream Deck pane no longer says Ready when the server failed to start; it shows Starting or Server error. Stream Widgets shows a clear "Couldn't start" message when the port is in use. See [Troubleshooting](/docs/troubleshooting#port-in-use).
+- The What's New button now closes the window. It reads "Got it" instead of "Get Started".
+- A crash from an uncaught error now keeps its full report (name, reason, backtrace) instead of a bare abort record.
+- A listening-history entry cut off by a crash no longer corrupts the next play that gets recorded.
+- Channel-point and Bits duplicate protection now survives your Mac's clock moving backwards, and the paid-event queue is fully flushed to disk on every write.
+- Log lines can no longer be broken by carriage returns in a message or field.
+- Stream Deck: the Now Playing key stops scrolling when it goes Offline, Token?, or Update, and a late answer from a timed-out press is no longer shown as the result of your next press.
+- Website claims now match the app: Stream Deck is marked optional (manual install for now), the FAQ gives the real 5-second fallback check, and an unverified app-size claim is gone.
 
 ## v2.1.0. August 14, 2026
 

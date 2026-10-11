@@ -42,6 +42,24 @@ password, or the token sat unused for a long time.
 **Fix:** click **Reconnect with Twitch** on the banner. Nothing else is lost:
 your channel, commands, and settings stay exactly as they were.
 
+### That sign-in code expired [#twitch-code-expired]
+
+Twitch sign-in codes only last a few minutes. If you don't approve the code in
+time, WolfWave says "That code expired". The code on screen shows how long it
+has left.
+
+**Fix:** click **Get a new code**, or **Try Again** on the banner. Either one
+starts a fresh sign-in.
+
+### Couldn't sign out of Twitch [#twitch-sign-out-failed]
+
+WolfWave couldn't disconnect from Twitch before signing you out, so you're still
+signed in and online. Nothing was removed.
+
+**Fix:** click **Try Again** to retry the sign-out. If you were switching
+accounts instead, the banner says "Couldn't switch Twitch accounts", and Try
+Again restarts the sign-in.
+
 ### "Your sign-in is fine" errors [#sign-in-is-fine]
 
 If WolfWave says your sign-in is fine and something else went wrong, believe
@@ -181,15 +199,19 @@ used the old one.
 
 ### Port already in use [#port-in-use]
 
-Another app on your Mac already holds that port.
+Another app on your Mac already holds that port. Stream Widgets shows
+**Couldn't start** in its header chip and in a callout under the switch, and the
+Stream Deck pane shows **Server error** with a button back to Stream Widgets.
 
 The widget HTTP server retries a failed listener up to five times with increasing
 delays. If the port remains occupied, use a different port or toggle Stream Widgets
 off and on after freeing it. HTTP connections have a ten-second request and write
 budget; WebSockets probe idle peers to remove broken connections.
 
-**Fix:** pick a different port in Settings, Stream Widgets, then update the URL
-in OBS to match.
+**Fix:** turn Stream Widgets off, pick a different port in Settings, Stream
+Widgets (the port field is locked while the server is on), turn it back on, then
+update the URL in OBS to match. A port that isn't valid goes back to the saved
+one, and the pane says "Not saved".
 
 ### That token won't save [#widget-token]
 
@@ -204,17 +226,24 @@ three things is wrong.
 
 ### Every key reads Offline [#streamdeck-offline]
 
-WolfWave isn't running, or the Stream Widgets server is off. The plugin keeps
-retrying on its own.
+WolfWave isn't running, the Stream Widgets server is off or couldn't start, or
+WolfWave rejected the token. The plugin keeps retrying on its own. The Stream
+Deck pane's chip tells you which server state it is: **Server off**, **Server
+error**, or **Starting**.
 
 **Fix:** open WolfWave and turn on the server in Settings, Stream Widgets.
 Stream Deck control rides on that server, so it has to be on even if you don't
-use the overlay.
+use the overlay. If the plugin's panel says "WolfWave rejected this token", the
+token is stale (it changes if you regenerate it) or the overlay token was pasted
+by mistake: re-copy **Stream Deck Control Token** from Settings, Stream Deck.
 
 ### Every key reads Token? [#streamdeck-token]
 
 The control token in the plugin's settings is missing or isn't exactly 64 hex
-characters. It's a different token from the overlay one.
+characters. It's a different token from the overlay one. The panel saves a pasted
+token as soon as it is a valid 64-character hex string, then shows **Connected**
+once WolfWave accepts it. **Token format is valid** only means the shape is
+right, not that WolfWave accepted it.
 
 **Fix:** copy **Stream Deck Control Token** from Settings, Stream Deck, and
 paste it into any one key's settings in the Stream Deck app. Every key shares
@@ -223,7 +252,8 @@ it.
 ### Every key reads Update [#streamdeck-update]
 
 WolfWave and the plugin disagree on the control-protocol version. Either side
-can be the old one. WolfWave 2.2.0 moved to protocol v3.
+can be the old one. WolfWave 2.2.0 moved to protocol v3. The plugin's panel says
+"Update the plugin".
 
 **Fix:** update WolfWave and reinstall the current plugin, then reload the
 plugin in the Stream Deck app. Setup steps: [Stream Deck](/docs/streamdeck).

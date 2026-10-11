@@ -53,8 +53,8 @@ WolfWave processes data **entirely on your device**. We do not operate servers o
 | Now playing info | Twitch chat (via Helix API at `api.twitch.tv`) | Respond to `!song`, `!last`, and `!stats` commands |
 | Now playing info | Discord (via local IPC socket at `$TMPDIR/discord-ipc-{0..9}`) | Display Rich Presence status |
 | Now playing info | Local WebSocket server (token-gated, bound to all interfaces) | Stream data to OBS browser sources and overlays on the same machine or local network |
-| Album artwork query | iTunes Search API (`itunes.apple.com`) | Fetch album art and Apple Music / song.link URLs |
-| Song request queries | Apple Music API (`api.music.apple.com`), and Spotify / YouTube oEmbed + song.link when a viewer pastes one of those links | Find the requested track on Apple Music |
+| Album artwork query | iTunes Search API (`itunes.apple.com`) | Fetch album art and Apple Music track URLs. song.link URLs are built on your Mac from the iTunes track ID; WolfWave never requests them |
+| Song request queries | Apple Music API (`api.music.apple.com`) for MusicKit search; `open.spotify.com/oembed` or `www.youtube.com/oembed` when a viewer pastes a Spotify or YouTube link | Find the requested track on Apple Music |
 | EventSub subscriptions | Twitch (`eventsub.wss.twitch.tv`) | Receive chat messages, channel-point redemptions, and bit cheers |
 | Update check | GitHub Releases (`github.com/MrDemonWolf/wolfwave`) | Sparkle appcast for in-app updates (skipped on Homebrew installs) |
 
@@ -62,7 +62,7 @@ WolfWave processes data **entirely on your device**. We do not operate servers o
 
 WolfWave includes an **optional, opt-in** diagnostics feature that is turned **off by default**. When you enable "Collect on-device diagnostics" in Advanced settings, WolfWave uses Apple's MetricKit framework to gather crash, hang, and performance reports.
 
-These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately.
+These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately and deletes the saved reports. While it is on, WolfWave keeps only the newest 50 reports from the last 30 days.
 
 Application logs record app events, warnings, and errors to help troubleshoot problems. WolfWave redacts known sensitive values before writing them. The live log rotates at 5 MB and keeps three rotated files (up to about 20 MB total). Logs can still contain context you may not want to share, so review an exported log before posting or sending it.
 
@@ -105,7 +105,7 @@ WolfWave stores data on your devices, except for the settings payload you explic
 | Song request queue / vote-skip sessions | In-memory only | Quitting the app discards these immediately |
 | Custom bot commands | UserDefaults | Delete them in **Settings → Twitch → Custom Commands** |
 | Settings backups | Wherever you saved the export | Delete the JSON file yourself |
-| MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Disable the toggle in **Settings → Advanced** and delete the directory |
+| MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Turn off the toggle in **Settings → Advanced** (this deletes the saved reports) |
 
 Deleting WolfWave may leave UserDefaults, Application Support files, and Keychain items on macOS. Use the in-app reset before uninstalling, or remove the remaining local files and Keychain entries manually.
 

@@ -116,7 +116,7 @@ Yes. WolfWave uses Twitch's OAuth Device Code flow (no password ever enters the 
 
 <Accordion title="Does WolfWave send any of my data to a server?">
 
-No. There is no WolfWave server. Outbound traffic goes only to services you turn on (Twitch, Discord IPC, iTunes artwork). There is no telemetry or analytics. WolfWave does include an optional, off-by-default diagnostics feature (Settings, Advanced) that uses Apple's MetricKit to capture crash and hang reports locally on your Mac. Those reports are never uploaded to WolfWave servers. See the Privacy Policy for details.
+No. There is no WolfWave server. Outbound traffic goes only to services you use or turn on: Twitch, Discord IPC, Apple Music and iTunes lookups, Spotify and YouTube (titles for links pasted as song requests), iCloud if you switch on Sync with iCloud, and update checks. There is no telemetry or analytics. WolfWave does include an optional, off-by-default diagnostics feature (Settings, Advanced) that uses Apple's MetricKit to capture crash and hang reports locally on your Mac. Those reports are never uploaded to WolfWave servers. See the Privacy Policy for details.
 
 </Accordion>
 
@@ -146,7 +146,7 @@ WolfWave runs under the macOS App Sandbox with the minimum entitlements needed t
 
 <Accordion title="How do updates work?">
 
-Through Sparkle, the same auto-update framework many Mac apps use, with signed updates. There are two channels: Stable (default) and an opt-in [Nightly channel](/docs/nightly). Homebrew installs update via `brew upgrade --cask wolfwave` instead.
+Through Sparkle, the same auto-update framework many Mac apps use, with signed updates. There are two channels: Stable (default) and an opt-in [Nightly channel](/docs/nightly). Homebrew installs update via `brew upgrade --cask wolfwave` instead. **Check for Updates** is also in the menu bar's Help submenu.
 
 </Accordion>
 
