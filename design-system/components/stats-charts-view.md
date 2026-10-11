@@ -21,6 +21,7 @@ StatsChartsView(snapshot: StatsSnapshot)
 ## Tokens used
 
 - `DSSpace.s3` separates each card heading from its chart.
+- `DSRadius.xs` rounds the week chart's bar tops (the hour chart's 2pt bars have no token and keep a literal).
 - `DSDimension.HistoryStats.chartHeight` fixes both plots to the same height.
 - `DSDimension.HistoryStats.chartYAxisGutter` keeps the leading Y axis stable as counts gain digits.
 - The week chart uses the Apple Music brand gradient; the hour chart follows the system accent color.

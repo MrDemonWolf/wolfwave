@@ -22,17 +22,22 @@ struct TwitchCommandsCard: View {
     /// `body` regardless, and this card never writes back, so `@Bindable` isn't needed.
     let viewModel: TwitchViewModel
 
+    /// Starts the Twitch reconnect from the expired-sign-in notice. Wired by
+    /// `SettingsView`; `nil` (previews) leaves the notice as a plain note.
+    var onReconnect: (@MainActor () -> Void)?
+
     /// Commands can only fire when chat is connected and the sign-in hasn't expired.
     /// When false, every control is disabled and a lock banner explains why.
     private var twitchReady: Bool {
         viewModel.channelConnected && !viewModel.reauthNeeded
     }
 
-    /// Lock-banner copy. Both lines point "above" at the Twitch auth card in the
-    /// same pane rather than duplicating its connect/reconnect button. The
-    /// expired-vs-disconnected split is rendered by ``TwitchConnectionNotice``.
+    /// Lock-banner copy. The expired notice carries its own "Reconnect with
+    /// Twitch" button under a "Twitch sign-in expired" title, so its message
+    /// says what stopped. The disconnected line points "above" at the auth card.
+    /// The split is rendered by ``TwitchConnectionNotice``.
     private let expiredMessage =
-        "Your Twitch sign-in expired. Reconnect above to keep chat commands working."
+        "Chat commands are paused until you reconnect."
     private let disconnectedMessage =
         "Connect with Twitch above to let people use these chat commands."
 
@@ -103,7 +108,8 @@ struct TwitchCommandsCard: View {
                 isConnected: viewModel.channelConnected,
                 reauthNeeded: viewModel.reauthNeeded,
                 expiredMessage: expiredMessage,
-                disconnectedMessage: disconnectedMessage
+                disconnectedMessage: disconnectedMessage,
+                onReconnect: onReconnect
             )
 
             if needsMusicAccess {
@@ -263,7 +269,7 @@ struct TwitchCommandsCard: View {
 #Preview("Twitch Commands - Sign-in Expired") {
     let expired = TwitchViewModel()
     expired.reauthNeeded = true
-    return TwitchCommandsCard(viewModel: expired)
+    return TwitchCommandsCard(viewModel: expired, onReconnect: {})
         .padding()
         .frame(width: 700)
 }

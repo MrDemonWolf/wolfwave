@@ -13,7 +13,7 @@ import Foundation
 /// `DateFormatter` allocation is non-trivial; the system caches its internal
 /// CFDateFormatter even on copies. Sharing per-purpose singletons cuts repeated
 /// construction across the diagnostics path, the log writer, the monthly wrap
-/// renderer, and the onboarding date stamp.
+/// renderer, the onboarding date stamp, and `Retry-After` HTTP-date parsing.
 nonisolated enum SharedFormatters {
 
     /// Strict ISO 8601 (`2026-05-28T12:34:56Z`).
@@ -72,4 +72,29 @@ nonisolated enum SharedFormatters {
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
         return formatter
     }()
+
+    /// Strict parsers for every RFC 9110 HTTP-date form, tried in order:
+    /// IMF-fixdate, the obsolete RFC 850 form, then ANSI C `asctime()` (single-
+    /// and two-digit day). Used by ``RetryAfter`` to read a `Retry-After` date.
+    ///
+    /// One formatter per format rather than one formatter whose `dateFormat` is
+    /// swapped per attempt: parsing is thread-safe, mutating a shared formatter
+    /// is not. Never mutate these after init.
+    ///
+    /// Pinned to `en_US_POSIX` in GMT with `isLenient = false`, and two-digit
+    /// RFC 850 years pivot from 1970 so `"Sunday, 06-Nov-94"` reads as 1994.
+    static let httpDate: [DateFormatter] = [
+        "EEE, dd MMM yyyy HH:mm:ss zzz", // IMF-fixdate
+        "EEEE, dd-MMM-yy HH:mm:ss zzz", // obsolete RFC 850
+        "EEE MMM  d HH:mm:ss yyyy",      // ANSI C asctime, day < 10
+        "EEE MMM dd HH:mm:ss yyyy"       // ANSI C asctime, day >= 10
+    ].map { format in
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.isLenient = false
+        formatter.twoDigitStartDate = Date(timeIntervalSince1970: 0)
+        formatter.dateFormat = format
+        return formatter
+    }
 }

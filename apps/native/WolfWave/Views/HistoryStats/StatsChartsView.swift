@@ -28,7 +28,7 @@ struct WeekChartCard: View {
                     y: .value("Plays", day.count)
                 )
                 .foregroundStyle(AppConstants.Brand.appleMusicGradientEnd.gradient)
-                .cornerRadius(4)
+                .cornerRadius(DSRadius.xs)
                 .accessibilityLabel(Self.dayAxisLabel(day.day))
                 .accessibilityValue(Self.playsValueLabel(day.count))
             }

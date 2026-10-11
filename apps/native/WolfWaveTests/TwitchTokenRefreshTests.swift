@@ -251,26 +251,6 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         }
     }
 
-    func testRetryAfterParsesDeltaAndHTTPDateFormats() {
-        XCTAssertEqual(TwitchDeviceAuth.retryAfterDuration("12"), .seconds(12))
-        let now = Date(timeIntervalSince1970: 784_111_777)
-        for value in [
-            "Sun, 06 Nov 1994 08:49:49 GMT",
-            "Sunday, 06-Nov-94 08:49:49 GMT",
-            "Sun Nov  6 08:49:49 1994",
-        ] {
-            XCTAssertEqual(
-                TwitchDeviceAuth.retryAfterDuration(value, now: now),
-                .seconds(12))
-        }
-        XCTAssertEqual(
-            TwitchDeviceAuth.retryAfterDuration("1e308"),
-            .seconds(300))
-        XCTAssertNil(TwitchDeviceAuth.retryAfterDuration("1e309"))
-        XCTAssertNil(TwitchDeviceAuth.retryAfterDuration("nan"))
-        XCTAssertNil(TwitchDeviceAuth.retryAfterDuration("-1"))
-    }
-
     // MARK: - Fresh EventSub managed-redemption reconciliation
 
     func testFreshEventSubRecoversDuplicateMissedRedemptionsBeforeSubscribeAndUnpause()

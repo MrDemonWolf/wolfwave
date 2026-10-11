@@ -15,6 +15,9 @@ import SwiftUI
 /// instead of the whole screen.
 struct SongRequestSettingsView: View {
     var openTwitchSettings: () -> Void = {}
+    /// Starts the Twitch reconnect from the expired-sign-in notice. Wired by
+    /// `SettingsView`; `nil` (previews) leaves the notice as a plain note.
+    var reconnectTwitch: (@MainActor () -> Void)?
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
@@ -131,8 +134,9 @@ struct SongRequestSettingsView: View {
         TwitchConnectionNotice(
             isConnected: isTwitchConnected,
             reauthNeeded: twitchReauthNeeded,
-            expiredMessage: "Your Twitch sign-in expired. Reconnect in Twitch settings to keep song requests working.",
-            disconnectedMessage: "Connect with Twitch to enable song requests."
+            expiredMessage: "Song requests are paused until you reconnect.",
+            disconnectedMessage: "Connect with Twitch to enable song requests.",
+            onReconnect: reconnectTwitch
         )
     }
 
