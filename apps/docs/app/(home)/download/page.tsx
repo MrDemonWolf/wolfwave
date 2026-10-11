@@ -3,9 +3,9 @@ import Link from "next/link";
 import {
   ArrowRight,
   Download,
-  Github,
   Terminal,
 } from "lucide-react";
+import { GithubIcon } from "@/components/icons";
 import { getLatestDmgUrl, pageUrl, repoUrl } from "@/lib/site";
 import { SendToMac } from "../_widgets/SendToMac";
 import { CopyButton } from "./copy-button";
@@ -81,7 +81,7 @@ export default async function DownloadPage() {
                 rel="noopener noreferrer"
                 className="ww-btn ww-btn-ghost ww-btn-lg"
               >
-                <Github className="w-4 h-4" aria-hidden="true" />
+                <GithubIcon className="w-4 h-4" aria-hidden="true" />
                 View on GitHub
               </a>
             </div>
