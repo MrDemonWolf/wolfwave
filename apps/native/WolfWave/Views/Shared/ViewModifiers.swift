@@ -279,6 +279,54 @@ extension View {
     }
 }
 
+// MARK: - Motion-Safe Animation
+
+/// Animates changes to `value` with `animation`, or applies them instantly when
+/// the user has Reduce Motion on.
+///
+/// Reads `accessibilityReduceMotion` from the environment so every call site
+/// gets the gate without declaring its own `@Environment` property and ternary.
+struct MotionSafeAnimationModifier<Value: Equatable>: ViewModifier {
+    let animation: Animation?
+    let value: Value
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+extension View {
+    /// `.animation(_:value:)` that turns into no animation under Reduce Motion.
+    ///
+    /// Use in place of a bare `.animation(_:value:)` on any state-change motion
+    /// (fades, slides, symbol swaps). Content transitions still apply; they
+    /// degrade to step swaps on their own when the animation is `nil`.
+    func motionSafe<Value: Equatable>(_ animation: Animation?, value: Value) -> some View {
+        modifier(MotionSafeAnimationModifier(animation: animation, value: value))
+    }
+}
+
+/// `withAnimation` that skips the animation when Reduce Motion is on.
+///
+/// Pass the calling view's `@Environment(\.accessibilityReduceMotion)` value.
+/// A free function cannot read the SwiftUI environment, and taking it as an
+/// argument keeps previews and tests that override the environment honest.
+///
+/// ```swift
+/// withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
+///     proxy.scrollTo(section, anchor: .top)
+/// }
+/// ```
+func withMotionSafeAnimation<Result>(
+    _ animation: Animation? = .default,
+    reduceMotion: Bool,
+    _ body: () throws -> Result
+) rethrows -> Result {
+    try withAnimation(reduceMotion ? nil : animation, body)
+}
+
 // MARK: - Optional Accessibility Identifier
 
 extension View {
@@ -355,7 +403,7 @@ extension Color {
             .font(.system(size: DSFont.Size.body))
             .padding(DSSpace.s3)
             .background(Color.accentColor.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
             .pointerCursor()
     }
     .padding()

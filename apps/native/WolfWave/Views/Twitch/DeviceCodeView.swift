@@ -24,6 +24,11 @@ struct DeviceCodeView: View {
     let verificationURI: String
     let onCopy: () -> Void
     var onActivate: (() -> Void)? = nil
+    /// When the code stops working. `nil` hides the countdown, which keeps
+    /// call sites that don't track expiry (onboarding) unchanged.
+    var expiresAt: Date?
+    /// Starts a fresh device flow. Offered once `expiresAt` has passed.
+    var onRequestNewCode: (() -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -89,8 +94,43 @@ struct DeviceCodeView: View {
             .accessibilityLabel("Open twitch.tv/activate")
             .accessibilityHint("Opens the Twitch activation page in your browser so you can approve WolfWave")
             .accessibilityIdentifier("openTwitchButton")
+
+            if let expiresAt {
+                expiryRow(expiresAt)
+            }
         }
         .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: userCode)
+    }
+
+    // MARK: - Expiry
+
+    /// "Expires in about N min", re-evaluated every few seconds, turning into
+    /// a "Get a new code" button once the code is dead.
+    private func expiryRow(_ expiresAt: Date) -> some View {
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            let remaining = expiresAt.timeIntervalSince(context.date)
+            if let text = TwitchViewModel.deviceCodeExpiryText(remaining: remaining) {
+                Text(text)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityIdentifier("deviceCodeExpiry")
+            } else {
+                HStack(spacing: DSSpace.s2) {
+                    Text("This code expired.")
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(DSColor.warning)
+                    Spacer()
+                    if let onRequestNewCode {
+                        Button("Get a new code", action: onRequestNewCode)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .pointerCursor()
+                            .accessibilityIdentifier("deviceCodeGetNewCode")
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -123,6 +163,18 @@ struct DeviceCodeView: View {
     .padding(DSSpace.s8)
     .frame(width: 500)
 }
+#Preview("With Expiry") {
+    DeviceCodeView(
+        userCode: "ABCD-EFGH",
+        verificationURI: "https://www.twitch.tv/activate",
+        onCopy: { },
+        expiresAt: Date().addingTimeInterval(8 * 60),
+        onRequestNewCode: { }
+    )
+    .padding(DSSpace.s8)
+    .frame(width: 500)
+}
+
 #Preview("Long Code") {
     DeviceCodeView(
         userCode: "ABCDEFGH-IJKLMNOP",

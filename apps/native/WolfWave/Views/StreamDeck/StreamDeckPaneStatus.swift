@@ -9,13 +9,14 @@
 import SwiftUI
 
 /// Resolves the Stream Deck pane's header chip from the two switches that gate
-/// a working key.
+/// a working key and the live state of the shared server.
 ///
 /// Pure and `nonisolated` so the precedence rule is testable without standing up
-/// the view: the shared server switch outranks the command switch, because
-/// turning commands on while the server is off does nothing and a key would just
-/// sit there looking broken. The chip therefore reports the *first* thing in the
-/// user's way rather than a bare "Off" that leaves them hunting for which switch.
+/// the view. The chip reports the *first* thing in the user's way, in this order:
+/// server switch off, server failed, server still starting, commands switch off,
+/// then Ready. "Ready" is only ever shown for a server that is actually
+/// `.listening`: a switch being on says what the user asked for, not what the
+/// server did, and a port clash left the old chip reading Ready over a dead key.
 nonisolated enum StreamDeckPaneStatus {
 
     // MARK: - Resolved
@@ -30,21 +31,46 @@ nonisolated enum StreamDeckPaneStatus {
 
     // MARK: - Public Methods
 
-    /// Resolves the chip for the current switch positions.
+    /// Resolves the chip for the current switch positions and server state.
     ///
     /// - Parameters:
     ///   - controlEnabled: Whether Stream Deck commands are allowed.
     ///   - serverEnabled: Whether the shared WebSocket server (Stream Widgets)
-    ///     is on. Outranks `controlEnabled`; both panes are served by one
+    ///     is on. Outranks everything else; both panes are served by one
     ///     `WebSocketServerService` on one port.
+    ///   - serverState: The live lifecycle state of that server. Only consulted
+    ///     when `serverEnabled` is on. `.stopped` while the switch is on is the
+    ///     brief gap before the service reports `.starting`, so it reads as
+    ///     "Starting" rather than claiming the server is ready.
     /// - Returns: The label, tint, and glyph for the header chip.
-    static func resolve(controlEnabled: Bool, serverEnabled: Bool) -> Resolved {
+    static func resolve(
+        controlEnabled: Bool,
+        serverEnabled: Bool,
+        serverState: WebSocketServerService.ServerState
+    ) -> Resolved {
         guard serverEnabled else {
             return Resolved(
                 text: "Server off",
                 color: DSColor.neutral,
                 symbol: StatusChip.StateGlyph.off
             )
+        }
+
+        switch serverState {
+        case .error:
+            return Resolved(
+                text: "Server error",
+                color: DSColor.error,
+                symbol: StatusChip.StateGlyph.error
+            )
+        case .starting, .stopped:
+            return Resolved(
+                text: "Starting",
+                color: DSColor.warning,
+                symbol: StatusChip.StateGlyph.starting
+            )
+        case .listening:
+            break
         }
 
         guard controlEnabled else {

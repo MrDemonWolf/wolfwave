@@ -43,9 +43,10 @@ struct AppearanceSettingsView: View {
                 .accessibilityLabel("Appearance")
                 .accessibilityIdentifier("appearancePicker")
 
+                // Informative copy, so `.secondary`: `.tertiary` fell under 4.5:1.
                 Text("System matches macOS automatically, including the light/dark schedule.")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -147,13 +148,11 @@ private struct AppearanceTile: View {
         .buttonStyle(.plain)
         .contentShape(Rectangle())
         .onHover { hovering in
-            if reduceMotion {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.fast), reduceMotion: reduceMotion) {
                 isHovering = hovering
-            } else {
-                withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) { isHovering = hovering }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast), value: isSelected)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.fast), value: isSelected)
         .help("Use the \(option.title.lowercased()) appearance.")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(option.title)

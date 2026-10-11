@@ -125,6 +125,48 @@ struct PlayLogStoreTests {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    @Test("An append after a torn last line starts a new record")
+    func appendAfterTornLineStartsNewRecord() async throws {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+
+        // A previous run wrote one good line, then crashed mid-append, leaving
+        // a fragment with no trailing newline.
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let goodLine = try JSONCoders.defaultEncoder.encode(sampleRecord(track: "Before Crash"))
+        var contents = goodLine
+        contents.append(Data("\n{\"track\":\"torn".utf8))
+        try contents.write(to: store.fileURL)
+
+        store.append(sampleRecord(track: "After Relaunch"))
+        store.flush()
+
+        let loaded = store.loadAll()
+        #expect(loaded.map(\.track) == ["Before Crash", "After Relaunch"])
+        let raw = try String(contentsOf: store.fileURL, encoding: .utf8)
+        #expect(raw.hasSuffix("\n"))
+    }
+
+    @Test("An append to a cleanly terminated log adds no blank line")
+    func appendAfterCleanLineAddsNoBlankLine() async throws {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var contents = try JSONCoders.defaultEncoder.encode(sampleRecord(track: "Clean"))
+        contents.append(0x0A)
+        try contents.write(to: store.fileURL)
+
+        store.append(sampleRecord(track: "Next"))
+        store.flush()
+
+        let raw = try String(contentsOf: store.fileURL, encoding: .utf8)
+        #expect(!raw.contains("\n\n"))
+        #expect(store.loadAll().map(\.track) == ["Clean", "Next"])
+    }
+
     // MARK: - Replace & Clear
 
     @Test("replaceAll rewrites the log with exactly the given records")

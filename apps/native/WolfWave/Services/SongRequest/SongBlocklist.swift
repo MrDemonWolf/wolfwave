@@ -126,19 +126,13 @@ actor SongBlocklist {
     /// - Returns: `true` if the song or its artist is on the blocklist.
     func isBlocked(title: String, artist: String) -> Bool {
         let loweredTitle = TrackTextNormalizer.title(title)
-        let loweredArtist = TrackTextNormalizer.text(artist)
-        let artists = loweredArtist.components(
-            separatedBy: " & ").flatMap { $0.components(separatedBy: ", ") }
-            .flatMap { $0.components(separatedBy: " feat. ") }
-            .flatMap { $0.components(separatedBy: " x ") }
-            .map(TrackTextNormalizer.text)
+        let artistCandidates = TrackTextNormalizer.artistCandidates(artist)
         return entries.contains { entry in
             switch entry.type {
             case .song:
                 return TrackTextNormalizer.title(entry.value) == loweredTitle
             case .artist:
-                let blockedArtist = TrackTextNormalizer.text(entry.value)
-                return blockedArtist == loweredArtist || artists.contains(blockedArtist)
+                return artistCandidates.contains(TrackTextNormalizer.text(entry.value))
             case .requester:
                 // A person, not a song. Checked by `isBlockedRequester`.
                 return false
@@ -206,6 +200,63 @@ nonisolated enum TrackTextNormalizer {
     static func text(_ value: String) -> String {
         value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
             .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
+    /// Separators between credited artists, as they appear after ``text(_:)``.
+    static let artistSeparators = [" & ", ", ", " feat. ", " ft. ", " featuring ", " x "]
+
+    /// Every name an artist blocklist entry may match for one track's artist
+    /// credit: the whole credit, each single credited name, and each run of
+    /// adjacent names re-joined with the separators that really sat between
+    /// them.
+    ///
+    /// The runs are what keep a comma-named act blockable inside a
+    /// collaboration: for "Tyler, The Creator & Kali Uchis" the candidates
+    /// include "tyler, the creator". Splitting alone would only offer "tyler",
+    /// "the creator" and "kali uchis", so the entry would never match.
+    ///
+    /// Known limit: a single word of a comma-named act still matches, so an
+    /// entry "Wind" blocks "Earth, Wind & Fire". Strings can't tell a
+    /// comma-named act from a comma-separated collaboration; only per-artist
+    /// catalog identity could.
+    ///
+    /// - Parameter artist: The raw artist credit from the catalog.
+    /// - Returns: Normalized candidate names.
+    static func artistCandidates(_ artist: String) -> Set<String> {
+        let credit = text(artist)
+        var candidates: Set<String> = [credit]
+        let pieceRanges = artistPieceRanges(in: credit)
+        for start in pieceRanges.indices {
+            for end in start..<pieceRanges.count {
+                // Slicing the credit keeps the original separators in each run.
+                let run = text(String(credit[pieceRanges[start].lowerBound..<pieceRanges[end].upperBound]))
+                if !run.isEmpty { candidates.insert(run) }
+            }
+        }
+        return candidates
+    }
+
+    /// Splits a normalized credit into the ranges of its individual names,
+    /// scanning left to right for the earliest separator (longest on a tie).
+    private static func artistPieceRanges(in credit: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var pieceStart = credit.startIndex
+        var searchStart = credit.startIndex
+        while searchStart < credit.endIndex {
+            let next = artistSeparators
+                .compactMap { credit.range(of: $0, range: searchStart..<credit.endIndex) }
+                .min { lhs, rhs in
+                    lhs.lowerBound != rhs.lowerBound
+                        ? lhs.lowerBound < rhs.lowerBound
+                        : lhs.upperBound > rhs.upperBound
+                }
+            guard let separator = next else { break }
+            ranges.append(pieceStart..<separator.lowerBound)
+            pieceStart = separator.upperBound
+            searchStart = separator.upperBound
+        }
+        ranges.append(pieceStart..<credit.endIndex)
+        return ranges
     }
 
     static func title(_ value: String) -> String {

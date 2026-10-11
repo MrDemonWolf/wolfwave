@@ -519,9 +519,10 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     // MARK: - Skip
 
-    func testSkipEmptyQueueReturnsNil() async {
+    func testSkipEmptyQueueReportsDrained() async {
         let result = await service.skip()
-        XCTAssertNil(result)
+        XCTAssertEqual(result, .drained)
+        XCTAssertNil(result.startedItem)
     }
 
     func testSkipWithQueueItemsAdvancesInternalQueue() async {
@@ -530,7 +531,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue.dequeue()
 
         let next = await service.skip()
-        XCTAssertEqual(next?.title, "Song B")
+        XCTAssertEqual(next.startedItem?.title, "Song B")
         XCTAssertEqual(queue.nowPlaying?.title, "Song B")
     }
 
@@ -677,6 +678,29 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.items.map(\.id), [reserved.id])
     }
 
+    func testSkipWithFailedPlaybackReportsRetainedNotDrained() async {
+        let current = makeTestRequestItem(
+            title: "Current", artist: "Artist", requesterUsername: "first")
+        let reserved = makeTestRequestItem(
+            title: "Reserved", artist: "Artist", requesterUsername: "second")
+        _ = queue.add(current)
+        _ = queue.add(reserved)
+        queue.dequeue()
+        service = SongRequestService(
+            queue: queue,
+            musicController: mockController,
+            playbackOverride: { _ in
+                throw PlaybackError.commandFailed(command: "playNow", message: "timed out")
+            }
+        )
+
+        let outcome = await service.skip()
+
+        XCTAssertEqual(outcome, .retained)
+        XCTAssertEqual(queue.nowPlaying?.id, current.id)
+        XCTAssertEqual(queue.items.map(\.id), [reserved.id])
+    }
+
     func testCancelledPlaybackRetainsQueueHead() async {
         let current = makeTestRequestItem(
             title: "Current", artist: "Artist", requesterUsername: "first")
@@ -819,7 +843,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         let replacement = await service.skip()
 
-        XCTAssertNil(replacement)
+        XCTAssertEqual(replacement, .drained)
         XCTAssertNil(queue.nowPlaying)
         XCTAssertTrue(mockController.playFallbackCalled)
         XCTAssertEqual(mockController.fallbackPlaylistName, "Gaming Vibes")

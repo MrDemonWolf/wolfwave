@@ -29,9 +29,11 @@ final class CrashReporterTests: WolfWaveTestCase {
         tempDir = makeTempDir()
         CrashReporter.markerDirectoryOverride = tempDir
         CrashReporter.clearMarker()
+        CrashReporter.resetExceptionRecordedForTesting()
     }
 
     override func tearDown() async throws {
+        CrashReporter.resetExceptionRecordedForTesting()
         CrashReporter.clearMarker()
         CrashReporter.markerDirectoryOverride = nil
         cleanupTrackedTempDirs()
@@ -86,5 +88,35 @@ final class CrashReporterTests: WolfWaveTestCase {
         defer { CrashReporter.markerDirectoryOverride = tempDir }
         let path = CrashReporter.markerURL().path
         XCTAssertTrue(path.contains("WolfWave/State/last-crash.marker"), "unexpected marker path: \(path)")
+    }
+
+    // MARK: - Exception marker priority
+
+    /// An uncaught exception writes its marker, then the chained handler aborts
+    /// and SIGABRT fires. The signal path must keep the exception marker (name,
+    /// reason, frames) instead of truncating it to a bare signal record.
+    func testSignalAfterExceptionKeepsExceptionMarker() throws {
+        let exceptionBody = """
+            \(CrashMarker.header)
+            kind=exception
+            name=NSInvalidArgumentException
+            reason=boom
+            frame=0 WolfWave 0x1
+            """
+        CrashReporter.recordExceptionMarkerForTesting(exceptionBody)
+        CrashReporter.simulateSignalMarkerWriteForTesting(slot: 0, epoch: 1_700_000_000)
+
+        let contents = try String(contentsOf: CrashReporter.markerURL(), encoding: .utf8)
+        XCTAssertEqual(contents, exceptionBody)
+        let marker = try XCTUnwrap(CrashReporter.readMarker())
+        XCTAssertEqual(marker.kind, .exception)
+    }
+
+    /// Without a prior exception the signal path still writes its own record.
+    func testSignalWithoutExceptionWritesSignalMarker() throws {
+        CrashReporter.simulateSignalMarkerWriteForTesting(slot: 2, epoch: 1_700_000_000)
+
+        let contents = try String(contentsOf: CrashReporter.markerURL(), encoding: .utf8)
+        XCTAssertEqual(contents, CrashReporter.composeSignalMarkerForTesting(slot: 2, epoch: 1_700_000_000))
     }
 }

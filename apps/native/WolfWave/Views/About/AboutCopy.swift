@@ -43,7 +43,7 @@ enum AboutCopy {
         "WolfWave is an independent, open-source project. It is not affiliated with, endorsed by, or sponsored by Apple, Twitch, Discord, or Odesli. WolfWave connects to Twitch and Discord via their official public APIs, and reads Apple Music playback locally on your Mac via macOS ScriptingBridge. No listening history is collected or sent to any external service."
 
     static let trademarkNotice =
-        "Apple Music and iTunes are trademarks of Apple Inc. Twitch is a trademark of Twitch Interactive, Inc. Discord is a trademark of Discord Inc. song.link is a trademark of Song, Inc. (Odesli). OBS is a trademark of OBS Project."
+        "Apple Music and iTunes are trademarks of Apple Inc. Twitch is a trademark of Twitch Interactive, Inc. Discord is a trademark of Discord Inc. song.link is a trademark of Song, Inc. (Odesli). Spotify is a trademark of Spotify AB. YouTube is a trademark of Google LLC. Elgato and Stream Deck are trademarks of Corsair Memory, Inc. OBS is a trademark of OBS Project."
 
     static var copyrightLine: String {
         "© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved."

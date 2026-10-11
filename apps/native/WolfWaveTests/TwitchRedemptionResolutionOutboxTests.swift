@@ -727,6 +727,117 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         }
     }
 
+    func testFutureDatedTombstoneClampedNotDropped() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let writtenAt = Date(timeIntervalSince1970: 100_000)
+        let clock = ThreadSafeBox(writtenAt)
+        let store = TwitchRedemptionResolutionOutbox(
+            fileURL: fixture.file,
+            nowProvider: { clock.value })
+
+        let bits = try store.enqueueBits(
+            messageID: "paid-message",
+            broadcasterID: "broadcaster",
+            userName: "viewer",
+            bits: 100,
+            boostEnabled: false,
+            query: "a song")
+        try store.acknowledgeBits(try XCTUnwrap(bits.item).id)
+        let item = try store.enqueue(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption",
+            resolution: .fulfilled,
+            now: writtenAt)
+        try store.acknowledge(item.id, at: writtenAt)
+
+        // The wall clock jumps back an hour, far past the forward-skew window.
+        // The tombstones now look future-dated; they must still suppress.
+        let rewound = writtenAt.addingTimeInterval(-3_600)
+        clock.value = rewound
+        let relaunched = TwitchRedemptionResolutionOutbox(
+            fileURL: fixture.file,
+            nowProvider: { clock.value })
+        XCTAssertTrue(
+            relaunched.hasAcknowledgedRedemption(
+                broadcasterID: "broadcaster",
+                rewardID: "reward",
+                redemptionID: "redemption"))
+        XCTAssertNil(
+            try relaunched.enqueueBits(
+                messageID: "paid-message",
+                broadcasterID: "broadcaster",
+                userName: "viewer",
+                bits: 100,
+                boostEnabled: false,
+                query: "a song").item)
+
+        // Retention restarts from the clamped time, so the tombstones still
+        // expire once the horizon passes on the corrected clock.
+        clock.value = rewound.addingTimeInterval(
+            TwitchRedemptionResolutionOutbox.paidEventTombstoneRetention + 1)
+        XCTAssertFalse(
+            relaunched.hasAcknowledgedRedemption(
+                broadcasterID: "broadcaster",
+                rewardID: "reward",
+                redemptionID: "redemption"))
+        XCTAssertTrue(
+            try relaunched.enqueueBits(
+                messageID: "paid-message",
+                broadcasterID: "broadcaster",
+                userName: "viewer",
+                bits: 100,
+                boostEnabled: false,
+                query: "a song").inserted)
+    }
+
+    func testDefaultWriterRoundTrips() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+
+        // Direct: a fresh write, then an overwrite of the live file.
+        try TwitchRedemptionResolutionOutbox.durableAtomicWrite(
+            Data("first".utf8), to: fixture.file)
+        try TwitchRedemptionResolutionOutbox.durableAtomicWrite(
+            Data("second".utf8), to: fixture.file)
+        XCTAssertEqual(try Data(contentsOf: fixture.file), Data("second".utf8))
+
+        // Through the store, using the default writer. The plain "second"
+        // bytes are not a valid store, so start from no file.
+        try FileManager.default.removeItem(at: fixture.file)
+        let fresh = TwitchRedemptionResolutionOutbox(fileURL: fixture.file)
+        let intake = try fresh.enqueueIntake(
+            broadcasterID: "broadcaster",
+            rewardID: "reward",
+            redemptionID: "redemption",
+            now: Date(timeIntervalSince1970: 100))
+        let relaunched = TwitchRedemptionResolutionOutbox(fileURL: fixture.file)
+        XCTAssertEqual(relaunched.pendingItems(), [intake.item])
+
+        // No temp files are left behind next to the live store.
+        let leftovers = try FileManager.default
+            .contentsOfDirectory(atPath: fixture.directory.path)
+            .filter { $0.contains(".tmp-") }
+        XCTAssertEqual(leftovers, [])
+    }
+
+    func testDefaultWriterFailureLeavesLiveFileUntouched() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        try TwitchRedemptionResolutionOutbox.durableAtomicWrite(
+            Data("live".utf8), to: fixture.file)
+
+        // A destination inside a missing directory cannot be written.
+        let missing = fixture.directory
+            .appending(path: "missing-dir")
+            .appending(path: "outbox.json")
+        XCTAssertThrowsError(
+            try TwitchRedemptionResolutionOutbox.durableAtomicWrite(
+                Data("nope".utf8), to: missing))
+        XCTAssertEqual(try Data(contentsOf: fixture.file), Data("live".utf8))
+    }
+
     private func makeFixture() throws -> (directory: URL, file: URL) {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "wolfwave-redemption-outbox-tests-\(UUID().uuidString)")

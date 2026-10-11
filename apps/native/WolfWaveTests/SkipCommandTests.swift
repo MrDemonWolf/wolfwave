@@ -10,8 +10,9 @@ import XCTest
 
 @testable import WolfWave
 
-/// Covers `SkipCommand`: moderator/broadcaster gate, queue-empty reply, and
-/// the "now playing" handoff after a skip.
+/// Covers `SkipCommand`: moderator/broadcaster gate, queue-empty reply, the
+/// "now playing" handoff after a skip, and the "try again" reply when a skip
+/// changed nothing.
 @MainActor
 final class SkipCommandTests: WolfWaveTestCase {
 
@@ -98,6 +99,43 @@ final class SkipCommandTests: WolfWaveTestCase {
 
         let reply = await command.execute(message: "!skip", context: privilegedContext()) ?? ""
         XCTAssertTrue(reply.lowercased().contains("empty"))
+    }
+
+    // MARK: - Skip That Changed Nothing
+
+    /// A failed playback command keeps the next request at the head, so the
+    /// reply must not claim the queue drained.
+    func testFailedPlaybackDoesNotClaimQueueIsEmpty() async {
+        let queue = SongRequestQueue()
+        _ = queue.add(makeTestRequestItem(title: "Current", artist: "Artist", requesterUsername: "first"))
+        _ = queue.add(makeTestRequestItem(title: "Next", artist: "Artist", requesterUsername: "second"))
+        queue.dequeue()
+        let service = SongRequestService(
+            queue: queue,
+            blocklist: SongBlocklist(storage: InMemoryBlocklistStorage()),
+            musicController: MockAppleMusicController(),
+            playbackOverride: { _ in
+                throw PlaybackError.commandFailed(command: "playNow", message: "timed out")
+            }
+        )
+        let command = SkipCommand()
+        command.songRequestService = { service }
+
+        let reply = await command.execute(message: "!skip", context: privilegedContext()) ?? ""
+
+        XCTAssertFalse(reply.lowercased().contains("empty"), "Got: \(reply)")
+        XCTAssertEqual(reply, "Couldn't skip right now, try again.")
+        XCTAssertEqual(queue.items.map(\.title), ["Next"])
+    }
+
+    func testReplyForEachOutcome() {
+        let item = makeTestRequestItem(title: "Song", artist: "Band", requesterUsername: "fan")
+        XCTAssertEqual(
+            SkipCommand.reply(for: .started(item)),
+            "Skipped. Now playing: \"Song\" by Band (requested by fan)")
+        XCTAssertEqual(SkipCommand.reply(for: .drained), "Skipped. Queue is now empty.")
+        XCTAssertEqual(SkipCommand.reply(for: .busy), "Couldn't skip right now, try again.")
+        XCTAssertEqual(SkipCommand.reply(for: .retained), "Couldn't skip right now, try again.")
     }
 
     // MARK: - Missing Service

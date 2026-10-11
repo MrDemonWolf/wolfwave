@@ -300,3 +300,117 @@ struct TwitchViewModelTests {
         #expect(viewModel.progressMessage == "")
     }
 }
+
+// MARK: - Sign-in Flow Clarity
+
+/// Pure copy and routing helpers behind the Twitch pane's sign-in flow.
+@Suite("Twitch ViewModel sign-in helpers")
+@MainActor
+struct TwitchViewModelSignInHelperTests {
+
+    @Test("Expiry text rounds up to whole minutes and hides once expired")
+    func deviceCodeExpiryText() {
+        #expect(TwitchViewModel.deviceCodeExpiryText(remaining: 600) == "Expires in about 10 min")
+        #expect(TwitchViewModel.deviceCodeExpiryText(remaining: 61) == "Expires in about 2 min")
+        #expect(TwitchViewModel.deviceCodeExpiryText(remaining: 5) == "Expires in about 1 min")
+        #expect(TwitchViewModel.deviceCodeExpiryText(remaining: 0) == nil)
+        #expect(TwitchViewModel.deviceCodeExpiryText(remaining: -30) == nil)
+    }
+
+    @Test("Try Again re-runs the work the failure was about")
+    func retryTargetRouting() {
+        #expect(TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.oauth("declined")) == .signIn)
+        #expect(TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.deviceCodeExpired()) == .signIn)
+        #expect(TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.credentialClearFailed()) == .signOut)
+        // A channel change that couldn't leave the old channel retries the join.
+        #expect(TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.disconnectFailed()) == .joinChannel)
+        // A sign-out that couldn't disconnect retries the sign-out: it must
+        // never rejoin and put the account being removed back online.
+        #expect(
+            TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.signOutDisconnectFailed()) == .signOut)
+        // An account switch or re-auth that couldn't disconnect signs in again.
+        #expect(
+            TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.accountSwitchDisconnectFailed()) == .signIn)
+        #expect(
+            TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.connectionFailed("boom")) == .joinChannel)
+    }
+
+    @Test("An expired code offers a fresh sign-in, not a generic failure")
+    func expiredCodeFailure() {
+        let failure = TwitchViewModel.Failure.deviceCodeExpired()
+        #expect(failure.id == "twitch.deviceCodeExpired")
+        #expect(failure.actions == [.retry])
+        #expect(failure.severity == .warning)
+    }
+}
+
+/// Drives `startOAuth()` against a stubbed device-code endpoint. Holds the
+/// shared-state lock because the flow touches the Keychain seam and the
+/// process-wide credential revision.
+@Suite("Twitch ViewModel OAuth start", .isolatedSharedTestState)
+@MainActor
+struct TwitchViewModelOAuthStartTests {
+
+    /// Device-code endpoint answers with a 10-minute code; the token endpoint
+    /// keeps saying "authorization pending" so the flow parks in
+    /// `.waitingForAuth` until the test cancels it.
+    private func makeViewModel() -> TwitchViewModel {
+        let auth = TwitchDeviceAuth(
+            clientID: "client",
+            scopes: AppConstants.Twitch.allScopes,
+            session: MockURLProtocol.makeSession { request in
+                if request.url?.path.hasSuffix("/device") == true {
+                    let json = #"{"device_code":"DEV","user_code":"WXYZ","#
+                        + #""verification_uri":"https://twitch.tv/activate","#
+                        + #""expires_in":600,"interval":5}"#
+                    return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+                }
+                let pending = #"{"status":400,"message":"authorization_pending"}"#
+                return (MockURLProtocol.httpResponse(for: request, status: 400), Data(pending.utf8))
+            }
+        )
+        return TwitchViewModel(
+            cancelTokenValidationSchedule: {},
+            restartTokenValidationSchedule: {},
+            makeOAuthClient: { ("client", auth) },
+            leaveAccountService: { _, _ in true }
+        )
+    }
+
+    @Test("startOAuth clears a stale error before the new attempt")
+    func startOAuthClearsStaleError() async throws {
+        let viewModel = makeViewModel()
+        viewModel.connectionError = TwitchViewModel.Failure.oauth("Old failure")
+        viewModel.authState = .error("Old failure")
+
+        viewModel.startOAuth()
+
+        #expect(viewModel.connectionError == nil)
+        #expect(viewModel.authState == .requestingCode)
+        #expect(viewModel.progressMessage == "Getting your code\u{2026}")
+
+        let flow = viewModel.oAuthTask
+        await viewModel.cancelOAuth()
+        await flow?.value
+    }
+
+    @Test("A waiting device code carries its expiry")
+    func authStateCarriesExpiry() async throws {
+        let viewModel = makeViewModel()
+        let before = Date()
+
+        viewModel.startOAuth()
+        let flow = viewModel.oAuthTask
+        let waiting = await waitUntil(timeout: .seconds(3)) {
+            viewModel.authState.userCode == "WXYZ"
+        }
+        #expect(waiting)
+
+        let expiresAt = try #require(viewModel.deviceCodeExpiresAt)
+        let lifetime = expiresAt.timeIntervalSince(before)
+        #expect(lifetime > 590 && lifetime <= 601)
+
+        await viewModel.cancelOAuth()
+        await flow?.value
+    }
+}

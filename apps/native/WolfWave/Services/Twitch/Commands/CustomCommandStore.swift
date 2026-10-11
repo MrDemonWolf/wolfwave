@@ -41,22 +41,32 @@ final class CustomCommandStore {
     // MARK: - Mutation
 
     /// Appends a new command and persists.
-    func add(_ command: CustomCommand) {
+    ///
+    /// - Returns: `false` when the combined set would be invalid, in which case
+    ///   nothing changes.
+    @discardableResult
+    func add(_ command: CustomCommand) -> Bool {
         guard let normalized = CustomCommand.normalizedForImport(commands + [command]) else {
-            return
+            return false
         }
         commands = normalized
         save()
+        return true
     }
 
-    /// Replaces the command with the same `id` (no-op if absent) and persists.
-    func update(_ command: CustomCommand) {
-        guard let index = commands.firstIndex(where: { $0.id == command.id }) else { return }
+    /// Replaces the command with the same `id` and persists.
+    ///
+    /// - Returns: `false` when no command has that `id` or the result would be
+    ///   invalid, in which case nothing changes.
+    @discardableResult
+    func update(_ command: CustomCommand) -> Bool {
+        guard let index = commands.firstIndex(where: { $0.id == command.id }) else { return false }
         var updated = commands
         updated[index] = command
-        guard let normalized = CustomCommand.normalizedForImport(updated) else { return }
+        guard let normalized = CustomCommand.normalizedForImport(updated) else { return false }
         commands = normalized
         save()
+        return true
     }
 
     /// Removes the command with `id` and persists.
@@ -75,17 +85,47 @@ final class CustomCommandStore {
         save()
     }
 
-    /// Whether `trigger` (any alias too) is already claimed by a command other
-    /// than `excluding`. Used by the editor to block duplicate triggers, which
-    /// the dispatcher resolves by first-match and would otherwise shadow.
-    func commandConflicts(_ candidate: CustomCommand) -> Bool {
-        guard CustomCommand.normalizedForImport([candidate]) != nil else { return true }
-        let claimed = Set(
-            commands
-                .filter { $0.id != candidate.id }
-                .flatMap(\.allTriggerTokens)
-        )
-        return candidate.allTriggerTokens.contains { claimed.contains($0) }
+    /// The first reason `candidate` can't be saved, or `nil` when it can.
+    ///
+    /// Checks run in the order the editor fields read: trigger, aliases, clashes
+    /// with other commands, then the reply. A trigger or alias claimed by a
+    /// command other than `candidate` is reported with that command's name,
+    /// because the dispatcher resolves overlaps by first match and the second
+    /// command would silently never fire.
+    func validationIssue(for candidate: CustomCommand) -> CustomCommandIssue? {
+        let trigger = candidate.normalizedTrigger
+        guard !trigger.isEmpty else { return .emptyTrigger }
+        if CustomCommand.containsWhitespace(trigger) { return .hasSpaces(trigger) }
+
+        if !candidate.aliases.trimmingCharacters(in: .whitespaces).isEmpty {
+            var seen: Set<String> = [trigger]
+            for raw in candidate.aliases.split(separator: ",", omittingEmptySubsequences: false) {
+                let alias = CustomCommand.normalizeTrigger(String(raw))
+                if alias.isEmpty { return .badAlias("") }
+                if CustomCommand.containsWhitespace(alias) { return .hasSpaces(alias) }
+                if !seen.insert(alias).inserted { return .badAlias(alias) }
+            }
+        }
+
+        let candidateTokens = candidate.allTriggerTokens
+        for other in commands where other.id != candidate.id {
+            let claimed = Set(other.allTriggerTokens)
+            if let clash = candidateTokens.first(where: { claimed.contains($0) }) {
+                return .duplicate(clash, owner: other.normalizedTrigger)
+            }
+        }
+
+        if candidate.response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .emptyReply
+        }
+        // Unicode scalars, not grapheme clusters: the same measure Twitch and
+        // `truncatedForChat()` use, so a reply that passes here is never
+        // truncated on send (a flag emoji is one Character but two scalars).
+        let length = candidate.response.unicodeScalars.count
+        if length > AppConstants.Twitch.maxMessageLength {
+            return .replyTooLong(count: length)
+        }
+        return nil
     }
 
     // MARK: - Persistence

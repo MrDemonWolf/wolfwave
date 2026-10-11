@@ -165,6 +165,156 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
         XCTAssertEqual(command.executionCount, 1)
     }
 
+    // MARK: - Song Request Preflight
+
+    private func chatContext(
+        userID: String,
+        subscriber: Bool = false
+    ) -> BotCommandContext {
+        BotCommandContext(
+            userID: userID,
+            username: userID,
+            isModerator: false,
+            isBroadcaster: false,
+            isSubscriber: subscriber,
+            isVIP: false,
+            messageID: "message-\(userID)")
+    }
+
+    /// Wires a live `SongRequestService` whose searches are recorded, so a test
+    /// can prove a request reached `processRequest`.
+    private func wireRecordingSongRequests() -> ThreadSafeBox<[String]> {
+        let queries = ThreadSafeBox<[String]>([])
+        let music = MockAppleMusicController()
+        music.searchProvider = { query in
+            queries.mutate { $0.append(query) }
+            return .notFound
+        }
+        let service = SongRequestService(
+            blocklist: SongBlocklist(storage: InMemoryBlocklistStorage()),
+            musicController: music)
+        dispatcher.setSongRequestService { service }
+        return queries
+    }
+
+    /// A viewer refused by the audience gets the denial reply but must not
+    /// start the global `!sr` cooldown that allowed viewers share.
+    func testAudienceDenialDoesNotConsumeSongRequestCooldown() async {
+        let defaults = DefaultsStore.store
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.set(5.0, forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        }
+        let queries = wireRecordingSongRequests()
+        let viewer = chatContext(userID: "viewer-1")
+        let subscriber = chatContext(userID: "sub-1", subscriber: true)
+
+        let denied = await dispatcher.processMessageAsync(
+            "!sr some song", userID: viewer.userID, context: viewer)
+        let allowed = await dispatcher.processMessageAsync(
+            "!sr another song", userID: subscriber.userID, context: subscriber)
+
+        XCTAssertEqual(denied, RequestAudience.subscribers.denialMessage)
+        XCTAssertNotNil(allowed, "Subscriber was cooldown-blocked by a refused viewer")
+        XCTAssertEqual(queries.value, ["another song"])
+    }
+
+    /// Denial replies are throttled per viewer so a refused viewer can't make
+    /// the bot flood chat.
+    func testAudienceDenialReplyIsThrottledPerViewer() async {
+        let defaults = DefaultsStore.store
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        }
+        _ = wireRecordingSongRequests()
+        let viewer = chatContext(userID: "viewer-1")
+
+        let first = await dispatcher.processMessageAsync("!sr a", userID: viewer.userID, context: viewer)
+        let second = await dispatcher.processMessageAsync("!sr b", userID: viewer.userID, context: viewer)
+
+        XCTAssertNotNil(first)
+        XCTAssertNil(second)
+    }
+
+    /// Denial replies are also capped channel-wide: during a raid, distinct
+    /// refused viewers inside the window get one reply between them, not one
+    /// each, so the bot stays under Twitch's send rate limit. The command's own
+    /// global cooldown is 0 here, so this is the floor doing the work.
+    func testDenialRepliesAreThrottledGloballyAcrossViewers() async {
+        let defaults = DefaultsStore.store
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.set(0.0, forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        }
+        let queries = wireRecordingSongRequests()
+        let viewer = chatContext(userID: "viewer-1")
+        let otherViewer = chatContext(userID: "viewer-2")
+        let subscriber = chatContext(userID: "sub-1", subscriber: true)
+
+        let first = await dispatcher.processMessageAsync("!sr a", userID: viewer.userID, context: viewer)
+        let other = await dispatcher.processMessageAsync("!sr c", userID: otherViewer.userID, context: otherViewer)
+        let allowed = await dispatcher.processMessageAsync(
+            "!sr d", userID: subscriber.userID, context: subscriber)
+
+        XCTAssertEqual([first, other].compactMap { $0 }.count, 1)
+        // The denial key is separate, so allowed viewers are untouched by it.
+        XCTAssertNotNil(allowed)
+        XCTAssertEqual(queries.value, ["d"])
+    }
+
+    /// With the feature off and the opt-in reply on, `!sr` still answers but
+    /// leaves the cooldown free.
+    func testFeatureOffReplyDoesNotConsumeSongRequestCooldown() async {
+        let defaults = DefaultsStore.store
+        defaults.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+        defaults.set(5.0, forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestGlobalCooldown)
+        }
+        let queries = wireRecordingSongRequests()
+        let viewer = chatContext(userID: "viewer-1")
+        let otherViewer = chatContext(userID: "viewer-2")
+
+        let offReply = await dispatcher.processMessageAsync(
+            "!sr some song", userID: viewer.userID, context: viewer)
+        XCTAssertEqual(offReply, SongRequestCommand.disabledReply)
+
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        let allowed = await dispatcher.processMessageAsync(
+            "!sr another song", userID: otherViewer.userID, context: otherViewer)
+
+        XCTAssertNotNil(allowed, "The feature-off reply warmed the shared cooldown")
+        XCTAssertEqual(queries.value, ["another song"])
+    }
+
+    /// Feature off without the opt-in reply stays silent.
+    func testFeatureOffWithoutReplyIsSilent() async {
+        let defaults = DefaultsStore.store
+        defaults.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defer { defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled) }
+        let queries = wireRecordingSongRequests()
+        let viewer = chatContext(userID: "viewer-1")
+
+        let reply = await dispatcher.processMessageAsync("!sr song", userID: viewer.userID, context: viewer)
+
+        XCTAssertNil(reply)
+        XCTAssertTrue(queries.value.isEmpty)
+    }
+
     // MARK: - Whitespace Handling
 
     func testLeadingWhitespaceTrimmed() async {

@@ -41,16 +41,35 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
     // MARK: - Properties
 
     private let defaults: UserDefaults
+    private let payloadDirectoryOverride: URL?
+    private let maxStoredPayloads: Int
+    private let maxPayloadAge: TimeInterval
     private let lock = NSLock()
     private var isSubscribed = false
     private var lastDiagnosticSummary: String?
 
     // MARK: - Init
 
-    /// Internal so unit tests can inject an isolated `UserDefaults`; app code
-    /// uses `shared`.
-    init(defaults: UserDefaults = DefaultsStore.store) {
+    /// Internal so unit tests can inject an isolated `UserDefaults` and a temp
+    /// payload directory; app code uses `shared`.
+    ///
+    /// - Parameters:
+    ///   - defaults: Preference store holding the opt-in and launch counter.
+    ///   - payloadDirectory: Where payloads are written. `nil` uses
+    ///     `Application Support/WolfWave/Diagnostics`.
+    ///   - maxStoredPayloads: Newest payload files kept after each write.
+    ///   - maxPayloadAge: Payload files older than this are deleted after each
+    ///     write.
+    init(
+        defaults: UserDefaults = DefaultsStore.store,
+        payloadDirectory: URL? = nil,
+        maxStoredPayloads: Int = 50,
+        maxPayloadAge: TimeInterval = 30 * 24 * 60 * 60
+    ) {
         self.defaults = defaults
+        self.payloadDirectoryOverride = payloadDirectory
+        self.maxStoredPayloads = max(0, maxStoredPayloads)
+        self.maxPayloadAge = maxPayloadAge
         super.init()
     }
 
@@ -69,8 +88,18 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     /// Subscribes to or unsubscribes from MetricKit payloads.
     ///
+    /// Turning it off also deletes every stored payload: opting out means the
+    /// data goes too, not just that collection stops.
+    ///
     /// - Parameter enabled: `true` to start collecting on-device diagnostics.
     func setEnabled(_ enabled: Bool) {
+        // A test harness (hosted unit tests, or a UI test driving the dev app)
+        // shares the dev app's container, so it only ever deletes an injected
+        // directory, never the developer's real payloads.
+        if !enabled, payloadDirectoryOverride != nil || !UITestMode.isUnderTestHarness {
+            deleteStoredPayloads()
+        }
+
         let alreadySubscribed = lock.withLock { isSubscribed }
 
         if enabled, !alreadySubscribed {
@@ -108,7 +137,46 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     /// On-device directory where MetricKit payloads are persisted.
     var payloadDirectory: URL {
-        AppContainer.directory("Diagnostics")
+        payloadDirectoryOverride ?? AppContainer.directory("Diagnostics")
+    }
+
+    /// Deletes payload files beyond the newest `maxStoredPayloads` and any
+    /// older than `maxPayloadAge`. Runs after every write so the folder can't
+    /// grow without bound on a Mac that stays opted in for years.
+    ///
+    /// - Parameter now: Reference time for the age cutoff. Tests pin it.
+    func prunePayloads(now: Date = Date()) {
+        let fileManager = FileManager.default
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: payloadDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        let dated = urls
+            .filter { $0.pathExtension == "json" }
+            .map { url in
+                let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                return (url: url, modified: modified)
+            }
+            .sorted { $0.modified > $1.modified } // newest first
+
+        let cutoff = now.addingTimeInterval(-maxPayloadAge)
+        var removed = 0
+        for (index, entry) in dated.enumerated()
+        where index >= maxStoredPayloads || entry.modified < cutoff {
+            if (try? fileManager.removeItem(at: entry.url)) != nil {
+                removed += 1
+            }
+        }
+        if removed > 0 {
+            Log.info(
+                "DiagnosticsService: Pruned old payloads",
+                category: .diagnostics,
+                fields: ["removed": "\(removed)"]
+            )
+        }
     }
 
     // MARK: - MXMetricManagerSubscriber
@@ -141,9 +209,25 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
                 let url = dir.appending(path: "\(prefix)-\(stamp)-\(index).json")
                 try data.write(to: url)
             }
+            prunePayloads()
         } catch {
             Log.error(
                 "DiagnosticsService: Failed to persist \(prefix) payload: \(error.localizedDescription)",
+                category: .diagnostics
+            )
+        }
+    }
+
+    /// Removes the payload folder. No-op when it doesn't exist.
+    private func deleteStoredPayloads() {
+        let dir = payloadDirectory
+        guard FileManager.default.fileExists(atPath: dir.path) else { return }
+        do {
+            try FileManager.default.removeItem(at: dir)
+            Log.info("DiagnosticsService: Deleted stored payloads (opt-in off)", category: .diagnostics)
+        } catch {
+            Log.error(
+                "DiagnosticsService: Failed to delete stored payloads: \(error.localizedDescription)",
                 category: .diagnostics
             )
         }

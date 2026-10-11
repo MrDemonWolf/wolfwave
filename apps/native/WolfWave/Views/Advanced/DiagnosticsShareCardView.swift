@@ -29,7 +29,7 @@ struct DiagnosticsShareCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Diagnostics & Privacy")
+                Text("Share Diagnostics")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("WolfWave can collect crash and performance diagnostics using Apple's on-device MetricKit.")

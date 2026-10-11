@@ -432,7 +432,9 @@ final class AppleMusicController: AppleMusicControlling {
         }
 
         let pathComponents = url.path.split(separator: "/").map(String.init)
-        if pathComponents.count >= 3, pathComponents[1] == "song",
+        // Only a link with a slug has words to search; a slug-less link's
+        // third component is the numeric catalog ID.
+        if pathComponents.count >= 4, pathComponents[1] == "song",
            let songSlug = pathComponents.dropFirst(2).first {
             let searchTerm = songSlug.replacingOccurrences(of: "-", with: " ")
             return await search(query: searchTerm)
@@ -446,6 +448,10 @@ final class AppleMusicController: AppleMusicControlling {
         guard path.count >= 3 else { return nil }
         if path[1] == "song", path.count == 4, UInt64(path[3]) != nil {
             return path[3]
+        }
+        // Slug-less song link: /<storefront>/song/<id>
+        if path[1] == "song", path.count == 3, UInt64(path[2]) != nil {
+            return path[2]
         }
         if path[1] == "album",
            let itemID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?

@@ -31,6 +31,7 @@ struct OnboardingPreferencesStepView: View {
         OnboardingStepScaffold(
             title: "A couple Mac settings",
             description: "Start at login, remember your listening history, sync settings with iCloud.",
+            isOptional: true,
             icon: {
                 BrandTileGlyph.symbol("gearshape.fill", tint: Color.accentColor)
             },

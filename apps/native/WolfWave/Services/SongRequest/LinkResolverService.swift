@@ -167,10 +167,16 @@ nonisolated final class LinkResolverService {
 
     /// Apple Music share links use:
     /// /<storefront>/(album|song)/<slug>/<numeric catalog id>
+    /// Song links may also drop the slug: /<storefront>/song/<numeric catalog id>
     private static func isAppleMusicTrackPath(_ path: [String], url: URL) -> Bool {
-        guard path.count == 4,
+        guard path.count >= 3,
               path[0].utf8.count == 2,
-              path[0].utf8.allSatisfy({ (97...122).contains(Int($0)) }),
+              path[0].utf8.allSatisfy({ (97...122).contains(Int($0)) })
+        else { return false }
+        if path.count == 3 {
+            return path[1] == "song" && UInt64(path[2]) != nil
+        }
+        guard path.count == 4,
               path[1] == "album" || path[1] == "song",
               !path[2].isEmpty
         else { return false }

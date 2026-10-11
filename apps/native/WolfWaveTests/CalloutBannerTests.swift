@@ -83,4 +83,41 @@ final class CalloutBannerTests: XCTestCase {
             [DSColor.info, DSColor.success, DSColor.warning, DSColor.error, DSColor.neutral]
         )
     }
+
+    // MARK: - Glyph Contrast
+
+    /// Light appearance swaps every style's icon to its darker glyph token so it
+    /// clears 3:1 on the banner's own wash.
+    func testLightGlyphsUseDarkerGlyphTokens() {
+        let glyphs: [Color] = [
+            CalloutBanner.Style.info.glyph(in: .light),
+            CalloutBanner.Style.success.glyph(in: .light),
+            CalloutBanner.Style.warning.glyph(in: .light),
+            CalloutBanner.Style.error.glyph(in: .light),
+            CalloutBanner.Style.neutral.glyph(in: .light)
+        ]
+        XCTAssertEqual(
+            glyphs,
+            [
+                DSColor.glyphInfoLight, DSColor.glyphSuccessLight, DSColor.glyphWarningLight,
+                DSColor.glyphErrorLight, DSColor.glyphNeutralLight
+            ]
+        )
+    }
+
+    /// Dark appearance keeps the semantic tint, which already reads on a dark wash.
+    func testDarkGlyphsKeepTheTint() {
+        for style in [CalloutBanner.Style.info, .success, .warning, .error, .neutral] {
+            XCTAssertEqual(style.glyph(in: .dark), style.tint)
+        }
+    }
+
+    /// The wash stays on the semantic tint so the banner still reads as its state.
+    func testRendersInLightAppearance() {
+        let view = CalloutBanner("Heads up.", style: .success)
+            .environment(\.colorScheme, .light)
+        let host = NSHostingView(rootView: view)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
+    }
 }

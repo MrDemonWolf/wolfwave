@@ -24,13 +24,18 @@ CalloutBanner("These tools mutate live state. Use at your own risk.", strokeVisi
 
 ### Style maps to tint plus icon
 
-| Style | Tint | Default icon |
-|---|---|---|
-| `.info` | `DSColor.info` | `info.circle.fill` |
-| `.success` | `DSColor.success` | `checkmark.circle.fill` |
-| `.warning` | `DSColor.warning` | `exclamationmark.triangle.fill` |
-| `.error` | `DSColor.error` | `exclamationmark.octagon.fill` |
-| `.neutral` | `DSColor.neutral` | `info.circle.fill` |
+| Style | Tint (wash, stroke, dark-mode icon) | Light-mode icon | Default icon |
+|---|---|---|---|
+| `.info` | `DSColor.info` | `DSColor.glyphInfoLight` | `info.circle.fill` |
+| `.success` | `DSColor.success` | `DSColor.glyphSuccessLight` | `checkmark.circle.fill` |
+| `.warning` | `DSColor.warning` | `DSColor.glyphWarningLight` | `exclamationmark.triangle.fill` |
+| `.error` | `DSColor.error` | `DSColor.glyphErrorLight` | `exclamationmark.octagon.fill` |
+| `.neutral` | `DSColor.neutral` | `DSColor.glyphNeutralLight` | `info.circle.fill` |
+
+`Style.glyph(in:)` resolves the icon color through `DSColor.glyph(for:in:)`. The bright
+tints read at about 2:1 on their own wash in light appearance, under the 3:1 floor for
+meaningful non-text marks (WCAG 1.4.11); the glyph tokens reach 4.2:1 or better. See
+[status-chip.md](status-chip.md#glyph-contrast) for the full table.
 
 ## Tokens used
 - `DSFont.Size.body` (13): message with no title, and the title line
@@ -39,13 +44,15 @@ CalloutBanner("These tools mutate live state. Use at your own risk.", strokeVisi
 - `DSSpace.s2` (8): vertical padding and icon/text gap
 - `DSSpace.s4` (12): horizontal padding
 - `AppConstants.SettingsUI.cardCornerRadius` (14): clip and stroke shape
+- `DSOpacity.wash` (0.10): background fill
 - `DSColor.info` / `.success` / `.warning` / `.error` / `.neutral`: semantic tints
+- `DSColor.glyph…Light` (`glyphInfoLight`, `glyphSuccessLight`, `glyphWarningLight`, `glyphErrorLight`, `glyphNeutralLight`): icon color in light appearance
 
 ## Anatomy
 ```mermaid
 graph LR
-  Bg[RoundedRectangle, tint 0.10 fill] --> Row[HStack top-aligned, s2 gap]
-  Row --> Icon[SF Symbol, style tint]
+  Bg[RoundedRectangle, tint × DSOpacity.wash fill] --> Row[HStack top-aligned, s2 gap]
+  Row --> Icon[SF Symbol, style.glyph in colorScheme]
   Row --> Stack[VStack, s1 gap]
   Stack --> Title[Text, body semibold, optional]
   Stack --> Msg[Text, Markdown, secondary, wraps]
@@ -56,6 +63,7 @@ graph LR
 ## Accessibility
 - `.accessibilityElement(children: .combine)` collapses icon, title, and message into one VoiceOver element; the rendered (de-marked) text is read, so Markdown asterisks are not spoken.
 - The icon is `.accessibilityHidden`. Tint is decorative; the copy always carries the meaning.
+- Icon contrast: in light appearance the icon uses the darker `glyph…Light` token so it stays above 3:1 on the wash. The message is `.secondary`, never `.tertiary`.
 - Dynamic Type: the message uses `.fixedSize(horizontal: false, vertical: true)` so it wraps cleanly.
 
 ## Do / Don't

@@ -96,14 +96,12 @@ struct NowPlayingHeroCard: View {
         }
         .padding(DSSpace.s7)
         .cardStyleUnpadded()
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: track)
         // Card-level so the pause glyph's insertion/removal, the artwork dim and
         // the eyebrow swap animate even when a caller flips `isPaused` without
         // `withAnimation`.
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: isPaused)
     }
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Subviews
 
@@ -126,7 +124,7 @@ struct NowPlayingHeroCard: View {
             }
         } else {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                     .fill(.quaternary.opacity(0.6))
                 Image(systemName: "music.note")
                     .font(.system(size: DSFont.Size.x3xl, weight: .medium))

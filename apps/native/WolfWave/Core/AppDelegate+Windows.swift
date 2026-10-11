@@ -172,7 +172,11 @@ extension AppDelegate {
             return
         }
 
-        let whatsNewView = WhatsNewView()
+        // `dismiss` does nothing in an AppKit-hosted window, so hand the view a
+        // closure that closes it. `windowWillClose` clears `whatsNewWindow`.
+        let whatsNewView = WhatsNewView(onClose: { [weak self] in
+            self?.whatsNewWindow?.close()
+        })
         let hostingController = NSHostingController(rootView: whatsNewView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "What's New"

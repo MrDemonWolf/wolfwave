@@ -25,12 +25,18 @@ struct CopyButton: View {
     /// Clears this value from the general pasteboard after a short delay, but
     /// only if the user has not copied anything else in the meantime.
     var isSensitive = false
+    /// Why the button is disabled (e.g. "Turn off Streamer Mode to copy."),
+    /// read by VoiceOver as the hint while `isDisabled` is on. Ignored while
+    /// the button is live.
+    var disabledHint: String?
     /// Optional side effect fired right after the text is copied (e.g. a parent
     /// status update). The pasteboard write + checkmark feedback are handled
     /// internally regardless.
     var action: (() -> Void)? = nil
 
     @State private var copied = false
+
+    private static let defaultHint = "Copies text to clipboard"
 
     // MARK: - Body
 
@@ -59,7 +65,7 @@ struct CopyButton: View {
         .modifier(CopyButtonStyleModifier(style: buttonStyle))
         .disabled(isDisabled)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Copies text to clipboard")
+        .accessibilityHint(isDisabled ? (disabledHint ?? Self.defaultHint) : Self.defaultHint)
         .accessibilityValue(copied ? "Copied" : "Not copied")
 
         button.accessibilityIdentifier(optional: accessibilityIdentifier)

@@ -226,6 +226,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// suppressed; every change thereafter notifies.
     var hasSeenInitialTrack = false
 
+    /// In-memory copy of the stored Twitch account's public bits (whether a
+    /// credential exists, and the channel name). The tray menu reads this
+    /// instead of the Keychain: `menuNeedsUpdate` runs on the main thread
+    /// while the menu is tracking, and a Keychain read can block there.
+    /// Refreshed off-main by `refreshTwitchMenuState()`.
+    var twitchMenuState = TwitchMenuState.empty
+
+    /// Bumped by every `refreshTwitchMenuState()`. A refresh publishes its
+    /// snapshot only while it is still the newest, so an older Keychain read
+    /// that finishes late can't overwrite a newer one (a stale signed-in row
+    /// after sign-out).
+    var twitchMenuRefreshGeneration: UInt64 = 0
+
     var currentDockVisibilityMode: String {
         Preferences.dockVisibility ?? AppConstants.DockVisibility.default
     }
@@ -379,6 +392,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cancelTwitchBootValidation()
         flushCurrentPlayToHistory()
         historyService?.shutdown()
+        settingsSyncService?.flush()
         NotificationCenter.default.removeObserver(self)
         notificationObservers.forEach {
             NotificationCenter.default.removeObserver($0)

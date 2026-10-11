@@ -225,44 +225,86 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
         return stripped.isEmpty ? "" : "!\(stripped)"
     }
 
+    /// Whether a normalized trigger or alias contains whitespace.
+    ///
+    /// Chat matching compares only the first whitespace-delimited token of a
+    /// message, so `!hug me` could be stored but could never fire.
+    static func containsWhitespace(_ token: String) -> Bool {
+        token.contains(where: \.isWhitespace)
+    }
+
     /// Validates and canonicalizes a decoded persisted command collection.
     ///
     /// Imports use the same trigger normalization as matching and reject the
-    /// ambiguous identities that the editor prevents: empty or overlapping
-    /// triggers, duplicate UUIDs, and cooldowns the sliders cannot represent.
+    /// ambiguous identities that the editor prevents: empty, overlapping, or
+    /// space-containing triggers, duplicate UUIDs, and cooldowns the sliders
+    /// cannot represent.
     static func normalizedForImport(_ commands: [CustomCommand]) -> [CustomCommand]? {
-        normalized(commands, droppingConflictingAliases: false)
+        normalized(commands, repairingLegacyStorage: false)
     }
 
     /// Canonicalizes commands saved before alias-conflict validation existed.
-    /// Primary triggers win; only shadowed or empty legacy aliases are dropped.
+    ///
+    /// Primary triggers win; shadowed, empty, or space-containing legacy
+    /// aliases are dropped. A legacy primary trigger with spaces never fired,
+    /// so it is repaired rather than failing the whole load (which would wipe
+    /// every command): the spaces are removed and the command is turned off so
+    /// the streamer can check it. When the repaired trigger is empty or taken,
+    /// only that one command is dropped.
     static func normalizedForExistingStorage(_ commands: [CustomCommand]) -> [CustomCommand]? {
-        normalized(commands, droppingConflictingAliases: true)
+        normalized(commands, repairingLegacyStorage: true)
     }
 
     private static func normalized(
         _ commands: [CustomCommand],
-        droppingConflictingAliases: Bool
+        repairingLegacyStorage: Bool
     ) -> [CustomCommand]? {
         var seenIDs: Set<UUID> = []
         var primaryTriggers: Set<String> = []
-        for command in commands {
+        // Index of each command whose primary trigger needs a legacy repair.
+        var needsRepair: [Int] = []
+        var primaries: [String?] = []
+        primaries.reserveCapacity(commands.count)
+
+        for (index, command) in commands.enumerated() {
             let primary = normalizeTrigger(command.trigger)
             guard !primary.isEmpty,
                   seenIDs.insert(command.id).inserted,
-                  primaryTriggers.insert(primary).inserted,
                   isValidCooldown(command.globalCooldown, in: globalCooldownRange),
                   isValidCooldown(command.userCooldown, in: userCooldownRange) else {
                 return nil
             }
+            if containsWhitespace(primary) {
+                guard repairingLegacyStorage else { return nil }
+                needsRepair.append(index)
+                primaries.append(nil)
+                continue
+            }
+            guard primaryTriggers.insert(primary).inserted else { return nil }
+            primaries.append(primary)
+        }
+
+        // Repairs run after every clean trigger is claimed, so a repaired
+        // trigger never displaces a command that already worked.
+        var disabledByRepair: Set<Int> = []
+        for index in needsRepair {
+            let repaired = normalizeTrigger(
+                String(commands[index].trigger.filter { !$0.isWhitespace })
+            )
+            guard !repaired.isEmpty, primaryTriggers.insert(repaired).inserted else {
+                continue  // Dropped: nothing usable, or the name is taken.
+            }
+            primaries[index] = repaired
+            disabledByRepair.insert(index)
         }
 
         var seenAliases: Set<String> = []
         var result: [CustomCommand] = []
         result.reserveCapacity(commands.count)
 
-        for var command in commands {
-            let trigger = normalizeTrigger(command.trigger)
+        for (index, original) in commands.enumerated() {
+            guard let trigger = primaries[index] else { continue }
+            var command = original
             let rawAliases = command.aliases.trimmingCharacters(in: .whitespaces).isEmpty
                 ? []
                 : command.aliases
@@ -272,10 +314,11 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
             var aliases: [String] = []
             for alias in rawAliases {
                 let conflicts = alias.isEmpty
+                    || containsWhitespace(alias)
                     || primaryTriggers.contains(alias)
                     || !seenAliases.insert(alias).inserted
                 if conflicts {
-                    guard droppingConflictingAliases else { return nil }
+                    guard repairingLegacyStorage else { return nil }
                 } else {
                     aliases.append(alias)
                 }
@@ -285,6 +328,7 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
             command.aliases = aliases
                 .map { String($0.dropFirst()) }
                 .joined(separator: ", ")
+            if disabledByRepair.contains(index) { command.enabled = false }
             result.append(command)
         }
 

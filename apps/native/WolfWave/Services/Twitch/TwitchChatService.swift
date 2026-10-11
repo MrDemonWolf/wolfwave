@@ -2196,8 +2196,9 @@ actor TwitchChatService {
     // subscribeToBitsUse) live in TwitchChatService+Redemptions.swift
 
     // Redemption event handlers (handleChannelPointsRedemption,
-    // runChannelPointsRedemption, clearRedemptionTask, handleBitsUse, runBitsUse)
-    // live in TwitchChatService+Redemptions.swift
+    // runChannelPointsRedemption, clearRedemptionTask, handleBitsUse,
+    // startBitsEvent, applyPersistedBitsEvent, replayPendingBitsEvents) live in
+    // TwitchChatService+Redemptions.swift
 
     // Redemption helpers (redemptionOutcome, bitsOutcomeMessage,
     // currentChannelPointCredentials, channelPointsCostSetting, bitsMinimumSetting,

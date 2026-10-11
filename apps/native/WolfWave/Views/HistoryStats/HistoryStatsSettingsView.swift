@@ -703,11 +703,20 @@ struct HistoryStatsSettingsView: View {
                 .sectionEyebrow()
             HStack(spacing: DSSpace.s2) {
                 ForEach(StatsPart.allCases) { part in
+                    // The last selected chip is disabled outright instead of
+                    // silently ignoring the click (the binding still guards it).
+                    let isLastSelected = selectedParts.count == 1 && selectedParts.contains(part)
                     Toggle(part.label, isOn: partBinding(for: part))
                         .toggleStyle(.button)
                         .controlSize(.small)
+                        .disabled(isLastSelected)
+                        .help(isLastSelected ? Self.keepOneHint : "")
+                        .accessibilityHint(isLastSelected ? Self.keepOneHint : "")
                         .accessibilityIdentifier("statsPart.\(part.rawValue)")
                 }
+            }
+            if selectedParts.count == 1 {
+                HintRow(Self.keepOneHint, systemImage: "lock.fill")
             }
         }
     }
@@ -728,6 +737,9 @@ struct HistoryStatsSettingsView: View {
     }
 
     // MARK: - !stats Command Helpers
+
+    /// Why the last selected fact chip is locked.
+    private static let keepOneHint = "Keep at least one."
 
     /// The currently-selected facts, parsed from the stored comma list.
     private var selectedParts: [StatsPart] {

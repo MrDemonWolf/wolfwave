@@ -48,7 +48,10 @@ struct OnboardingView: View {
     var body: some View {
         Group {
             if viewModel.showCompletion {
-                OnboardingCompletionView(onDismiss: onComplete)
+                OnboardingCompletionView(
+                    onDismiss: onComplete,
+                    style: viewModel.completedBySkipping ? .skipped : .completed
+                )
                     .transition(.opacity)
             } else {
                 VStack(spacing: 0) {
@@ -179,7 +182,7 @@ struct OnboardingView: View {
                 .accessibilityIdentifier("onboarding.back")
 
                 Button("Skip All") {
-                    finishOnboarding()
+                    finishOnboarding(skipped: true)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
@@ -215,6 +218,7 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .keyboardShortcut(.defaultAction)
                 .pointerCursor()
                 .accessibilityLabel("Finish setup")
                 .accessibilityHint("Completes the setup wizard and starts using WolfWave")
@@ -227,6 +231,10 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                // Not on the Twitch step: Return in its channel field submits
+                // the join, and would otherwise also advance the wizard before
+                // the join result (or a "channel not found") is shown.
+                .keyboardShortcut(nextShortcut)
                 .pointerCursor()
                 .accessibilityLabel("Next step")
                 .accessibilityHint("Continues to the next setup step")
@@ -237,6 +245,12 @@ struct OnboardingView: View {
     }
 
     // MARK: - Helpers
+
+    /// Return-key shortcut for Next. Nil on the Twitch step, whose channel
+    /// field owns Return.
+    private var nextShortcut: KeyboardShortcut? {
+        viewModel.currentStep == .twitchConnect ? nil : .defaultAction
+    }
 
     /// Returns `true` only for steps where Skip means something different from
     /// "Next with the toggle off" (i.e. OAuth and system permissions).
@@ -259,9 +273,11 @@ struct OnboardingView: View {
         }
     }
 
-    /// Persists the completion flag and shows the celebration screen.
-    private func finishOnboarding() {
-        viewModel.completeOnboarding()
+    /// Persists the completion flag and shows the ending screen. Skip All
+    /// passes `skipped: true` for the lighter copy.
+    private func finishOnboarding(skipped: Bool = false) {
+        cancelTwitchOAuthIfNeeded()
+        viewModel.completeOnboarding(skipped: skipped)
     }
 }
 

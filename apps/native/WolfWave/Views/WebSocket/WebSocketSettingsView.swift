@@ -47,7 +47,7 @@ struct WebSocketSettingsView: View {
             // because it is only for people building their own overlay, and
             // leading with it made a two-click setup look like a programming
             // task.
-            WebSocketServerCard(localNetworkIP: localNetworkIP)
+            WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
                 .deepLinkSection("server")
 
             WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
@@ -95,7 +95,7 @@ struct WebSocketSettingsView: View {
         case .starting:
             return "Starting"
         case .error:
-            return "Connection error"
+            return "Couldn't start"
         case .stopped:
             return "Stopped"
         }
@@ -151,80 +151,6 @@ struct WebSocketSettingsView: View {
     }
 }
 
-// MARK: - Server Card
-
-fileprivate struct WebSocketServerCard: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @AppStorage(AppConstants.UserDefaults.websocketEnabled)
-    private var websocketEnabled = false
-
-    @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
-    private var streamerMode = false
-
-    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
-    private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
-
-    let localNetworkIP: String?
-
-    private let cardPadding = AppConstants.SettingsUI.cardPadding
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ToggleSettingRow(
-                title: "Enable Stream Widgets",
-                subtitle: "Show live song updates in your overlay.",
-                isOn: $websocketEnabled,
-                accessibilityLabel: "Toggle Stream Widgets",
-                accessibilityIdentifier: "websocketEnabledToggle",
-                onChange: { _ in
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                        notifyServerSettingChanged()
-                    }
-                }
-            )
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
-
-            Divider().padding(.leading, cardPadding)
-
-            // States the reach of what the switch just turned on. The server is
-            // bound on the LAN, not only on this Mac, and nothing in the pane
-            // said so — a detail worth knowing before you put the address in a
-            // browser source on a shared network.
-            HintRow(serverReachSummary, systemImage: "network")
-            .padding(.horizontal, cardPadding)
-            .padding(.bottom, DSSpace.s4)
-        }
-        .cardStyleUnpadded()
-    }
-
-    /// One sentence describing where the server can be reached right now.
-    ///
-    /// Streamer Mode masks the address, it does not change the reach. An earlier
-    /// version returned "Serving on this Mac" whenever masking was on, which told
-    /// the user the server was local-only while it was still bound on the LAN.
-    /// Masking a value must never restate the fact it is hiding.
-    private var serverReachSummary: String {
-        guard websocketEnabled else {
-            return "Nothing is served while this is off. Your song data stays on this Mac."
-        }
-        guard let ip = localNetworkIP else {
-            return "Serving on this Mac at port \(storedPort)."
-        }
-        guard !streamerMode else {
-            return "Serving on this Mac and on your local network, port \(storedPort)."
-        }
-        return "Serving on this Mac and to \(ip) on your local network, port \(storedPort)."
-    }
-
-    /// Posts a `websocketServerChanged` notification without altering settings.
-    /// Used after a setting change persists, to nudge the service to re-read.
-    private func notifyServerSettingChanged() {
-        NotificationCenter.default.postWebSocketServerChanged()
-    }
-}
-
 // MARK: - Browser Source Card
 
 fileprivate struct WebSocketBrowserSourceCard: View {
@@ -246,6 +172,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
     @State private var widgetPortText: String = ""
+
+    /// Result of the last port commit ("Saved" or "Not saved, kept X"), shown
+    /// until the field is focused again.
+    @State private var widgetPortFeedback: FieldValidationRow.State = .idle
 
     /// Commits a typed widget port when the field loses focus, so Tab or a
     /// click elsewhere keeps the edit instead of silently discarding it.
@@ -269,6 +199,19 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
         let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
         return "http://\(ip):\(port)/?token=\(currentToken)"
+    }
+
+    /// Why the Widget Webpage toggle is greyed out. One string so the visible
+    /// hint, the tooltip, and the VoiceOver hint can never drift.
+    private static let widgetToggleDisabledHint =
+        "Turn on Stream Widgets above first. The widget page runs on that server."
+
+    /// Why the widget links are not copyable right now, for the disabled-button
+    /// tooltip. Names the switch the user actually needs to flip.
+    private var widgetLinkDisabledReason: String {
+        websocketEnabled
+            ? "Turn on Enable Widget Webpage to copy."
+            : "Turn on Stream Widgets to copy."
     }
 
     private var isWidgetPortValid: Bool {
@@ -314,6 +257,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 isDisabled: !websocketEnabled,
                 accessibilityLabel: "Toggle Widget Webpage",
                 accessibilityIdentifier: "widgetHTTPEnabledToggle",
+                accessibilityHint: websocketEnabled ? nil : Self.widgetToggleDisabledHint,
                 onChange: { _ in
                     NotificationCenter.default.post(
                         name: Notification.Name.widgetHTTPServerChanged,
@@ -324,6 +268,13 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled ? 1.0 : 0.5)
+            .help(websocketEnabled ? "" : Self.widgetToggleDisabledHint)
+
+            if !websocketEnabled {
+                HintRow(Self.widgetToggleDisabledHint, systemImage: "lock.fill")
+                    .padding(.horizontal, cardPadding)
+                    .padding(.bottom, DSSpace.s4)
+            }
 
             Divider().padding(.leading, cardPadding)
 
@@ -345,7 +296,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .accessibilityIdentifier("widgetPortField")
                     .onSubmit { applyWidgetPort() }
                     .onChange(of: widgetPortFocused) { _, focused in
-                        if !focused { applyWidgetPort() }
+                        if focused {
+                            widgetPortFeedback = .idle
+                        } else {
+                            applyWidgetPort()
+                        }
                     }
                     .onChange(of: widgetHTTPEnabled) { _, enabled in
                         // Turning the server on locks the field; keep a typed port
@@ -365,6 +320,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 )
                 .padding(.horizontal, cardPadding)
                 .padding(.bottom, DSSpace.s2)
+            } else if widgetPortFeedback != .idle {
+                FieldValidationRow(state: widgetPortFeedback)
+                    .padding(.horizontal, cardPadding)
+                    .padding(.bottom, DSSpace.s2)
             }
 
             if widgetHTTPEnabled {
@@ -386,6 +345,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                 url: widgetURL,
                 isStreamerMode: streamerMode,
                 actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                actionsDisabledReason: widgetLinkDisabledReason,
                 urlLineLimit: 2,
                 copyLabel: "Copy Link",
                 copiedLabel: "Copied",
@@ -413,6 +373,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                             subtitle: "Use this for two-PC setups. The localhost link above is safer. This one sends your token over the network unencrypted, so only share it on a network you trust.",
                             isStreamerMode: streamerMode,
                             actionsDisabled: !websocketEnabled || !widgetHTTPEnabled,
+                            actionsDisabledReason: widgetLinkDisabledReason,
                             copyLabel: "Copy Link",
                             copiedLabel: "Copied",
                             copyAccessibilityLabel: "Copy network widget URL",
@@ -451,13 +412,22 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         .cardStyleUnpadded()
     }
 
-    /// Validates the widget HTTP port text field, persists the new port, and
-    /// posts a `widgetHTTPServerChanged` notification so the widget server
-    /// restarts on the new port.
+    /// Commits the widget HTTP port text field.
+    ///
+    /// A valid, changed port is persisted and `widgetHTTPServerChanged` is posted
+    /// so the widget server restarts on it. An invalid entry is reverted to the
+    /// stored port instead of being left on screen looking applied, and the
+    /// feedback line says which of the two happened.
     private func applyWidgetPort() {
-        guard isWidgetPortValid, let port = UInt16(widgetPortText),
-              Int(port) != storedWidgetPort else { return }
+        guard isWidgetPortValid, let port = UInt16(widgetPortText) else {
+            let kept = storedWidgetPort
+            widgetPortText = String(kept)
+            widgetPortFeedback = .invalid("Not saved. Kept port \(kept).")
+            return
+        }
+        guard Int(port) != storedWidgetPort else { return }
         storedWidgetPort = Int(port)
+        widgetPortFeedback = .valid("Saved. Widget port is \(port).")
         NotificationCenter.default.post(
             name: Notification.Name.widgetHTTPServerChanged,
             object: nil

@@ -37,7 +37,12 @@ extension AppDelegate {
     private func addDockNowPlaying(into menu: NSMenu) {
         guard let song = currentSong else { return }
         let title = currentArtist.map { "\(song) · \($0)" } ?? song
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        let item = NSMenuItem(
+            title: MenuTitleFormatting.clamped(title),
+            action: nil,
+            keyEquivalent: ""
+        )
+        item.toolTip = MenuTitleFormatting.tooltip(for: title)
         item.isEnabled = false
         menu.addItem(item)
         menu.addItem(.separator())
@@ -91,7 +96,8 @@ extension AppDelegate {
         trackingItem.state = trackingOn ? .on : .off
         menu.addItem(trackingItem)
 
-        if KeychainService.loadTwitchToken() != nil {
+        // In-memory state: the Dock menu must return immediately, no Keychain read.
+        if twitchMenuState.hasCredential {
             let connected = twitchService?.currentlyConnected ?? false
             let twitchItem = NSMenuItem(
                 title: "Twitch",

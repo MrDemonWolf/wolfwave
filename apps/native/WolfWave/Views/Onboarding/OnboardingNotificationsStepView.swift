@@ -37,6 +37,7 @@ struct OnboardingNotificationsStepView: View {
         OnboardingStepScaffold(
             title: "Pick your alerts",
             description: "WolfWave can ping you when something happens. Turn on notifications, then choose what's worth a banner.",
+            isOptional: true,
             icon: {
                 BrandTileGlyph.symbol("bell.badge.fill", tint: Color.red)
             },
