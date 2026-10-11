@@ -9,12 +9,16 @@ Owns the complete History & Stats settings pane: opt-in tracking, summary cards,
 ## API
 
 ```swift
-HistoryStatsSettingsView(openTwitchSettings: () -> Void = {})
+HistoryStatsSettingsView(
+    openTwitchSettings: () -> Void = {},
+    reconnectTwitch: (@MainActor () -> Void)? = nil
+)
 ```
 
 | Param | Type | Notes |
 |---|---|---|
-| `openTwitchSettings` | `() -> Void` | Opens Twitch settings when the `!stats` command is blocked by authentication or connection state. |
+| `openTwitchSettings` | `() -> Void` | Opens Twitch settings when the `!stats` command is blocked by connection state (and by an expired sign-in when no `reconnectTwitch` is given). |
+| `reconnectTwitch` | `(@MainActor () -> Void)?` | Passed to the `!stats` card's `TwitchConnectionNotice` as `onReconnect`, so an expired sign-in shows a "Reconnect with Twitch" button. When set, the separate Open Twitch settings link hides in the expired state. |
 
 ## Tokens used
 

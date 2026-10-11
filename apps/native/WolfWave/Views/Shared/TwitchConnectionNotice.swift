@@ -25,12 +25,19 @@ import SwiftUI
 /// connected-and-valid → nothing. Call sites pass copy for their own feature so
 /// the wording stays specific ("…to enable song requests" vs "…chat commands").
 ///
+/// An expired sign-in is a failure the user can fix, so when the caller passes
+/// `onReconnect` it renders as an ``ErrorCallout`` with a "Reconnect with
+/// Twitch" button (`twitch.signInExpired`). Without a handler there is nothing
+/// to press, so it stays a plain ``CalloutBanner`` note, as does the
+/// never-connected state, which is guidance rather than an error.
+///
 /// ```swift
 /// TwitchConnectionNotice(
 ///     isConnected: viewModel.channelConnected,
 ///     reauthNeeded: viewModel.reauthNeeded,
-///     expiredMessage: "Your Twitch sign-in expired. Reconnect above to keep chat commands working.",
-///     disconnectedMessage: "Connect with Twitch above to let people use these chat commands."
+///     expiredMessage: "Chat commands are paused until you reconnect.",
+///     disconnectedMessage: "Connect with Twitch above to let people use these chat commands.",
+///     onReconnect: reconnectTwitch
 /// )
 /// ```
 struct TwitchConnectionNotice: View {
@@ -68,6 +75,9 @@ struct TwitchConnectionNotice: View {
     let expiredMessage: String
     /// Copy shown when Twitch was never connected (blue info + lock glyph).
     let disconnectedMessage: String
+    /// Starts the Twitch reconnect. When set, the expired state offers a
+    /// "Reconnect with Twitch" button; when `nil`, it is a note with no action.
+    let onReconnect: (@MainActor () -> Void)?
 
     // MARK: - Init
 
@@ -75,12 +85,40 @@ struct TwitchConnectionNotice: View {
         isConnected: Bool,
         reauthNeeded: Bool,
         expiredMessage: String,
-        disconnectedMessage: String
+        disconnectedMessage: String,
+        onReconnect: (@MainActor () -> Void)? = nil
     ) {
         self.isConnected = isConnected
         self.reauthNeeded = reauthNeeded
         self.expiredMessage = expiredMessage
         self.disconnectedMessage = disconnectedMessage
+        self.onReconnect = onReconnect
+    }
+
+    // MARK: - Public Methods
+
+    /// Stable identifier of the expired-sign-in error, shared with the Twitch
+    /// pane's own `twitch.signInExpired` callout.
+    nonisolated static let expiredErrorID = "twitch.signInExpired"
+
+    /// The structured error the expired state renders when a reconnect handler
+    /// is supplied.
+    ///
+    /// Pure and static so the copy, severity, and offered action are testable
+    /// without rendering a view.
+    ///
+    /// - Parameter message: The caller's feature-specific expired copy. The
+    ///   title already says the sign-in expired, so the message should say what
+    ///   stopped working.
+    /// - Returns: A warning whose only action is ``ErrorAction/reconnectTwitch``.
+    nonisolated static func expiredError(message: String) -> UserFacingError {
+        UserFacingError(
+            id: expiredErrorID,
+            title: "Twitch sign-in expired",
+            cause: message,
+            severity: .warning,
+            actions: [.reconnectTwitch]
+        )
     }
 
     // MARK: - Body
@@ -89,7 +127,13 @@ struct TwitchConnectionNotice: View {
     var body: some View {
         switch State.resolve(isConnected: isConnected, reauthNeeded: reauthNeeded) {
         case .expired:
-            CalloutBanner(expiredMessage, style: .warning)
+            if let onReconnect {
+                ErrorCallout(error: Self.expiredError(message: expiredMessage)) { action in
+                    if action == .reconnectTwitch { onReconnect() }
+                }
+            } else {
+                CalloutBanner(expiredMessage, style: .warning)
+            }
         case .disconnected:
             CalloutBanner(disconnectedMessage, style: .info, systemImage: "lock.fill")
         case .ready:
@@ -102,6 +146,13 @@ struct TwitchConnectionNotice: View {
 
 #Preview {
     VStack(spacing: DSSpace.s4) {
+        TwitchConnectionNotice(
+            isConnected: false,
+            reauthNeeded: true,
+            expiredMessage: "Song requests stopped. Reconnect and they pick up where they left off.",
+            disconnectedMessage: "Connect with Twitch to enable song requests.",
+            onReconnect: {}
+        )
         TwitchConnectionNotice(
             isConnected: false,
             reauthNeeded: true,

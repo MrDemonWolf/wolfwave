@@ -66,9 +66,10 @@
 
 /* ── Brand tokens ────────────────────────────────────────── */
 :root {
-  --brand-500: #0A84FF;
-  --brand-600: #0066CC;
-  --brand-50:  #F0F7FF;
+  /* Sourced from the generated --ds-* tokens (design-system/tokens.json). */
+  --brand-500: var(--ds-color-brand-500);
+  --brand-600: var(--ds-color-brand-600);
+  --brand-50:  var(--ds-color-brand-50);
   /* Fill blue for white text ON blue (buttons, skip-nav, to-top, active tabs).
      brand-600 lightens to #409CFF in dark, which fails white-on-blue contrast,
      so filled surfaces use this token instead. Light #0066CC (white 5.6:1),
@@ -89,8 +90,9 @@
 }
 
 .dark {
-  --brand-500: #0A84FF;
-  --brand-600: #409CFF;
+  /* --ds-color-brand-* resolve to the dark values under .dark. */
+  --brand-500: var(--ds-color-brand-500);
+  --brand-600: var(--ds-color-brand-600);
   --brand-50:  rgba(10,132,255,0.08);
   --brand-fill: #0A6CD6;
   --tone-warn-ink: #E1953A;
@@ -319,7 +321,7 @@
 }
 
 .dark .ww-product-window {
-  background: color-mix(in srgb, var(--bg-elev) 90%, #0a84ff 10%);
+  background: color-mix(in srgb, var(--bg-elev) 90%, var(--brand-500) 10%);
 }
 
 .ww-product-header {
@@ -364,7 +366,7 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 0.48rem;
-  background: linear-gradient(145deg, #46b2ff, #0a84ff 58%, #2554cb);
+  background: linear-gradient(145deg, #46b2ff, var(--brand-500) 58%, #2554cb);
   color: white;
 }
 
@@ -418,7 +420,7 @@
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 1.1rem;
-  background: linear-gradient(140deg, #536dff 2%, #0a84ff 48%, #1d3caa 100%);
+  background: linear-gradient(140deg, #536dff 2%, var(--brand-500) 48%, #1d3caa 100%);
   color: rgba(255, 255, 255, 0.94);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
     0 12px 32px -20px rgba(10, 132, 255, 0.8);
@@ -484,7 +486,7 @@
   width: 34%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #5ac8fa, #0a84ff);
+  background: linear-gradient(90deg, #5ac8fa, var(--brand-500));
 }
 
 .ww-player-time {

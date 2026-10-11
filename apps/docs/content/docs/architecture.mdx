@@ -36,7 +36,7 @@ WolfWave/
 │   ├── Notifications/             # Opt-in song-change banner
 │   ├── SettingsBackup/            # Backup export/import coder + service, opt-in iCloud KVS sync
 │   ├── SongRequest/               # Queue, resolvers, AppleMusicController, blocklist, vote-skip
-│   ├── Twitch/                    # ChatService (EventSub), ChannelPointsService, DeviceAuth, Commands/
+│   ├── Twitch/                    # ChatService (EventSub) + seam files, ChannelPointsService, DeviceAuth, BootTokenValidationRunner, Commands/
 │   ├── UpdateChecker/             # SparkleUpdaterService
 │   ├── WebSocket/                 # Token-gated WebSocketServerService, StreamDeckCommand, static WidgetHTTPService
 │   └── *.swift                    # Loose services: ArtworkService, ArtworkTint, LaunchAtLoginService
@@ -56,7 +56,7 @@ Enumerating every file here would rot on each PR. For the full file-by-file brea
 
 ViewModels separate UI logic from business logic. WolfWave uses the modern `@Observable` macro (migrated from `ObservableObject` / `@Published`):
 
-- `TwitchViewModel` manages Twitch connection state.
+- `TwitchViewModel` manages Twitch connection state. Its user-facing errors are built in one place, `TwitchViewModel.Failure` (`Views/Twitch/TwitchFailure.swift`).
 - `OnboardingViewModel` drives the first-run wizard.
 - Views observe `@Observable` properties directly. No `@StateObject` wrapper required.
 
@@ -94,6 +94,8 @@ Full Twitch integration using:
 - **EventSub WebSocket** for real-time chat message notifications.
 - **OAuth Device Code Flow** for secure authentication.
 - **Network path monitoring** for automatic reconnection.
+- **Same-actor seam files** keep the actor readable: `TwitchChatService+Auth`, `+Connection`, `+EventSub`, `+Redemptions` (teardown gate and helpers), `+RedemptionSubscriptions`, `+RedemptionHandlers`, `+RateLimiter` (a nested Helix rate-limit actor), and `+Sending` (chat send, announcements, and the bounded retry queue). `TwitchBootTokenValidationRunner` owns the app-lifetime token validation cadence.
+- **Server back-off** goes through the shared `RetryAfter` helper (`Core/RetryAfter.swift`), which rejects invalid `Retry-After` values and caps every delay at 300 seconds. Twitch sign-in, Helix redemptions, the chat rate limiter, and `ArtworkService` all use it.
 - **Durable paid-event intake and resolution** via one atomic disk-backed outbox. Channel-point intake is saved before song lookup or queue work, then atomically replaced with the known fulfill/refund result before Helix delivery. Qualifying Bits cheers persist the complete replayable boost/request action before touching the in-memory queue, and atomically become a short-lived duplicate tombstone after completion. Relaunch refunds an unknown points intake conservatively and replays known point outcomes or pending Bits actions. Payment-bound processing survives socket reconnects while chat replies remain generation-scoped. A failed storage preflight pauses the managed reward; an already-paid Bits event falls back to process-owned execution and surfaces the same storage warning.
 
 ### SongRequestService
