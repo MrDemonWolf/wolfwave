@@ -2,7 +2,7 @@
 //  MusicPermissionBannerTests.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-05-24.
+//  Created by Nathanial Henniges on 2026-10-11.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
