@@ -112,6 +112,76 @@ final class SongRequestCommandTests: WolfWaveTestCase {
         XCTAssertEqual(command.allTriggers.count, command.triggers.count)
     }
 
+    // MARK: - Query Extraction
+
+    func testExtractQueryDropsOnlyTheTriggerToken() {
+        XCTAssertEqual(SongRequestCommand.extractQuery(from: "!sr hello world"), "hello world")
+        XCTAssertEqual(SongRequestCommand.extractQuery(from: "!SR   spaced out  "), "spaced out")
+        XCTAssertEqual(SongRequestCommand.extractQuery(from: "!sr"), "")
+        XCTAssertEqual(SongRequestCommand.extractQuery(from: "!request2 abc"), "abc")
+    }
+
+    /// An alias that extends a base trigger (`!srq` vs `!sr`) used to be
+    /// stripped by the shorter prefix, sending "q hello world" to the search.
+    func testAliasExtendingBaseTriggerKeepsFullQuery() async {
+        let defaults = DefaultsStore.store
+        defaults.set("srq", forKey: AppConstants.UserDefaults.srCommandAliases)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        let queries = ThreadSafeBox<[String]>([])
+        let music = MockAppleMusicController()
+        music.searchProvider = { query in
+            queries.mutate { $0.append(query) }
+            return .notFound
+        }
+        let service = SongRequestService(
+            blocklist: SongBlocklist(storage: InMemoryBlocklistStorage()),
+            musicController: music)
+        let dispatcher = BotCommandDispatcher()
+        dispatcher.setSongRequestService { service }
+        let viewer = BotCommandContext(
+            userID: "1", username: "viewer",
+            isModerator: false, isBroadcaster: false,
+            isSubscriber: false, isVIP: false, messageID: "m")
+
+        _ = await dispatcher.processMessageAsync("!srq hello world", userID: "1", context: viewer)
+
+        XCTAssertEqual(queries.value, ["hello world"])
+    }
+
+    // MARK: - Preflight
+
+    private func viewer(subscriber: Bool = false, moderator: Bool = false) -> BotCommandContext {
+        BotCommandContext(
+            userID: "1", username: "viewer",
+            isModerator: moderator, isBroadcaster: false,
+            isSubscriber: subscriber, isVIP: false, messageID: "m")
+    }
+
+    func testPreflightSilentWhenFeatureOff() {
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        XCTAssertEqual(SongRequestCommand().preflightDenial(context: viewer()), .silent)
+    }
+
+    func testPreflightRepliesWhenFeatureOffAndReplyOptedIn() {
+        DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+        XCTAssertEqual(
+            SongRequestCommand().preflightDenial(context: viewer()),
+            .reply(SongRequestCommand.disabledReply))
+    }
+
+    func testPreflightDeniesViewerOutsideAudience() {
+        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        DefaultsStore.store.set(
+            RequestAudience.subscribers.rawValue, forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        let command = SongRequestCommand()
+        XCTAssertEqual(
+            command.preflightDenial(context: viewer()),
+            .reply(RequestAudience.subscribers.denialMessage))
+        XCTAssertNil(command.preflightDenial(context: viewer(subscriber: true)))
+        XCTAssertNil(command.preflightDenial(context: viewer(moderator: true)))
+    }
+
     // MARK: - Enable/Disable via Dispatcher
 
     func testDispatcherSkipsDisabledCommand() async {

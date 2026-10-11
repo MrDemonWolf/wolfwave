@@ -20,13 +20,18 @@
   --ds-color-error: #FF453A;
   --ds-color-info: #0A84FF;
   --ds-color-neutral: #8E8E93;
+  --ds-color-glyph-success: #1E7B34;
+  --ds-color-glyph-warning: #9A5B00;
+  --ds-color-glyph-error: #C9302C;
+  --ds-color-glyph-info: #0066CC;
+  --ds-color-glyph-neutral: #6E6E73;
   --ds-color-surface-base: #FFFFFF;
   --ds-color-surface-surface: #F5F5F7;
   --ds-color-surface-elev: #FBFBFD;
   --ds-color-surface-hairline: #D2D2D7;
   --ds-color-text-primary: #1D1D1F;
   --ds-color-text-secondary: #6E6E73;
-  --ds-color-text-muted: #A1A1A6;
+  --ds-color-text-muted: #767676;
   --ds-color-partner-twitch: #9146FF;
   --ds-color-partner-discord: #5865F2;
   --ds-color-partner-discord-surface: #2B2D31;
@@ -90,6 +95,8 @@
   --ds-motion-duration-pulseSlow: 1400ms;
   --ds-motion-easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
   --ds-motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0, 1);
+  --ds-opacity-wash: 0.1;
+  --ds-opacity-wash-strong: 0.14;
   --ds-shadow-xs: 0 1px 2px rgba(0,0,0,0.08);
   --ds-shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
   --ds-shadow-md: 0 4px 12px rgba(0,0,0,0.10);
@@ -100,11 +107,16 @@
 .dark, [data-theme="dark"] {
   --ds-color-brand-500: #0A84FF;
   --ds-color-brand-600: #409CFF;
+  --ds-color-glyph-success: #34C759;
+  --ds-color-glyph-warning: #FF9F0A;
+  --ds-color-glyph-error: #FF453A;
+  --ds-color-glyph-info: #0A84FF;
+  --ds-color-glyph-neutral: #8E8E93;
   --ds-color-surface-base: #000000;
   --ds-color-surface-surface: #1C1C1E;
   --ds-color-surface-elev: #0A0A0C;
   --ds-color-surface-hairline: #2C2C2E;
   --ds-color-text-primary: #F5F5F7;
   --ds-color-text-secondary: #A1A1A6;
-  --ds-color-text-muted: #6E6E73;
+  --ds-color-text-muted: #8E8E93;
 }

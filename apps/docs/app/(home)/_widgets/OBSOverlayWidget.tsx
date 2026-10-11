@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AlbumArt } from "./AlbumArt";
 import { formatTime } from "@/lib/format-time";
-import { useCyclingTrack, cyclingPauseHandlers } from "./useCyclingTrack";
+import { useCyclingTrack, cyclingPauseHandlers, demoVisibilityRef } from "./useCyclingTrack";
 import {
   WIDGET_THEMES,
   WIDGET_LAYOUTS,
@@ -44,14 +44,14 @@ export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {
   // Hero usage: no theme/layout switcher, render only the default overlay card.
   if (!controls) {
     return (
-      <div style={{ width: "100%" }}>
+      <div ref={demoVisibilityRef} style={{ width: "100%" }}>
         <WidgetCard theme={WIDGET_THEMES[DEFAULT_THEME]} layout={DEFAULT_LAYOUT} />
       </div>
     );
   }
 
   return (
-    <div style={{ width: "100%" }} {...cyclingPauseHandlers()}>
+    <div ref={demoVisibilityRef} style={{ width: "100%" }} {...cyclingPauseHandlers()}>
       <ControlBar
         theme={theme}
         layout={layout}
@@ -611,6 +611,18 @@ function ProgressBar({
   );
 }
 
+const SELECT_STYLE = {
+  minHeight: 36,
+  padding: "7px 12px",
+  fontSize: 13,
+  fontWeight: 500,
+  color: "var(--txt-1)",
+  background: "var(--bg-surface)",
+  border: "1px solid var(--hairline)",
+  borderRadius: 8,
+  cursor: "pointer",
+} as const;
+
 function ControlBar({
   theme,
   layout,
@@ -636,7 +648,8 @@ function ControlBar({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span
+        <label
+          htmlFor="ww-overlay-layout"
           style={{
             fontSize: 11,
             textTransform: "uppercase",
@@ -646,10 +659,27 @@ function ControlBar({
           }}
         >
           Layout
-        </span>
+        </label>
+        {/* Phones: five pills do not fit beside the 10% gutters, so the
+            segmented control swaps for a select (same as Theme). CSS decides
+            which one renders; only one is ever in the accessibility tree. */}
+        <select
+          id="ww-overlay-layout"
+          className="ww-show-sm"
+          value={layout}
+          onChange={(e) => onLayoutChange(e.target.value as LayoutName)}
+          style={SELECT_STYLE}
+        >
+          {LAYOUTS.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
         <div
           role="group"
           aria-label="Layout"
+          className="ww-hide-sm"
           style={{
             display: "inline-flex",
             padding: 2,
@@ -704,17 +734,7 @@ function ControlBar({
           id="ww-overlay-theme"
           value={theme}
           onChange={(e) => onThemeChange(e.target.value as ThemeName)}
-          style={{
-            minHeight: 36,
-            padding: "7px 12px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--txt-1)",
-            background: "var(--bg-surface)",
-            border: "1px solid var(--hairline)",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
+          style={SELECT_STYLE}
         >
           {THEMES.map((t) => (
             <option key={t} value={t}>

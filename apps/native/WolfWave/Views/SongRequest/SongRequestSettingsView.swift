@@ -234,6 +234,7 @@ fileprivate struct SongRequestHeader: View {
                 statusText: "Twitch",
                 statusColor: .purple
             )
+            .accessibilityAddTraits(.isHeader)
 
             CalloutBanner(
                 "Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.",
@@ -241,8 +242,10 @@ fileprivate struct SongRequestHeader: View {
                 style: .info
             )
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Song Requests settings. Let your Twitch viewers request songs via chat commands.")
+        // `.contain`, not `.combine`: VoiceOver reaches the heading and the
+        // "How it works" callout as separate elements instead of one long
+        // label that hid the callout entirely.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("songRequests.header")
     }
 }
@@ -398,13 +401,13 @@ fileprivate struct VoteSkipCard: View {
             Text("Vote window: \(window.wrappedValue)s")
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
-            Picker("", selection: window) {
+            Picker("Vote window in seconds", selection: window) {
                 ForEach(Self.windowOptions, id: \.self) { seconds in
                     Text("\(seconds)s").tag(seconds)
                 }
             }
             .pickerStyle(.segmented)
-            .accessibilityLabel("Vote window in seconds")
+            .labelsHidden()
         }
     }
 
@@ -465,7 +468,7 @@ fileprivate struct VoteSkipCard: View {
                     Text("Minimum votes to skip").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker(
-                        "",
+                        "Minimum votes to skip",
                         selection: $minVotes.snapped(
                             to: Self.minVotesOptions,
                             fallback: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
@@ -475,8 +478,8 @@ fileprivate struct VoteSkipCard: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                     .frame(width: 80)
-                    .accessibilityLabel("Minimum votes to skip")
                 }
 
                 ToggleSettingRow(
@@ -505,7 +508,7 @@ fileprivate struct VoteSkipCard: View {
                         Text("Poll duration").font(.system(size: DSFont.Size.body))
                         Spacer()
                         Picker(
-                            "",
+                            "Poll duration",
                             selection: $pollDuration.snapped(
                                 to: Self.pollDurationOptions,
                                 fallback: AppConstants.UserDefaults.Defaults.voteSkipPollDuration)
@@ -515,8 +518,8 @@ fileprivate struct VoteSkipCard: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .labelsHidden()
                         .frame(width: 80)
-                        .accessibilityLabel("Poll duration")
                     }
 
                     HintRow("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
@@ -594,14 +597,14 @@ fileprivate struct SongRequestQueueConfigCard: View {
         HStack {
             Text(title).font(.system(size: DSFont.Size.body))
             Spacer()
-            Picker("", selection: selection.snapped(to: limitOptions, fallback: fallback)) {
+            Picker("\(title) queue limit", selection: selection.snapped(to: limitOptions, fallback: fallback)) {
                 ForEach(limitOptions, id: \.self) { limit in
                     Text("\(limit)").tag(limit)
                 }
             }
             .pickerStyle(.menu)
+            .labelsHidden()
             .frame(width: 80)
-            .accessibilityLabel("\(title) queue limit")
             .accessibilityIdentifier("songRequests.limit.\(id)")
         }
     }
@@ -629,14 +632,14 @@ fileprivate struct SongRequestQueueConfigCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Picker("", selection: $priorityMode) {
+                Picker("Sub and VIP request priority", selection: $priorityMode) {
                     ForEach(SongRequestPriorityMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
                 .frame(width: 150)
-                .accessibilityLabel("Sub and VIP request priority")
                 .accessibilityIdentifier("songRequests.priorityMode")
             }
 
@@ -646,7 +649,7 @@ fileprivate struct SongRequestQueueConfigCard: View {
                 Text("Max queue size").font(.system(size: DSFont.Size.body))
                 Spacer()
                 Picker(
-                    "",
+                    "Max queue size",
                     selection: $maxQueueSize.snapped(
                         to: Self.maxQueueSizeOptions,
                         fallback: AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize)
@@ -656,8 +659,8 @@ fileprivate struct SongRequestQueueConfigCard: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
                 .frame(width: 80)
-                .accessibilityLabel("Max queue size")
             }
 
             Divider()
@@ -692,14 +695,14 @@ fileprivate struct SongRequestQueueConfigCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Picker("", selection: $stackMode) {
+                Picker("How role limits combine", selection: $stackMode) {
                     ForEach(QueueLimitMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
                 .pickerStyle(.menu)
+                .labelsHidden()
                 .frame(width: 130)
-                .accessibilityLabel("How role limits combine")
                 .accessibilityIdentifier("songRequests.limitStackMode")
             }
         }
@@ -718,15 +721,12 @@ fileprivate struct SongRequestAccessCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestPolicyMode)
     private var policyMode: SongRequestPreset = .open
 
-    // Redemption toggles, surfaced inline under Open / Custom. These bind to the
-    // same keys as the Channel Points & Bits card, so the two stay in sync; that
-    // card keeps the detailed settings (cost, minimum bits, reward ID).
+    // Read-only here: the Channel Points & Bits card is the one place these are
+    // switched. Access only summarizes them and links there.
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
     private var channelPointsEnabled = false
     @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
     private var bitsEnabled = false
-    @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
-    private var bitsBoostEnabled = false
 
     /// Screening: hold every request for approval before it queues.
     @AppStorage(AppConstants.UserDefaults.songRequestApprovalRequired)
@@ -747,6 +747,16 @@ fileprivate struct SongRequestAccessCard: View {
         if let service = AppDelegate.shared?.twitchService {
             Task { await service.refreshRedemptionSubscriptions() }
         }
+    }
+
+    /// Scrolls the pane to the Channel Points & Bits card and flashes it.
+    private func showRedemptions() {
+        SettingsNavigation.shared.pending = SettingsDeepLink(pane: .songRequests, section: "redemptions")
+    }
+
+    /// "Channel points on · Bits off", the read-only summary of the paid paths.
+    private var redemptionSummary: String {
+        "Channel points \(channelPointsEnabled ? "on" : "off") · Bits \(bitsEnabled ? "on" : "off")"
     }
 
     /// One preset chip. Filled when it's the active policy, outlined otherwise.
@@ -808,75 +818,57 @@ fileprivate struct SongRequestAccessCard: View {
 
             ToggleSettingRow(
                 title: "Require My Approval",
-                subtitle: "Requests wait in the Queue tab until you approve or decline them.",
+                subtitle: "New requests wait in the queue above until you approve or decline them.",
                 isOn: $approvalRequired,
                 accessibilityLabel: "Require approval before requests queue",
                 accessibilityIdentifier: "songRequests.access.requireApproval"
             )
 
-            // Open and Custom expose the request-path options inline. Sub Only and
-            // Channel Point Only are fixed policies, so they show no extra controls.
-            if activePreset == .open || activePreset == .custom {
+            // The audience dropdown is the fine-tune control, so it only appears
+            // under Custom. Open is always "everyone"; Sub Only and Channel Point
+            // Only are fixed policies.
+            if activePreset == .custom {
                 Divider()
 
-                // The audience dropdown is the fine-tune control, so it only
-                // appears under Custom. Open is always "everyone".
-                if activePreset == .custom {
-                    HStack {
-                        VStack(alignment: .leading, spacing: DSSpace.s0) {
-                            Text("!sr command audience").font(.system(size: DSFont.Size.body))
-                            Text("Mods and you can always request.")
-                                .font(.system(size: DSFont.Size.xs))
-                                .foregroundStyle(.tertiary)
-                        }
-                        Spacer()
-                        Picker("", selection: $audience) {
-                            ForEach(RequestAudience.allCases) { option in
-                                Text(option.displayName).tag(option)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 170)
-                        .accessibilityIdentifier("songRequests.audience")
+                HStack {
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("!sr command audience").font(.system(size: DSFont.Size.body))
+                        Text("Mods and you can always request.")
+                            .font(.system(size: DSFont.Size.xs))
+                            .foregroundStyle(.tertiary)
                     }
-
-                    Divider()
+                    Spacer()
+                    Picker("!sr command audience", selection: $audience) {
+                        ForEach(RequestAudience.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 170)
+                    .accessibilityIdentifier("songRequests.audience")
                 }
+            }
 
-                ToggleSettingRow(
-                    title: "Channel Point Requests",
-                    subtitle: "Viewers redeem the \u{201C}Request a Song\u{201D} reward",
-                    isOn: $channelPointsEnabled,
-                    accessibilityLabel: "Enable channel point song requests",
-                    accessibilityIdentifier: "songRequests.access.channelPoints",
-                    onChange: { _ in refreshRedemptions() }
-                )
+            Divider()
 
-                ToggleSettingRow(
-                    title: "Bit Requests",
-                    subtitle: "Viewers cheer with a song name to request it",
-                    isOn: $bitsEnabled,
-                    accessibilityLabel: "Enable bit song requests",
-                    accessibilityIdentifier: "songRequests.access.bits",
-                    onChange: { _ in refreshRedemptions() }
-                )
-
-                if bitsEnabled {
-                    ToggleSettingRow(
-                        title: "Boost With Bits",
-                        subtitle: "A cheer bumps the cheerer's queued song to the front instead of adding a new one",
-                        isOn: $bitsBoostEnabled,
-                        accessibilityLabel: "Boost queued song with bits",
-                        accessibilityIdentifier: "songRequests.access.bitsBoost"
-                    )
-                }
-
-                if channelPointsEnabled || bitsEnabled {
-                    Text("Set the reward cost and minimum bits in Channel Points & Bits below.")
+            // Read-only summary. The toggles live only in Channel Points & Bits,
+            // so there is one place to switch them and no two cards to keep in sync.
+            HStack(spacing: DSSpace.s2) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
+                    Text("Paid requests").font(.system(size: DSFont.Size.body))
+                    Text(redemptionSummary)
                         .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
+                Spacer()
+                Button("Channel Points & Bits") { showRedemptions() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Turn channel point and bit requests on or off")
+                    .accessibilityHint("Jumps to the Channel Points & Bits settings")
+                    .accessibilityIdentifier("songRequests.access.redemptionsLink")
             }
         }
         .cardStyle()
@@ -953,7 +945,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                     Text("Reward cost").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker(
-                        "",
+                        "Reward cost",
                         selection: $channelPointsCost.snapped(
                             to: Self.channelPointsCostOptions,
                             fallback: AppConstants.UserDefaults.Defaults.songRequestChannelPointsCost)
@@ -963,6 +955,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                     .frame(width: 90)
                     .accessibilityIdentifier("songRequests.channelPointsCost")
                 }
@@ -1016,7 +1009,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                     Text("Minimum bits").font(.system(size: DSFont.Size.body))
                     Spacer()
                     Picker(
-                        "",
+                        "Minimum bits",
                         selection: $bitsMinimum.snapped(
                             to: Self.bitsMinimumOptions,
                             fallback: AppConstants.UserDefaults.Defaults.songRequestBitsMinimum)
@@ -1026,6 +1019,7 @@ fileprivate struct SongRequestRedemptionsCard: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .labelsHidden()
                     .frame(width: 90)
                     .accessibilityIdentifier("songRequests.bitsMinimum")
                 }
@@ -1181,7 +1175,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable queue command",
                     accessibilityIdentifier: "queueCommandToggle",
                     aliases: $queueAliases,
-                    aliasPlaceholder: "e.g. play, add",
+                    aliasPlaceholder: "e.g. q, upnext",
                     aliasAccessibilityIdentifier: "queueCommandAliases"
                 )
 
@@ -1192,7 +1186,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable my queue command",
                     accessibilityIdentifier: "myQueueCommandToggle",
                     aliases: $myQueueAliases,
-                    aliasPlaceholder: "e.g. play, add",
+                    aliasPlaceholder: "e.g. mine, mysr",
                     aliasAccessibilityIdentifier: "myQueueCommandAliases"
                 )
 
@@ -1203,7 +1197,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable skip command",
                     accessibilityIdentifier: "skipCommandToggle",
                     aliases: $skipAliases,
-                    aliasPlaceholder: "e.g. play, add",
+                    aliasPlaceholder: "e.g. nextsong, ns",
                     aliasAccessibilityIdentifier: "skipCommandAliases"
                 )
 
@@ -1214,7 +1208,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable clear queue command",
                     accessibilityIdentifier: "clearQueueCommandToggle",
                     aliases: $clearQueueAliases,
-                    aliasPlaceholder: "e.g. play, add"
+                    aliasPlaceholder: "e.g. wipe, clearsr"
                 )
 
                 CommandSettingRow(
@@ -1289,6 +1283,18 @@ fileprivate struct SongRequestBlocklistCard: View {
         }
     }
 
+    /// Adds the typed value as the selected entry type. Shared by the Add
+    /// button and Return in the text field, so both paths behave the same.
+    private func addEntry() async {
+        let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let item = BlocklistItem(value: trimmed, type: blocklistType)
+        let provider = blocklistProvider()
+        blocklistText = ""
+        await provider?.add(item)
+        blocklist = await provider?.allEntries ?? []
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack {
@@ -1310,21 +1316,24 @@ fileprivate struct SongRequestBlocklistCard: View {
 
             Text("Block specific songs, artists, or people from being requested.")
                 .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: DSSpace.s2) {
-                Picker("", selection: $blocklistType) {
+                Picker("Blocklist entry type", selection: $blocklistType) {
                     Text("Song").tag(BlocklistItem.BlockType.song)
                     Text("Artist").tag(BlocklistItem.BlockType.artist)
                     Text("Person").tag(BlocklistItem.BlockType.requester)
                 }
-                .accessibilityLabel("Blocklist entry type")
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: 180)
 
                 TextField(blocklistPlaceholder, text: $blocklistText)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: DSFont.Size.body))
+                    .onSubmit { Task { await addEntry() } }
+                    .accessibilityLabel("Blocklist entry")
+                    .accessibilityIdentifier("songRequests.blocklist.field")
 
                 AsyncActionButton(
                     title: "Add",
@@ -1333,13 +1342,7 @@ fileprivate struct SongRequestBlocklistCard: View {
                     showsSuccess: false,
                     accessibilityIdentifier: "songRequests.blocklist.add"
                 ) {
-                    let trimmed = blocklistText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    let item = BlocklistItem(value: trimmed, type: blocklistType)
-                    let provider = blocklistProvider()
-                    blocklistText = ""
-                    await provider?.add(item)
-                    blocklist = await provider?.allEntries ?? []
+                    await addEntry()
                 }
             }
 
@@ -1364,25 +1367,19 @@ fileprivate struct SongRequestBlocklistCard: View {
 
                             Spacer()
 
-                            Button {
-                                let provider = blocklistProvider()
-                                Task {
-                                    await provider?.remove(id: item.id)
-                                    blocklist = await provider?.allEntries ?? []
-                                }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: DSFont.Size.body))
-                                    .foregroundStyle(.secondary)
-                                    .frame(
-                                        minWidth: DSDimension.IconButton.minWidth,
-                                        minHeight: DSDimension.IconButton.minHeight
-                                    )
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Remove from blocklist")
-                            .accessibilityHint(item.value)
+                            DSIconButton(
+                                systemImage: "xmark",
+                                action: {
+                                    let provider = blocklistProvider()
+                                    Task {
+                                        await provider?.remove(id: item.id)
+                                        blocklist = await provider?.allEntries ?? []
+                                    }
+                                },
+                                accessibilityLabel: "Remove \(item.value) from blocklist",
+                                accessibilityIdentifier: "songRequests.blocklist.remove"
+                            )
+                            .help("Remove from blocklist")
                         }
                         .padding(.vertical, DSSpace.s0)
                     }

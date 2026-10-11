@@ -30,6 +30,10 @@ struct WebSocketCustomOverlayCard: View {
 
     @State private var portText: String = ""
 
+    /// Result of the last port commit ("Saved" or "Not saved, kept X"), shown
+    /// until the field is focused again.
+    @State private var portFeedback: FieldValidationRow.State = .idle
+
     /// Commits a typed port when the field loses focus, so Tab or a click
     /// elsewhere keeps the edit instead of silently discarding it.
     @FocusState private var portFocused: Bool
@@ -108,6 +112,7 @@ struct WebSocketCustomOverlayCard: View {
                     subtitle: "For an overlay running on this Mac.",
                     isStreamerMode: streamerMode,
                     actionsDisabled: !websocketEnabled,
+                    actionsDisabledReason: "Turn on Stream Widgets to copy.",
                     copyAccessibilityLabel: "Copy local connection URL",
                     copyAccessibilityIdentifier: "copyConnectionURLButton"
                 )
@@ -129,6 +134,7 @@ struct WebSocketCustomOverlayCard: View {
                             subtitle: "For an overlay on a second PC, on the same network.",
                             isStreamerMode: streamerMode,
                             actionsDisabled: !websocketEnabled,
+                            actionsDisabledReason: "Turn on Stream Widgets to copy.",
                             copyAccessibilityLabel: "Copy network connection URL",
                             copyAccessibilityIdentifier: "copyNetworkConnectionURLButton"
                         )
@@ -192,7 +198,11 @@ struct WebSocketCustomOverlayCard: View {
                     .accessibilityIdentifier("websocketPortField")
                     .onSubmit { applyPort() }
                     .onChange(of: portFocused) { _, focused in
-                        if !focused { applyPort() }
+                        if focused {
+                            portFeedback = .idle
+                        } else {
+                            applyPort()
+                        }
                     }
                     .onChange(of: websocketEnabled) { _, enabled in
                         // Turning the server on locks the field; keep a typed port
@@ -208,18 +218,30 @@ struct WebSocketCustomOverlayCard: View {
                         "Port must be between \(AppConstants.WebSocketServer.minPort) "
                             + "and \(AppConstants.WebSocketServer.maxPort).")
                 )
+            } else if portFeedback != .idle {
+                FieldValidationRow(state: portFeedback)
             }
         }
         .padding(.horizontal, cardPadding)
         .padding(.vertical, DSSpace.s4)
     }
 
-    /// Validates the port text field and, when valid, persists the new port to
-    /// UserDefaults and posts a `websocketServerChanged` notification so the
-    /// server restarts on the new port.
+    /// Commits the port text field.
+    ///
+    /// A valid, changed port is persisted and `websocketServerChanged` is posted
+    /// so the server restarts on it. An invalid entry is reverted to the stored
+    /// port instead of being left on screen looking applied, and the feedback
+    /// line says which of the two happened.
     private func applyPort() {
-        guard isPortValid, let port = UInt16(portText), Int(port) != storedPort else { return }
+        guard isPortValid, let port = UInt16(portText) else {
+            let kept = storedPort
+            portText = String(kept)
+            portFeedback = .invalid("Not saved. Kept port \(kept).")
+            return
+        }
+        guard Int(port) != storedPort else { return }
         storedPort = Int(port)
+        portFeedback = .valid("Saved. Port is \(port).")
         NotificationCenter.default.postWebSocketServerChanged(port: port)
     }
 }

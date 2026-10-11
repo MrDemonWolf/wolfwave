@@ -10,8 +10,8 @@ import Foundation
 
 /// Handles `!skip` / `!next`. Skips the current song request.
 ///
-/// Restricted to moderators and the broadcaster. Replies with the next track
-/// or a queue-empty notice.
+/// Restricted to moderators and the broadcaster. Replies with the next track,
+/// a queue-empty notice, or a "try again" when nothing could be skipped.
 final class SkipCommand: ServiceBoundCommand {
     // MARK: - BotCommand
 
@@ -52,11 +52,26 @@ final class SkipCommand: ServiceBoundCommand {
         guard let service = requirePrivilegedService(context: context) else { return nil }
 
         guard !Task.isCancelled else { return nil }
-        if let next = await service.skip() {
-            guard !Task.isCancelled else { return nil }
-            return "Skipped. Now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))"
-        }
+        let outcome = await service.skip()
         guard !Task.isCancelled else { return nil }
-        return "Skipped. Queue is now empty."
+        return Self.reply(for: outcome)
+    }
+
+    // MARK: - Reply Formatting
+
+    /// Chat reply for a skip outcome. Only a real drain says the queue is
+    /// empty; a skip that changed nothing says so instead of claiming success.
+    ///
+    /// - Parameter outcome: What `SongRequestService.skip()` did.
+    /// - Returns: The chat reply.
+    static func reply(for outcome: SongRequestService.SkipOutcome) -> String {
+        switch outcome {
+        case .started(let next):
+            return "Skipped. Now playing: \"\(next.title)\" by \(next.artist) (requested by \(next.requesterUsername))"
+        case .drained:
+            return "Skipped. Queue is now empty."
+        case .busy, .retained:
+            return "Couldn't skip right now, try again."
+        }
     }
 }

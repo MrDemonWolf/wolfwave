@@ -30,6 +30,7 @@ jobs:
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       native: ${{ steps.filter.outputs.native }}
       docs: ${{ steps.filter.outputs.docs }}
@@ -73,8 +74,13 @@ jobs:
               - 'package.json'
               - 'bun.lock'
               - 'turbo.json'
+              - '.github/workflows/test.yml'
             streamdeck:
               - 'apps/streamdeck/**'
+              # The icon generator reads the brand mark from here, and the job's
+              # icon-drift step exists to catch exactly that drift.
+              - 'assets/logo-mono.svg'
+              - '.github/workflows/test.yml'
               - 'apps/native/WolfWave/Services/WebSocket/StreamDeckCommand.swift'
               - 'apps/native/WolfWave/Core/AppConstants.swift'
               - 'apps/native/WolfWave/Services/WebSocket/WebSocketAuthToken.swift'
@@ -89,25 +95,39 @@ jobs:
               - 'design-system/tokens.schema.json'
               - 'package.json'
               - 'bun.lock'
+              - '.github/workflows/test.yml'
             headers:
               - 'apps/native/**'
               - 'scripts/check-headers.mjs'
+              - '.github/workflows/test.yml'
+            # Every input scripts/check-sync.mjs and the lint-sync test files
+            # read. A path missing here skips the gate for exactly the PR that
+            # needs it.
             sync:
-              - 'apps/native/WolfWave/Core/AppConstants.swift'
-              - 'apps/native/WolfWave/Views/Shared/**'
-              - 'apps/native/WolfWave/Views/Onboarding/Components/**'
-              - 'apps/native/WolfWave/Views/HistoryStats/**'
+              # The duplicate-token-list scan walks every Swift source.
+              - 'apps/native/WolfWave/**'
               - 'design-system/components/**'
               - 'design-system/scripts/generate.ts'
               - 'design-system/scripts/lint.ts'
               - 'design-system/tokens.json'
-              - 'apps/docs/content/docs/features.mdx'
-              - 'apps/docs/content/docs/widget.mdx'
+              # The doc-port check scans every docs page and native doc.
+              - 'apps/docs/content/docs/**'
+              - 'apps/native/docs/**'
+              # The landing-protocol check reads these two.
+              - 'apps/docs/app/(home)/page.tsx'
+              - 'apps/docs/app/(home)/DeveloperTabs.tsx'
+              # release-notes.test.mjs renders the real CHANGELOG's newest
+              # section; a malformed entry must fail here, not mid-release.
+              - 'CHANGELOG.md'
               - 'README.md'
               - 'CONTRIBUTING.md'
               - 'CLAUDE.md'
               - 'scripts/check-sync.mjs'
               - 'scripts/check-sync.test.mjs'
+              - 'scripts/release-notes.mjs'
+              - 'scripts/release-notes.test.mjs'
+              - 'scripts/version.sh'
+              - 'scripts/version.test.mjs'
               - 'Makefile'
               - '.github/workflows/test.yml'
             swiftlint:
@@ -116,12 +136,14 @@ jobs:
               - '.swiftlint-crash-safety.yml'
               - 'swiftlint-baseline.json'
               - 'Makefile'
+              - '.github/workflows/test.yml'
 
   test:
     name: Build & Test
     needs: changes
     if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,6 +161,12 @@ jobs:
 
       - name: Verify generated artifacts are in sync with their sources
         run: bash scripts/check-generated-drift.sh
+
+      # The OBS widget's own suite (render, escaping, payload hardening,
+      # reconnect). Bun is already installed by setup-native-build, and the
+      # native filter covers apps/widget/**, so a widget change runs it.
+      - name: Widget tests
+        run: bun run --filter widget test
 
       - name: Build & Test
         env:
@@ -171,6 +199,7 @@ jobs:
     if: needs.changes.outputs.native == 'true'
     continue-on-error: true
     runs-on: macos-26
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -207,6 +236,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -231,6 +261,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -262,6 +293,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.streamdeck == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -311,6 +343,7 @@ jobs:
     # legacy warning debt and should only shrink (regenerate intentionally with
     # `make lint-baseline`). Advisory warnings still surface in the log.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -326,6 +359,7 @@ jobs:
     # BLOCKING gate for the three crash-class rules (force unwrap / try! / as!)
     # on production source. Runs with --strict, so a regression fails the PR.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -342,6 +376,7 @@ jobs:
     # from IDETemplateMacros.plist, with a Created-by date matching the file's
     # git creation date.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -360,6 +395,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.sync == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -373,6 +409,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.ds == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

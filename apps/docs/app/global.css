@@ -543,6 +543,83 @@
   text-align: center;
 }
 
+/* ── Proof row: real, build-time facts only (version, signing, source) ── */
+.ww-proof {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ww-proof-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--ww-radius-control);
+  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  color: var(--txt-2);
+  font-size: 0.78rem;
+  font-weight: 550;
+  line-height: 1.2;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.ww-proof-chip svg {
+  color: var(--brand-600);
+}
+
+.dark .ww-proof-chip svg {
+  color: var(--brand-500);
+}
+
+a.ww-proof-chip:hover {
+  color: var(--txt-1);
+  border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
+}
+
+/* ── Demo caption: every simulated widget says so in plain sight ── */
+.ww-demo-caption {
+  margin: 0.85rem 0 0;
+  color: var(--txt-2);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* ── Phone vs. desktop download path ──────────────────────────
+   A phone can't install a .dmg, so below the sm breakpoint (or on any
+   touch-first device) the .dmg button hides and "Send to my Mac" takes its
+   place. Pure CSS so the static export ships one markup for every visitor. */
+.ww-cta-phone,
+.ww-phone-only,
+.ww-show-sm {
+  display: none !important;
+}
+
+@media (max-width: 639px), (hover: none) and (pointer: coarse) {
+  .ww-cta-desktop { display: none !important; }
+  .ww-cta-phone { display: inline-flex !important; }
+  .ww-phone-only { display: block !important; }
+}
+
+.ww-phone-note {
+  margin: 0.6rem 0 0;
+  color: var(--txt-2);
+  font-size: 0.82rem;
+}
+
+/* Overlay demo: the five layout pills don't fit a phone beside the 10%
+   gutters, so a select stands in for them below sm. */
+@media (max-width: 639px) {
+  .ww-show-sm { display: inline-block !important; }
+  .ww-hide-sm { display: none !important; }
+}
+
 @media (max-width: 1023px) {
   .ww-home-hero {
     grid-template-columns: minmax(0, 1fr);
@@ -556,6 +633,7 @@
   .ww-hero-description { margin-inline: auto; }
   .ww-hero-actions { justify-content: center; }
   .ww-hero-reassurance { justify-content: center; }
+  .ww-proof { justify-content: center; }
   .ww-hero-stage { padding-top: 0.5rem; }
 }
 
@@ -644,6 +722,11 @@
   transition: transform 0.25s ease;
 }
 .ww-card-hover:hover { transform: translateY(-2px); }
+/* Phones already lose 20% of the width to the 10% gutters; full desktop
+   padding on top of that squeezed card text to ~245px. */
+@media (max-width: 767px) {
+  .ww-card { padding: 1.25rem; }
+}
 
 /* ── Pill ────────────────────────────────────────────────── */
 .ww-pill {
@@ -729,6 +812,11 @@
     transform: none;
   }
 }
+/* Phones: the floating button sat inside the 10% gutter and covered
+   right-aligned content, and iOS already scrolls to top on a status-bar tap. */
+@media (max-width: 767px) {
+  .ww-to-top { display: none; }
+}
 
 /* ──────────────────────────────────────────────────────────
    Apple corner geometry. Apple rounds corners with a *continuous*
@@ -752,15 +840,6 @@
   div[data-card] {
     corner-shape: squircle;
   }
-}
-
-/* ── Now-playing mock pulse (only retained motion) ───────── */
-.ww-pulse-ring {
-  animation: ww-pulse 3.6s ease-in-out infinite;
-}
-@keyframes ww-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); }
-  50%      { box-shadow: 0 0 0 8px rgba(10, 132, 255, 0.10); }
 }
 
 /* ── Reveal on load (gentle) ─────────────────────────────── */
@@ -1086,7 +1165,6 @@ html {
 
 /* ── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .ww-pulse-ring,
   .ww-reveal {
     animation: none !important;
     opacity: 1 !important;
@@ -1245,6 +1323,9 @@ div[data-card]:hover {
   padding: 0.5rem !important;
   gap: 0.25rem !important;
   margin: 0 !important;
+  /* Wrap rather than scroll: on phones the last tab sat off-screen behind
+     a hidden scrollbar. */
+  flex-wrap: wrap;
 }
 [class*="prose"] [role="tab"] {
   border-radius: 9px !important;

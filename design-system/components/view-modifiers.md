@@ -6,7 +6,7 @@
 
 Bundle of cross-cutting SwiftUI view modifiers, each exposed as a chainable extension on
 `View`: the card surfaces, the heading ramp, the pointer cursor, the loading skeleton, the
-width-stabilizer, and the optional accessibility identifier. Plus two `Color` helpers for
+width-stabilizer, the Reduce Motion animation gate, and the optional accessibility identifier. Plus two `Color` helpers for
 hex round-tripping. Every settings pane reaches for at least one of these, so the file is
 the single place the neutral card chrome and the type ramp are defined.
 
@@ -25,6 +25,7 @@ extension View {
     func fieldSubtitle() -> some View    // body
     func captionText() -> some View      // caption
     func stableWidth<Ghost: View>(@ViewBuilder ghosts: () -> Ghost) -> some View
+    func motionSafe<Value: Equatable>(_ animation: Animation?, value: Value) -> some View
     @ViewBuilder func accessibilityIdentifier(optional identifier: String?) -> some View
 }
 
@@ -32,6 +33,12 @@ extension Color {
     nonisolated init?(hex: String)
     func toHex() -> String?
 }
+
+func withMotionSafeAnimation<Result>(
+    _ animation: Animation? = .default,
+    reduceMotion: Bool,
+    _ body: () throws -> Result
+) rethrows -> Result
 ```
 
 ### `.cardStyle()` / `.cardStyleUnpadded()`
@@ -114,6 +121,22 @@ Sizes a view to the widest of a set of invisible ghost variants, so a label that
 ("Connect" to "Disconnect") does not resize its container mid-animation. `AsyncActionButton`
 uses it to pin its width across the idle / running / success phases.
 
+### `.motionSafe(_:value:)` / `withMotionSafeAnimation(_:reduceMotion:_:)`
+
+The Reduce Motion gate for state-change animation, so call sites stop repeating
+`reduceMotion ? nil : animation` ternaries.
+
+- `.motionSafe(_:value:)` is `.animation(_:value:)` routed through `MotionSafeAnimationModifier`, which reads `accessibilityReduceMotion` from the environment and passes `nil` when it is on. Use it in place of a bare `.animation(_:value:)`.
+- `withMotionSafeAnimation(_:reduceMotion:_:)` wraps `withAnimation` and passes `nil` when `reduceMotion` is true. A free function cannot read the environment, so the caller passes its own `@Environment(\.accessibilityReduceMotion)` value. `SettingsNavRail` uses it for the jump-nav scroll.
+
+```swift
+chip.motionSafe(DSMotion.Spring.snappy, value: state)
+
+withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
+    proxy.scrollTo(section, anchor: .top)
+}
+```
+
 ### `.accessibilityIdentifier(optional:)`
 
 Applies an identifier only when the string is non-nil, so callers can pass an optional
@@ -130,6 +153,7 @@ hex strings. `init?(hex:)` is `nonisolated` so it can be called off the main act
 - `DSDimension.Settings.cardPadding` (16) and `DSDimension.Settings.cardCornerRadius` (14) for `cardStyle()` and the `subtleCardShell` default. Call sites reach them through the `AppConstants.SettingsUI` alias, which re-exports the generated `DSDimension.Settings` values; `tokens.json` is still the source of truth.
 - `DSRadius.lg2` (12) is what onboarding-language cards pass to `subtleCardShell(cornerRadius:)`.
 - `DSFont.Size.x2xl` / `.lg` / `.sm` / `.base` / `.xs` for the five text modifiers, each behind `@ScaledMetric`.
+- `DSRadius.sm` (6) for the clip shape in the file's `#Preview`.
 - `Color(nsColor: .controlBackgroundColor)` and `Color(nsColor: .separatorColor)` for the card surface and hairline. System colors on purpose: they are the macOS grouped-content surface and adapt to appearance.
 
 ## Anatomy
@@ -149,6 +173,7 @@ graph LR
 - `paneTitle()` and `sectionHeader()` add `.accessibilityAddTraits(.isHeader)`, so VoiceOver users can jump between panes and sections with the rotor. `sectionEyebrow()` does not; add the trait on the container when the eyebrow labels a section.
 - All five text modifiers size through `@ScaledMetric`, so they follow the user's text size setting.
 - `skeleton(true)` hides the content from VoiceOver and disables hit testing, so a placeholder is never read aloud or tapped.
+- `motionSafe(_:value:)` and `withMotionSafeAnimation` drop the animation under Reduce Motion; the state change still lands instantly.
 - `pointerCursor()` is a hover affordance only; it does not change focus or keyboard behavior.
 - `accessibilityIdentifier(optional:)` exists so UI tests can target rows without every call site branching on an optional.
 

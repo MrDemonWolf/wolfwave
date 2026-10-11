@@ -34,6 +34,12 @@ struct AppleMusicControllerTests {
         #expect(AppleMusicController.appleMusicCatalogID(for: url) == "123456")
     }
 
+    @Test("Slug-less Apple Music song URLs resolve through their catalog ID")
+    func slugLessSongPathResolvesByCatalogID() throws {
+        let url = try #require(URL(string: "https://music.apple.com/us/song/1440857781"))
+        #expect(AppleMusicController.appleMusicCatalogID(for: url) == "1440857781")
+    }
+
     @Test("Apple Music album URLs use the item catalog ID")
     func albumWithItemQueryUsesItemID() throws {
         let url = try #require(URL(string: "https://music.apple.com/us/album/an-album/123?i=456"))

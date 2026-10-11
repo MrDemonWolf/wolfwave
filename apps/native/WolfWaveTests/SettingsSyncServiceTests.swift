@@ -249,4 +249,44 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
                 .settings[AppConstants.UserDefaults.discordPresenceEnabled],
             .bool(true))
     }
+
+    // MARK: Flush on quit
+
+    func testFlushPushesPendingChanges() throws {
+        // A long debounce keeps the scheduled push parked, like a quit that
+        // lands inside the debounce window.
+        let service = makeService(debounce: .seconds(60))
+        service.setEnabled(true)
+        service.push(now: Date(timeIntervalSince1970: 100))
+        let writes = store.writes
+
+        defaults.set(true, forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        center.post(name: UserDefaults.didChangeNotification, object: defaults)
+        XCTAssertNotNil(service.pendingPush)
+
+        service.flush(now: Date(timeIntervalSince1970: 200))
+
+        XCTAssertNil(service.pendingPush)
+        XCTAssertEqual(store.writes, writes + 1)
+        let data = try XCTUnwrap(store.storage[SettingsSyncService.payloadKey])
+        XCTAssertEqual(
+            try SettingsBackupCoder().decode(data)
+                .settings[AppConstants.UserDefaults.discordPresenceEnabled],
+            .bool(true))
+    }
+
+    func testFlushWithoutPendingChangeDoesNotWrite() {
+        let service = makeService(debounce: .seconds(60))
+        service.setEnabled(true)
+
+        service.flush(now: Date(timeIntervalSince1970: 200))
+
+        XCTAssertEqual(store.writes, 0)
+    }
+
+    func testFlushWhenDisabledNeverWrites() {
+        let service = makeService(debounce: .seconds(60))
+        service.flush(now: Date(timeIntervalSince1970: 200))
+        XCTAssertEqual(store.writes, 0)
+    }
 }

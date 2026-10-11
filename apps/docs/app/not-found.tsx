@@ -1,31 +1,20 @@
-"use client";
-
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useEffect } from "react";
+import { NotFoundRedirect } from "./not-found-redirect";
 
 /**
- * Static-export 404 page. GitHub Pages serves the exported 404.html at the
- * original URL, so old docs slugs that were merged away can client-redirect
- * to their new homes. The map covers the 2026-08 docs restructure.
+ * Static-export 404 page. Server component so it can carry metadata. The
+ * exported 404.html is served at whatever URL missed, so it must never be
+ * indexed: Next injects `<meta name="robots" content="noindex">` on not-found
+ * output by itself (verified in out/404.html), and the root layout no longer
+ * sets a site-wide canonical for it to inherit. The moved-slug redirect runs
+ * client-side in {@link NotFoundRedirect}.
  */
-const MOVED: Record<string, string> = {
-  "/docs/usage": "/docs/features",
-  "/docs/getting-started": "/docs/development",
-  "/docs/appearance": "/docs/settings",
+export const metadata: Metadata = {
+  title: "Page not found",
 };
 
 export default function NotFound() {
-  useEffect(() => {
-    const { pathname, hash } = window.location;
-    // basePath is "/wolfwave" in production, "" in dev.
-    const base = pathname.startsWith("/wolfwave") ? "/wolfwave" : "";
-    const path = pathname.slice(base.length).replace(/\/$/, "");
-    const target = MOVED[path];
-    if (target) {
-      window.location.replace(`${base}${target}/${hash}`);
-    }
-  }, []);
-
   return (
     <main
       style={{
@@ -39,6 +28,7 @@ export default function NotFound() {
         padding: "2rem",
       }}
     >
+      <NotFoundRedirect />
       <h1 style={{ fontSize: "1.5rem", fontWeight: 600 }}>Page not found</h1>
       <p>Some pages moved in a docs cleanup. Looking for one of these?</p>
       <ul style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>

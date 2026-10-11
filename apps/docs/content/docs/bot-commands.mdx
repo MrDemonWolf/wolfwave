@@ -64,6 +64,8 @@ Viewers add tracks to your queue; mods get the controls. `!sr` is on by default 
 
 Configure the queue, blocklist, and which commands are enabled in **Settings → Song Requests**.
 
+**What the bot says back.** `!skip` names the next song, says "Queue is now empty" only when the queue really drained, and says "Couldn't skip right now, try again." if Music is closed or busy. A viewer who isn't allowed to request gets a short refusal ("Song requests are subscriber-only right now."), and so does `!sr` while requests are off if you turned on **Reply When Off**. Refusals never start the `!sr` cooldown, so allowed viewers aren't held up, and they're throttled per viewer and across the whole channel so a crowd can't flood chat.
+
 <Callout type="warn">
   `!playlist` needs one-time setup (**Settings → Song Requests → Set Up**) because macOS can't share a playlist for you. If you later delete or un-share the playlist, WolfWave turns the command off so chat never gets a dead link. Details in [Song Requests](/docs/features#song-requests).
 </Callout>
@@ -98,7 +100,7 @@ Viewers pull your listening stats on demand. Off by default; needs the opt-in Li
 | --------- | -------- | ---------------------------------------------------------------------------------------------- |
 | `!stats` / `!musicstats` | Everyone | Replies with your listening stats for the window you picked in Settings       |
 
-Windows: **Today** (default), **This stream**, **Last 7 days**, or **All time**. Pick any mix of play count, listening time, top track, and top artist; a live preview in Settings shows the exact reply.
+Windows: **Today** (default), **This stream**, **Last 7 days**, or **All time**. Pick any mix of play count, listening time, top track, and top artist; a live preview in Settings shows the exact reply. At least one stays selected: the last chip locks.
 
 <Callout type="warn">
   `!stats` only replies while your stream is online. Offline, it stays quiet — that's by design, not a bug.
@@ -138,7 +140,7 @@ Enable both from **Settings → Song Requests → Channel Points & Bits** (Twitc
 
 ## Custom Commands
 
-Build your own chat commands in **Settings → Twitch → Custom Commands**. Give each one a trigger, a reply, and pick who can use it. Aliases and cooldowns work just like the built-ins.
+Build your own chat commands in **Settings → Twitch → Custom Commands**. Give each one a trigger, a reply, and pick who can use it. Aliases and cooldowns work just like the built-ins. You can set them up before you connect Twitch; they start replying once you do. A trigger or alias is one word, so it can't contain spaces. The reply is required and holds up to 500 characters; a live counter shows how many you've used.
 
 **Variables** fill in when the command runs:
 
@@ -165,9 +167,9 @@ Build your own chat commands in **Settings → Twitch → Custom Commands**. Giv
 
 Announcements have two requirements: the account you signed in with must be a moderator of the channel (type `/mod <account>` in chat if it's a separate bot account), and your Twitch sign-in must include the announcements permission. Sign-ins from before this feature exist without it; when an enabled command uses Announcement, WolfWave asks you to reconnect once to grant it. If Twitch refuses an announcement for any reason, the command falls back to a reply so nobody is left unanswered, and the Custom Commands card tells you why.
 
-**No two commands can answer the same word.** The editor rejects a trigger or alias another custom command already uses, so one of the pair can never be left dead. Cooldowns are limited to what the sliders set: up to 30s for Everyone and 60s per person, in 5s steps.
+**No two commands can answer the same word.** The editor names the command that already uses a trigger or alias, and says what's wrong under the field to fix, so one of the pair can never be left dead. Cooldowns are limited to what the sliders set: up to 30s for Everyone and 60s per person, in 5s steps.
 
-Custom commands travel with your [settings backup](/docs/backup). A backup holding a command that breaks either rule is refused rather than partly imported.
+Custom commands travel with your [settings backup](/docs/backup). A backup holding a command that breaks these rules (a duplicate trigger, a space in a trigger or alias, or cooldowns the sliders can't set) is refused rather than partly imported.
 
 ---
 
@@ -185,7 +187,7 @@ Supported commands take comma-separated aliases. Add `np, track` to `!song` and 
 
 Aliases honor the same enable, cooldown, audience, and live-gate rules as the canonical command. The `!` prefix is added for you. `!hold` and `!resume` are fixed — no custom aliases.
 
-An alias that shadows another custom command's trigger or alias is refused. If you saved one before WolfWave checked for this, it gets dropped the next time your commands load, and the command it was shadowing keeps working.
+An alias that shadows another custom command's trigger or alias is refused. If you saved one before WolfWave checked for this, it gets dropped the next time your commands load, and the command it was shadowing keeps working. An alias with a space in it is dropped the same way. A saved command whose trigger has a space gets the spaces removed and is turned off so you can check it (it is dropped only if that name is already taken).
 
 ---
 

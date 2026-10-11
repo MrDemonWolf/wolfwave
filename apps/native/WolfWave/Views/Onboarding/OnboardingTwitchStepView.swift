@@ -26,6 +26,7 @@ struct OnboardingTwitchStepView: View {
         OnboardingStepScaffold(
             title: "Connect WolfWave to Twitch",
             description: "So !song works in your chat automatically. We only listen, we never post unless you ask.",
+            isOptional: true,
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -66,7 +67,7 @@ struct OnboardingTwitchStepView: View {
     // MARK: - States
 
     private var notConnectedContent: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: DSSpace.s3) {
             PillButton(
                 background: AnyShapeStyle(AppConstants.Brand.twitch),
                 action: {
@@ -106,6 +107,11 @@ struct OnboardingTwitchStepView: View {
                     },
                     onActivate: {
                         hasStartedActivation = true
+                    },
+                    expiresAt: twitchViewModel.deviceCodeExpiresAt,
+                    onRequestNewCode: {
+                        hasStartedActivation = false
+                        twitchViewModel.startOAuth(owner: oauthOwner)
                     }
                 )
             }
@@ -276,11 +282,11 @@ struct OnboardingTwitchStepView: View {
         case .error(let message):
             HStack(spacing: DSSpace.s1) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DSColor.warning)
                     .font(.system(size: DSFont.Size.sm))
                 Text("Couldn't check channel")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DSColor.warning)
                     .help(message)
             }
         }
@@ -292,10 +298,10 @@ struct OnboardingTwitchStepView: View {
     /// - Parameter message: Localized error string from the auth flow.
     @ViewBuilder
     private func errorContent(message: String) -> some View {
-        VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 8) {
+        VStack(spacing: DSSpace.s3) {
+            HStack(alignment: .top, spacing: DSSpace.s2) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DSColor.warning)
                 Text(message)
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.primary)

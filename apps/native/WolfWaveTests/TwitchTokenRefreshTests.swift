@@ -759,7 +759,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         let state = await service.managedRedemptionIdentityForTesting()
         XCTAssertEqual(state.oauthToken, "OLD_ACCESS")
         XCTAssertEqual(state.broadcasterID, "broadcaster")
-        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.signOutDisconnectFailed")
         XCTAssertEqual(restarts.value, 1)
         let request = try XCTUnwrap(captured.value)
         XCTAssertEqual(request.timeoutInterval, 5)
@@ -791,7 +791,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID),
             "reward")
         XCTAssertEqual(restarts.value, 1)
-        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.signOutDisconnectFailed")
     }
 
     func testDisconnectedServiceUsesStoredBroadcasterGrantToPauseBeforeClear()
@@ -927,7 +927,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(state.broadcasterID, "broadcaster")
         XCTAssertEqual(state.botID, "broadcaster")
         XCTAssertEqual(KeychainService.loadTwitchToken(), "OLD_ACCESS")
-        XCTAssertEqual(viewModel.connectionError?.id, "twitch.disconnectFailed")
+        XCTAssertEqual(viewModel.connectionError?.id, "twitch.signOutDisconnectFailed")
         XCTAssertEqual(state.oauthToken, "OLD_ACCESS")
         XCTAssertEqual(state.clientID, "client")
     }

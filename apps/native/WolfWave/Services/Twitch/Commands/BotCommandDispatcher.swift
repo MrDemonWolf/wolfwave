@@ -16,6 +16,28 @@ nonisolated struct CommandReply: Sendable, Equatable {
     let delivery: ReplyDelivery
 }
 
+// MARK: - Preflight Denial
+
+/// Why a command refused a caller before the dispatcher reserved its cooldown.
+nonisolated enum PreflightDenial: Sendable, Equatable {
+    /// Refuse without replying.
+    case silent
+    /// Refuse with this chat reply. The dispatcher throttles it per user, on a
+    /// key separate from the command's own cooldown.
+    case reply(String)
+}
+
+/// A command that can refuse a caller before the dispatcher claims its cooldown.
+///
+/// `isAllowed(context:)` refuses silently. This hook can also answer chat
+/// ("Song requests are subscriber-only right now.") while leaving the
+/// command's shared global and per-user cooldown free for allowed viewers.
+protocol PreflightCheckedCommand: BotCommand {
+    /// Returns a denial when `context` must not run the command right now, or
+    /// `nil` to let the dispatcher claim the cooldown and execute.
+    func preflightDenial(context: BotCommandContext) -> PreflightDenial?
+}
+
 /// Routes chat messages to appropriate bot command handlers.
 ///
 /// The full built-in command suite is registered automatically at init (see
@@ -322,6 +344,25 @@ final class BotCommandDispatcher {
                     let canonical = command.triggers.first ?? trigger
                     let (globalCD, userCD) = cooldownValues(for: command)
 
+                    // Refusals that still reply (audience, feature off) are
+                    // decided before the claim, so a refused viewer never warms
+                    // the cooldown the allowed viewers share.
+                    if let context,
+                       let checked = command as? PreflightCheckedCommand,
+                       let denial = checked.preflightDenial(context: context) {
+                        Log.debug(
+                            "BotCommandDispatcher: command \(trigger) refused before cooldown",
+                            category: .twitchChat)
+                        return denialReply(
+                            denial,
+                            canonical: canonical,
+                            userID: userID,
+                            isModerator: isModerator,
+                            globalCooldown: globalCD,
+                            userCooldown: userCD,
+                            delivery: command.delivery)
+                    }
+
                     guard let claim = cooldownManager.tryClaim(
                         trigger: canonical,
                         userID: userID,
@@ -400,6 +441,48 @@ final class BotCommandDispatcher {
     }
 
     // MARK: - Private Helpers
+
+    /// Suffix for the per-user key that throttles preflight denial replies.
+    private static let denialThrottleSuffix = "#denied"
+
+    /// Shortest gap between two denial replies to the same viewer, so a viewer
+    /// with no permission can't make the bot flood chat even when the
+    /// command's own per-user cooldown is set to 0.
+    private static let minimumDenialReplyInterval: TimeInterval = 10
+
+    /// Shortest gap between two denial replies channel-wide. Without it, a
+    /// raid of distinct viewers each typing a refused command gets one reply
+    /// apiece and pushes the bot into Twitch's send rate limit.
+    private static let minimumDenialGlobalInterval: TimeInterval = 5
+
+    /// Turns a preflight denial into the reply to send, if any.
+    ///
+    /// The reply is throttled per user and globally on its own key (`<trigger>#denied`), never
+    /// on the command's cooldown, so the refusal neither starts nor extends the
+    /// cooldown allowed viewers wait on.
+    private func denialReply(
+        _ denial: PreflightDenial,
+        canonical: String,
+        userID: String,
+        isModerator: Bool,
+        globalCooldown: TimeInterval,
+        userCooldown: TimeInterval,
+        delivery: ReplyDelivery
+    ) -> CommandReply? {
+        guard case .reply(let text) = denial else { return nil }
+        // Its own key, so throttling refusals never touches the cooldown the
+        // allowed viewers share; but it is throttled globally as well as per
+        // viewer, so the refusal stream is capped channel-wide.
+        let claim = cooldownManager.tryClaim(
+            trigger: canonical + Self.denialThrottleSuffix,
+            userID: userID,
+            isModerator: isModerator,
+            globalCooldown: max(globalCooldown, Self.minimumDenialGlobalInterval),
+            userCooldown: max(userCooldown, Self.minimumDenialReplyInterval)
+        )
+        guard claim != nil else { return nil }
+        return CommandReply(text: text, delivery: delivery)
+    }
 
     /// Returns the effective cooldown values for a command, checking UserDefaults overrides.
     ///

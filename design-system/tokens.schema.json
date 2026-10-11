@@ -11,6 +11,7 @@
     "space",
     "radius",
     "motion",
+    "opacity",
     "shadow",
     "dimension",
     "widget"
@@ -59,7 +60,7 @@
 
     "color": {
       "type": "object",
-      "required": ["brand", "brandDark", "semantic", "surface", "text", "partner"],
+      "required": ["brand", "brandDark", "semantic", "glyph", "surface", "text", "partner"],
       "additionalProperties": false,
       "properties": {
         "brand": {
@@ -74,6 +75,26 @@
           "type": "object",
           "required": ["success", "warning", "error", "info", "neutral"],
           "additionalProperties": { "$ref": "#/definitions/hex" }
+        },
+        "glyph": {
+          "description": "Glyph variants of the semantic tints for the light appearance, tuned to reach at least 3:1 on the tint's own wash (a StatusChip / CalloutBanner background). Emitted as DSColor.glyph{Key}Light and --ds-color-glyph-{key}. Dark appearance reuses color.semantic, which already clears 3:1 on a dark wash.",
+          "type": "object",
+          "required": ["light"],
+          "additionalProperties": false,
+          "properties": {
+            "light": {
+              "type": "object",
+              "required": ["success", "warning", "error", "info", "neutral"],
+              "additionalProperties": false,
+              "properties": {
+                "success": { "$ref": "#/definitions/hex" },
+                "warning": { "$ref": "#/definitions/hex" },
+                "error": { "$ref": "#/definitions/hex" },
+                "info": { "$ref": "#/definitions/hex" },
+                "neutral": { "$ref": "#/definitions/hex" }
+              }
+            }
+          }
         },
         "surface": {
           "type": "object",
@@ -174,6 +195,14 @@
       }
     },
 
+    "opacity": {
+      "description": "Fill opacities (0-1) for tinted washes behind semantic glyphs and selected rows. Emitted as DSOpacity.{key} (Double) and --ds-opacity-{key}.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9]*$" },
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+
     "shadow": {
       "description": "CSS box-shadow strings. CSS + widget outputs only.",
       "type": "object",
@@ -182,7 +211,7 @@
     },
 
     "dimension": {
-      "description": "Window and control sizing. Each sub-object is emitted as a Swift enum of CGFloat, so all six are required.",
+      "description": "Window and control sizing. Each sub-object is emitted as a Swift enum of CGFloat, so all seven are required.",
       "type": "object",
       "required": [
         "settings",
@@ -190,7 +219,8 @@
         "about",
         "whatsNew",
         "iconButton",
-        "historyStats"
+        "historyStats",
+        "statusChip"
       ],
       "additionalProperties": false,
       "properties": {
@@ -199,7 +229,8 @@
         "about": { "$ref": "#/definitions/numberMap" },
         "whatsNew": { "$ref": "#/definitions/numberMap" },
         "iconButton": { "$ref": "#/definitions/numberMap" },
-        "historyStats": { "$ref": "#/definitions/numberMap" }
+        "historyStats": { "$ref": "#/definitions/numberMap" },
+        "statusChip": { "$ref": "#/definitions/numberMap" }
       }
     },
 

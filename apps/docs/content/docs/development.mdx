@@ -1,6 +1,6 @@
 ---
 title: Development
-description: Build WolfWave from source and contribute. Xcode 16, macOS 26, Config.xcconfig setup, make targets, the test suite, notarization, and the release pipeline.
+description: Build WolfWave from source and contribute. Xcode 26, macOS 26, Config.xcconfig setup, make targets, the test suite, notarization, and the release pipeline.
 keywords:
   - build wolfwave from source
   - contribute to wolfwave
@@ -13,7 +13,7 @@ ogDescription: Clone, configure Twitch + Discord IDs, build in Xcode, run the te
 ogChips:
   - Swift
   - SwiftUI
-  - Xcode 16
+  - Xcode 26
   - XCTest
 ogEyebrow: Developers
 ---
@@ -25,7 +25,7 @@ use the app? See [Installation](/docs/installation).
 
 - **macOS 26.0+** (Tahoe)
 - **Apple Silicon** (M1 or later)
-- **Xcode 16.0+**
+- **Xcode 26+**
 - **Command Line Tools.** Run `xcode-select --install` if you haven't.
 
 ## Clone the repo
@@ -101,7 +101,7 @@ Hit **⌘R** in Xcode. That's it.
 | `make lint`            | SwiftLint against the tracked baseline     |
 | `make lint-crash-safety` | No new force unwrap, `try!`, or `as!`    |
 | `make lint-headers`    | Swift file-header convention               |
-| `make lint-sync`       | Source-derived lists, catalog, docs values, lint claims |
+| `make lint-sync`       | Source-derived lists, catalog, docs values (incl. ports), lint claims, release-notes and version script tests |
 | `make check-drift`     | Regenerate widget/tokens/icons, fail on drift |
 | `make update-deps`     | Resolve SwiftPM dependencies               |
 | `make open-xcode`      | Open the Xcode project                     |
@@ -109,7 +109,7 @@ Hit **⌘R** in Xcode. That's it.
 | `make prod-build`      | Release build + DMG in `builds/`           |
 | `make prod-install`    | Release build + install to `/Applications` |
 | `make notarize`        | Notarize the DMG (requires Developer ID)   |
-| `make verify-notarize` | Verify notarization of DMG                 |
+| `make verify-notarize` | Verify the DMG's stapled ticket and Gatekeeper acceptance |
 
 ## Testing
 
@@ -126,6 +126,10 @@ history pipeline, and the Sparkle updater. For the live pass count, run
 Test files are auto-discovered: drop a `.swift` file into
 `apps/native/WolfWaveTests/` and use `@testable import WolfWave`. No Xcode
 project edit needed.
+
+The OBS widget and the Stream Deck plugin have their own bun suites:
+`bun run --filter widget test` and `bun run --filter streamdeck test`. CI runs
+the widget's with the native tests and the plugin's in its own job.
 
 ### UI tests
 
@@ -166,8 +170,8 @@ make prod-build
 
 The DMG lands at `builds/WolfWave-{version}.dmg`. With a Developer ID
 Application certificate in your Keychain, the app is re-signed for distribution
-as part of the build. `make prod-install` builds and drops straight into
-`/Applications`.
+as part of the build (inside-out, with the same `scripts/codesign-app.sh` CI
+uses). `make prod-install` builds and drops straight into `/Applications`.
 
 The DMG window background (`assets/dmg-background.png` and `@2x`) is generated
 by `scripts/generate-dmg-background.swift`. Run
@@ -183,6 +187,10 @@ APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
 make notarize
 ```
 
+`make notarize` signs, submits, and staples the DMG, then runs `stapler validate`
+and `spctl --assess` so a bad ticket fails there. `make verify-notarize` reruns
+those two checks on an existing DMG.
+
 <Callout type="info">
   Generate an app-specific password at
   [appleid.apple.com](https://appleid.apple.com/account/manage) under **Sign-In and
@@ -191,15 +199,22 @@ make notarize
 
 ## CI/CD
 
-- **Test** (`test.yml`): `xcodebuild test` on every push and PR to `main`.
+- **Test** (`test.yml`): `xcodebuild test`, generated-file drift checks, and the
+  OBS widget tests on every push and PR to `main`, plus lint, docs, and Stream
+  Deck jobs that only run when their files change.
 - **Build & Release** (`build_release.yml`): on a `v*` tag push, builds, signs,
   notarizes, embeds release notes in the Sparkle appcast, and uploads the DMG to
   a **draft** GitHub Release for review.
 - **Update Homebrew** (`update_homebrew.yml`): bumps the Homebrew cask after a
   Release is published.
-- **Docs** (`docs.yml`): deploys this site to GitHub Pages.
+- **Docs** (`docs.yml`): deploys this site to GitHub Pages when docs change, and
+  again after a stable release is published, so the latest DMG link and version
+  refresh.
 - **Nightly** (`nightly.yml`): daily signed build off `main` feeding the
-  opt-in [Nightly channel](/docs/nightly).
+  opt-in [Nightly channel](/docs/nightly). Skipped when only docs or
+  housekeeping files changed.
+- **Dependabot** (`.github/dependabot.yml`): weekly grouped updates for GitHub
+  Actions, SwiftPM, and bun.
 
 ### Required GitHub secrets
 

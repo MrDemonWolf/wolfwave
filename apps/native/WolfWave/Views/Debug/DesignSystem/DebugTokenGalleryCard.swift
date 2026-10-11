@@ -37,6 +37,8 @@ struct DebugTokenGalleryCard: View {
             Divider()
             radiusSection
             Divider()
+            opacitySection
+            Divider()
             motionSection
             Divider()
             motionGallerySection
@@ -160,6 +162,33 @@ struct DebugTokenGalleryCard: View {
                             .font(.system(size: DSFont.Size.xs))
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - Opacity
+
+    private var opacitySection: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
+            family("Opacity", symbol: "DSOpacity.all")
+            HStack(alignment: .top, spacing: DSSpace.s4) {
+                ForEach(DSOpacity.all, id: \.name) { token in
+                    VStack(spacing: DSSpace.s1) {
+                        RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous)
+                            .fill(Color.accentColor.opacity(token.value))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous)
+                                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                            )
+                            .frame(width: Metrics.radiusSample, height: Metrics.radiusSample)
+                        Text(token.name)
+                            .font(.system(size: DSFont.Size.xs, design: .monospaced))
+                        Text(formatted(token.value))
+                            .font(.system(size: DSFont.Size.xs))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }

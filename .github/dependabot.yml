@@ -18,3 +18,47 @@ updates:
         update-types:
           - minor
           - patch
+
+  # SwiftPM dependencies of the native app (Sparkle). There is no Package.swift:
+  # since 2026-03-31 Dependabot discovers the Package.resolved inside the
+  # .xcodeproj bundle and reads version rules from project.pbxproj
+  # (github.blog/changelog/2026-03-31-dependabot-now-supports-xcode-projects-
+  # using-swiftpm-with-xcodeproj-manifests), so point it at the app folder.
+  - package-ecosystem: swift
+    directory: /apps/native
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(swift)"
+    labels:
+      - dependencies
+      - swift
+    groups:
+      swift-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # JS workspace dependencies (bun.lock at the repo root covers every workspace).
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      bun-minor-and-patch:
+        update-types:
+          - minor
+          - patch

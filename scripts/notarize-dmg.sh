@@ -52,4 +52,16 @@ if [ "$status" != "Accepted" ]; then
 fi
 
 xcrun stapler staple "$dmg" || exit 1
-echo "Notarized and stapled: $dmg"
+
+# Staple succeeding is not proof the ticket is attached and Gatekeeper accepts
+# the result. Validate the ticket, then assess the DMG the way a first-launch
+# download would be, so a bad artifact fails here and not on a user's machine.
+xcrun stapler validate "$dmg" || {
+  echo "::error::stapler validate failed for $dmg" >&2
+  exit 1
+}
+spctl --assess --type open --context context:primary-signature -v "$dmg" || {
+  echo "::error::Gatekeeper (spctl) rejected $dmg" >&2
+  exit 1
+}
+echo "Notarized, stapled, and verified: $dmg"

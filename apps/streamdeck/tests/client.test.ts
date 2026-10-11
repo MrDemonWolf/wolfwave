@@ -235,6 +235,66 @@ describe("configure / stop", () => {
     client.stop();
   });
 
+  test("lateAckAfterTimeoutNotAttributedToNextPress", async () => {
+    const client = new WolfWaveClient({ ackTimeoutMs: 20 });
+    const internals = client as unknown as {
+      socket: unknown;
+      handleMessage(text: string): void;
+    };
+    internals.socket = { readyState: WebSocket.OPEN, send() {} };
+    const ackFrame = (ok: boolean) =>
+      JSON.stringify({ type: "ack", action: "skip", ok });
+
+    // First press times out...
+    await expect(client.sendAwaitingAck("skip")).resolves.toBeNull();
+    // ...the second is in flight when the first's ack finally lands.
+    const second = client.sendAwaitingAck("skip");
+    internals.handleMessage(ackFrame(false));
+    internals.handleMessage(ackFrame(true));
+    await expect(second).resolves.toMatchObject({ ok: true });
+
+    internals.socket = null;
+  });
+
+  test("a never-answered press does not cascade into later presses", async () => {
+    // Press 1 times out and its ack never comes. Press 2's real ack is then
+    // swallowed as press 1's late ack, so press 2 times out too, but it must
+    // not owe a fresh debt: press 3's ack has to reach press 3.
+    const client = new WolfWaveClient({ ackTimeoutMs: 20 });
+    const internals = client as unknown as {
+      socket: unknown;
+      handleMessage(text: string): void;
+    };
+    internals.socket = { readyState: WebSocket.OPEN, send() {} };
+    const ackFrame = JSON.stringify({ type: "ack", action: "skip", ok: true });
+
+    await expect(client.sendAwaitingAck("skip")).resolves.toBeNull();
+    const second = client.sendAwaitingAck("skip");
+    internals.handleMessage(ackFrame);
+    await expect(second).resolves.toBeNull();
+
+    const third = client.sendAwaitingAck("skip");
+    internals.handleMessage(ackFrame);
+    await expect(third).resolves.toMatchObject({ ok: true });
+
+    internals.socket = null;
+  });
+
+  test("an ack nobody is owed is still delivered to the next press", async () => {
+    const client = new WolfWaveClient({ ackTimeoutMs: 1_000 });
+    const internals = client as unknown as {
+      socket: unknown;
+      handleMessage(text: string): void;
+    };
+    internals.socket = { readyState: WebSocket.OPEN, send() {} };
+    const pending = client.sendAwaitingAck("skip");
+    internals.handleMessage(
+      JSON.stringify({ type: "ack", action: "skip", ok: true }),
+    );
+    await expect(pending).resolves.toMatchObject({ ok: true });
+    internals.socket = null;
+  });
+
   test("a new subscriber immediately receives the current snapshot", () => {
     // Keys added mid-session must render now, not on the next broadcast.
     const client = new WolfWaveClient();

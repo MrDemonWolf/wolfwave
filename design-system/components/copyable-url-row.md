@@ -42,6 +42,7 @@ CopyableURLRow(
 | `subtitle` | `String?` | Helper line under the URL (e.g. "Use this for two-PC setups."). |
 | `isStreamerMode` | `Bool` | Drives the mask, the badge, and the disabled state. Pass `@AppStorage` streamer-mode flag. |
 | `actionsDisabled` | `Bool` | Extra disable gate beyond Streamer Mode (e.g. server stopped). Default `false`. |
+| `actionsDisabledReason` | `String?` | Why `actionsDisabled` is on (e.g. "Turn on Stream Widgets to copy."). Becomes the tooltip and VoiceOver hint. Streamer Mode always shows its own fixed "Turn off Streamer Mode to copy." instead. |
 | `urlLineLimit` | `Int?` | `nil` wraps freely; pass `2` for wide rows with no trailing label column. |
 | `copyLabel` / `copiedLabel` | `String?` | When `nil`, the copy button renders icon-only. |
 | `copyAccessibilityLabel` | `String` | VoiceOver label for the copy button. |
@@ -69,6 +70,7 @@ graph LR
 - The copy button carries its own VoiceOver label + value (via `CopyButton`); the URL `Text` is selectable.
 - `StreamerModeBadge` announces "Streamer Mode is on" so a masked value reads as intentional, not empty.
 - Copy + trailing actions are disabled together when `actionsDisabled || isStreamerMode`, so a masked URL can never be copied.
+- The disabled copy / trailing group carries `.help` with the reason ("Turn off Streamer Mode to copy." or `actionsDisabledReason`), and the same text goes to `CopyButton(disabledHint:)` so VoiceOver reads it on the button itself. A greyed-out button explains itself.
 - Color is not the sole signal - the badge text and mask placeholder ("hidden (streamer mode)") both spell out the state.
 
 ## Do / Don't
@@ -86,6 +88,7 @@ CopyableURLRow(
     subtitle: "Use this for two-PC setups.",
     isStreamerMode: streamerMode,
     actionsDisabled: !websocketEnabled,
+    actionsDisabledReason: "Turn on Stream Widgets to copy.",
     copyAccessibilityLabel: "Copy network connection URL",
     copyAccessibilityIdentifier: "copyNetworkConnectionURLButton"
 )

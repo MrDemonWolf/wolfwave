@@ -261,6 +261,51 @@ export function checkLandingProtocol(text, { webSocketPort, widgetPort }) {
   return failures;
 }
 
+/**
+ * Flags a WebSocket or widget-HTTP port in docs prose that differs from the
+ * AppConstants defaults. A port is read from `scheme://host:N`, `port N`, or
+ * `host:N`; the line's own wording (websocket/ws vs http/widget/shell) picks
+ * which default it must equal, and a line naming both accepts either.
+ */
+/**
+ * Ports that legitimately appear in the docs but are not WolfWave's servers,
+ * so `checkDocPorts` must not hold them to the AppConstants defaults. Add a
+ * port here (with what owns it) rather than rewording a correct doc.
+ */
+export const FOREIGN_DOC_PORTS = new Set([
+  3000, // the docs site's own `bun run dev` server
+]);
+
+export function checkDocPorts(text, { webSocketPort, widgetPort }) {
+  const failures = [];
+  const lines = text.split("\n");
+  lines.forEach((line, index) => {
+    const ports = [];
+    for (const match of line.matchAll(/\b(ws|wss|http|https):\/\/[^\s"'<>`/:]+:(\d{4,5})\b/g)) {
+      ports.push({ port: Number(match[2]), kind: match[1].startsWith("ws") ? "ws" : "http" });
+    }
+    const bare = line.replace(/\b(?:ws|wss|http|https):\/\/[^\s"'<>`]+/g, "");
+    for (const match of bare.matchAll(/(?:\bport\s+`?|`?[\w.]*:)(\d{4,5})\b/gi)) {
+      ports.push({ port: Number(match[1]), kind: null });
+    }
+    for (const { port, kind } of ports) {
+      if (port < 1024 || FOREIGN_DOC_PORTS.has(port)) continue;
+      const mentionsWs = /web\s?socket|\bwss?\b/i.test(line);
+      const mentionsHttp = /\bhttp\b|widget|shell/i.test(line);
+      let allowed;
+      if (kind === "ws") allowed = [webSocketPort];
+      else if (kind === "http") allowed = [widgetPort];
+      else if (mentionsWs && !mentionsHttp) allowed = [webSocketPort];
+      else if (mentionsHttp && !mentionsWs) allowed = [widgetPort];
+      else allowed = [webSocketPort, widgetPort];
+      if (!allowed.includes(port)) {
+        failures.push({ line: index + 1, message: `port ${port} does not match the AppConstants default (${allowed.join(" or ")})` });
+      }
+    }
+  });
+  return failures;
+}
+
 function projectExpected(root) {
   const tokens = JSON.parse(readFileSync(resolve(root, "design-system/tokens.json"), "utf8"));
   const themes = Object.entries(tokens.widget.themes).filter(([, value]) => !value.hidden).map(([name]) => name);
@@ -346,6 +391,16 @@ export function runChecks(root = ROOT) {
   for (const file of DOC_FILES) {
     const text = readFileSync(resolve(root, file), "utf8");
     for (const failure of checkDocsText(text, expected)) failures.push({ file, ...failure });
+  }
+
+  const portDocs = [
+    ...walk(resolve(root, "apps/docs/content/docs"), ".mdx").filter((file) => !file.endsWith("changelog.mdx")),
+    ...walk(resolve(root, "apps/native/docs"), ".md"),
+  ];
+  for (const file of portDocs) {
+    for (const failure of checkDocPorts(readFileSync(file, "utf8"), expected)) {
+      failures.push({ file: relative(root, file), ...failure });
+    }
   }
 
   const lintFile = "design-system/scripts/lint.ts";

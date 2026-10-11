@@ -18,6 +18,7 @@ jobs:
     # Forks have no SPONSORKIT_TOKEN, so the cron would just fail daily.
     if: github.repository == 'MrDemonWolf/wolfwave'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

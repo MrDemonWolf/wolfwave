@@ -28,6 +28,15 @@ window.WW_TOKENS = {
       "info": "#0A84FF",
       "neutral": "#8E8E93"
     },
+    "glyph": {
+      "light": {
+        "success": "#1E7B34",
+        "warning": "#9A5B00",
+        "error": "#C9302C",
+        "info": "#0066CC",
+        "neutral": "#6E6E73"
+      }
+    },
     "surface": {
       "light": {
         "base": "#FFFFFF",
@@ -46,12 +55,12 @@ window.WW_TOKENS = {
       "light": {
         "primary": "#1D1D1F",
         "secondary": "#6E6E73",
-        "muted": "#A1A1A6"
+        "muted": "#767676"
       },
       "dark": {
         "primary": "#F5F5F7",
         "secondary": "#A1A1A6",
-        "muted": "#6E6E73"
+        "muted": "#8E8E93"
       }
     },
     "partner": {

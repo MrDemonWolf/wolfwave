@@ -16,6 +16,11 @@ import SwiftUI
 struct WhatsNewView: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// Closes the hosting window. `AppDelegate` hosts this view in an `NSWindow`,
+    /// where `dismiss` is a no-op, so it passes a closure that closes the
+    /// window. When `nil` (a sheet or a preview), `dismiss` is used instead.
+    var onClose: (() -> Void)?
+
     // MARK: - Feature Data
 
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
@@ -53,21 +58,24 @@ struct WhatsNewView: View {
 
             // MARK: Actions
             VStack(spacing: DSSpace.s3) {
-                Button("Get Started") {
-                    dismiss()
+                Button("Got it") {
+                    if let onClose {
+                        onClose()
+                    } else {
+                        dismiss()
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .accessibilityLabel("Get Started")
-                .accessibilityHint("Dismisses the what's new screen")
-                .accessibilityIdentifier("whatsNew.getStarted")
+                .keyboardShortcut(.defaultAction)
+                .accessibilityHint("Closes what's new")
+                .accessibilityIdentifier("whatsNew.gotIt")
 
                 Button("See all changes") {
                     ExternalLink.open(AppConstants.URLs.changelog)
                 }
                 .buttonStyle(.link)
                 .font(.system(size: DSFont.Size.body))
-                .accessibilityLabel("See all changes")
                 .accessibilityHint("Opens the full changelog in your browser")
                 .accessibilityIdentifier("whatsNew.seeAllChanges")
             }

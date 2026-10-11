@@ -51,7 +51,7 @@ struct OnboardingPermissionsStepView: View {
                 HStack(spacing: DSSpace.s3) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: DSFont.Size.lg))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(DSColor.success)
                     Text("Access granted. Sync Music is on.")
                         .font(.system(size: DSFont.Size.base))
                         .foregroundStyle(.primary)
@@ -64,7 +64,7 @@ struct OnboardingPermissionsStepView: View {
                 VStack(spacing: DSSpace.s3) {
                     HStack(alignment: .top, spacing: DSSpace.s2) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(DSColor.warning)
                         Text("Access was denied. Enable in **System Settings → Privacy & Security → Automation → WolfWave → Music**.")
                             .font(.system(size: DSFont.Size.base))
                             .foregroundStyle(.primary)

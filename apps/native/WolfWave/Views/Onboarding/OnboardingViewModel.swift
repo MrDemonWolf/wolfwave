@@ -50,6 +50,9 @@ final class OnboardingViewModel {
 
     var currentStep: OnboardingStep = .welcome
     var showCompletion = false
+    /// `true` when the wizard ended through Skip All, so the completion screen
+    /// can use its lighter "Skipped" copy.
+    private(set) var completedBySkipping = false
 
     // MARK: - Navigation
 
@@ -76,10 +79,17 @@ final class OnboardingViewModel {
     // MARK: - Completion
 
     /// Persists the onboarding-completed flag so the wizard won't show again.
-    func completeOnboarding() {
+    ///
+    /// - Parameter skipped: Pass `true` when the user chose Skip All, so the
+    ///   completion screen shows the lighter "Skipped" ending.
+    func completeOnboarding(skipped: Bool = false) {
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        completedBySkipping = skipped
         showCompletion = true
-        Log.info("OnboardingViewModel: Onboarding completed", category: .app)
+        Log.info(
+            skipped ? "OnboardingViewModel: Onboarding skipped" : "OnboardingViewModel: Onboarding completed",
+            category: .app
+        )
     }
 
     /// Whether onboarding has been completed on a previous launch.

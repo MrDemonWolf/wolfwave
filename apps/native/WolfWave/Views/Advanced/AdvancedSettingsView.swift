@@ -10,12 +10,13 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Advanced settings: diagnostics and the destructive reset operations.
+/// Advanced settings: diagnostics and the one destructive reset operation.
 ///
 /// Cards, top to bottom: rerun the setup wizard, log diagnostics (export /
 /// copy / reveal / clear), artwork cache (size + clear), opt-in MetricKit
-/// diagnostics share card, settings backup (export / import), and the Danger
-/// Zone full reset.
+/// "Share Diagnostics" card, settings backup (export / import), and the Danger
+/// Zone, which holds only the full erase-and-reset. Clearing logs and the
+/// artwork cache are routine upkeep, so they live in their own cards.
 ///
 /// `showingResetAlert` is a @Binding from the parent `SettingsView` because the
 /// actual reset is performed by `SettingsView.resetSettings()` after the alert
@@ -316,13 +317,12 @@ struct AdvancedSettingsView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .pointerCursor()
-                .accessibilityLabel("Reset onboarding wizard")
                 .accessibilityHint("Opens the setup wizard")
             }
             .cardStyle()
             .alert("Rerun Setup Wizard?", isPresented: $showingOnboardingResetAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Reset") {
+                Button("Open Wizard") {
                     DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
                     Log.info("Onboarding reset by user", category: .onboarding)
                     AppDelegate.shared?.showOnboarding()
@@ -364,29 +364,13 @@ struct AdvancedSettingsView: View {
                     .accessibilityLabel("Danger Zone")
                     .accessibilityAddTraits(.isHeader)
 
-                    Text("Erase & Reset wipes everything and restarts the app. Clear Logs can't be undone. Clearing the artwork cache just forces a fresh lookup.")
+                    Text("Wipes every setting, sign-in, log, and cache, then restarts the app. This can't be undone.")
                         .font(.system(size: DSFont.Size.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 VStack(alignment: .leading, spacing: DSSpace.s2) {
-                    DestructiveButton(
-                        title: "Clear Logs",
-                        systemImage: "trash",
-                        accessibilityIdentifier: "clearLogsButton",
-                        action: { showingClearLogsAlert = true }
-                    )
-                    .accessibilityHint("Erases the current log file")
-
-                    DestructiveButton(
-                        title: "Clear Artwork Cache",
-                        systemImage: "trash",
-                        accessibilityIdentifier: "clearArtworkCacheButton",
-                        action: { showingClearArtworkAlert = true }
-                    )
-                    .accessibilityHint("Erases saved album art links")
-
                     DestructiveButton(
                         title: "Erase All Data & Reset",
                         systemImage: "trash",
@@ -417,7 +401,7 @@ struct AdvancedSettingsView: View {
                         .accessibilityLabel("Log file size \(logSizeText), \(logLineCountText)")
                 }
 
-                Text("Export logs, copy them to your clipboard, or reveal the file in Finder.")
+                Text("Export logs, copy them, reveal the file in Finder, or clear it.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -448,7 +432,15 @@ struct AdvancedSettingsView: View {
                         action: revealLogsInFinder,
                         accessibilityIdentifier: "revealLogsButton"
                     )
-                    .gridCellColumns(2)
+                    // Routine upkeep that asks before it acts, so it sits with
+                    // the other log actions. The Danger Zone is reserved for
+                    // the full wipe.
+                    ActionGridButton(
+                        title: "Clear Logs",
+                        systemImage: "trash",
+                        action: { showingClearLogsAlert = true },
+                        accessibilityIdentifier: "clearLogsButton"
+                    )
                 }
             }
 
@@ -487,6 +479,18 @@ struct AdvancedSettingsView: View {
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ActionGrid(columns: 2) {
+                GridRow {
+                    ActionGridButton(
+                        title: "Clear Artwork Cache",
+                        systemImage: "trash",
+                        action: { showingClearArtworkAlert = true },
+                        accessibilityIdentifier: "clearArtworkCacheButton"
+                    )
+                    .gridCellColumns(2)
+                }
             }
         }
         .cardStyle()

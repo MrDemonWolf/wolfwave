@@ -51,6 +51,17 @@ final class LinkResolverServiceTests: XCTestCase {
         XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://notyoutube.com/watch?v=abc"), .youtube)
     }
 
+    /// Slug-less song share links (`/<storefront>/song/<id>`) used to be read as
+    /// plain text and searched literally.
+    func testDetectsSlugLessAppleMusicSongLink() {
+        let link = "https://music.apple.com/us/song/1440857781"
+        XCTAssertEqual(LinkResolverService.detectedService(in: link), .appleMusic)
+        XCTAssertEqual(LinkResolverService.extractURL(from: "!sr \(link)"), link)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/song/not-an-id"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/1440857781"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/usa/song/1440857781"), .appleMusic)
+    }
+
     func testDetectsAppleMusicLink() {
         XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/x/1?i=2"), .appleMusic)
         XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.apple.com/gb/song/x/2"), .appleMusic)

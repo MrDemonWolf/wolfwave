@@ -4,20 +4,22 @@ import {
   ArrowRight,
   Download,
   Github,
-  Music2,
   Terminal,
 } from "lucide-react";
-import { getLatestDmgUrl, repoUrl } from "@/lib/site";
+import { getLatestDmgUrl, pageUrl, repoUrl } from "@/lib/site";
+import { SendToMac } from "../_widgets/SendToMac";
 import { CopyButton } from "./copy-button";
 
 // ── Constants ────────────────────────────────────────────────
 const REPO_URL = repoUrl;
 const BREW_CMD = "brew tap mrdemonwolf/den\nbrew install --cask wolfwave";
 
+// `title.absolute`: the string already names WolfWave, so the root
+// "%s | WolfWave" template would brand it twice.
 export const metadata: Metadata = {
-  title: "Download WolfWave: Free for macOS 26+ (DMG or Homebrew)",
+  title: { absolute: "Download WolfWave: Free for macOS 26+ (DMG or Homebrew)" },
   description:
-    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or run `brew install --cask mrdemonwolf/den/wolfwave`. Apple Music required. Free and open source.",
+    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or the Homebrew cask (mrdemonwolf/den/wolfwave). Apple Music required. Free and open source.",
   keywords: [
     "download wolfwave",
     "wolfwave dmg",
@@ -26,8 +28,9 @@ export const metadata: Metadata = {
     "apple music twitch bot download",
     "free macos streamer app",
   ],
-  alternates: { canonical: "/download" },
+  alternates: { canonical: pageUrl("/download") },
   openGraph: {
+    url: pageUrl("/download"),
     title: "Download WolfWave: Free for macOS 26+",
     description:
       "Free macOS app. Apple Music to Twitch chat, Discord Rich Presence, OBS overlay. DMG or Homebrew. Apple Silicon.",
@@ -63,50 +66,29 @@ export default async function DownloadPage() {
             <div className="ww-reveal ww-reveal-3 mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href={downloadUrl}
-                className="ww-btn ww-btn-primary"
-                style={{ padding: "1rem 1.75rem", fontSize: "1rem" }}
+                className="ww-btn ww-btn-primary ww-btn-lg ww-cta-desktop"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4" aria-hidden="true" />
                 Download .dmg
               </a>
+              <SendToMac
+                url={pageUrl("/download")}
+                className="ww-btn ww-btn-primary ww-btn-lg ww-cta-phone"
+              />
               <a
                 href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ww-btn ww-btn-ghost"
+                className="ww-btn ww-btn-ghost ww-btn-lg"
               >
-                <Github className="w-4 h-4" />
+                <Github className="w-4 h-4" aria-hidden="true" />
                 View on GitHub
               </a>
             </div>
 
-            {/* Now-playing flourish: product identity in the hero */}
-            <div
-              className="ww-reveal ww-reveal-3 mt-10 inline-flex items-center gap-3 ww-pulse-ring"
-              style={{
-                padding: "0.6rem 1.1rem",
-                borderRadius: "var(--ww-radius-control)",
-                backgroundColor: "var(--bg-surface)",
-                border: "1px solid var(--hairline)",
-              }}
-            >
-              <span
-                className="inline-flex items-center justify-center"
-                style={{
-                  width: "1.6rem",
-                  height: "1.6rem",
-                  borderRadius: "999px",
-                  backgroundColor: "var(--brand-50)",
-                  color: "var(--brand-500)",
-                }}
-              >
-                <Music2 className="w-3.5 h-3.5" aria-hidden />
-              </span>
-              <span className="ww-text-2 text-sm">
-                <span className="ww-text-1 font-medium">Now playing</span>
-                {" "}· streaming to Twitch chat
-              </span>
-            </div>
+            <p className="mt-4 text-sm ww-text-2 ww-phone-only">
+              WolfWave installs on a Mac. Send yourself the link.
+            </p>
 
             <p className="mt-6 text-sm ww-text-2">
               Free · Open source · Signed and notarized by Apple
@@ -181,7 +163,7 @@ export default async function DownloadPage() {
                 Command line
               </h3>
               <p className="ww-text-2 text-base leading-relaxed mb-4">
-                Auto-updates via <code className="ww-mono ww-text-1">brew upgrade --cask</code>.
+                Auto-updates via <code className="ww-mono ww-text-1 whitespace-nowrap">brew upgrade --cask</code>.
               </p>
               <pre
                 className="ww-code flex-1"

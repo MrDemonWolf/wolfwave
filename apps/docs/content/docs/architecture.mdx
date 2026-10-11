@@ -28,18 +28,20 @@ The native app lives at [`apps/native/WolfWave/`](https://github.com/MrDemonWolf
 WolfWave/
 ├── WolfWaveApp.swift              # @main + NSApplicationDelegateAdaptor
 ├── AppDelegate+*.swift            # MenuBar / Services / Windows / DockMenu / StreamDeck splits
-├── Core/                          # Constants, Keychain, Logger, StreamerMode, …
+├── Core/                          # Constants, Keychain, Logger, StreamerMode, tray-menu state, DesignSystem tokens, …
 ├── Monitors/                      # AppleMusicSource + playback update delegate
 ├── Services/
 │   ├── Discord/                   # DiscordRPCService. Local IPC socket
 │   ├── ListeningHistory/          # Opt-in NDJSON play log + stats + monthly wrap
 │   ├── Notifications/             # Opt-in song-change banner
+│   ├── SettingsBackup/            # Backup export/import coder + service, opt-in iCloud KVS sync
 │   ├── SongRequest/               # Queue, resolvers, AppleMusicController, blocklist, vote-skip
 │   ├── Twitch/                    # ChatService (EventSub), ChannelPointsService, DeviceAuth, Commands/
 │   ├── UpdateChecker/             # SparkleUpdaterService
-│   └── WebSocket/                 # Token-gated WebSocketServerService, StreamDeckCommand, static WidgetHTTPService
+│   ├── WebSocket/                 # Token-gated WebSocketServerService, StreamDeckCommand, static WidgetHTTPService
+│   └── *.swift                    # Loose services: ArtworkService, ArtworkTint, LaunchAtLoginService
 ├── Views/                         # SwiftUI settings shell + per-section views + Onboarding wizard
-└── Resources/                     # widget.html, Assets.xcassets, dev-appcast.xml
+└── Resources/                     # widget.html, widget-tokens.generated.js, Assets.xcassets, AppIcon.icon / AppIcon-Dev.icon, dev-appcast.xml
 ```
 
 Enumerating every file here would rot on each PR. For the full file-by-file breakdown, see the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave) in the repo root.
@@ -71,6 +73,7 @@ Settings changes (e.g. `TrackingSettingChanged`, `DockVisibilityChanged`) flow t
 - `TwitchChatService`: actor isolation, with small lock-backed snapshots only for synchronous observation bridges.
 - `DiscordRPCService`: serial `ipcQueue` confinement + `enabledLock`.
 - `Logger`: serial `DispatchQueue` for thread-safe file I/O.
+- Tray and Dock menus: `menuNeedsUpdate` runs on the main thread while a menu is tracking, so the menus read an in-memory `TwitchMenuState` that `AppDelegate` refreshes off the main thread (the newest refresh wins). They never touch the Keychain.
 - `WebSocketServerService`: actor-confined listener, connection, and playback state; an `NSLock` protects only synchronous UI snapshots. Network.framework rejects messages over 16 KiB, and pre-handshake peers are capped and timed out before promotion.
 
 ## Key Components
@@ -100,7 +103,8 @@ Coordinates chat song requests end-to-end:
 - **Queue** with hold mode and buffering when Music.app is closed.
 - **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (native URL detection, Spotify/YouTube oEmbed, and validated Apple Music URLs).
 - **Playback**: `AppleMusicController` plays tracks via AppleScript while preserving window focus.
-- **Blocklist**: `SongBlocklist` blocks by track ID, artist, or requester (the person, not a song).
+- **Blocklist**: `SongBlocklist` blocks by song title, artist, or requester (the person, not a song). An artist entry also matches inside a collaboration, including a comma-named act ("Tyler, The Creator" in "Tyler, The Creator & Kali Uchis") and "ft." / "featuring" credits.
+- **Skip**: `skip()` reports what it did (started, drained, busy, or retained), so `!skip` only says the queue is empty when it really drained.
 - **Approval screening**: opt-in "Require My Approval" (`isApprovalRequired`, `approve`/`decline`) holds each request in a pending state until the broadcaster acts, across chat, channel points, and bits.
 
 ### DiscordRPCService
@@ -108,7 +112,7 @@ Coordinates chat song requests end-to-end:
 Discord Rich Presence integration using:
 
 - **Local IPC Socket**: Unix domain socket (`discord-ipc-{0..9}`). No bot token or server required.
-- **iTunes Search API**: Album artwork fetched dynamically with in-memory caching.
+- **Album artwork**: fetched through the shared `ArtworkService` (iTunes Search API). Its cache lives in memory and is also saved to `Application Support/WolfWave/Cache/artwork-links.json`.
 - **Playback Progress**: Elapsed time and duration shown as a progress bar.
 - **Auto-reconnect**: Detects Discord availability and reconnects on its own.
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox.
@@ -180,15 +184,23 @@ unsupported.
 - **`src/wolfwave/protocol.ts`** — pure wire layer and the TypeScript mirror of
   `StreamDeckCommand.swift`. Its `ACTIONS` list is the Swift enum's raw values
   and `PROTOCOL_VERSION` must equal `StreamDeckControl.protocolVersion`; a test
-  pins the full v3 set so the two can't drift silently.
+  pins the full action set so the two can't drift silently.
 - **`src/wolfwave/state.ts`** — pure reducer folding inbound frames into the
   state keys render from. Returns the same object reference when nothing
   changed, so per-second `progress` frames don't repaint every key.
 - **`src/wolfwave/client.ts`** — one shared socket for all keys (the app
   broadcasts `queue_state` / `health` to every client, so a socket per key would
   just multiply fan-out), with capped reconnect backoff and FIFO ack correlation.
+  A late ack from a timed-out press is swallowed instead of handed to the next
+  press, and a handshake WolfWave answers with a refusal is told apart from
+  "not running".
+- **`src/connection-status.ts`** — pure mapping from client state to the message
+  the plugin relays to the Property Inspector (`connected`, `rejected`,
+  `outdated`, …). Kept apart from `plugin.ts`, which connects at import time.
 - **`src/actions/`** — one class per manifest action over a shared base that
-  paints the disconnected / unauthorized / outdated states centrally.
+  paints the disconnected / unauthorized / outdated states centrally. It bumps
+  a per-key paint generation, so a render suspended on an `await` can't install
+  a timer after the key went offline.
 
 See the [Stream Deck](/docs/streamdeck) page for setup.
 
@@ -206,7 +218,7 @@ Wraps the Sparkle framework for auto-updates:
 Extensible command routing system that:
 
 - Registers available commands at startup (`registerDefaultCommands()`).
-- Merges streamer-authored `CustomBotCommand`s from `CustomCommandStore` on top of the built-ins, rebuilt per message so edits apply on the next chat line.
+- Merges streamer-authored `CustomBotCommand`s from `CustomCommandStore` on top of the built-ins, rebuilt per message so edits apply on the next chat line. The editor checks each draft with `CustomCommandStore.validationIssue(for:)`, which names the problem and the field it belongs under.
 - Matches incoming messages to trigger sets (commands implement `BotCommand` or `AsyncBotCommand`).
-- Enforces global + per-user cooldowns via `CooldownManager` (mods bypass).
-- Returns responses capped at 500 chars, with execution target under 100 ms.
+- Enforces global + per-user cooldowns via `CooldownManager` (mods bypass). A command can refuse a caller before its cooldown is claimed (`PreflightCheckedCommand`, used by `!sr`), so a refused viewer never starts the cooldown everyone else shares; the refusal reply is throttled on its own key, per viewer and across the channel.
+- Returns responses capped at 500 characters (counted in Unicode scalars, the way Twitch counts, and never cutting an emoji in half), with execution target under 100 ms.

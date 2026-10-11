@@ -25,6 +25,11 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
     let title: String
     let description: String
 
+    /// Shows an "Optional" eyebrow above the title. The line is always laid out
+    /// (invisible when `false`) so the icon and title never shift between
+    /// optional and required steps.
+    var isOptional: Bool = false
+
     @ViewBuilder var icon: () -> Icon
     @ViewBuilder var extras: () -> Extras
 
@@ -38,6 +43,11 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
                 icon()
 
                 VStack(spacing: DSSpace.s1) {
+                    Text("Optional")
+                        .sectionEyebrow()
+                        .opacity(isOptional ? 1 : 0)
+                        .accessibilityHidden(!isOptional)
+
                     Text(title)
                         // 22pt = the app's `.paneTitle()` H1 size. Matches the
                         // bespoke Menu Bar Pointer step so every interior step
@@ -74,6 +84,7 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
     OnboardingStepScaffold(
         title: "Sample step",
         description: "Header sits at a constant offset regardless of extras height.",
+        isOptional: true,
         icon: {
             BrandTile(
                 background: AnyShapeStyle(AppConstants.Brand.discord),

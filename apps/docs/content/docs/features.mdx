@@ -32,6 +32,9 @@ card with artwork, quick toggles, and hold/resume for the request queue.
   **Sync Music** in Settings → General and WolfWave spots every song change.
 - **Remembers your last song**, so `!last` just works.
 - **Battery friendly.** Polling slows down in Low Power Mode.
+- **Asks before it deletes.** Clear Queue and Restart Integrations confirm
+  first, long titles are shortened (hover for the full text), and Help has
+  Check for Updates.
 
 ## Twitch Chat Bot
 
@@ -45,7 +48,8 @@ into WolfWave) and the bot auto-connects when the app opens.
 - **Custom commands.** Roll your own `!command` with a fixed reply. Variables
   like `$user`, `$touser`, `$args`, `$song`, and `$lastsong` fill in live, with
   per-command aliases, cooldowns, a permission level, and a choice of reply,
-  plain message, or Twitch announcement.
+  plain message, or Twitch announcement. Set them up any time, even before you
+  connect; they reply once Twitch is connected.
 
 Full reference, aliases, and defaults: [Bot Commands](/docs/bot-commands).
 
@@ -58,7 +62,8 @@ so nothing half-configured ever goes live.
 
 - **`!sr <song or link>`.** Chat requests by name or by Apple Music, Spotify,
   or YouTube link; WolfWave resolves it to the matching Apple Music track and
-  queues it.
+  queues it. Apple Music song links work with or without the song name in the
+  URL.
   Ambiguous Spotify or YouTube metadata is rejected instead of guessing a track;
   try the artist and title or an Apple Music song link.
 - **Presets.** One-tap policies: **Open** (everyone; points and bits on),
@@ -74,7 +79,8 @@ so nothing half-configured ever goes live.
 - **Approve before play.** Opt-in **Require My Approval**: every request —
   chat, channel points, bits — waits for your OK before it plays.
 - **Hold mode.** Pause the queue from the menu bar or `!hold`. Requests still
-  pile up; nothing plays until you resume.
+  pile up; nothing plays until you resume. The queue shows an **On hold** chip,
+  and **Resume** stays one click away even when it's empty.
 - **Vote-skip.** Chat skips the current song together with `!voteskip` — a
   chat tally or a native Twitch poll, with a minimum-vote threshold you set.
 - **Blocklist.** Block songs or artists you never want played, or a person you
@@ -109,8 +115,12 @@ so nothing half-configured ever goes live.
 Song request limits and Bits boosts follow your Twitch login even when your
 display name changes. Requester blocklists check both login and display name.
 Song and artist blocklists ignore accents, capitalization, and extra whitespace;
-artist entries also match collaborations, and song entries ignore bracketed
-title suffixes.
+artist entries also match collaborations (a comma-named act like "Tyler, The
+Creator" is caught inside "Tyler, The Creator & Kali Uchis", and "ft." and
+"featuring" credits are split like "&" and "feat."), and song entries ignore
+bracketed title suffixes. Heads up: WolfWave matches text, so it can't tell a
+comma-named act from a list of artists, and a one-word entry like `Wind` also
+blocks "Earth, Wind & Fire".
 
 Priority requests move ahead of ordinary requests with fair-share off, preserving
 order within the priority group. Bits boost the oldest queued request. Music
@@ -152,9 +162,10 @@ Sizes, the message contract, and theming internals: [OBS Widget](/docs/widget).
 
 The official plugin puts playback, your request queue, song announcements,
 requester blocking, and your overlay toggle on twelve physical keys, with live
-state on every one. Its separate control token works
-only on the same Mac. Setup: [Stream Deck](/docs/streamdeck). Building your own
-local client instead? See [Stream Deck Control API](/docs/stream-deck).
+state on every one. Its separate control token works only on the same Mac, and
+the plugin's panel says whether WolfWave accepted it. Setup:
+[Stream Deck](/docs/streamdeck). Building your own local client instead? See
+[Stream Deck Control API](/docs/stream-deck).
 
 ## Discord Status
 
@@ -196,10 +207,12 @@ secrets are never included. Details: [Back Up & Restore](/docs/backup).
 
 A built-in bug-report flow pre-fills a GitHub issue with your app version, and
 opt-in on-device diagnostics capture crash and performance data that never
-leaves your Mac unless you share it. **Export Logs** in Settings, Advanced
-writes one file with your environment, the last crash, and every rotated log,
-and error banners name the cause, offer the fix, and mostly link to the
-matching section of [Troubleshooting](/docs/troubleshooting). See
+leaves your Mac unless you share it. Turn them off and the saved reports are
+deleted; while they're on, WolfWave keeps the newest 50 from the last 30 days.
+**Export Logs** in Settings, Advanced writes one file with your environment, the
+last crash, and every rotated log, and error banners name the cause, offer the
+fix, and mostly link to the matching section of
+[Troubleshooting](/docs/troubleshooting). See
 [Report a bug](/docs/support#report-a-bug).
 
 ## Security & Privacy

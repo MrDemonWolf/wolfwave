@@ -46,6 +46,16 @@ struct DesignTokenCatalogTests {
         assertUniqueNonEmpty(DSRadius.all.map(\.name), "DSRadius")
         assertUniqueNonEmpty(DSMotion.Duration.all.map(\.name), "DSMotion.Duration")
         assertUniqueNonEmpty(DSMotion.Spring.all.map(\.name), "DSMotion.Spring")
+        assertUniqueNonEmpty(DSOpacity.all.map(\.name), "DSOpacity")
+    }
+
+    @Test("Wash opacities are real fractions and the strong wash is heavier")
+    func washOpacities() {
+        for token in DSOpacity.all {
+            #expect((0...1).contains(token.value), "\(token.name) is \(token.value)")
+        }
+        #expect(DSOpacity.wash > 0)
+        #expect(DSOpacity.washStrong > DSOpacity.wash)
     }
 
     @Test("Spacing list is sorted by value and includes the half step")
@@ -71,7 +81,7 @@ struct DesignTokenCatalogTests {
     func colorGroups() {
         let groupNames = DSColor.groups.map(\.name)
         #expect(groupNames == [
-            "Brand", "Semantic", "Surface (light)", "Surface (dark)",
+            "Brand", "Semantic", "Glyph (light)", "Surface (light)", "Surface (dark)",
             "Text (light)", "Text (dark)", "Partner"
         ])
         let tokens = DSColor.groups.flatMap(\.tokens)
@@ -85,6 +95,9 @@ struct DesignTokenCatalogTests {
         }
         let semantic = DSColor.groups.first { $0.name == "Semantic" }?.tokens.map(\.name) ?? []
         #expect(semantic == ["success", "warning", "error", "info", "neutral"])
+        // One light-appearance glyph per semantic tint, in the same order.
+        let glyphs = DSColor.groups.first { $0.name == "Glyph (light)" }?.tokens.map(\.name) ?? []
+        #expect(glyphs == semantic.map { "glyph\($0.prefix(1).uppercased())\($0.dropFirst())Light" })
     }
 
     @Test("Spring list mirrors the named presets")
@@ -100,7 +113,9 @@ struct DesignTokenCatalogTests {
     @Test("Dimension groups match the nested enums")
     func dimensionGroups() {
         let groupNames = DSDimension.groups.map(\.name)
-        #expect(groupNames == ["Settings", "Onboarding", "About", "WhatsNew", "IconButton", "HistoryStats"])
+        #expect(groupNames == [
+            "Settings", "Onboarding", "About", "WhatsNew", "IconButton", "HistoryStats", "StatusChip"
+        ])
         for group in DSDimension.groups {
             assertUniqueNonEmpty(group.tokens.map(\.name), "DSDimension.\(group.name)")
         }

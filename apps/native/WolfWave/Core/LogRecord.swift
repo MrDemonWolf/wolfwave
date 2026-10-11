@@ -253,6 +253,7 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
                 switch character {
                 case "n": out.append("\n")
                 case "t": out.append("\t")
+                case "r": out.append("\r")
                 default: out.append(character)
                 }
                 escaped = false

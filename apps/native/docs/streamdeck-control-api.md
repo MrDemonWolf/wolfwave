@@ -51,6 +51,14 @@ If the app's command handler is not installed yet, the reply is
 `ok: false, error: "unavailable"`. Existing connections use a newly installed
 handler on their next command.
 
+Errors that can come back for any action:
+
+- `protocol`: the client's protocol version does not match WolfWave's.
+- `unknown_action`: the action token is not one WolfWave knows.
+- `unauthorized`: the sender used the overlay-role credential, or is not on loopback.
+- `disabled`: **Allow Stream Deck commands** (`FeatureFlags.streamDeckControlEnabled`) is off in Settings.
+- `unavailable`: the command handler is not installed yet.
+
 ```json
 { "type": "ack", "action": "skip", "ok": true }
 { "type": "ack", "action": "skip", "ok": false, "error": "music" }

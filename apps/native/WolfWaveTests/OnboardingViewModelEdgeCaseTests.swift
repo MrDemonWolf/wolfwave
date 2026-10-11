@@ -38,6 +38,19 @@ final class OnboardingViewModelEdgeCaseTests: WolfWaveTestCase {
         XCTAssertTrue(viewModel.showCompletion)
     }
 
+    func testCompletedBySkippingIsFalseByDefault() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
+        viewModel.completeOnboarding()
+        XCTAssertFalse(viewModel.completedBySkipping)
+    }
+
+    func testCompleteOnboardingSkippedRecordsSkip() {
+        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
+        viewModel.completeOnboarding(skipped: true)
+        XCTAssertTrue(viewModel.completedBySkipping)
+        XCTAssertTrue(viewModel.showCompletion)
+    }
+
     // MARK: - Rapid Navigation Tests
 
     func testRapidForwardNavigationStaysAtBoundary() {

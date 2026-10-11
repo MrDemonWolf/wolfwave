@@ -2,7 +2,7 @@
 
 import { AlbumArt } from "./AlbumArt";
 import { formatTime } from "@/lib/format-time";
-import { useCyclingTrack, cyclingPauseHandlers } from "./useCyclingTrack";
+import { useCyclingTrack, cyclingPauseHandlers, demoVisibilityRef } from "./useCyclingTrack";
 
 /**
  * Discord "Listening to <app>" Rich Presence card recreation.
@@ -46,6 +46,7 @@ export function DiscordPresenceCard() {
 
   return (
     <div
+      ref={demoVisibilityRef}
       role="group"
       aria-roledescription="Discord Rich Presence demo"
       aria-label={`Listening to WolfWave: ${track.title} by ${track.artist}`}

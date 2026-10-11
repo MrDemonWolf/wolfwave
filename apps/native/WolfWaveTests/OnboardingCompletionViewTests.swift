@@ -35,4 +35,28 @@ final class OnboardingCompletionViewTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 3.0)
     }
 
+    // MARK: - VoiceOver Policy
+
+    func testAutoDismissIsOffWhileVoiceOverRuns() {
+        XCTAssertFalse(OnboardingCompletionView.shouldAutoDismiss(voiceOverEnabled: true))
+    }
+
+    func testAutoDismissIsOnWithoutVoiceOver() {
+        XCTAssertTrue(OnboardingCompletionView.shouldAutoDismiss(voiceOverEnabled: false))
+    }
+
+    // MARK: - Style Copy
+
+    func testSkippedStyleUsesLighterCopy() {
+        XCTAssertEqual(OnboardingCompletionView.Style.skipped.title, "Skipped.")
+        XCTAssertTrue(OnboardingCompletionView.Style.skipped.message.contains("Settings"))
+    }
+
+    func testCompletedAndSkippedCopyDiffer() {
+        let completed = OnboardingCompletionView.Style.completed
+        let skipped = OnboardingCompletionView.Style.skipped
+        XCTAssertNotEqual(completed.title, skipped.title)
+        XCTAssertNotEqual(completed.message, skipped.message)
+        XCTAssertNotEqual(completed.accessibilitySummary, skipped.accessibilitySummary)
+    }
 }

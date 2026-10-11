@@ -38,6 +38,44 @@ extension AppDelegate {
         let menu = NSMenu()
         menu.delegate = self
         statusItem?.menu = menu
+        observeTwitchMenuState()
+    }
+
+    /// Keeps `twitchMenuState` fresh without the menu ever reading the Keychain.
+    ///
+    /// Seeds it once now, then refreshes whenever Twitch connects, disconnects,
+    /// or asks for re-auth. `menuNeedsUpdate` also kicks one refresh per open,
+    /// so a change that posts no notification shows up on the next open.
+    private func observeTwitchMenuState() {
+        for name in [Notification.Name.twitchConnectionStateChanged, .twitchReauthNeededChanged] {
+            notificationObservers.append(
+                NotificationCenter.default.addObserver(
+                    forName: name,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.refreshTwitchMenuState() }
+                }
+            )
+        }
+        refreshTwitchMenuState()
+    }
+
+    /// Reads the stored Twitch account off the main thread and publishes the
+    /// result to `twitchMenuState` for the next menu build.
+    ///
+    /// Refreshes can overlap (a menu open racing a sign-out notification), so
+    /// each one takes a generation and only the newest may publish.
+    func refreshTwitchMenuState() {
+        twitchMenuRefreshGeneration &+= 1
+        let generation = twitchMenuRefreshGeneration
+        Task { [weak self] in
+            let snapshot = await Task.detached(priority: .utility) {
+                TwitchCredentialStore.shared.connectionSnapshot()
+            }.value
+            guard let self, self.twitchMenuRefreshGeneration == generation else { return }
+            self.twitchMenuState = TwitchMenuState(snapshot: snapshot)
+        }
     }
 
     /// Returns a 16×16 template image from the asset catalog for use in menu items.
@@ -309,6 +347,10 @@ extension AppDelegate: NSMenuDelegate {
         buildServiceToggles(into: menu)
         buildStreamerActions(into: menu)
         buildAppItems(into: menu)
+
+        // Never read the Keychain while the menu is tracking. Refresh the
+        // in-memory copy for the next open instead.
+        refreshTwitchMenuState()
     }
 
     // MARK: - Now Playing
@@ -371,10 +413,11 @@ extension AppDelegate: NSMenuDelegate {
         let submenu = NSMenu()
         for track in recentTracks.entries {
             let item = NSMenuItem(
-                title: track.displayLabel,
+                title: MenuTitleFormatting.clamped(track.displayLabel),
                 action: #selector(copyRecentTrack(_:)),
                 keyEquivalent: ""
             )
+            item.toolTip = MenuTitleFormatting.tooltip(for: track.displayLabel)
             item.representedObject = track.displayLabel
             submenu.addItem(item)
         }
@@ -475,11 +518,13 @@ extension AppDelegate: NSMenuDelegate {
             menu.addItem(parent)
         } else {
             if let nowPlaying {
+                let requestLabel = "\(nowPlaying.title) · \(nowPlaying.artist)"
                 let requestItem = NSMenuItem(
-                    title: "\(nowPlaying.title) · \(nowPlaying.artist)",
+                    title: MenuTitleFormatting.clamped(requestLabel),
                     action: nil,
                     keyEquivalent: ""
                 )
+                requestItem.toolTip = MenuTitleFormatting.tooltip(for: requestLabel)
                 requestItem.isEnabled = false
                 menu.addItem(requestItem)
             }
@@ -506,11 +551,13 @@ extension AppDelegate: NSMenuDelegate {
     ) -> NSMenu {
         let submenu = NSMenu()
         if let nowPlaying {
+            let nowLabel = "Now: \(nowPlaying.title) · \(nowPlaying.artist)"
             let nowItem = NSMenuItem(
-                title: "Now: \(nowPlaying.title) · \(nowPlaying.artist)",
+                title: MenuTitleFormatting.clamped(nowLabel),
                 action: nil,
                 keyEquivalent: ""
             )
+            nowItem.toolTip = MenuTitleFormatting.tooltip(for: nowLabel)
             nowItem.isEnabled = false
             submenu.addItem(nowItem)
         }
@@ -540,8 +587,11 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(skipItem)
 
+        // Destructive: keep it apart from Skip so a slip doesn't wipe the queue.
+        menu.addItem(.separator())
+
         let clearItem = NSMenuItem(
-            title: "Clear Queue",
+            title: "Clear Queue\u{2026}",
             action: #selector(clearSongRequestQueue),
             keyEquivalent: ""
         )
@@ -565,9 +615,9 @@ extension AppDelegate: NSMenuDelegate {
         )
         menu.addItem(trackingItem)
 
-        if let credential = TwitchCredentialStore.shared.connectionSnapshot() {
+        if twitchMenuState.hasCredential {
             let connected = twitchService?.currentlyConnected ?? false
-            let channel = credential.channelID.map {
+            let channel = twitchMenuState.channelName.map {
                 StreamerMode.mask($0, style: .channel, isOn: StreamerMode.isEnabled)
             }
             let twitchItem = makeStatusItem(
@@ -659,7 +709,7 @@ extension AppDelegate: NSMenuDelegate {
         }
 
         let reconnectItem = NSMenuItem(
-            title: "Restart Integrations",
+            title: "Restart Integrations\u{2026}",
             action: #selector(reconnectAllServices),
             keyEquivalent: ""
         )
@@ -729,6 +779,19 @@ extension AppDelegate: NSMenuDelegate {
         )
         whatsNew.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
         submenu.addItem(whatsNew)
+
+        // Homebrew installs are gated inside the updater: the action falls
+        // back to the Releases page when Sparkle is unavailable.
+        let updates = NSMenuItem(
+            title: "Check for Updates\u{2026}",
+            action: #selector(checkForUpdatesFromMenu),
+            keyEquivalent: ""
+        )
+        updates.image = NSImage(
+            systemSymbolName: "arrow.triangle.2.circlepath",
+            accessibilityDescription: nil
+        )
+        submenu.addItem(updates)
 
         submenu.addItem(.separator())
 
@@ -879,9 +942,39 @@ extension AppDelegate {
 
     /// Removes every entry from the song-request queue.
     @objc func clearSongRequestQueue() {
+        let count = songRequestService?.queue.count ?? 0
+        let message = count > 0
+            ? "This removes \(count) song\(count == 1 ? "" : "s") from the queue. It can't be undone."
+            : "This stops the current request. It can't be undone."
+        guard confirmDestructiveMenuAction(
+            title: "Clear the song request queue?",
+            message: message,
+            confirmTitle: "Clear Queue"
+        ) else { return }
         Task {
             _ = await songRequestService?.clearQueue()
         }
+    }
+
+    /// Shows a modal confirmation for a destructive tray action.
+    ///
+    /// The tray menu has no window of its own, so the alert activates the app
+    /// first. Returns `true` only when the user picks the destructive button.
+    /// Cancel is the Escape button.
+    func confirmDestructiveMenuAction(
+        title: String,
+        message: String,
+        confirmTitle: String
+    ) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = message
+        let confirm = alert.addButton(withTitle: confirmTitle)
+        confirm.hasDestructiveAction = true
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate()
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// Copies the local widget URL (e.g. `http://localhost:8766`) to the
@@ -978,6 +1071,12 @@ extension AppDelegate {
     /// the menu item lives up to its name. Previously it only left, which
     /// required opening Settings to come back online.
     @objc func reconnectAllServices() {
+        guard confirmDestructiveMenuAction(
+            title: "Restart integrations?",
+            message: "Twitch, Discord, and the overlay server will drop and reconnect. Viewers may see a short gap.",
+            confirmTitle: "Restart"
+        ) else { return }
+
         // Twitch: leave then rejoin when creds + channel + clientID are all present.
         if let twitch = twitchService, twitch.currentlyConnected {
             let credential = TwitchCredentialStore.shared.connectionSnapshot()

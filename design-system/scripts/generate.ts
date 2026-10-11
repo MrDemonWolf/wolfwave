@@ -118,6 +118,9 @@ function generateSwift(): string {
   const colorGroups = [
     { mark: "Brand", entries: named(tokens.color.brand, (k) => `brand${k}`) },
     { mark: "Semantic", entries: named(tokens.color.semantic, (k) => k) },
+    // Light-appearance glyph variants of the semantic tints. Dark appearance
+    // reuses the semantic tint itself, so there is no "Glyph (dark)" group.
+    { mark: "Glyph (light)", entries: named(tokens.color.glyph.light, (k) => `glyph${cap(k)}Light`) },
     { mark: "Surface (light)", entries: named(tokens.color.surface.light, (k) => `surface${cap(k)}Light`) },
     { mark: "Surface (dark)", entries: named(tokens.color.surface.dark, (k) => `surface${cap(k)}Dark`) },
     { mark: "Text (light)", entries: named(tokens.color.text.light, (k) => `text${cap(k)}Light`) },
@@ -196,6 +199,16 @@ function generateSwift(): string {
   );
   lines.push("}", "");
 
+  lines.push(
+    "/// Generated fill opacities for tinted washes (status chips, callouts, selected rows).",
+    "nonisolated enum DSOpacity {"
+  );
+  for (const [k, v] of Object.entries(tokens.opacity)) {
+    lines.push(`    static let ${k}: Double = ${v}`);
+  }
+  orderedList("    ", Object.keys(tokens.opacity), "Double");
+  lines.push("}", "");
+
   lines.push("/// Generated radius scale.", "nonisolated enum DSRadius {");
   for (const [k, v] of Object.entries(tokens.radius)) {
     lines.push(`    static let ${safeIdent(k)}: CGFloat = ${v}`);
@@ -244,6 +257,7 @@ function generateSwift(): string {
     ["WhatsNew", tokens.dimension.whatsNew],
     ["IconButton", tokens.dimension.iconButton],
     ["HistoryStats", tokens.dimension.historyStats],
+    ["StatusChip", tokens.dimension.statusChip],
   ];
   lines.push(
     "/// Window and onboarding dimension tokens (preserves legacy AppConstants values).",
@@ -381,6 +395,9 @@ function generateCSS(): string {
   for (const [k, v] of Object.entries(tokens.color.semantic)) {
     lines.push(`  --ds-color-${k}: ${v};`);
   }
+  for (const [k, v] of Object.entries(tokens.color.glyph.light)) {
+    lines.push(`  --ds-color-glyph-${k}: ${v};`);
+  }
   // Light surfaces / text
   for (const [k, v] of Object.entries(tokens.color.surface.light)) {
     lines.push(`  --ds-color-surface-${k}: ${v};`);
@@ -413,6 +430,9 @@ function generateCSS(): string {
   for (const [k, v] of Object.entries(tokens.motion.easing)) {
     lines.push(`  --ds-motion-easing-${k}: ${v};`);
   }
+  for (const [k, v] of Object.entries(tokens.opacity)) {
+    lines.push(`  --ds-opacity-${kebab(k)}: ${v};`);
+  }
   for (const [k, v] of Object.entries(tokens.shadow)) {
     lines.push(`  --ds-shadow-${k}: ${v};`);
   }
@@ -421,6 +441,10 @@ function generateCSS(): string {
   lines.push(".dark, [data-theme=\"dark\"] {");
   for (const [k, v] of Object.entries(tokens.color.brandDark)) {
     lines.push(`  --ds-color-brand-${k}: ${v};`);
+  }
+  // Dark appearance: glyphs fall back to the semantic tint itself.
+  for (const k of Object.keys(tokens.color.glyph.light)) {
+    lines.push(`  --ds-color-glyph-${k}: ${tokens.color.semantic[k]};`);
   }
   for (const [k, v] of Object.entries(tokens.color.surface.dark)) {
     lines.push(`  --ds-color-surface-${k}: ${v};`);

@@ -164,7 +164,42 @@ enum CrashReporter {
         let label = crashReporterSignalLabels[slot]
         return crashReporterMarkerPrefixString() + label + "\(epoch)\n"
     }
+
+    /// Runs the signal handler's marker decision against the Foundation writer.
+    ///
+    /// Mirrors the real handler exactly: when an uncaught exception already left
+    /// its (richer) marker, the signal that follows the abort must not overwrite
+    /// it. Writes through ``writeMarker(_:)`` so it honors
+    /// ``markerDirectoryOverride``.
+    nonisolated static func simulateSignalMarkerWriteForTesting(slot: Int, epoch: Int) {
+        guard crashReporterShouldWriteSignalMarker() else { return }
+        writeMarker(composeSignalMarkerForTesting(slot: slot, epoch: epoch))
+    }
+
+    /// Records an exception marker the way the NSException handler does,
+    /// including raising the "exception recorded" flag.
+    nonisolated static func recordExceptionMarkerForTesting(_ body: String) {
+        recordExceptionMarker(body)
+    }
+
+    /// Clears the "exception recorded" flag so one test cannot leak it into
+    /// the next. Production never resets it: a process records at most one
+    /// uncaught exception before it dies.
+    nonisolated static func resetExceptionRecordedForTesting() {
+        crashReporterExceptionRecorded = false
+    }
     #endif
+
+    /// Writes an exception marker and flags it so the signal that usually
+    /// follows (the chained handler aborts, raising `SIGABRT`) keeps it instead
+    /// of truncating it down to a bare signal record.
+    ///
+    /// The flag is set only after the write finishes, so a signal that lands
+    /// mid-write still records something.
+    nonisolated static func recordExceptionMarker(_ body: String) {
+        writeMarker(body)
+        crashReporterExceptionRecorded = true
+    }
 
     // MARK: Private
 
@@ -182,6 +217,12 @@ enum CrashReporter {
 
 /// Guards against double-install.
 private nonisolated(unsafe) var crashReporterDidInstall = false
+
+/// Set by the exception path once its marker is on disk. The signal handler
+/// reads it with a plain load (async-signal-safe) and skips its own write, so
+/// the `SIGABRT` raised after an uncaught `NSException` cannot replace the
+/// exception marker (name, reason, backtrace) with a bare signal record.
+private nonisolated(unsafe) var crashReporterExceptionRecorded = false
 
 /// The uncaught-exception handler that was installed before us, if any. Chained.
 private nonisolated(unsafe) var crashReporterPreviousExceptionHandler:
@@ -230,7 +271,7 @@ private nonisolated func crashReporterExceptionHandler(_ exception: NSException)
         .map { "frame=\(Log.redact($0))" }
         .joined(separator: "\n")
 
-    CrashReporter.writeMarker("""
+    CrashReporter.recordExceptionMarker("""
         \(CrashMarker.header)
         kind=exception
         pid=\(ProcessInfo.processInfo.processIdentifier)
@@ -248,7 +289,9 @@ private nonisolated func crashReporterExceptionHandler(_ exception: NSException)
 
 /// Fatal-signal handler. **Async-signal-safe only.**
 private nonisolated func crashReporterSignalHandler(_ signalNumber: Int32) {
-    if let pathPtr = crashReporterMarkerPath {
+    // An uncaught exception already wrote the richer marker; the SIGABRT that
+    // follows it must not truncate that. Still chain and re-raise below.
+    if crashReporterShouldWriteSignalMarker(), let pathPtr = crashReporterMarkerPath {
         let fd = open(pathPtr, O_WRONLY | O_CREAT | O_TRUNC, 0o644)
         if fd >= 0 {
             // Three writes, all async-signal-safe over memory allocated at
@@ -281,6 +324,12 @@ private nonisolated func crashReporterSignalHandler(_ signalNumber: Int32) {
         signal(signalNumber, SIG_DFL)
     }
     raise(signalNumber)
+}
+
+/// Whether the signal handler should write its marker. A single load of a
+/// pre-existing global: async-signal-safe.
+private nonisolated func crashReporterShouldWriteSignalMarker() -> Bool {
+    !crashReporterExceptionRecorded
 }
 
 /// Pure integer switch (no allocation) mapping a signal to its label-table slot.

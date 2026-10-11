@@ -27,6 +27,19 @@ enum RequestAudience: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The stored `!sr` chat audience, or `.everyone` when unset or unknown.
+    ///
+    /// The one reader of `songRequestChatAudience`, shared by
+    /// `SongRequestService.chatAudience` and the `!sr` pre-cooldown check, so
+    /// the two gates can never disagree.
+    ///
+    /// - Parameter defaults: Store to read. Defaults to `DefaultsStore.store`.
+    /// - Returns: The configured audience.
+    static func current(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> RequestAudience {
+        let raw = defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        return RequestAudience(rawValue: raw ?? "") ?? .everyone
+    }
+
     /// The next audience in declaration order, wrapping at the end.
     ///
     /// Declaration order runs loosest to strictest, so cycling walks the gate
@@ -207,9 +220,7 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
         }
 
         let srEnabled = defaults.object(forKey: AppConstants.UserDefaults.srCommandEnabled) as? Bool ?? true
-        let audience = RequestAudience(
-            rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestChatAudience) ?? ""
-        ) ?? .everyone
+        let audience = RequestAudience.current(in: defaults)
         let channelPoints = defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
 
         if !srEnabled { return channelPoints ? .channelPointsOnly : .custom }

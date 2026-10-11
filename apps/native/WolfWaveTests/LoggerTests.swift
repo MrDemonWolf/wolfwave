@@ -264,6 +264,29 @@ struct LoggerTests {
         #expect(lines[2] == "  third")
     }
 
+    @Test("Carriage returns in a field value are escaped inside the quotes")
+    func carriageReturnEscapedInQuotedField() {
+        let line = Log.formatFileLineForTesting(
+            "Request failed",
+            level: .error,
+            category: "Twitch",
+            fields: ["reason": "line one\r\nline two\rend"]
+        )
+
+        #expect(line.contains(#"reason="line one\r\nline two\rend""#), "Escaped value missing: \(line)")
+        #expect(!line.unicodeScalars.contains("\r"), "A raw CR must never reach the file")
+        #expect(!line.unicodeScalars.contains("\n"), "A raw LF must never reach the file")
+    }
+
+    @Test("CRLF and bare CR in a message are framed as continuation lines")
+    func carriageReturnFramedAsContinuation() {
+        let framed = Log.frameContinuationsForTesting("first\r\nsecond\rthird")
+
+        #expect(!framed.unicodeScalars.contains("\r"))
+        let lines = framed.split(separator: "\n", omittingEmptySubsequences: false)
+        #expect(lines == ["first", "  second", "  third"])
+    }
+
     @Test("Session banner identifies the build")
     func testSessionBanner() {
         let banner = Log.sessionBannerLineForTesting()

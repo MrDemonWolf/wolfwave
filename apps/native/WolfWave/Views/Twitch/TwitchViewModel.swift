@@ -142,6 +142,49 @@ final class TwitchViewModel {
     /// Current OAuth authentication state
     var authState = AuthState.idle
 
+    /// When the device code on screen stops working.
+    ///
+    /// Set together with `.waitingForAuth` from Twitch's `expires_in`, and
+    /// cleared when a new flow starts. Kept beside ``authState`` rather than in
+    /// the `.waitingForAuth` payload so existing two-value pattern matches (the
+    /// onboarding Twitch step among them) keep compiling. Read it only while
+    /// `authState` is `.waitingForAuth`.
+    var deviceCodeExpiresAt: Date?
+
+    /// Short countdown copy for a device code, or `nil` once it has expired.
+    ///
+    /// Rounds up so "about 1 min" stays on screen until the code is truly gone.
+    nonisolated static func deviceCodeExpiryText(remaining: TimeInterval) -> String? {
+        guard remaining > 0 else { return nil }
+        let minutes = max(1, Int((remaining / 60).rounded(.up)))
+        return "Expires in about \(minutes) min"
+    }
+
+    /// What the error banner's Try Again button should re-run.
+    ///
+    /// `.retry` means a different thing per failure: a failed sign-in retries
+    /// the sign-in, a failed sign-out retries the sign-out. Routing every one
+    /// of them to Join (the old behavior) made Try Again on an expired code try
+    /// to join a channel with no account.
+    nonisolated enum RetryTarget: Equatable, Sendable {
+        case signIn
+        case signOut
+        case joinChannel
+    }
+
+    /// Maps a surfaced failure to the work its Try Again button repeats.
+    nonisolated static func retryTarget(for error: UserFacingError) -> RetryTarget {
+        switch error.id {
+        case "twitch.oauthFailed", "twitch.deviceCodeExpired",
+             "twitch.accountSwitchDisconnectFailed":
+            return .signIn
+        case "twitch.credentialClearFailed", "twitch.signOutDisconnectFailed":
+            return .signOut
+        default:
+            return .joinChannel
+        }
+    }
+
     /// Cached reference to the Twitch chat service
     @ObservationIgnored private var cachedTwitchService: TwitchChatService?
 
@@ -527,6 +570,10 @@ final class TwitchViewModel {
     ///
     func startOAuth(owner: OAuthPresentationOwner = .unspecified) {
         guard !isAccountTeardownInProgress else { return }
+        // A new attempt starts clean: an old failure must not sit above a
+        // fresh code, and it must not linger if this attempt succeeds.
+        connectionError = nil
+        deviceCodeExpiresAt = nil
 
         guard let oauthClient = makeOAuthClient() else {
             connectionError = Failure.missingClientID()
@@ -550,7 +597,7 @@ final class TwitchViewModel {
         cancelTokenValidationSchedule()
 
         authState = .requestingCode
-        progressMessage = "Requesting authorization code from Twitch..."
+        progressMessage = "Getting your code\u{2026}"
 
         // One structured task owns both the device-code request and polling.
         oAuthTask = Task { @MainActor [weak self] in
@@ -576,7 +623,7 @@ final class TwitchViewModel {
                     serviceToDisconnect) else {
                     guard !Task.isCancelled,
                           self.oauthGeneration == generation else { return }
-                    self.showAccountTeardownRetry()
+                    self.showAccountTeardownRetry(.accountSwitch)
                     return
                 }
                 guard !Task.isCancelled, self.oauthGeneration == generation else { return }
@@ -587,6 +634,8 @@ final class TwitchViewModel {
 
                 let response = try await helper.requestDeviceCode()
                 guard !Task.isCancelled, self.oauthGeneration == generation else { return }
+                self.deviceCodeExpiresAt = Date().addingTimeInterval(
+                    TimeInterval(response.expiresIn))
                 self.updateAuthState(
                     .waitingForAuth(
                         userCode: response.userCode,
@@ -673,7 +722,7 @@ final class TwitchViewModel {
             discardOpaqueRedemptionRecovery: discardOpaqueRedemptionRecovery
         ) else {
             restoreTokenValidationScheduleForStoredCredential()
-            showAccountTeardownRetry()
+            showAccountTeardownRetry(.signOut)
             return false
         }
         do {
@@ -722,7 +771,9 @@ final class TwitchViewModel {
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(service) else {
             restoreTokenValidationScheduleForStoredCredential()
-            showAccountTeardownRetry()
+            // clearAuthOnly is the first half of re-auth; retrying means
+            // signing in again, which redoes the teardown itself.
+            showAccountTeardownRetry(.accountSwitch)
             return false
         }
         do {
@@ -1139,6 +1190,33 @@ final class TwitchViewModel {
             )
         }
 
+        /// Signing out could not take the live Twitch connection down, so the
+        /// account is still signed in and online. Try Again retries the sign-out.
+        static func signOutDisconnectFailed() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.signOutDisconnectFailed",
+                title: "Couldn't sign out of Twitch",
+                cause: "WolfWave couldn't disconnect from Twitch, "
+                    + "so you are still signed in.",
+                fix: "Try again.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
+        }
+
+        /// Switching or re-linking accounts could not take the old connection
+        /// down first. Try Again restarts the sign-in, which redoes the teardown.
+        static func accountSwitchDisconnectFailed() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.accountSwitchDisconnectFailed",
+                title: "Couldn't switch Twitch accounts",
+                cause: "WolfWave couldn't disconnect the current account first.",
+                fix: "Try signing in again.",
+                severity: .warning,
+                actions: [.retry]
+            )
+        }
+
         static func botIdentityUnresolved() -> UserFacingError {
             UserFacingError(
                 id: "twitch.botIdentityUnresolved",
@@ -1156,6 +1234,19 @@ final class TwitchViewModel {
                 fix: "Restart WolfWave.",
                 severity: .error,
                 actions: [.reportBug]
+            )
+        }
+
+        /// The device code timed out before the user approved it. Retrying
+        /// fetches a new code, so the fix says exactly that.
+        static func deviceCodeExpired() -> UserFacingError {
+            UserFacingError(
+                id: "twitch.deviceCodeExpired",
+                title: "That code expired",
+                cause: "Twitch codes last only a few minutes.",
+                fix: "Get a new code and try again.",
+                severity: .warning,
+                actions: [.retry]
             )
         }
 
@@ -1209,9 +1300,23 @@ final class TwitchViewModel {
         await leaveAccountService(service, discardOpaqueRedemptionRecovery)
     }
 
-    private func showAccountTeardownRetry() {
+    /// Which account transition failed to tear the service down. Picks the
+    /// banner, and through it what Try Again re-runs.
+    private enum AccountTeardownPurpose {
+        /// A user sign-out: Try Again retries the sign-out, never a join.
+        case signOut
+        /// An OAuth account replacement or re-auth: Try Again signs in again.
+        case accountSwitch
+    }
+
+    private func showAccountTeardownRetry(_ purpose: AccountTeardownPurpose) {
         let message = "Could not safely disconnect Twitch. Please try again."
-        connectionError = Failure.disconnectFailed()
+        switch purpose {
+        case .signOut:
+            connectionError = Failure.signOutDisconnectFailed()
+        case .accountSwitch:
+            connectionError = Failure.accountSwitchDisconnectFailed()
+        }
         authState = .error(message)
     }
 
@@ -1480,7 +1585,7 @@ final class TwitchViewModel {
             failure = Failure.oauth(message)
         case .expiredToken:
             message = "That sign-in code expired. Codes last only a few minutes."
-            failure = Failure.oauth(message)
+            failure = Failure.deviceCodeExpired()
         case .invalidClient:
             message = "This build's Twitch Client ID was rejected."
             failure = Failure.missingClientID()

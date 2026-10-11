@@ -18,6 +18,14 @@ const TOKEN_PATTERN = /^[0-9a-fA-F]{64}$/;
 let socket = null;
 let uuid = null;
 let settings = {};
+/**
+ * Last connection phase relayed by the plugin (`connected`, `disconnected`,
+ * `rejected`, `outdated`, `unauthorized`), or `null` when unknown or stale. It is
+ * cleared on every edit, because it describes the *old* token.
+ */
+let connection = null;
+/** Settings signature last written by an as-you-type save, to avoid a double write. */
+let autoSaved = null;
 
 const fields = {
   token: document.getElementById("token"),
@@ -49,6 +57,14 @@ globalThis.connectElgatoStreamDeckSocket = function (
     try {
       payload = JSON.parse(event.data);
     } catch {
+      return;
+    }
+    if (payload.event === "sendToPropertyInspector") {
+      const message = payload.payload;
+      if (message?.type === "connection") {
+        connection = message.phase ?? null;
+        refreshStatus();
+      }
       return;
     }
     if (payload.event !== "didReceiveGlobalSettings") return;
@@ -116,8 +132,20 @@ function refreshStatus() {
     setStatus("Port must be a whole number between 1 and 65535.", false);
   } else if (!token) {
     setStatus("Paste your control token to connect.", null);
+  } else if (connection === "connected") {
+    setStatus("Connected.", true);
+  } else if (connection === "rejected") {
+    // WolfWave answered and said no: a stale token after a rotation, or the
+    // overlay token pasted by mistake. Without this it reads as "Offline".
+    setStatus(
+      "WolfWave rejected this token. Re-copy the Stream Deck Control Token from Settings → Stream Deck.",
+      false,
+    );
+  } else if (connection === "outdated") {
+    setStatus("Update the plugin.", false);
   } else {
-    setStatus("Control token looks right.", true);
+    // Shape only. The app, not this panel, decides whether it is the right token.
+    setStatus("Token format is valid.", true);
   }
 
   return { tokenValid, port };
@@ -146,6 +174,7 @@ function save() {
     // is what plugin.ts's readPort does with the same values.
     port: port ?? DEFAULT_PORT,
   };
+  autoSaved = null;
   send({ event: "setGlobalSettings", context: uuid, payload: settings });
 }
 
@@ -153,7 +182,45 @@ function save() {
 // value loses focus, which wrote settings twice per edit. `change` is the right
 // one of the pair — it fires on commit (blur or Enter) and stays silent when the
 // value didn't actually change.
-for (const field of Object.values(fields)) {
-  field.addEventListener("change", save);
-  field.addEventListener("input", refreshStatus);
+/**
+ * As-you-type handler. Once the token is a well-formed 64-hex string it is saved
+ * straight away: a pasted token otherwise sat unsent until the field lost focus,
+ * and the streamer saw "looks right" while every key still said Offline.
+ * Incomplete values only revalidate, so a half-typed token is never persisted.
+ */
+function onTokenInput() {
+  // Whatever the plugin last said described the previous value.
+  connection = null;
+  const token = fields.token.value.trim();
+  if (!TOKEN_PATTERN.test(token)) {
+    refreshStatus();
+    return;
+  }
+  save();
+  autoSaved = signature();
 }
+
+function signature() {
+  return JSON.stringify([fields.token.value.trim(), fields.port.value.trim()]);
+}
+
+/** Commit handler: skips the write an as-you-type save already made. */
+function onChange() {
+  if (autoSaved !== null && autoSaved === signature()) {
+    autoSaved = null;
+    return;
+  }
+  save();
+}
+
+/** Port edits only revalidate while typing: a save per digit would reconnect per digit. */
+function onPortInput() {
+  connection = null;
+  refreshStatus();
+}
+
+for (const field of Object.values(fields)) {
+  field.addEventListener("change", onChange);
+}
+fields.token.addEventListener("input", onTokenInput);
+fields.port.addEventListener("input", onPortInput);

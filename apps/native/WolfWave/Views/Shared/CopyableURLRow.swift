@@ -54,6 +54,11 @@ struct CopyableURLRow<Trailing: View>: View {
     /// Extra disable gate beyond Streamer Mode (e.g. the server is stopped).
     var actionsDisabled: Bool = false
 
+    /// Why `actionsDisabled` is on (e.g. "Turn on the Widget Webpage to copy."),
+    /// shown as the tooltip and VoiceOver hint. Streamer Mode always wins with
+    /// its own fixed reason.
+    var actionsDisabledReason: String?
+
     /// Line limit for the URL text. `nil` lets it wrap freely; pass `2` for the
     /// wide standalone rows that have no competing trailing label column.
     var urlLineLimit: Int?
@@ -83,6 +88,7 @@ struct CopyableURLRow<Trailing: View>: View {
         subtitle: String? = nil,
         isStreamerMode: Bool,
         actionsDisabled: Bool = false,
+        actionsDisabledReason: String? = nil,
         urlLineLimit: Int? = nil,
         copyLabel: String? = nil,
         copiedLabel: String? = nil,
@@ -95,6 +101,7 @@ struct CopyableURLRow<Trailing: View>: View {
         self.subtitle = subtitle
         self.isStreamerMode = isStreamerMode
         self.actionsDisabled = actionsDisabled
+        self.actionsDisabledReason = actionsDisabledReason
         self.urlLineLimit = urlLineLimit
         self.copyLabel = copyLabel
         self.copiedLabel = copiedLabel
@@ -110,6 +117,15 @@ struct CopyableURLRow<Trailing: View>: View {
     private var effectiveDisabled: Bool {
         actionsDisabled || isStreamerMode
     }
+
+    /// Tooltip + VoiceOver hint for the disabled buttons, or `nil` while they
+    /// are live. A greyed-out button with no explanation reads as broken.
+    private var disabledHint: String? {
+        if isStreamerMode { return Self.streamerModeHint }
+        return actionsDisabled ? actionsDisabledReason : nil
+    }
+
+    private static var streamerModeHint: String { "Turn off Streamer Mode to copy." }
 
     // MARK: - Body
 
@@ -150,10 +166,12 @@ struct CopyableURLRow<Trailing: View>: View {
                     copiedLabel: copiedLabel,
                     isDisabled: effectiveDisabled,
                     accessibilityLabel: copyAccessibilityLabel,
-                    accessibilityIdentifier: copyAccessibilityIdentifier
+                    accessibilityIdentifier: copyAccessibilityIdentifier,
+                    disabledHint: disabledHint
                 )
                 trailing()
             }
+            .help(disabledHint ?? "")
         }
     }
 }

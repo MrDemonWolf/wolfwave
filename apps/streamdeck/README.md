@@ -11,10 +11,11 @@ which is the authoritative contract for everything in `src/wolfwave/`.
 |---|---|
 | `src/wolfwave/protocol.ts` | Pure wire layer: action tokens, command envelope, inbound frame decode, token subprotocol. TypeScript mirror of `StreamDeckCommand.swift`. |
 | `src/wolfwave/state.ts` | Pure reducer folding inbound frames into the state keys render from. |
-| `src/wolfwave/client.ts` | The single shared WebSocket: reconnect backoff, ack correlation. |
+| `src/wolfwave/client.ts` | The single shared WebSocket: reconnect backoff, ack correlation (late acks from timed-out presses are swallowed, not handed to the next press), handshake-rejection detection. |
 | `src/actions/base.ts` | Shared key behaviour — subscribe on appear, send on press, paint connection states. |
 | `src/actions/index.ts` | One class per manifest action. |
 | `src/marquee.ts` | Scrolls a title that doesn't fit the Now Playing key, one shared timer per key. |
+| `src/connection-status.ts` | Pure mapping from client state to the message relayed to the Property Inspector (`connected` / `rejected` / `outdated` ...). |
 | `src/plugin.ts` | Entry point: registers actions, applies global settings. |
 | `com.mrdemonwolf.wolfwave.sdPlugin/` | The plugin bundle Stream Deck loads (manifest, Property Inspector, built output). |
 
@@ -148,7 +149,7 @@ The base class paints these centrally, so no individual key can forget one:
 
 | Phase | Key shows | Meaning |
 |---|---|---|
-| `disconnected` | `Offline` | No socket. Retrying with capped backoff. |
+| `disconnected` | `Offline` | No socket. Retrying with capped backoff. A token WolfWave rejects (rotated, or the overlay token pasted by mistake) looks the same on the key; the Property Inspector says "WolfWave rejected this token". |
 | `unauthorized` | `Token?` | Control token missing or not 64 hex characters. Retrying won't help. |
 | `outdated` | `Update` | WolfWave rejected the protocol version (`ack error:"protocol"`). |
 | `connected` | per-key render | Live. |

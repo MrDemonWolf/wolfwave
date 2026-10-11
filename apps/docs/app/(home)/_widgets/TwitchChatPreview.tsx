@@ -3,16 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Gift, Smile, Users } from "lucide-react";
 import { SAMPLE_TRACKS, type SampleTrack } from "./sample-tracks";
-import { useCyclingTrack, cyclingPauseHandlers } from "./useCyclingTrack";
+import { useCyclingTrack, cyclingPauseHandlers, demoVisibilityRef } from "./useCyclingTrack";
 
 /**
- * Live recreation of a Twitch "Stream Chat" popout. Messages stream in over
- * time (viewers praise the app, ask pricing, request songs, and run
- * !song / !last / !wolfwave) and the WolfWave bot replies with the CURRENT / LAST track
+ * Simulated Twitch "Stream Chat" popout. Messages stream in over time
+ * (viewers run !song / !sr / !last / !queue / !voteskip / !wolfwave and ask
+ * about pricing) and the WolfWave bot replies with the CURRENT / LAST track
  * pulled from the shared cycling store, so its answers always match what the
  * Discord card and OBS overlay are showing. Dark in both site themes (Twitch
  * chat always is). All usernames/messages invented; song names come from the
- * single source of truth, sample-tracks.ts.
+ * single source of truth, sample-tracks.ts. Viewer lines only demonstrate
+ * features. No praise lines: on a marketing page they read as testimonials.
  */
 
 const TW = {
@@ -57,15 +58,27 @@ function nowPlaying(t: SampleTrack): ReactNode {
   );
 }
 
+function nextTrack(t: SampleTrack): SampleTrack {
+  const i = SAMPLE_TRACKS.findIndex((s) => s.title === t.title);
+  return SAMPLE_TRACKS[(i + 1) % SAMPLE_TRACKS.length];
+}
+
 // Scripted, looping. Each step returns the lines to append (a viewer line and
 // the bot's reply usually arrive together). Track-specific lines resolve at
 // fire time from the live store.
 let reqI = 0;
 let queueN = 1;
 const SCRIPT: ((c: Ctx) => Line[])[] = [
-  () => [v("wolf_fan_88", "#ff8c5a", "okay this overlay is actually clean 🔥")],
+  () => [v("wolf_fan_88", "#ff8c5a", "what song is this?")],
   ({ cur }) => [v("nightowl", "#c08bff", "!song"), bot(nowPlaying(cur))],
-  () => [v("emote_lord", "#2fd6c3", "the song bot just works, no setup??")],
+  ({ cur }) => [
+    v("emote_lord", "#2fd6c3", "!voteskip"),
+    bot(
+      <>
+        Vote to skip <b style={{ color: TW.text }}>{cur.title}</b> started · 1/3
+      </>,
+    ),
+  ],
   () => [v("curious_kate", "#5ac8fa", "wait is wolfwave free?")],
   () => [bot("Yep, free & open source. No paywall. 🐺")],
   ({}) => {
@@ -80,7 +93,14 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
       ),
     ];
   },
-  () => [v("lurker_lobo", "#34c759", "running this all stream, zero crashes")],
+  ({ cur }) => [
+    v("lurker_lobo", "#34c759", "!queue"),
+    bot(
+      <>
+        Up next: <b style={{ color: TW.text }}>{nextTrack(cur).title}</b> · {nextTrack(cur).artist}
+      </>,
+    ),
+  ],
   ({ last }) => [
     v("retro_raccoon", "#ff6abf", "!last"),
     bot(
@@ -89,7 +109,7 @@ const SCRIPT: ((c: Ctx) => Line[])[] = [
       </>,
     ),
   ],
-  () => [v("synthwave_sam", "#2fd6c3", "what mac app is this, i need it")],
+  () => [v("synthwave_sam", "#2fd6c3", "what app is the bot?")],
   () => [
     v("pixel_paws", "#c08bff", "!wolfwave"),
     bot(
@@ -157,7 +177,7 @@ function ChatLine({ msg }: { msg: Msg }) {
 export function TwitchChatPreview({
   viewportHeight = 300,
 }: { viewportHeight?: number } = {}) {
-  const { track, lastTrack, motionEnabled, paused } = useCyclingTrack();
+  const { track, lastTrack, running } = useCyclingTrack();
 
   // Latest track in a ref so the interval closure always reads current values.
   const ctxRef = useRef<Ctx>({ cur: track, last: lastTrack });
@@ -179,8 +199,10 @@ export function TwitchChatPreview({
   const stepRef = useRef(seed.nextStep);
   const [msgs, setMsgs] = useState<Msg[]>(seed.msgs);
 
+  // `running` already folds in reduced motion, hover/focus pause, tab
+  // visibility, and on-screen state, so the chat stops with the other widgets.
   useEffect(() => {
-    if (!motionEnabled || paused) return;
+    if (!running) return;
     const id = window.setInterval(() => {
       const lines = SCRIPT[stepRef.current % SCRIPT.length](ctxRef.current);
       stepRef.current += 1;
@@ -189,12 +211,13 @@ export function TwitchChatPreview({
       );
     }, 2600);
     return () => window.clearInterval(id);
-  }, [motionEnabled, paused]);
+  }, [running]);
 
   return (
     <div
+      ref={demoVisibilityRef}
       role="img"
-      aria-label="Live Twitch chat: viewers requesting songs and running !song while the WolfWave bot replies with the current Apple Music track"
+      aria-label="Simulated Twitch chat demo: made-up viewers request songs and run !song while the WolfWave bot replies with the current sample track"
       {...cyclingPauseHandlers()}
       style={{
         width: "100%",

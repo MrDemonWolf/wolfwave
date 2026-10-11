@@ -349,9 +349,17 @@ enum Log {
     /// starting with whitespace belongs to the record above it. Without this,
     /// a multi-line `error.localizedDescription` or a `CrashReporter` reason
     /// produces orphan lines with no level, category, or timestamp.
+    ///
+    /// `\r\n` and a bare `\r` count as line breaks too. Swift treats `\r\n` as
+    /// one `Character`, so a `"\n"` split alone would leave a Windows-style
+    /// break (common in HTTP error bodies) unframed, and a bare `\r` makes a
+    /// terminal overwrite the start of the line it sits in.
     nonisolated private static func frameContinuations(_ line: String) -> String {
-        guard line.contains("\n") else { return line }
-        return line
+        let normalized = line
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        guard normalized.contains("\n") else { return normalized }
+        return normalized
             .split(separator: "\n", omittingEmptySubsequences: false)
             .enumerated()
             .map { $0.offset == 0 ? String($0.element) : "  " + $0.element }
@@ -617,6 +625,11 @@ enum Log {
 
     /// Wraps a field value in double quotes when it would otherwise break the
     /// `key=value` grammar (empty, or containing whitespace, `=`, or `"`).
+    ///
+    /// Newlines and carriage returns are escaped so a value can never start a
+    /// new physical line. `\n` is replaced before `\r`, and both replacements
+    /// work on UTF-16 units, so a `\r\n` pair becomes `\r\n` as text, not a
+    /// stray break.
     nonisolated private static func quoteIfNeeded(_ value: String) -> String {
         let needsQuoting = value.isEmpty
             || value.contains(where: { $0.isWhitespace })
@@ -627,6 +640,7 @@ enum Log {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
             .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
         return "\"\(escaped)\""
     }
 

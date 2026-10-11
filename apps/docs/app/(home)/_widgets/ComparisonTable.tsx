@@ -12,7 +12,9 @@ import { Check, Minus, X as XIcon } from "lucide-react";
 
 type CellState = "yes" | "no" | "partial";
 
-const COLUMNS = ["WolfWave", "Browser source widgets", "Spotify-only bots"] as const;
+// Columns are categories of tools, not named products. page.tsx carries the
+// footnote that says so; keep the two in step.
+const COLUMNS = ["WolfWave", "Browser-source widgets", "Spotify-first bots"] as const;
 
 interface Row {
   feature: string;
@@ -26,9 +28,12 @@ const ROWS: Row[] = [
   { feature: "Native macOS app", ww: "yes", browser: "no", spotify: "no" },
   { feature: "Free, no paywall", ww: "yes", browser: "partial", spotify: "partial" },
   { feature: "Chat song requests", ww: "yes", browser: "no", spotify: "yes" },
+  { feature: "Requests with channel points + Bits", ww: "yes", browser: "no", spotify: "partial" },
   { feature: "Stream overlay included", ww: "yes", browser: "yes", spotify: "no" },
   { feature: "Discord Rich Presence", ww: "yes", browser: "no", spotify: "no" },
-  { feature: "Stream Deck plugin", ww: "yes", browser: "no", spotify: "no" },
+  // Manual install until the Elgato Marketplace listing lands; drop the
+  // qualifier then.
+  { feature: "Stream Deck plugin (manual install)", ww: "yes", browser: "no", spotify: "no" },
   { feature: "Open source", ww: "yes", browser: "partial", spotify: "no" },
 ];
 
@@ -86,13 +91,13 @@ export function ComparisonTable() {
                   className="text-center py-4 px-3 ww-text-2 font-medium"
                   scope="col"
                 >
-                  Browser source widgets
+                  {COLUMNS[1]}
                 </th>
                 <th
                   className="text-center py-4 pl-3 ww-text-2 font-medium"
                   scope="col"
                 >
-                  Spotify-only bots
+                  {COLUMNS[2]}
                 </th>
               </tr>
             </thead>
