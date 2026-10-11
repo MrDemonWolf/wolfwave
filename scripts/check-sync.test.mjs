@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  checkDocPorts,
   checkDocsText,
   checkLandingProtocol,
   checkLintRuleParity,
@@ -66,4 +67,17 @@ test("checkLintRuleParity requires exact comment-to-RULES parity", () => {
     unimplementedClaims: ["ghost-rule"],
     undocumentedRules: ["raw-padding"],
   });
+});
+
+test("checkDocPorts flags prose ports that drift from the native defaults", () => {
+  const ports = { webSocketPort: 8765, widgetPort: 8766 };
+  assert.deepEqual(checkDocPorts("The WebSocket server (port 8765) binds LAN.\nUse ws://127.0.0.1:8765 or http://localhost:8766/", ports), []);
+  assert.deepEqual(checkDocPorts("| `0.0.0.0:8766` | HTTP (plaintext LAN) |", ports), []);
+  assert.equal(checkDocPorts("The WebSocket server (port 9000) binds LAN.", ports).length, 1);
+  assert.equal(checkDocPorts("ws://127.0.0.1:8766", ports).length, 1);
+  assert.equal(checkDocPorts("The widget shell runs on port 8765.", ports).length, 1);
+  assert.deepEqual(checkDocPorts("a `port` of 1-65535 only", ports), []);
+  // Not a WolfWave server: the docs dev server is documented on port 3000.
+  assert.deepEqual(checkDocPorts("Open http://localhost:3000 to preview the docs.", ports), []);
+  assert.deepEqual(checkDocPorts("The preview runs on `localhost:3000`.", ports), []);
 });

@@ -21,6 +21,10 @@
 //  (### headings, - bullets, **bold**, _italics_, `code`, [links](url)), so a
 //  small renderer is enough and keeps the release pipeline free of npm installs.
 //
+//  The subset is FLAT. Nested/indented bullets, wrapped continuation lines, and
+//  `*` bullets are not supported, so the script fails loudly on them instead of
+//  silently turning them into stray paragraphs in the Sparkle dialog.
+//
 
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -34,7 +38,10 @@ if (!version) {
   process.exit(1);
 }
 
-const CHANGELOG_URL = new URL("../CHANGELOG.md", import.meta.url);
+// CHANGELOG_PATH is a test seam: release-notes.test.mjs points it at a fixture.
+const CHANGELOG_URL = process.env.CHANGELOG_PATH
+  ? process.env.CHANGELOG_PATH
+  : new URL("../CHANGELOG.md", import.meta.url);
 const FULL_CHANGELOG_URL = "https://mrdemonwolf.github.io/wolfwave/docs/changelog";
 
 // MARK: - Extract the version's section
@@ -152,6 +159,14 @@ function renderBlocks(lines) {
       }
       out.push(`<li>${renderInline(bullet[1])}</li>`);
       continue;
+    }
+    // Outside the supported subset. Fail the release rather than ship notes
+    // that render wrongly: flatten the bullet (or put the text on one line).
+    if (/^\s+\S/.test(line) || /^\*\s+/.test(line)) {
+      console.error(
+        `release-notes: unsupported CHANGELOG line (indented/nested bullet, wrapped line, or "*" bullet): ${JSON.stringify(line)}`
+      );
+      process.exit(1);
     }
     closeList();
     out.push(`<p>${renderInline(line)}</p>`);

@@ -42,12 +42,17 @@ jobs:
   # guard diffs the last published sha against HEAD itself, with an EXCLUDE
   # list: a new build-relevant directory builds by default, and only the docs
   # site, marketing, the Stream Deck plugin (shipped via Elgato, not in the
-  # app), and prose are ignored. A manual dispatch always builds. Forks never
+  # app), prose, and housekeeping that never ships in the app (the docs /
+  # sponsors / license-year / dependency-review / homebrew workflows, SwiftLint
+  # config + baseline, and the check-headers / check-sync lint scripts) are
+  # ignored. nightly.yml, build_release.yml, test.yml, and .github/actions/**
+  # deliberately stay build-relevant. A manual dispatch always builds. Forks never
   # build: the cron would otherwise fail daily on missing signing secrets.
   guard:
     name: Decide whether to build
     if: github.repository == 'MrDemonWolf/wolfwave' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       should_build: ${{ steps.decide.outputs.should_build }}
     steps:
@@ -85,9 +90,15 @@ jobs:
           else
             changed="$(git diff --name-only "$last" "$HEAD_SHA" -- . \
               ':!apps/docs' ':!apps/marketing' ':!apps/streamdeck' \
-              ':!*.md' ':!*.mdx' ':!LICENSE' ':!.github/workflows/docs.yml')"
+              ':!*.md' ':!*.mdx' ':!LICENSE' ':!.github/workflows/docs.yml' \
+              ':!.github/workflows/update_sponsors.yml' \
+              ':!.github/workflows/license-year.yml' \
+              ':!.github/workflows/dependency-review.yml' \
+              ':!.github/workflows/update_homebrew.yml' \
+              ':!.swiftlint*.yml' ':!swiftlint-baseline.json' \
+              ':!scripts/check-headers.mjs' ':!scripts/check-sync*.mjs')"
             if [ -z "$changed" ]; then
-              echo "Only docs/site changes since $last, skipping."
+              echo "Only docs/site/housekeeping changes since $last, skipping."
               should_build=false
             else
               echo "Build-relevant changes since $last:"
@@ -102,6 +113,7 @@ jobs:
     needs: guard
     if: github.ref == 'refs/heads/main' && needs.guard.outputs.should_build == 'true'
     runs-on: macos-26
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -131,6 +143,7 @@ jobs:
     needs: [guard, test]
     if: github.ref == 'refs/heads/main' && needs.guard.outputs.should_build == 'true'
     runs-on: macos-26
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:

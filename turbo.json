@@ -36,7 +36,6 @@
         "$TURBO_ROOT$/apps/native/WolfWave/Resources/widget-tokens.generated.js"
       ],
       "outputs": [
-        "dist/**",
         "$TURBO_ROOT$/apps/native/WolfWave/Resources/widget.html"
       ]
     },

@@ -12,6 +12,14 @@ on:
       - 'package.json'
       - 'bun.lock'
       - 'turbo.json'
+  # Redeploy when a stable release is published, so release-derived content
+  # (latest DMG link, star count, version) refreshes. A release run sits on the
+  # tag ref, which the github-pages environment's branch policy (main only)
+  # refuses, and it would build the tag's docs rather than main's. So the
+  # release run only dispatches a fresh run on main (`redeploy-on-release`);
+  # build and deploy never run for the release event itself.
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -24,12 +32,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  redeploy-on-release:
+    # Prereleases (the rolling nightly) don't change the download links.
+    if: github.event_name == 'release' && !github.event.release.prerelease
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch a docs deploy from main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # workflow_dispatch is one of the events a GITHUB_TOKEN may trigger.
+        run: gh workflow run docs.yml --ref main --repo "$GITHUB_REPOSITORY"
+
+  build:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Full commit history (trees only, no blobs): sitemap.ts reads each
+          # page's last-commit date with `git log -1 -- <file>`, and a shallow
+          # clone would stamp every page with the deploy commit's date.
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
@@ -58,6 +87,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
