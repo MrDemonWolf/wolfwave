@@ -3,12 +3,12 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 
-type TabId = "overlay" | "ha" | "deck";
+type TabId = "overlay" | "browser" | "node";
 
 const TABS: { id: TabId; label: string; lang: string }[] = [
   { id: "overlay", label: "Overlay", lang: "JS" },
-  { id: "ha", label: "Browser source", lang: "HTML" },
-  { id: "deck", label: "Node client", lang: "Node" },
+  { id: "browser", label: "Browser source", lang: "HTML" },
+  { id: "node", label: "Node client", lang: "Node" },
 ];
 
 const BRAND = "var(--brand-500)";
@@ -34,14 +34,14 @@ const SNIPPETS: Record<TabId, string> = {
     `};`,
   ].join("\n"),
 
-  ha: [
+  browser: [
     `${span(DIM, "&lt;!-- Enable Stream Widgets in Settings first. --&gt;")}`,
     `${span(DIM, "&lt;!-- Use your configured port if you changed the default. --&gt;")}`,
     `&lt;iframe src=${span(BRAND, '"http://localhost:8766/"')}`,
     `        title=${span(BRAND, '"WolfWave overlay"')}&gt;&lt;/iframe&gt;`,
   ].join("\n"),
 
-  deck: [
+  node: [
     `${span(DIM, "// Node client using the ws package and your overlay token.")}`,
     `${span(BRAND, "import")} WebSocket ${span(BRAND, "from")} ${span(BRAND, '"ws"')};`,
     ``,
@@ -93,11 +93,11 @@ export function DeveloperTabs() {
 
   return (
     <div className="ww-dev-terminal">
-      {/* status pill */}
+      {/* status pill: static on purpose. It states the default endpoint; a
+          pulsing "live" dot would claim a connection this page doesn't have. */}
       <div className="ww-dev-status-row">
         <span className="ww-dev-status-pill ww-mono">
-          <span className="ww-dev-dot" aria-hidden="true" />
-          LOCAL · ws://localhost:8765
+          DEFAULT · ws://localhost:8765
         </span>
       </div>
 
@@ -154,18 +154,24 @@ export function DeveloperTabs() {
           })}
         </div>
 
-        {/* code panel */}
-        <div
-          role="tabpanel"
-          id={`ww-dev-panel-${active}`}
-          aria-labelledby={`ww-dev-tab-${active}`}
-          className="ww-dev-panel"
-        >
-          <pre
-            className="ww-code ww-dev-code"
-            dangerouslySetInnerHTML={{ __html: SNIPPETS[active] }}
-          />
-        </div>
+        {/* code panels: one per tab, so every aria-controls resolves. The
+            panel is focusable so keyboard users can scroll a wide snippet. */}
+        {TABS.map((tab) => (
+          <div
+            key={tab.id}
+            role="tabpanel"
+            id={`ww-dev-panel-${tab.id}`}
+            aria-labelledby={`ww-dev-tab-${tab.id}`}
+            hidden={active !== tab.id}
+            tabIndex={0}
+            className="ww-dev-panel"
+          >
+            <pre
+              className="ww-code ww-dev-code"
+              dangerouslySetInnerHTML={{ __html: SNIPPETS[tab.id] }}
+            />
+          </div>
+        ))}
       </div>
 
       {/* hint */}
@@ -199,29 +205,6 @@ export function DeveloperTabs() {
           border: 1px solid var(--hairline);
           border-radius: var(--ww-radius-control);
         }
-        .ww-dev-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 999px;
-          background: #28c840;
-          box-shadow: 0 0 0 0 rgba(40, 200, 64, 0.55);
-        }
-        @media (prefers-reduced-motion: no-preference) {
-          .ww-dev-dot {
-            animation: wwDevPulse 1.8s ease-out infinite;
-          }
-        }
-        @keyframes wwDevPulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(40, 200, 64, 0.55);
-          }
-          70% {
-            box-shadow: 0 0 0 9px rgba(40, 200, 64, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(40, 200, 64, 0);
-          }
-        }
         .ww-dev-window {
           border-radius: 16px;
           overflow: hidden;
@@ -253,15 +236,13 @@ export function DeveloperTabs() {
         .ww-dev-spacer {
           width: 39px; /* mirror the lights cluster so the title stays centered */
         }
+        /* Wrap instead of scrolling: a hidden-scrollbar strip hid the third
+           tab off the right edge on phones. */
         .ww-dev-tabs {
           display: flex;
+          flex-wrap: wrap;
           gap: 4px;
           padding: 8px;
-          overflow-x: auto;
-          scrollbar-width: none;
-        }
-        .ww-dev-tabs::-webkit-scrollbar {
-          display: none;
         }
         .ww-dev-tab {
           appearance: none;
@@ -299,13 +280,23 @@ export function DeveloperTabs() {
           color: var(--brand-600);
           background: color-mix(in srgb, var(--brand-500) 14%, transparent);
         }
-        .ww-dev-panel {
-          opacity: 0;
-          animation: wwDevFade 180ms ease forwards;
+        /* Panels stay mounted, so the fade keys off becoming visible rather
+           than off mount; switching tabs still fades in. */
+        .ww-dev-panel:not([hidden]) {
+          animation: wwDevFade 180ms ease;
+        }
+        .ww-dev-panel:focus-visible {
+          outline: 2px solid var(--brand-500);
+          outline-offset: -2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ww-dev-panel:not([hidden]) {
+            animation: none;
+          }
         }
         @keyframes wwDevFade {
-          to {
-            opacity: 1;
+          from {
+            opacity: 0;
           }
         }
         .ww-dev-code {
