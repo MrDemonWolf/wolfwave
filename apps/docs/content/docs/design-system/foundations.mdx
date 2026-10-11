@@ -48,6 +48,26 @@ WolfWave's primary brand color is Apple System Blue (**`#0A84FF`**). The full sc
 gray whose light and dark variants are identical, so a single flat value reads
 correctly in both themes.
 
+### Glyph
+
+A status dot or icon sitting on its own 10% wash loses contrast in light mode, so
+each status color has a darker light-appearance glyph variant. Dark mode reuses the
+semantic tint above.
+
+| Token | Light | Dark |
+|---|---|---|
+| `--ds-color-glyph-success` | `#1E7B34` | `#34C759` |
+| `--ds-color-glyph-warning` | `#9A5B00` | `#FF9F0A` |
+| `--ds-color-glyph-error`   | `#C9302C` | `#FF453A` |
+| `--ds-color-glyph-info`    | `#0066CC` | `#0A84FF` |
+| `--ds-color-glyph-neutral` | `#6E6E73` | `#8E8E93` |
+
+### Opacity
+
+Tinted washes (status chips, callouts, the selected nav-rail row) use one of two fill
+opacities instead of a literal: `--ds-opacity-wash` `0.10` and
+`--ds-opacity-wash-strong` `0.14`.
+
 ### Surface & text
 
 Surfaces and text colors swap on their own based on `prefers-color-scheme` / `.dark` class. Reference the abstract token, not the underlying hex.
@@ -63,7 +83,7 @@ Surfaces and text colors swap on their own based on `prefers-color-scheme` / `.d
 
 Reserved for third-party brand identity (do not use as WolfWave brand):
 
-`partner-twitch` `#9146FF` · `partner-discord` `#5865F2` · `partner-apple-music-start` `#FF5D8B` → `partner-apple-music-end` `#FA233B` · `partner-obs-start` `#2C2C2E` → `partner-obs-end` `#1A1A1C`
+`partner-twitch` `#9146FF` · `partner-discord` `#5865F2` · `partner-apple-music-start` `#FF5D8B` → `partner-apple-music-end` `#FA233B` · `partner-obs-start` `#2C2C2E` → `partner-obs-end` `#1A1A1C` · `partner-discord-surface` `#2B2D31` · `partner-discord-control` `#4E5058` · `partner-apple-music-surface-start` `#FA5C75` → `partner-apple-music-surface-end` `#FA243B` · `partner-apple-music-pulse-start` `#FC4773` → `partner-apple-music-pulse-end` `#FA1A52` · `partner-wolfwave-gradient-start` `#0A2540` → `partner-wolfwave-gradient-end` `#2563EB`
 
 ## Type scale
 
@@ -77,16 +97,20 @@ Reserved for third-party brand identity (do not use as WolfWave brand):
 | `lg`   | 17 | Section headers |
 | `xl`   | 20 | Subtle hero |
 | `2xl`  | 22 | Hero |
+| `3xl`  | 26 | Reserved for hero and the Monthly Wrap share card |
+| `display` | 52 | Monthly Wrap headline figure |
 
 Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instrument Sans), `--ds-font-family-serif` (Instrument Serif), `--ds-font-family-mono` (JetBrains Mono).
 
 ## Spacing
 
-4-step scale, indices align to common SwiftUI paddings:
+Thirteen steps. Indices align to common SwiftUI paddings, so they are not a strict 4px rhythm:
 
 | Token | px |
 |---|---|
+| `space-0` | 2 |
 | `space-1` | 4 |
+| `space-1h` | 6 |
 | `space-2` | 8 |
 | `space-3` | 10 |
 | `space-4` | 12 |
@@ -95,6 +119,8 @@ Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instr
 | `space-7` | 20 |
 | `space-8` | 24 |
 | `space-9` | 28 |
+| `space-10` | 32 |
+| `space-11` | 44 |
 
 ## Radius
 
@@ -104,6 +130,7 @@ Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instr
 | `sm`   | 6    | Hover backgrounds |
 | `md`   | 8    | Primary buttons |
 | `lg`   | 10   | Update banner |
+| `lg2`  | 12   | Between `lg` and `xl` |
 | `xl`   | 14   | Cards, brand tiles |
 | `2xl`  | 16   | Onboarding hero |
 | `pill` | 9999 | Capsules |
@@ -112,11 +139,24 @@ Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instr
 
 | Token | Value |
 |---|---|
+| `duration-instant` | 0 ms |
 | `duration-fast` | 150 ms |
 | `duration-base` | 220 ms |
 | `duration-slow` | 320 ms |
+| `duration-long` | 400 ms |
+| `duration-pulse` | 900 ms |
+| `duration-pulseSlow` | 1400 ms |
 | `easing-standard`   | `cubic-bezier(0.4, 0.0, 0.2, 1)` |
 | `easing-emphasized` | `cubic-bezier(0.2, 0.0, 0, 1)` |
+
+Springs (`response` in seconds, `damping` as a fraction):
+
+| Token | Response | Damping |
+|---|---|---|
+| `snappy`     | 0.35 | 0.82 |
+| `bouncy`     | 0.45 | 0.78 |
+| `gentle`     | 0.30 | 0.60 |
+| `expressive` | 0.50 | 0.60 |
 
 Respect `prefers-reduced-motion`. Drop to instant transitions.
 

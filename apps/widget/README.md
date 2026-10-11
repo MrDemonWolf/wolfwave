@@ -45,7 +45,7 @@ existing fields requires a coordinated change.
 
 | Type | Payload | Cadence |
 |------|---------|---------|
-| `welcome` | `{}` | Once on connect |
+| `welcome` | `{ server, version }` (top-level fields, no `data`) | Once on connect |
 | `now_playing` | `{ track, artist, album, duration, elapsed, isPlaying, artworkURL }` | Track change |
 | `progress` | `{ elapsed, duration, isPlaying }` | ~1 Hz |
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | State change |
@@ -113,6 +113,28 @@ open apps/native/WolfWave/Resources/widget.html
 
 …or open `http://localhost:<port>/` with the native app running for a live
 WebSocket feed (theme/layout follow the app's Stream Widgets settings).
+
+## Tests
+
+```bash
+bun run --filter widget test     # or: cd apps/widget && bun test
+```
+
+`tests/widget.test.ts` loads `src/widget.ts` into a happy-dom window with a
+fake `WebSocket` and drives it with the same frames the native server sends.
+It covers rendering, idle clearing, malformed and oversized frames, theme and
+layout config, reconnect backoff, a hostile artwork URL, and port validation.
+
+## Hardening notes
+
+- **Frames are untrusted.** `parseMessage` drops frames over 64 KB, non-JSON,
+  unknown types, and wrongly shaped payloads before any handler runs.
+- **Artwork.** Only absolute `https:` URLs without credentials are used;
+  anything else falls back to the WolfWave mark.
+- **Port.** `?port=` / `?wsPort=` must be 1-65535 in plain digits, otherwise
+  `8765`.
+- **Reconnect.** Exponential backoff from 1s, capped at 10s, with 0.75-1.25x
+  jitter. A `WebSocket` constructor failure schedules a retry too.
 
 ## Transitions
 

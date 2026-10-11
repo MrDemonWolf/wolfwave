@@ -23,18 +23,19 @@ import Foundation
 /// purpose: `UserDefaults` parses `-flag value` launch arguments into the
 /// argument domain, so a bare `-flag` is a defaults key with confusing
 /// semantics. `launchEnvironment` touches nothing.
+///
+/// Release builds compile the switch out entirely (`isActive` is a constant
+/// `false` and none of the keys exist in the binary), so setting
+/// `WOLFWAVE_UI_TEST=1` on a shipped app cannot redirect it to throwaway
+/// storage. `make test-ui` always drives the Debug app.
 nonisolated enum UITestMode {
 
+    #if DEBUG
     /// Set on `XCUIApplication.launchEnvironment` by the UI test bundle.
     static let environmentKey = "WOLFWAVE_UI_TEST"
 
     /// True when the app was launched by the UI test bundle.
     static let isActive = ProcessInfo.processInfo.environment[environmentKey] == "1"
-
-    /// True when *any* test harness owns this process: the hosted unit bundle
-    /// (in-process) or a UI test (out-of-process). Storage seams branch on this,
-    /// never on `isRunningTests` alone.
-    static var isUnderTestHarness: Bool { WolfWaveApp.isRunningTests || isActive }
 
     /// Set to `"1"` by a UI test that wants to land straight in the app rather
     /// than in the wizard. Every launch starts from a wiped suite, so without it
@@ -54,6 +55,21 @@ nonisolated enum UITestMode {
     static var suppressesWhatsNew: Bool {
         isActive && ProcessInfo.processInfo.environment[suppressWhatsNewKey] == "1"
     }
+    #else
+    /// Release builds never run under the UI test bundle.
+    static let isActive = false
+
+    /// Always `false` in Release.
+    static var startsOnboarded: Bool { false }
+
+    /// Always `false` in Release.
+    static var suppressesWhatsNew: Bool { false }
+    #endif
+
+    /// True when *any* test harness owns this process: the hosted unit bundle
+    /// (in-process) or a UI test (out-of-process). Storage seams branch on this,
+    /// never on `isRunningTests` alone.
+    static var isUnderTestHarness: Bool { WolfWaveApp.isRunningTests || isActive }
 
     /// Writes the requested starting state into the (already wiped) isolated
     /// suite. Must run before anything reads onboarding state. No-op outside a

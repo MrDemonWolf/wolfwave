@@ -131,4 +131,52 @@ final class MenuStatusFormatterTests: XCTestCase {
         XCTAssertTrue(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 2, hasNowPlaying: false))
         XCTAssertTrue(MenuStatusFormatter.shouldCollapseSongRequests(queueCount: 5, hasNowPlaying: true))
     }
+
+    // MARK: - Title Clamping
+
+    func testClampedLeavesShortTitleAlone() {
+        XCTAssertEqual(MenuTitleFormatting.clamped("Short title"), "Short title")
+    }
+
+    func testClampedLeavesExactLengthTitleAlone() {
+        let text = String(repeating: "a", count: MenuTitleFormatting.maxTitleLength)
+        XCTAssertEqual(MenuTitleFormatting.clamped(text), text)
+    }
+
+    func testClampedShortensLongTitleWithEllipsis() {
+        let text = String(repeating: "a", count: MenuTitleFormatting.maxTitleLength + 20)
+        let result = MenuTitleFormatting.clamped(text)
+        XCTAssertEqual(result.count, MenuTitleFormatting.maxTitleLength)
+        XCTAssertTrue(result.hasSuffix("\u{2026}"))
+    }
+
+    func testTooltipOnlyForClampedTitles() {
+        XCTAssertNil(MenuTitleFormatting.tooltip(for: "Short"))
+        let long = String(repeating: "b", count: MenuTitleFormatting.maxTitleLength + 1)
+        XCTAssertEqual(MenuTitleFormatting.tooltip(for: long), long)
+    }
+
+    // MARK: - Twitch Menu State
+
+    func testTwitchMenuStateEmptyHasNoCredential() {
+        XCTAssertFalse(TwitchMenuState.empty.hasCredential)
+        XCTAssertNil(TwitchMenuState.empty.channelName)
+    }
+
+    func testTwitchMenuStateFromNilSnapshotIsEmpty() {
+        XCTAssertEqual(TwitchMenuState(snapshot: nil), .empty)
+    }
+
+    func testTwitchMenuStateFromSnapshotCarriesChannel() {
+        let snapshot = TwitchCredentialStore.ConnectionSnapshot(
+            revision: 1,
+            accessToken: "token",
+            username: "wolf",
+            userID: "42",
+            channelID: "wolfchannel"
+        )
+        let state = TwitchMenuState(snapshot: snapshot)
+        XCTAssertTrue(state.hasCredential)
+        XCTAssertEqual(state.channelName, "wolfchannel")
+    }
 }

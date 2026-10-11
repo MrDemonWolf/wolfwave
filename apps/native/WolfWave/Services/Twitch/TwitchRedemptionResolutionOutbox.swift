@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import Darwin
 import Foundation
 
 /// Atomic disk-backed state for paid Twitch event intake and completion.
@@ -162,7 +163,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
             .appending(path: "twitch-redemption-resolution-outbox.json"),
         fileManager: FileManager = .default,
         atomicWriter: @escaping (Data, URL) throws -> Void = { data, url in
-            try data.write(to: url, options: .atomic)
+            try TwitchRedemptionResolutionOutbox.durableAtomicWrite(data, to: url)
         },
         quarantineMover: ((URL, URL) throws -> Void)? = nil,
         quarantineCopier: ((URL, URL) throws -> Void)? = nil,
@@ -877,13 +878,20 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     ) -> [PaidEventTombstone] {
         let oldestAcceptedAt = now.addingTimeInterval(
             -paidEventTombstoneRetention)
-        let latestAcceptedAt = now.addingTimeInterval(
-            paidEventTombstoneRetention)
         var newestByKey: [PaidEventKey: PaidEventTombstone] = [:]
-        for tombstone in tombstones
-        where tombstone.isValid
-            && tombstone.acceptedAt >= oldestAcceptedAt
-            && tombstone.acceptedAt <= latestAcceptedAt {
+        for original in tombstones where original.isValid {
+            // A tombstone dated after `now` means the wall clock moved
+            // backwards since it was written. Dropping it would reopen the
+            // duplicate-delivery window for a paid event, so keep it and
+            // restart its retention from now instead.
+            let tombstone = original.acceptedAt > now
+                ? PaidEventTombstone(
+                    messageID: original.messageID,
+                    broadcasterID: original.broadcasterID,
+                    kind: original.kind,
+                    acceptedAt: now)
+                : original
+            guard tombstone.acceptedAt >= oldestAcceptedAt else { continue }
             let key = PaidEventKey(
                 messageID: tombstone.messageID,
                 broadcasterID: tombstone.broadcasterID,
@@ -914,14 +922,19 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     ) -> [AcknowledgedRedemptionTombstone] {
         let oldestAcknowledgedAt = now.addingTimeInterval(
             -paidEventTombstoneRetention)
-        let latestAcknowledgedAt = now.addingTimeInterval(
-            paidEventTombstoneRetention)
         var newestByKey:
             [RedemptionKey: AcknowledgedRedemptionTombstone] = [:]
-        for tombstone in tombstones
-        where tombstone.isValid
-            && tombstone.acknowledgedAt >= oldestAcknowledgedAt
-            && tombstone.acknowledgedAt <= latestAcknowledgedAt {
+        for original in tombstones where original.isValid {
+            // Same rule as paid-event tombstones: a future date means the
+            // clock moved backwards, so clamp to now rather than forget it.
+            let tombstone = original.acknowledgedAt > now
+                ? AcknowledgedRedemptionTombstone(
+                    broadcasterID: original.broadcasterID,
+                    rewardID: original.rewardID,
+                    redemptionID: original.redemptionID,
+                    acknowledgedAt: now)
+                : original
+            guard tombstone.acknowledgedAt >= oldestAcknowledgedAt else { continue }
             let key = RedemptionKey(
                 broadcasterID: tombstone.broadcasterID,
                 rewardID: tombstone.rewardID,
@@ -971,6 +984,58 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         } catch {
             intakeStorageHasFailed = true
             throw error
+        }
+    }
+
+    // MARK: Durable write
+
+    /// The production writer: temp file, full flush to the platter, rename
+    /// over the live file, then flush the directory entry.
+    ///
+    /// `Data.write(options: .atomic)` renames but never flushes, so a power
+    /// loss right after a paid intake was "persisted" could leave the old file
+    /// (or an empty one) on disk. This queue is what refunds or replays paid
+    /// events, so it pays for `F_FULLFSYNC`.
+    ///
+    /// - Throws: The underlying file or POSIX error. The temp file is removed
+    ///   on failure and the live file is left untouched.
+    static func durableAtomicWrite(_ data: Data, to url: URL) throws {
+        let directory = url.deletingLastPathComponent()
+        let tempURL = directory.appending(
+            path: ".\(url.lastPathComponent).tmp-\(UUID().uuidString)",
+            directoryHint: .notDirectory)
+        guard FileManager.default.createFile(
+            atPath: tempURL.path, contents: nil,
+            attributes: [.posixPermissions: 0o600]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        do {
+            let handle = try FileHandle(forWritingTo: tempURL)
+            defer { try? handle.close() }
+            try handle.write(contentsOf: data)
+            // F_FULLFSYNC asks the drive itself to flush; plain fsync on
+            // macOS only reaches the drive's cache. Fall back when the
+            // filesystem does not support it.
+            if fcntl(handle.fileDescriptor, F_FULLFSYNC) == -1 {
+                try handle.synchronize()
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw error
+        }
+
+        guard rename(tempURL.path, url.path) == 0 else {
+            let code = errno
+            try? FileManager.default.removeItem(at: tempURL)
+            throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
+        }
+
+        // Persist the rename itself. Best effort: the data is already safe in
+        // the renamed inode, and some filesystems refuse fsync on a directory.
+        let directoryDescriptor = open(directory.path, O_RDONLY)
+        if directoryDescriptor >= 0 {
+            _ = fsync(directoryDescriptor)
+            close(directoryDescriptor)
         }
     }
 

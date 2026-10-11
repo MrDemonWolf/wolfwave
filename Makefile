@@ -207,7 +207,7 @@ lint-headers:
 # Blocking source/docs drift gate. Its focused unit tests run first so a broken
 # regex cannot silently turn the repository scan into a false green.
 lint-sync:
-	node --test scripts/check-sync.test.mjs
+	node --test scripts/check-sync.test.mjs scripts/release-notes.test.mjs scripts/version.test.mjs
 	node scripts/check-sync.mjs
 
 update-deps:
@@ -233,9 +233,8 @@ prod-build: sponsor-config
 	if [ ! -d "$$APP_PATH" ]; then echo "❌ .app not found at $$APP_PATH"; exit 1; fi; \
 	echo "✅ Release build: $$APP_PATH"; \
 	if security find-identity -v -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then \
-		echo "🔏 Re-signing with Developer ID..."; \
-		codesign --deep --force --options runtime --timestamp \
-			--sign "Developer ID Application" "$$APP_PATH"; \
+		echo "🔏 Re-signing with Developer ID (inside-out, same script as CI)..."; \
+		bash scripts/codesign-app.sh "$$APP_PATH"; \
 		echo "✅ Signed with Developer ID"; \
 	else \
 		echo "⚠️  No Developer ID cert found. DMG will be development-signed"; \
@@ -279,5 +278,6 @@ verify-notarize:
 	@if [ ! -f $(BUILDS_DIR)/$(DMG_NAME) ]; then \
 		echo "❌ $(BUILDS_DIR)/$(DMG_NAME) not found."; exit 1; fi
 	@echo "🔍 Verifying notarization..."
-	spctl --assess --type open --context context:primary-signature $(BUILDS_DIR)/$(DMG_NAME)
+	xcrun stapler validate $(BUILDS_DIR)/$(DMG_NAME)
+	spctl --assess --type open --context context:primary-signature -v $(BUILDS_DIR)/$(DMG_NAME)
 	@echo "✅ Notarization verified: $(BUILDS_DIR)/$(DMG_NAME)"

@@ -41,6 +41,31 @@ final class SongRequestService {
         case error(String)
     }
 
+    /// What a ``SongRequestService/skip()`` call actually did.
+    ///
+    /// A skip can fail without touching the queue (Music closed, a playback
+    /// command timed out, another transition in flight), so callers must not
+    /// read "nothing started" as "the queue drained".
+    enum SkipOutcome: Equatable {
+        /// The next request started and is now playing.
+        case started(SongRequestItem)
+        /// No requests were left. The drain policy (fallback playlist,
+        /// autoplay, or silence) took over.
+        case drained
+        /// Another playback transition or queue clear was in flight, so
+        /// nothing changed.
+        case busy
+        /// The next request couldn't start and was kept at the head of the
+        /// queue (Music closed, command failed, track not ready, cancelled).
+        case retained
+
+        /// The item that started, or `nil` for every non-`started` outcome.
+        var startedItem: SongRequestItem? {
+            if case .started(let item) = self { return item }
+            return nil
+        }
+    }
+
     // MARK: - Properties
 
     let queue: SongRequestQueue
@@ -50,8 +75,7 @@ final class SongRequestService {
 
     /// Who may request a song via the `!sr` chat command.
     var chatAudience: RequestAudience {
-        let raw = DefaultsStore.store.string(forKey: AppConstants.UserDefaults.songRequestChatAudience)
-        return RequestAudience(rawValue: raw ?? "") ?? .everyone
+        RequestAudience.current()
     }
 
     /// One-time migration of the legacy `songRequestSubscriberOnly` boolean to
@@ -779,20 +803,23 @@ final class SongRequestService {
     /// The current request is not discarded until its replacement has started
     /// and committed. A failed replacement leaves queue state intact.
     ///
-    /// - Returns: The newly-playing item, or nil when no replacement started.
-    func skip() async -> SongRequestItem? {
-        guard !Task.isCancelled else { return nil }
+    /// - Returns: What the skip did. Only ``SkipOutcome/drained`` means the
+    ///   queue is really empty; ``SkipOutcome/busy`` and
+    ///   ``SkipOutcome/retained`` mean nothing was skipped.
+    @discardableResult
+    func skip() async -> SkipOutcome {
+        guard !Task.isCancelled else { return .retained }
         // Take the playback-transition guard so the auto-advance poll can't
         // interleave a second dequeue across the native playback await.
-        guard !isNativeClearInFlight, !isStartingPlayback else { return nil }
+        guard !isNativeClearInFlight, !isStartingPlayback else { return .busy }
         isStartingPlayback = true
 
-        let result: SongRequestItem?
+        let result: SkipOutcome
         guard !queue.isEmpty else {
             isStartingPlayback = false
             await handleQueueEmptied()
             await reconcilePendingClearIfNeeded()
-            return nil
+            return .drained
         }
 
         let generation = playbackGeneration
@@ -800,9 +827,13 @@ final class SongRequestService {
             resetTakeoverTracking()
             resetRequestPlaybackTracking()
             Log.debug("SongRequestService: Skipped to \"\(next.title)\"", category: .songRequest)
-            result = next
+            result = .started(next)
         } else {
-            result = nil
+            // Read the queue synchronously, right after the attempt returns and
+            // before any further await. Unplayable items may have been dropped
+            // on the way, so an empty queue here is a genuine drain; a
+            // non-empty one means the head was kept for a retry.
+            result = queue.isEmpty ? .drained : .retained
         }
         isStartingPlayback = false
         await reconcilePendingClearIfNeeded()
@@ -1022,7 +1053,7 @@ final class SongRequestService {
         )
         // Skip after announcing. Skipping first would start the replacement and
         // its own "Now playing" line, putting the two messages out of order.
-        _ = await skip()
+        await skip()
         return current
     }
 

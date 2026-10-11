@@ -6,7 +6,6 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-import AppKit
 import Foundation
 import ServiceManagement
 

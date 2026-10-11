@@ -13,6 +13,7 @@ jobs:
     # A fork has no reason to open this PR against itself every January.
     if: github.repository == 'MrDemonWolf/wolfwave'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

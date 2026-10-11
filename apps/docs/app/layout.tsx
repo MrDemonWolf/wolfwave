@@ -1,7 +1,7 @@
 import { Instrument_Sans } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
-import { siteUrl, basePath, absoluteUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
+import { siteUrl, basePath, absoluteUrl, pageUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
 import { USER_THEMES, WIDGET_LAYOUTS } from "@/app/(home)/_widgets/widget-themes.generated";
 import "./global.css";
 
@@ -50,13 +50,12 @@ export const metadata: Metadata = {
     ],
     apple: `${basePath}/apple-icon.png`,
   },
-  alternates: {
-    canonical: siteUrl,
-  },
+  // No root `alternates.canonical` or `openGraph.url`: every child route would
+  // inherit them and point its canonical at the homepage. Each page sets its
+  // own (home + download in app/(home), docs in app/docs/[[...slug]]).
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: siteUrl,
     siteName: "WolfWave",
     title: homepageSeo.title,
     description: homepageSeo.socialDescription,
@@ -105,20 +104,20 @@ function buildJsonLd(softwareVersion: string | null) {
       name: "MrDemonWolf, Inc.",
       url: orgUrl,
     },
-    url: siteUrl,
+    url: pageUrl("/"),
     downloadUrl: `${repoUrl}/releases/latest`,
-    installUrl: `${siteUrl}/download/`,
+    installUrl: pageUrl("/download"),
     // Derived from the latest GitHub release at build time; omitted entirely
     // when the fetch fails so we never ship a stale hardcoded version.
     ...(softwareVersion ? { softwareVersion } : {}),
-    releaseNotes: `${siteUrl}/docs/changelog/`,
-    screenshot: `${siteUrl}/opengraph-image`,
+    releaseNotes: pageUrl("/docs/changelog"),
+    screenshot: absoluteUrl("/opengraph-image.png"),
     featureList: [
       "Apple Music now-playing to Twitch chat (!song, !last)",
       "Twitch song requests for Apple Music (!sr) with channel points and bits",
       "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
       `OBS browser-source overlay with ${USER_THEMES.length} themes and ${Object.keys(WIDGET_LAYOUTS).length} layouts`,
-      "Elgato Stream Deck plugin with live state on every key",
+      "Optional Elgato Stream Deck plugin with live state on every key (manual install for now)",
       "Vote-to-skip via chat or Twitch Polls",
       "macOS menu bar app",
     ],

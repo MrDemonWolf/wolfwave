@@ -183,6 +183,50 @@ struct CustomCommandNormalizationTests {
         let cmd = CustomCommand(trigger: "hug", aliases: "embrace, !squeeze , ")
         #expect(cmd.allTriggerTokens == ["!hug", "!embrace", "!squeeze"])
     }
+
+    // Chat matches only the first whitespace-delimited token, so a trigger or
+    // alias with a space could be saved but never fire.
+
+    @Test("import rejects a trigger containing a space")
+    func importRejectsSpacedTrigger() {
+        #expect(CustomCommand.normalizedForImport([CustomCommand(trigger: "!hug me")]) == nil)
+    }
+
+    @Test("import rejects an alias containing a space")
+    func importRejectsSpacedAlias() {
+        #expect(CustomCommand.normalizedForImport(
+            [CustomCommand(trigger: "hug", aliases: "hug me")]) == nil)
+    }
+
+    @Test("existing storage keeps the other commands when one trigger has a space")
+    func storageKeepsOthersAroundSpacedTrigger() throws {
+        let good = CustomCommand(trigger: "!wave", response: "hi")
+        let spaced = CustomCommand(trigger: "!hug me", response: "hug")
+        let result = try #require(CustomCommand.normalizedForExistingStorage([spaced, good]))
+
+        #expect(result.contains(good))
+        // The dead command is repaired, not lost: spaces removed, turned off.
+        let repaired = try #require(result.first { $0.id == spaced.id })
+        #expect(repaired.trigger == "!hugme")
+        #expect(!repaired.enabled)
+        #expect(repaired.response == "hug")
+    }
+
+    @Test("existing storage drops a repaired trigger that would take another's name")
+    func storageDropsCollidingRepair() throws {
+        let owner = CustomCommand(trigger: "!hugme", response: "mine")
+        let spaced = CustomCommand(trigger: "hug me", response: "dead")
+        let result = try #require(CustomCommand.normalizedForExistingStorage([spaced, owner]))
+        #expect(result == [owner])
+    }
+
+    @Test("existing storage drops an alias containing a space")
+    func storageDropsSpacedAlias() throws {
+        let command = CustomCommand(trigger: "hug", aliases: "big hug, squeeze")
+        let result = try #require(CustomCommand.normalizedForExistingStorage([command]))
+        #expect(result.first?.aliases == "squeeze")
+        #expect(result.first?.enabled == true)
+    }
 }
 
 // MARK: - Command execution
@@ -289,17 +333,101 @@ struct CustomCommandStoreTests {
         #expect(store.enabledCommands.map(\.normalizedTrigger) == ["!on"])
     }
 
-    @Test("commandConflicts detects primary and alias overlap")
+    @Test("validationIssue detects primary and alias overlap")
     func conflicts() {
         let (store, _) = makeStore()
-        let existing = CustomCommand(trigger: "hug", aliases: "embrace")
+        let existing = CustomCommand(trigger: "hug", response: "hi", aliases: "embrace")
         store.add(existing)
 
-        #expect(store.commandConflicts(CustomCommand(trigger: "hug")))
-        #expect(store.commandConflicts(CustomCommand(trigger: "wave", aliases: "embrace")))
-        #expect(store.commandConflicts(CustomCommand(trigger: "wave", aliases: "cheer, cheer")))
-        #expect(!store.commandConflicts(CustomCommand(trigger: "wave")))
-        #expect(!store.commandConflicts(existing))
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: "x"))
+            == .duplicate("!hug", owner: "!hug"))
+        #expect(store.validationIssue(for: CustomCommand(trigger: "wave", response: "x", aliases: "embrace"))
+            == .duplicate("!embrace", owner: "!hug"))
+        #expect(store.validationIssue(for: CustomCommand(trigger: "wave", response: "x", aliases: "cheer, cheer"))
+            == .badAlias("!cheer"))
+        #expect(store.validationIssue(for: CustomCommand(trigger: "wave", response: "x")) == nil)
+        #expect(store.validationIssue(for: existing) == nil)
+    }
+
+    @Test("a duplicate names the other command, not the clashing alias")
+    func validationReasonDuplicateNamesOther() {
+        let (store, _) = makeStore()
+        store.add(CustomCommand(trigger: "hug", response: "hi", aliases: "squeeze"))
+
+        let issue = store.validationIssue(
+            for: CustomCommand(trigger: "cuddle", response: "aw", aliases: "squeeze"))
+        #expect(issue == .duplicate("!squeeze", owner: "!hug"))
+        #expect(issue?.message == "!squeeze is already used by !hug.")
+        #expect(issue?.field(trigger: "!cuddle") == .aliases)
+    }
+
+    @Test("an empty or blank reply blocks save")
+    func emptyReplyBlocksSave() {
+        let (store, _) = makeStore()
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug")) == .emptyReply)
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: "  \n ")) == .emptyReply)
+        #expect(CustomCommandIssue.emptyReply.field(trigger: "!hug") == .reply)
+        #expect(CustomCommandIssue.emptyReply.isNeutralHint)
+    }
+
+    @Test("a reply over Twitch's limit blocks save")
+    func replyTooLongBlocksSave() {
+        let (store, _) = makeStore()
+        let limit = AppConstants.Twitch.maxMessageLength
+        let atLimit = String(repeating: "a", count: limit)
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: atLimit)) == nil)
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: atLimit + "a"))
+            == .replyTooLong(count: limit + 1))
+    }
+
+    @Test("reply length is measured in Unicode scalars, like the send-time truncation")
+    func replyLengthCountsScalars() {
+        let (store, _) = makeStore()
+        let limit = AppConstants.Twitch.maxMessageLength
+        // A flag is one Character but two scalars: 260 flags are 520 scalars,
+        // which Twitch would truncate, even though they are only 260 graphemes.
+        let flags = String(repeating: "\u{1F1FA}\u{1F1F8}", count: limit / 2 + 10)
+        #expect(flags.count < limit)
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: flags))
+            == .replyTooLong(count: flags.unicodeScalars.count))
+        // Anything that passes the gate is never truncated on send.
+        let fits = String(repeating: "\u{1F1FA}\u{1F1F8}", count: limit / 2)
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: fits)) == nil)
+        #expect(fits.truncatedForChat() == fits)
+    }
+
+    @Test("empty triggers, spaces, and empty aliases are each named")
+    func triggerAndAliasIssues() {
+        let (store, _) = makeStore()
+        #expect(store.validationIssue(for: CustomCommand(trigger: "!", response: "x")) == .emptyTrigger)
+        #expect(CustomCommandIssue.emptyTrigger.isNeutralHint)
+
+        let spacedTrigger = store.validationIssue(for: CustomCommand(trigger: "hug me", response: "x"))
+        #expect(spacedTrigger == .hasSpaces("!hug me"))
+        #expect(spacedTrigger?.field(trigger: "!hug me") == .trigger)
+        #expect(spacedTrigger?.message == "Triggers and aliases can't contain spaces.")
+
+        let spacedAlias = store.validationIssue(
+            for: CustomCommand(trigger: "hug", response: "x", aliases: "big hug"))
+        #expect(spacedAlias == .hasSpaces("!big hug"))
+        #expect(spacedAlias?.field(trigger: "!hug") == .aliases)
+
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: "x", aliases: "a,,b"))
+            == .badAlias(""))
+        #expect(store.validationIssue(for: CustomCommand(trigger: "hug", response: "x", aliases: "hug"))
+            == .badAlias("!hug"))
+    }
+
+    @Test("add and update report whether they stored the command")
+    func mutationsReportOutcome() {
+        let (store, _) = makeStore()
+        let hug = CustomCommand(trigger: "hug", response: "hi")
+        #expect(store.add(hug))
+        #expect(!store.add(CustomCommand(trigger: "hug", response: "again")))
+        #expect(!store.update(CustomCommand(trigger: "ghost", response: "x")))
+        var edited = hug
+        edited.response = "hello"
+        #expect(store.update(edited))
     }
 
     @Test("direct mutations reject invalid or overlapping command definitions")

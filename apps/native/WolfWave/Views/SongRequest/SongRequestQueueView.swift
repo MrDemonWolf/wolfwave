@@ -37,6 +37,11 @@ struct SongRequestQueueView: View {
     @State private var isMusicAppClosed = false
     @State private var isHeld = false
 
+    /// Nothing playing, queued, or waiting for approval.
+    private var isQueueEmpty: Bool {
+        items.isEmpty && nowPlaying == nil && pending.isEmpty
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -45,34 +50,34 @@ struct SongRequestQueueView: View {
             HStack {
                 Text("Song Request Queue")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
+                    .accessibilityAddTraits(.isHeader)
 
                 Spacer()
 
                 if isHeld {
-                    Label("Hold. Curate, then tap Resume", systemImage: "pause.circle.fill")
-                        .font(.system(size: DSFont.Size.xs, weight: .medium))
-                        .foregroundStyle(DSColor.warning)
-                        .padding(.horizontal, DSSpace.s2)
-                        .padding(.vertical, DSSpace.s1)
-                        .background(DSColor.warning.opacity(0.12))
-                        .clipShape(Capsule())
+                    StatusChip(
+                        text: "On hold",
+                        color: DSColor.warning,
+                        systemImage: StatusChip.StateGlyph.paused
+                    )
                 } else if isMusicAppClosed {
-                    Label("Music is closed, requests are saved", systemImage: "pause.circle.fill")
-                        .font(.system(size: DSFont.Size.xs, weight: .medium))
-                        .foregroundStyle(DSColor.warning)
-                        .padding(.horizontal, DSSpace.s2)
-                        .padding(.vertical, DSSpace.s1)
-                        .background(DSColor.warning.opacity(0.12))
-                        .clipShape(Capsule())
+                    StatusChip(
+                        text: "Music closed",
+                        color: DSColor.warning,
+                        systemImage: StatusChip.StateGlyph.paused
+                    )
                 } else if !items.isEmpty {
-                    Text("\(items.count) in queue")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, DSSpace.s2)
-                        .padding(.vertical, DSSpace.s1)
-                        .background(.quaternary)
-                        .clipShape(Capsule())
+                    StatusChip(text: "\(items.count) in queue", color: DSColor.neutral)
                 }
+            }
+
+            // Why nothing plays. Shown under the header so the chip's short
+            // label always has a plain-language reason next to it. An empty
+            // queue explains the hold in its own empty state instead.
+            if isHeld {
+                if !isQueueEmpty { heldNote }
+            } else if isMusicAppClosed {
+                statusNote("Music is closed. Requests are saved and play when it opens.")
             }
 
             // Pending approval (only populated when approval mode is on)
@@ -86,7 +91,7 @@ struct SongRequestQueueView: View {
             }
 
             // Queue
-            if items.isEmpty && nowPlaying == nil && pending.isEmpty {
+            if isQueueEmpty {
                 emptyState
             } else if items.isEmpty && nowPlaying != nil {
                 Text("Queue is empty, this is the last requested song.")
@@ -98,8 +103,9 @@ struct SongRequestQueueView: View {
                 queueList
             }
 
-            // Actions
-            if nowPlaying != nil || !items.isEmpty || !pending.isEmpty {
+            // Actions. Held always shows them, so Resume stays reachable even
+            // with an empty queue.
+            if nowPlaying != nil || !items.isEmpty || !pending.isEmpty || isHeld {
                 actionButtons
             }
         }
@@ -140,9 +146,11 @@ struct SongRequestQueueView: View {
                     Image(systemName: "waveform")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(DSColor.success)
+                    // Primary, not the success tint: green text on the green
+                    // wash is too faint to read. The glyph carries the accent.
                     Text("Now Playing")
                         .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                        .foregroundStyle(DSColor.success)
+                        .foregroundStyle(.primary)
                 }
                 Text(item.title)
                     .font(.system(size: DSFont.Size.body, weight: .medium))
@@ -207,21 +215,16 @@ struct SongRequestQueueView: View {
                     }
                     .accessibilityLabel("Approve \(item.title)")
 
-                    Button {
-                        service?.reject(id: item.id)
-                        refreshState()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: DSFont.Size.body))
-                            .foregroundStyle(.secondary)
-                            .frame(
-                                minWidth: DSDimension.IconButton.minWidth,
-                                minHeight: DSDimension.IconButton.minHeight
-                            )
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Decline \(item.title)")
+                    DSIconButton(
+                        systemImage: "xmark",
+                        action: {
+                            service?.reject(id: item.id)
+                            refreshState()
+                        },
+                        accessibilityLabel: "Decline \(item.title)",
+                        accessibilityIdentifier: "songRequestQueue.decline"
+                    )
+                    .help("Decline request")
                 }
                 .padding(.vertical, DSSpace.s1)
                 .padding(.horizontal, DSSpace.s2)
@@ -262,25 +265,13 @@ struct SongRequestQueueView: View {
                         "Number \(index + 1): \(item.title), \(item.artist), requested by \(item.requesterUsername)"
                     )
 
-                    Button {
-                        queue?.remove(id: item.id)
-                        let remainingSongs = queue?.items.map(\.song) ?? []
-                        Task {
-                            try? await service?.musicController.rebuildPlayerQueue(from: remainingSongs)
-                        }
-                        refreshState()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: DSFont.Size.body))
-                            .foregroundStyle(.secondary)
-                            .frame(
-                                minWidth: DSDimension.IconButton.minWidth,
-                                minHeight: DSDimension.IconButton.minHeight
-                            )
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Remove \(item.title) from queue")
+                    DSIconButton(
+                        systemImage: "xmark",
+                        action: { remove(item) },
+                        accessibilityLabel: "Remove \(item.title) from queue",
+                        accessibilityIdentifier: "songRequestQueue.remove"
+                    )
+                    .help("Remove from queue")
                 }
                 .padding(.vertical, DSSpace.s1)
                 .padding(.horizontal, DSSpace.s2)
@@ -288,22 +279,45 @@ struct SongRequestQueueView: View {
         }
     }
 
+    // MARK: - Status Notes
+
+    /// Plain-language reason the queue is held, with the way out.
+    private var heldNote: some View {
+        statusNote("On hold. Requests still queue, but nothing plays until you tap Resume.")
+            .accessibilityIdentifier("songRequestQueue.heldNote")
+    }
+
+    /// One short secondary line explaining a paused state.
+    private func statusNote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: DSFont.Size.sm))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: DSSpace.s2) {
-            Image(systemName: "music.note.list")
+            Image(systemName: isHeld ? "pause.circle" : "music.note.list")
                 .font(.system(size: DSFont.Size.x2xl))
                 .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
             Text("No song requests yet")
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(.secondary)
-            Text("Viewers can request songs with `!sr` in Twitch chat")
+            // `LocalizedStringKey`, not `String`, so the `!sr` code span renders.
+            Text(isHeld
+                ? LocalizedStringKey("The queue is on hold. Tap Resume when you're ready.")
+                : LocalizedStringKey("Viewers can request songs with `!sr` in Twitch chat"))
                 .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, DSSpace.s7)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("songRequestQueue.empty")
     }
 
     // MARK: - Action Buttons
@@ -342,7 +356,7 @@ struct SongRequestQueueView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .disabled(items.isEmpty && nowPlaying == nil && pending.isEmpty)
+            .disabled(isQueueEmpty)
             .confirmationDialog(
                 "Clear all song requests?",
                 isPresented: $showingClearConfirm,
@@ -381,6 +395,18 @@ struct SongRequestQueueView: View {
                     .foregroundStyle(.tertiary)
             }
             .accessibilityHidden(true)
+    }
+
+    // MARK: - Actions
+
+    /// Removes one queued request and rebuilds Music's player queue to match.
+    private func remove(_ item: SongRequestItem) {
+        queue?.remove(id: item.id)
+        let remainingSongs = queue?.items.map(\.song) ?? []
+        Task {
+            try? await service?.musicController.rebuildPlayerQueue(from: remainingSongs)
+        }
+        refreshState()
     }
 
     // MARK: - Refresh

@@ -38,6 +38,7 @@ jobs:
   test:
     name: Run Tests
     runs-on: macos-26
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,6 +66,7 @@ jobs:
   build-and-release:
     needs: test
     runs-on: macos-26
+    timeout-minutes: 60
     # `release` environment requires Nathanial's manual approval before any
     # step runs and scopes signing/notarization secrets to this job only.
     # See repo Settings → Environments.

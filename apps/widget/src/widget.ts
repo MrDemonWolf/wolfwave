@@ -26,7 +26,7 @@
  *    • widget_config   { theme, layout, textColor, backgroundColor, fontFamily }
  *    • overlay_visibility { visible }
  *    • queue_upcoming  { items: [{ title, requesterUsername }] }         // max 3, opt-in ticker (`?queueTicker=1`)
- *    • welcome         {}                                                // handshake ack
+ *    • welcome         { server, version }  (top-level, no `data`)       // handshake ack
  *
  *  We do NOT push back. This is a one-way feed.
  *
@@ -88,7 +88,22 @@ declare global {
  */
 
 const params = new URLSearchParams(location.search);
-const wsPort = params.get("port") || params.get("wsPort") || "8765";
+const DEFAULT_WS_PORT = "8765";
+
+/**
+ * Resolve the WebSocket port from the URL. Only 1-65535 written as plain
+ * digits is accepted; anything else (`abc`, `80/evil`, `0`, `99999`, `-1`)
+ * falls back to the default instead of being spliced into the socket URL.
+ */
+function resolveWsPort(raw: string | null): string {
+  if (raw && /^\d{1,5}$/.test(raw)) {
+    const n = Number(raw);
+    if (n >= 1 && n <= 65535) return String(n);
+  }
+  return DEFAULT_WS_PORT;
+}
+
+const wsPort = resolveWsPort(params.get("port") || params.get("wsPort"));
 const requestedAutohide = Number(params.get("duration") || "0");
 const autohide =
   Number.isFinite(requestedAutohide) && requestedAutohide > 0
@@ -114,7 +129,10 @@ const wsToken =
   (injectedToken.indexOf("__") === 0 ? "" : injectedToken);
 
 const RECONNECT_BASE_MS = 1000;          // first reconnect at 1s
-const RECONNECT_MAX_MS = 15_000;         // ceiling so we don't back off forever
+const RECONNECT_MAX_MS = 10_000;         // ceiling so we don't back off forever
+const RECONNECT_JITTER_MIN = 0.75;       // delay is scaled by 0.75-1.25 so a
+const RECONNECT_JITTER_MAX = 1.25;       // restart doesn't reconnect every source in lockstep
+const MAX_MESSAGE_CHARS = 64 * 1024;     // real frames are well under 2 KB
 const ENTER_DURATION_MS = 600;
 const EXIT_DURATION_MS = 500;
 const SWAP_HALF_MS = 140;                // 1/2 of total 280ms swap budget
@@ -293,6 +311,26 @@ function formatTime(secs: number): string {
   const m = Math.floor(safe / 60);
   const s = safe % 60;
   return m + ":" + String(s).padStart(2, "0");
+}
+
+/**
+ * Validate an artwork URL from the feed. Only an absolute `https:` URL with no
+ * embedded credentials passes; everything else (`javascript:`, `data:`,
+ * `http:`, relative, malformed) returns null and the card shows the WolfWave
+ * fallback mark. Returns the parsed `href`, which the URL parser has already
+ * percent-encoded for quotes and whitespace; callers still run it through
+ * `escapeHtml` before placing it in markup.
+ */
+function safeArtworkURL(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 2048) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return null;
+    if (url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -733,6 +771,8 @@ function buildWidget(): void {
     ? Math.max(0, Math.min(rawProgress, 100))
     : 0;
   const remaining = duration > 0 ? Math.max(duration - elapsed, 0) : 0;
+  // Validated once per build; null means "show the WolfWave fallback mark".
+  const artworkHref = safeArtworkURL(nowPlaying.artworkURL);
   // Paused affordance: track stays on stream but artwork dims and a pause
   // glyph overlays the album art. CSS keys off the `.is-paused` root class.
   const isPaused = nowPlaying.isPlaying === false;
@@ -773,10 +813,7 @@ function buildWidget(): void {
    * with assets/logo.svg; WolfMark.svg is its native template derivative.
    */
   function artImg(w: number, h: number, radius: string): string {
-    let artURL = nowPlaying!.artworkURL || null;
-    if (artURL && !artURL.startsWith("http://") && !artURL.startsWith("https://")) {
-      artURL = null;
-    }
+    const artURL = artworkHref;
     const wrapOpen = '<div class="artwork-wrap" style="position:relative;display:inline-block;width:' + w + "px;height:" + h + 'px;">';
     const wrapClose = pauseOverlay(w, radius) + "</div>";
     if (!artURL) {
@@ -792,9 +829,9 @@ function buildWidget(): void {
         wrapClose
       );
     }
-    // Encode the URL once. Music.app artwork is iTunes CDN, but a malicious
-    // mock server could theoretically send a quote in the URL - encode it.
-    const safeURL = encodeURI(artURL).replace(/'/g, "%27").replace(/"/g, "%22");
+    // `artURL` is the parsed `href` of a validated https URL; escape it for the
+    // quoted attribute context.
+    const safeURL = escapeHtml(artURL);
     const altText = escapeHtml(nowPlaying!.album || nowPlaying!.track || "Album artwork");
     return (
       wrapOpen +
@@ -824,15 +861,9 @@ function buildWidget(): void {
     '<span class="remaining-time" style="color:' + theme.textMuted + ";font-family:" + theme.fontFamily + ";font-size:" + timeSize + ';">-' + formatTime(remaining) + "</span>" +
     "</div>";
 
-  const validArtworkURL =
-    !!nowPlaying.artworkURL &&
-    (nowPlaying.artworkURL.startsWith("http://") || nowPlaying.artworkURL.startsWith("https://"));
-  const safeBlurURL = validArtworkURL
-    ? encodeURI(nowPlaying.artworkURL!).replace(/'/g, "%27").replace(/"/g, "%22").replace(/\)/g, "%29")
-    : "";
   const blurLayer =
-    theme.showArtworkBlur && validArtworkURL
-      ? '<div class="blur-layer" style="background-image:url(' + safeBlurURL + ');"></div>'
+    theme.showArtworkBlur && artworkHref
+      ? '<div class="blur-layer" style="background-image:' + escapeHtml('url("' + artworkHref + '")') + ';"></div>'
       : "";
   const overlayLayer =
     theme.overlayBg && theme.overlayBg !== "transparent"
@@ -1014,11 +1045,36 @@ function buildQueueTicker(): void {
  * ║  WEBSOCKET                                                             ║
  * ╚════════════════════════════════════════════════════════════════════════╝
  *
- *  Reconnect: exponential backoff capped at RECONNECT_MAX_MS.
- *      delay = min(BASE * 2^(n-1), MAX)
+ *  Reconnect: exponential backoff capped at RECONNECT_MAX_MS, with jitter.
+ *      delay = min(BASE * 2^(n-1), MAX) * random(0.75 .. 1.25)
  *  Prevents a hammered server from getting hit harder when something is
- *  already wrong (matches the cadence the native app reconnects to Twitch).
+ *  already wrong, and keeps several browser sources from reconnecting in
+ *  lockstep after an app restart.
  */
+
+/** Backoff for attempt `attempt` (1-based), jittered and capped at the ceiling. */
+function reconnectDelay(attempt: number): number {
+  const base = Math.min(
+    RECONNECT_BASE_MS * Math.pow(2, Math.max(attempt, 1) - 1),
+    RECONNECT_MAX_MS,
+  );
+  const jitter =
+    RECONNECT_JITTER_MIN +
+    Math.random() * (RECONNECT_JITTER_MAX - RECONNECT_JITTER_MIN);
+  return Math.min(Math.round(base * jitter), RECONNECT_MAX_MS);
+}
+
+function scheduleReconnect(): void {
+  reconnectAttempts++;
+  const delay = reconnectDelay(reconnectAttempts);
+  console.log("[WolfWave Widget] Disconnected - reconnect in " + delay + "ms (attempt " + reconnectAttempts + ")");
+  if (isPageInactive()) return;
+  clearReconnectTimer();
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delay);
+}
 
 function clearReconnectTimer(): void {
   if (reconnectTimer !== null) {
@@ -1112,7 +1168,16 @@ function connect(): void {
   const wsURL = "ws://" + wsHost + ":" + wsPort;
   console.log("[WolfWave Widget] Connecting to " + wsURL);
   const protocols = wsToken ? ["wolfwave.overlay." + wsToken] : [];
-  const socket = new WebSocket(wsURL, protocols);
+  let socket: WebSocket;
+  try {
+    socket = new WebSocket(wsURL, protocols);
+  } catch (e) {
+    // A constructor throw (bad URL, blocked scheme) never fires `onclose`, so
+    // without this the widget would stay dead until the page reloads.
+    console.warn("[WolfWave Widget] Could not open WebSocket:", e);
+    scheduleReconnect();
+    return;
+  }
   ws = socket;
 
   socket.onopen = () => {
@@ -1124,7 +1189,8 @@ function connect(): void {
   socket.onmessage = (event) => {
     if (ws !== socket) return;
     try {
-      handleMessage(JSON.parse(event.data) as WSMessage);
+      const msg = parseMessage(event.data);
+      if (msg) handleMessage(msg);
     } catch (e) {
       console.warn("[WolfWave Widget] Failed to parse message:", e);
     }
@@ -1139,19 +1205,7 @@ function connect(): void {
     autohideExpired = false;
     hasReceivedTrack = false;
     exitWidget(wasAwaitingState);
-
-    reconnectAttempts++;
-    const delay = Math.min(
-      RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts - 1),
-      RECONNECT_MAX_MS,
-    );
-    console.log("[WolfWave Widget] Disconnected - reconnect in " + delay + "ms (attempt " + reconnectAttempts + ")");
-    if (isPageInactive()) return;
-    clearReconnectTimer();
-    reconnectTimer = window.setTimeout(() => {
-      reconnectTimer = null;
-      connect();
-    }, delay);
+    scheduleReconnect();
   };
 
   socket.onerror = (e) => {
@@ -1165,8 +1219,116 @@ function connect(): void {
  *
  *  One case per server message type. Schemas locked by Swift tests - adding
  *  fields server-side is safe; renaming fields requires a server-coordinated
- *  change. See `WebSocketServerService.swift` lines 522–563.
+ *  change. See the `now_playing` / `playback_state` / `progress` payload
+ *  builders in `WebSocketServerService.swift`.
+ *
+ *  Incoming frames are untrusted input: `parseMessage` drops oversized,
+ *  non-JSON, and wrongly-shaped frames before any handler sees them.
  */
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+const isFiniteNumber = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v);
+const isOptString = (v: unknown): boolean => v === undefined || typeof v === "string";
+
+/**
+ * Decode and shape-check one feed frame. Returns null (and the caller ignores
+ * it) for anything that is not a known message type with the fields the
+ * handlers dereference. Unknown `type`s are dropped, so adding a server-side
+ * message never throws here.
+ */
+function parseMessage(raw: unknown): WSMessage | null {
+  if (typeof raw !== "string" || raw.length > MAX_MESSAGE_CHARS) return null;
+  let msg: unknown;
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!isRecord(msg) || typeof msg.type !== "string") return null;
+  const data = msg.data;
+  switch (msg.type) {
+    case "now_playing":
+      if (
+        !isRecord(data) ||
+        typeof data.track !== "string" ||
+        typeof data.artist !== "string" ||
+        !isOptString(data.album) ||
+        !isFiniteNumber(data.duration) ||
+        !isFiniteNumber(data.elapsed) ||
+        typeof data.isPlaying !== "boolean" ||
+        !(data.artworkURL === undefined || data.artworkURL === null || typeof data.artworkURL === "string")
+      ) return null;
+      return {
+        type: "now_playing",
+        data: {
+          track: data.track,
+          artist: data.artist,
+          album: typeof data.album === "string" ? data.album : "",
+          duration: data.duration,
+          elapsed: data.elapsed,
+          isPlaying: data.isPlaying,
+          artworkURL: (data.artworkURL as string | null | undefined) ?? null,
+        },
+      };
+    case "progress":
+      if (
+        !isRecord(data) ||
+        !isFiniteNumber(data.elapsed) ||
+        !isFiniteNumber(data.duration) ||
+        typeof data.isPlaying !== "boolean"
+      ) return null;
+      return { type: "progress", data: { elapsed: data.elapsed, duration: data.duration, isPlaying: data.isPlaying } };
+    case "playback_state":
+      if (
+        !isRecord(data) ||
+        typeof data.isPlaying !== "boolean" ||
+        !isOptString(data.track) ||
+        !isOptString(data.artist) ||
+        !isOptString(data.album)
+      ) return null;
+      return {
+        type: "playback_state",
+        data: {
+          isPlaying: data.isPlaying,
+          track: data.track as string | undefined,
+          artist: data.artist as string | undefined,
+          album: data.album as string | undefined,
+        },
+      };
+    case "widget_config":
+      if (!isRecord(data)) return null;
+      {
+        // Keep only string-valued known fields; the resolvers call string
+        // methods on them.
+        const cfg: Partial<WidgetConfig> = {};
+        for (const key of ["theme", "layout", "textColor", "backgroundColor", "fontFamily"] as const) {
+          if (typeof data[key] === "string") cfg[key] = data[key] as string;
+        }
+        return { type: "widget_config", data: cfg };
+      }
+    case "overlay_visibility":
+      if (!isRecord(data) || typeof data.visible !== "boolean") return null;
+      return { type: "overlay_visibility", data: { visible: data.visible } };
+    case "queue_upcoming": {
+      if (!isRecord(data) || !Array.isArray(data.items)) return null;
+      const items: Array<{ title: string; requesterUsername: string }> = [];
+      for (const item of data.items.slice(0, 3)) {
+        if (!isRecord(item) || typeof item.title !== "string") return null;
+        items.push({
+          title: item.title,
+          requesterUsername: typeof item.requesterUsername === "string" ? item.requesterUsername : "",
+        });
+      }
+      return { type: "queue_upcoming", data: { items } };
+    }
+    case "welcome":
+      return { type: "welcome" };
+    default:
+      return null;
+  }
+}
 
 function isSameTrack(a: NowPlaying | null, b: { track?: string; artist?: string }): boolean {
   if (!a) return false;

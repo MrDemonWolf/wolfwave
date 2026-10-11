@@ -22,6 +22,7 @@ struct OnboardingDiscordStepView: View {
         OnboardingStepScaffold(
             title: "Light up your Discord status",
             description: "Friends see your song, artist, and album art right under your name.",
+            isOptional: true,
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.discord),

@@ -12,6 +12,11 @@ import { SAMPLE_TRACKS, type SampleTrack } from "./sample-tracks";
  * Demo cadence: linger ~10s per track, advance the progress bar at a slow,
  * believable creep, and seed each track a little way in (never 0:00).
  * Honors prefers-reduced-motion (freezes on the seeded first track).
+ *
+ * Timers only run while someone can see them: the tab must be visible
+ * (visibilitychange) and at least one widget root must be on screen
+ * (IntersectionObserver, registered through `useDemoVisibilityRef`). Scrolled
+ * down to the FAQ or in a background tab, the demo costs nothing.
  */
 const DWELL_MS = 10000;
 const TICK_MS = 200;
@@ -34,9 +39,14 @@ let motionMedia: MediaQueryList | null = null;
 // Number of widgets currently hovered/focused. While > 0 the whole demo freezes
 // so a visitor can read a track without it advancing (WCAG 2.2.2 pause).
 let pauseCount = 0;
+// False while the tab is hidden (document.visibilityState).
+let pageVisible = true;
+// Widget roots currently intersecting the viewport.
+const visibleRoots = new Set<Element>();
+let observer: IntersectionObserver | null = null;
 
 function shouldRun(): boolean {
-  return motion && pauseCount === 0;
+  return motion && pauseCount === 0 && pageVisible && visibleRoots.size > 0;
 }
 
 const listeners = new Set<() => void>();
@@ -51,6 +61,12 @@ export interface CyclingTrackState {
   motionEnabled: boolean;
   /** True while a widget is hovered/focused, so the demo is frozen to read. */
   paused: boolean;
+  /**
+   * True while the shared timers are live: motion allowed, not paused, tab
+   * visible, and at least one widget on screen. Per-widget timers (the Twitch
+   * chat script) gate on this so they stop with everything else.
+   */
+  running: boolean;
 }
 
 function build(): CyclingTrackState {
@@ -63,6 +79,7 @@ function build(): CyclingTrackState {
     progress: Math.min(1, elapsed / track.durationSec),
     motionEnabled: motion,
     paused: pauseCount > 0,
+    running: shouldRun(),
   };
 }
 
@@ -107,6 +124,12 @@ function handleMotionChange() {
   emit();
 }
 
+function handleVisibilityChange() {
+  pageVisible = document.visibilityState !== "hidden";
+  applyTimers();
+  emit();
+}
+
 function start() {
   if (started) return;
   started = true;
@@ -114,6 +137,8 @@ function start() {
     motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
     motion = !motionMedia.matches;
     motionMedia.addEventListener("change", handleMotionChange);
+    pageVisible = document.visibilityState !== "hidden";
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   }
   applyTimers();
   emit();
@@ -128,6 +153,9 @@ function stop() {
   if (motionMedia) {
     motionMedia.removeEventListener("change", handleMotionChange);
     motionMedia = null;
+  }
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
   }
 }
 
@@ -147,6 +175,55 @@ function getSnapshot(): CyclingTrackState {
 /** Shared now-playing state. Every consumer renders the same track. */
 export function useCyclingTrack(): CyclingTrackState {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function getObserver(): IntersectionObserver | null {
+  if (observer) return observer;
+  if (typeof IntersectionObserver === "undefined") return null;
+  observer = new IntersectionObserver((entries) => {
+    const before = shouldRun();
+    for (const entry of entries) {
+      if (entry.isIntersecting) visibleRoots.add(entry.target);
+      else visibleRoots.delete(entry.target);
+    }
+    if (shouldRun() !== before) {
+      applyTimers();
+      emit();
+    }
+  });
+  return observer;
+}
+
+function observeRoot(el: Element) {
+  const io = getObserver();
+  if (io) {
+    io.observe(el);
+  } else {
+    // No IntersectionObserver (very old browser): treat the widget as visible
+    // so the demo still plays instead of sitting frozen forever.
+    visibleRoots.add(el);
+    applyTimers();
+    emit();
+  }
+}
+
+function unobserveRoot(el: Element) {
+  observer?.unobserve(el);
+  if (visibleRoots.delete(el)) {
+    applyTimers();
+    emit();
+  }
+}
+
+/**
+ * Ref callback for a widget's root element. Registers it with the shared
+ * IntersectionObserver so the demo only animates while a widget is on screen:
+ * `<div ref={demoVisibilityRef}>`. Uses React 19 ref-callback cleanup.
+ */
+export function demoVisibilityRef(el: HTMLElement | null): (() => void) | void {
+  if (!el) return;
+  observeRoot(el);
+  return () => unobserveRoot(el);
 }
 
 function pause() {

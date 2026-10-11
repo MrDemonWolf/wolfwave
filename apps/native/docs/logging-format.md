@@ -106,7 +106,8 @@ Log.error(
 
 They render as a ` key=value` tail in declaration order. A value is
 double-quoted when it is empty or contains whitespace, `=`, or `"`; backslash,
-quote, and newline are escaped inside the quotes.
+quote, newline, and carriage return are escaped inside the quotes. A carriage
+return (bare or CRLF) inside a message becomes a continuation line.
 
 Keys match `[A-Za-z_][A-Za-z0-9_.]*`. The parser walks tokens from the end of
 the line and takes the longest suffix that all parse as fields. A message that

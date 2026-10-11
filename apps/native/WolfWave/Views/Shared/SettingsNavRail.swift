@@ -29,13 +29,21 @@ protocol SettingsRailSection: Hashable, RawRepresentable where RawValue == Strin
 /// One labelled cluster of rail rows. Flat rails pass a single group with a
 /// `nil` title; grouped rails (e.g. the Debug tab) pass several titled groups,
 /// each introduced by a `.sectionEyebrow()` header in the rail.
-struct SettingsRailGroup<Section: SettingsRailSection> {
+struct SettingsRailGroup<Section: SettingsRailSection>: Identifiable {
     let title: String?
     let sections: [Section]
 
     init(title: String? = nil, sections: [Section]) {
         self.title = title
         self.sections = sections
+    }
+
+    /// Stable identity for `ForEach`: the title plus the first section's raw
+    /// value. A section lives in exactly one group, so the first section keeps
+    /// two untitled groups apart, and the id survives reordering the groups
+    /// (an array offset would not).
+    var id: String { // swiftlint:disable:this identifier_name
+        "\(title ?? "")|\(sections.first?.rawValue ?? "")"
     }
 }
 
@@ -99,6 +107,9 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
     let accessibilityIDPrefix: String
     @ViewBuilder let content: () -> Content
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ScrollViewReader { proxy in
             HStack(alignment: .top, spacing: 0) {
@@ -142,7 +153,7 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
     private func navRail(proxy: ScrollViewProxy) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
-                ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+                ForEach(groups) { group in
                     if let title = group.title {
                         Text(title)
                             .sectionEyebrow()
@@ -159,7 +170,7 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
             .padding(.vertical, DSSpace.s4)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 184)
+        .frame(width: DSDimension.Settings.navRailWidth)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
@@ -167,7 +178,7 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
         let isSelected = selection == section
         return Button {
             selection = section
-            withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 proxy.scrollTo(section, anchor: .top)
             }
         } label: {
@@ -181,16 +192,20 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
             }
             .padding(.vertical, DSSpace.s1)
             .padding(.horizontal, DSSpace.s2)
-            .foregroundStyle(isSelected ? DSColor.info : .primary)
+            // The glyph token keeps the selected label above 4:1 on its wash in
+            // light appearance, where raw `DSColor.info` lands under 3:1.
+            .foregroundStyle(isSelected ? DSColor.glyph(for: DSColor.info, in: colorScheme) : .primary)
             .background(
                 RoundedRectangle(cornerRadius: DSRadius.sm)
-                    .fill(isSelected ? DSColor.info.opacity(0.14) : .clear)
+                    .fill(isSelected ? DSColor.info.opacity(DSOpacity.washStrong) : .clear)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .pointerCursor()
         .help("Jump to \(section.title)")
+        // Selection was only color and weight; VoiceOver now hears "selected".
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("\(accessibilityIDPrefix).\(section.rawValue)")
     }
 

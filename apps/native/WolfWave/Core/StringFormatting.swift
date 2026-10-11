@@ -35,16 +35,32 @@ nonisolated extension String {
     /// (`AppConstants.Twitch.messageTruncationSuffix`) when shortened.
     ///
     /// Shared by the bot command replies (`TrackInfoCommand`, `InfoCommand`,
-    /// `SongListCommand`) and `TwitchChatService`'s outbound send path.
+    /// `SongListCommand`, custom commands) and `TwitchChatService`'s outbound
+    /// send path.
     ///
-    /// - Returns: A version of `self` whose Swift `Character` count does not
-    ///   exceed `AppConstants.Twitch.maxMessageLength`. Note: this counts
-    ///   Unicode extended grapheme clusters, not UTF-8 bytes.
+    /// Twitch measures the limit in Unicode code points, not in what Swift
+    /// calls a `Character`. A family emoji or a flag is one `Character` but
+    /// several scalars, so a grapheme count let an emoji-heavy reply through
+    /// that Twitch then rejected. The cut is still made on a `Character`
+    /// boundary, so an emoji is never split into a broken half.
+    ///
+    /// - Returns: `self` when it fits, otherwise a prefix of whole `Character`s
+    ///   plus the suffix whose `unicodeScalars` count does not exceed
+    ///   `AppConstants.Twitch.maxMessageLength`.
     func truncatedForChat() -> String {
         let maxLen = AppConstants.Twitch.maxMessageLength
+        guard unicodeScalars.count > maxLen else { return self }
         let suffix = AppConstants.Twitch.messageTruncationSuffix
-        guard count > maxLen else { return self }
-        let prefixLen = max(maxLen - suffix.count, 0)
-        return String(prefix(prefixLen)) + suffix
+        let budget = max(maxLen - suffix.unicodeScalars.count, 0)
+
+        var used = 0
+        var end = startIndex
+        for character in self {
+            let cost = character.unicodeScalars.count
+            guard used + cost <= budget else { break }
+            used += cost
+            end = index(after: end)
+        }
+        return String(self[..<end]) + suffix
     }
 }

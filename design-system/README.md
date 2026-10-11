@@ -34,6 +34,7 @@ design-system/
 | `color.brand.{50…900}` | Primary brand scale (Apple blue) | `brand500 = #0A84FF` |
 | `color.brandDark` | Brand overrides for dark mode | `brand600 = #409CFF` |
 | `color.semantic` | Status colors | `success`, `warning`, `error`, `info`, `neutral` |
+| `color.glyph.light` | Darker light-appearance variants of the status colors, for a dot or glyph that must hold 3:1 on its own wash. Dark appearance reuses `color.semantic` | `success`, `warning`, `error`, `info`, `neutral` |
 | `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
 | `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
 | `color.partner` | Third-party brand colors | `twitch`, `discord`, `appleMusic*`, `obs*` |
@@ -44,9 +45,11 @@ design-system/
 | `radius` | Corner radii | `xs=4 … 2xl=16`, `pill=9999` |
 | `motion.duration` | Animation durations (ms) | `fast=150`, `base=220`, `slow=320` |
 | `motion.easing` | Cubic-beziers | `standard`, `emphasized` |
+| `opacity` | Fill opacities for tinted washes (status chips, callouts, selected rows) | `wash=0.10`, `washStrong=0.14` |
 | `shadow` | Drop shadows incl. brand glow | `xs … lg`, `glow` |
 | `dimension.settings` | Settings window sizing | `minWidth`, `cardPadding`, `cardCornerRadius`, … |
 | `dimension.onboarding` | Onboarding window sizing | `windowWidth`, `brandTileSize`, … |
+| `dimension.statusChip` | `StatusChip` geometry | `dot=6`, `minWidth=88` |
 
 ## Change process
 

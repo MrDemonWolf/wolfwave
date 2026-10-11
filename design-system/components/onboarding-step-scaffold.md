@@ -20,6 +20,7 @@ state is the one that does) pushes the **bottom** spacer down and never shifts t
 OnboardingStepScaffold(
     title: String,
     description: String,
+    isOptional: Bool = false,
     icon: () -> Icon,       // @ViewBuilder
     extras: () -> Extras    // @ViewBuilder
 )
@@ -29,6 +30,7 @@ OnboardingStepScaffold(
 |---|---|---|
 | `title` | `String` | H1 for the step. Rendered at 22pt bold, centered, multiline. |
 | `description` | `String` | One-line pitch under the title. 13pt secondary, capped at 440pt wide. |
+| `isOptional` | `Bool` | Shows an "Optional" eyebrow (`.sectionEyebrow()`) above the title. The line is always laid out and hidden from VoiceOver when `false`, so the icon and title sit at the same Y on every step. Discord, Twitch, OBS, Preferences and Notifications set it. |
 | `icon` | `@ViewBuilder () -> Icon` | Usually a [`BrandTile`](brand-tile.md). Any view works. |
 | `extras` | `@ViewBuilder () -> Extras` | Step-specific controls (buttons, toggle cards, status). Pass `EmptyView()` when the step has none; the floor still reserves the space. |
 
@@ -41,6 +43,7 @@ layout stays statically typed.
 - `DSSpace.s4` (12) icon-to-text spacing
 - `DSSpace.s1` (4) title-to-description spacing
 - `DSSpace.s8` (24) horizontal padding on both the header and extras blocks
+- `.sectionEyebrow()` (11 semibold secondary) for the "Optional" eyebrow
 - `DSFont.Size.x2xl` (22) `.bold` title
 - `DSFont.Size.base` (13) description, `.secondary`
 - `DSDimension.Onboarding.stepContentMinHeight` extras floor
@@ -59,6 +62,7 @@ graph TD
   R --> S2[Spacer minLength 0]
   H --> I["icon()"]
   H --> T[VStack spacing s1]
+  T --> TO["Text Optional · eyebrow · hidden unless isOptional"]
   T --> TT["Text(title) · 22 bold · centered"]
   T --> TD["Text(description) · 13 secondary · maxWidth 440"]
 ```
@@ -71,7 +75,8 @@ graph TD
   `.paneTitle()`, so it carries **no** `.isHeader` trait. If a step needs VoiceOver header
   semantics, add them at the call site.
 - `Spacer(minLength: 0)` lets the column collapse rather than clip when the window is short.
-- Order in the accessibility tree follows visual order: icon, title, description, extras.
+- The "Optional" eyebrow is `accessibilityHidden` when the step is required, so VoiceOver never reads an empty or stale label.
+- Order in the accessibility tree follows visual order: icon, eyebrow (optional steps only), title, description, extras.
 
 ## Do / Don't
 

@@ -51,14 +51,14 @@ Your music plays. Everything else keeps up.
 - **Song Requests.** Viewers request songs with `!sr <track>`. Requests play through Apple Music without stealing focus from OBS.
 - **Channel Points & Bits.** A WolfWave-managed "Request a Song" channel-point reward, plus bit cheers that boost a queued track to the front. Paid point and qualifying Bits actions use a local recovery record; WolfWave pauses the managed reward and shows a warning if durable recovery is unavailable.
 - **Chat Vote-Skip.** Viewers vote off a song with `!voteskip` or `!vs`, in chat-tally mode or native Twitch Polls.
-- **Hold-Mode Queue.** Mods hold, resume, skip, and clear the request queue from chat or the menu bar.
+- **Hold-Mode Queue.** Mods hold, resume, skip, and clear the request queue from chat or the menu bar (clearing from the menu bar asks first).
 - **Live Queue View.** See what's playing, what's next, and who requested each track right inside the app.
 - **Fallback Playlist.** Configure an Apple Music playlist that takes over when the queue runs dry.
 - **Approve Before Play.** Opt-in "Require My Approval" holds every request (chat, channel points, bits) in the queue until you approve or decline it.
 - **Fair-Share Ordering.** Round-robin queue plays everyone's first request before anyone's second, so a fast re-typist can't hog it. On by default; toggle off for classic FIFO.
 - **Sub / VIP Priority.** Optional perk for subs, VIPs, and mods: skip the request cooldown, or jump ahead within the fair-share round. Off by default.
 - **Blocklist.** Ban a song, a whole artist, or a person from requests. Blocked entries are rejected before they ever reach the queue.
-- **Custom Commands.** Build your own chat commands with a fixed reply after connecting Twitch. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster), and a delivery mode per command: reply to the chatter, plain chat message, or a Twitch announcement.
+- **Custom Commands.** Build your own chat commands with a fixed reply. Set them up any time; they start replying once Twitch is connected. Variables (`$user`, `$touser`, `$args`, `$1`–`$9`, `$song`, `$lastsong`), per-command aliases and cooldowns, a permission level (Everyone, Subscribers, VIPs, Moderators, or Broadcaster), and a delivery mode per command: reply to the chatter, plain chat message, or a Twitch announcement.
 
 ### Discord
 
@@ -70,7 +70,7 @@ Your music plays. Everything else keeps up.
 - **Queue Ticker Overlay.** Opt-in `?queueTicker=1` panel showing the next 3 song requests, title and requester, so viewers see their spot in line without asking chat.
 - **OBS-friendly by design.** Visual progress is batched at 10 Hz, rendering sleeps while hidden or unloaded, and reduced-motion mode removes continuous animation work.
 - **Settings deep links.** `wolfwave://settings/twitch/custom-commands` opens Settings on the Twitch pane, scrolls to Custom Commands, and flashes it. Every pane and card has a stable name, listed in the [Settings docs](https://mrdemonwolf.github.io/wolfwave/docs/settings#deep-links).
-- **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, announce, block, and overlay-toggle commands (control protocol v3, twelve keys) only from this Mac; the read-only overlay token can never run them. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
+- **Stream Deck Control.** A separate control token authorizes play/pause, skip, request-queue, announce, block, and overlay-toggle commands (control protocol v3, twelve keys) only from this Mac; the read-only overlay token can never run them. The plugin's panel says whether WolfWave accepted the token. The Elgato plugin lives at `apps/streamdeck/`, and its protocol is documented in [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 
 ### History & Stats
 
@@ -88,8 +88,8 @@ Your music plays. Everything else keeps up.
 - **Backup & Restore.** Export your settings to a portable JSON file from Settings > Advanced and bring them back on another Mac or after a reinstall. Credentials and private account IDs stay in Keychain; the public Twitch channel name travels with your preferences. Flip on **Sync with iCloud** and the same export follows you to your other Macs on its own.
 - **Song-Change Notifications.** Opt-in macOS banner on every track change, with album art. The banner replaces in place instead of stacking.
 - **Secure by Default.** Credentials live in the macOS Keychain, never plain text.
-- **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update.
-- **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device.
+- **Automatic Updates.** Sparkle for DMG installs, or Homebrew (`brew upgrade --cask`). Pick Stable or opt into [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly) in Settings > Software Update. Check for Updates is also in the menu bar's Help submenu.
+- **On-Device Diagnostics.** Opt-in MetricKit diagnostics card with a share helper for attaching reports to a bug filing. Reports stay on-device: turning it off deletes them, and while it is on the newest 50 from the last 30 days are kept.
 - **Bug Report Flow.** One-click log export (one file: environment summary, last crash, every rotated log) and a pre-filled GitHub issue from Advanced settings. Error banners name the cause and offer the fix, and most link to the matching [Troubleshooting](https://mrdemonwolf.github.io/wolfwave/docs/troubleshooting) section. If WolfWave ever crashes, the next launch says what crashed.
 - **Advanced Tools.** Clear the artwork cache or the log file, rerun the setup wizard, and a Danger Zone "Erase All Data & Reset" for a clean slate.
 
@@ -245,6 +245,7 @@ Monorepo (bun + Turborepo):
 - `bun run dev --filter docs` starts the docs dev server only.
 - `bun run build --filter docs` builds the docs site.
 - `bun run --filter widget build` rebuilds the OBS overlay widget.
+- `bun run --filter widget test` runs the OBS overlay widget tests.
 - `bun run --filter streamdeck build` bundles the Stream Deck plugin.
 - `bun run --filter streamdeck test` runs the Stream Deck plugin tests.
 - `bun run --filter wolfwave-announcement studio` opens Remotion studio for the launch announcement video.
@@ -264,7 +265,7 @@ Native app (Make):
 - `make prod-build` builds a release DMG in `builds/`.
 - `make prod-install` builds a release and installs to `/Applications`.
 - `make notarize` notarizes the DMG (requires Developer ID and env vars).
-- `make verify-notarize` checks that the notarization ticket is stapled.
+- `make verify-notarize` validates the stapled notarization ticket and checks that Gatekeeper accepts the DMG.
 - `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`). Run `bun run tokens` first when token definitions or their generator changed, or use the ordered root `bun run build`.
 - `make icons` regenerates the Debug app icon (`AppIcon.icon` to `AppIcon-Dev.icon`: the same blue mark plus a `DEV` badge). Run it after editing the Release icon.
 - `make sponsor-config` regenerates `SponsorConfig.generated.swift` from `.github/FUNDING.yml`. The build, test, and `prod-build` targets already run it.
@@ -276,7 +277,7 @@ Linting (the four validation targets run as blocking CI jobs; `make lint-baselin
 - `make lint-baseline` regenerates that baseline. It may only shrink.
 - `make lint-crash-safety` fails on any new force unwrap, `try!`, or `as!`.
 - `make lint-headers` checks the Swift file header on every source file.
-- `make lint-sync` checks token-derived Swift lists, component catalog coverage, source-derived docs values, and design-system lint claims.
+- `make lint-sync` checks token-derived Swift lists, component catalog coverage, source-derived docs values (including the WebSocket and widget ports), and design-system lint claims, and runs the release-notes and version script tests.
 - The separate blocking `ds-lint` CI job runs the design-system tests, lint, and token schema validation.
 
 ### Code Quality

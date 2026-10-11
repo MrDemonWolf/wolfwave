@@ -28,6 +28,13 @@ nonisolated enum DSColor {
     static let info = Color(red: 0.039, green: 0.518, blue: 1.000)
     static let neutral = Color(red: 0.557, green: 0.557, blue: 0.576)
 
+    // MARK: Glyph (light)
+    static let glyphSuccessLight = Color(red: 0.118, green: 0.482, blue: 0.204)
+    static let glyphWarningLight = Color(red: 0.604, green: 0.357, blue: 0.000)
+    static let glyphErrorLight = Color(red: 0.788, green: 0.188, blue: 0.173)
+    static let glyphInfoLight = Color(red: 0.000, green: 0.400, blue: 0.800)
+    static let glyphNeutralLight = Color(red: 0.431, green: 0.431, blue: 0.451)
+
     // MARK: Surface (light)
     static let surfaceBaseLight = Color(red: 1.000, green: 1.000, blue: 1.000)
     static let surfaceSurfaceLight = Color(red: 0.961, green: 0.961, blue: 0.969)
@@ -43,12 +50,12 @@ nonisolated enum DSColor {
     // MARK: Text (light)
     static let textPrimaryLight = Color(red: 0.114, green: 0.114, blue: 0.122)
     static let textSecondaryLight = Color(red: 0.431, green: 0.431, blue: 0.451)
-    static let textMutedLight = Color(red: 0.631, green: 0.631, blue: 0.651)
+    static let textMutedLight = Color(red: 0.463, green: 0.463, blue: 0.463)
 
     // MARK: Text (dark)
     static let textPrimaryDark = Color(red: 0.961, green: 0.961, blue: 0.969)
     static let textSecondaryDark = Color(red: 0.631, green: 0.631, blue: 0.651)
-    static let textMutedDark = Color(red: 0.431, green: 0.431, blue: 0.451)
+    static let textMutedDark = Color(red: 0.557, green: 0.557, blue: 0.576)
 
     // MARK: Partner
     static let partnerTwitch = Color(red: 0.569, green: 0.275, blue: 1.000)
@@ -87,6 +94,13 @@ nonisolated enum DSColor {
             (name: "info", hex: "#0A84FF", color: info),
             (name: "neutral", hex: "#8E8E93", color: neutral),
         ]),
+        (name: "Glyph (light)", tokens: [
+            (name: "glyphSuccessLight", hex: "#1E7B34", color: glyphSuccessLight),
+            (name: "glyphWarningLight", hex: "#9A5B00", color: glyphWarningLight),
+            (name: "glyphErrorLight", hex: "#C9302C", color: glyphErrorLight),
+            (name: "glyphInfoLight", hex: "#0066CC", color: glyphInfoLight),
+            (name: "glyphNeutralLight", hex: "#6E6E73", color: glyphNeutralLight),
+        ]),
         (name: "Surface (light)", tokens: [
             (name: "surfaceBaseLight", hex: "#FFFFFF", color: surfaceBaseLight),
             (name: "surfaceSurfaceLight", hex: "#F5F5F7", color: surfaceSurfaceLight),
@@ -102,12 +116,12 @@ nonisolated enum DSColor {
         (name: "Text (light)", tokens: [
             (name: "textPrimaryLight", hex: "#1D1D1F", color: textPrimaryLight),
             (name: "textSecondaryLight", hex: "#6E6E73", color: textSecondaryLight),
-            (name: "textMutedLight", hex: "#A1A1A6", color: textMutedLight),
+            (name: "textMutedLight", hex: "#767676", color: textMutedLight),
         ]),
         (name: "Text (dark)", tokens: [
             (name: "textPrimaryDark", hex: "#F5F5F7", color: textPrimaryDark),
             (name: "textSecondaryDark", hex: "#A1A1A6", color: textSecondaryDark),
-            (name: "textMutedDark", hex: "#6E6E73", color: textMutedDark),
+            (name: "textMutedDark", hex: "#8E8E93", color: textMutedDark),
         ]),
         (name: "Partner", tokens: [
             (name: "partnerTwitch", hex: "#9146FF", color: partnerTwitch),
@@ -207,6 +221,18 @@ nonisolated enum DSSpace {
     ]
 }
 
+/// Generated fill opacities for tinted washes (status chips, callouts, selected rows).
+nonisolated enum DSOpacity {
+    static let wash: Double = 0.1
+    static let washStrong: Double = 0.14
+
+    /// Every token above, in source order. Drives the Debug design-system gallery.
+    static let all: [(name: String, value: Double)] = [
+        (name: "wash", value: wash),
+        (name: "washStrong", value: washStrong),
+    ]
+}
+
 /// Generated radius scale.
 nonisolated enum DSRadius {
     static let xs: CGFloat = 4
@@ -286,6 +312,7 @@ nonisolated enum DSDimension {
         static let cardPadding: CGFloat = 16
         static let cardCornerRadius: CGFloat = 14
         static let stepNumberGutter: CGFloat = 18
+        static let navRailWidth: CGFloat = 184
     }
 
     enum Onboarding {
@@ -328,6 +355,11 @@ nonisolated enum DSDimension {
         static let chartYAxisGutter: CGFloat = 28
     }
 
+    enum StatusChip {
+        static let dot: CGFloat = 6
+        static let minWidth: CGFloat = 88
+    }
+
     /// Every token above, in source order. Drives the Debug design-system gallery.
     static let groups: [(name: String, tokens: [(name: String, value: CGFloat)])] = [
         (name: "Settings", tokens: [
@@ -343,6 +375,7 @@ nonisolated enum DSDimension {
             (name: "cardPadding", value: Settings.cardPadding),
             (name: "cardCornerRadius", value: Settings.cardCornerRadius),
             (name: "stepNumberGutter", value: Settings.stepNumberGutter),
+            (name: "navRailWidth", value: Settings.navRailWidth),
         ]),
         (name: "Onboarding", tokens: [
             (name: "windowWidth", value: Onboarding.windowWidth),
@@ -378,6 +411,10 @@ nonisolated enum DSDimension {
             (name: "topListMinHeight", value: HistoryStats.topListMinHeight),
             (name: "topTrackMinHeight", value: HistoryStats.topTrackMinHeight),
             (name: "chartYAxisGutter", value: HistoryStats.chartYAxisGutter),
+        ]),
+        (name: "StatusChip", tokens: [
+            (name: "dot", value: StatusChip.dot),
+            (name: "minWidth", value: StatusChip.minWidth),
         ]),
     ]
 }

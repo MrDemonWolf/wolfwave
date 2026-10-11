@@ -41,6 +41,7 @@ struct OnboardingOBSWidgetStepView: View {
         OnboardingStepScaffold(
             title: "Your overlay, ready to drop in",
             description: "One toggle. We'll give you the URL to paste into OBS.",
+            isOptional: true,
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(

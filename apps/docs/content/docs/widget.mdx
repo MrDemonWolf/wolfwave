@@ -55,7 +55,7 @@ coordinated change.
 
 | Type | Payload | Cadence |
 |------|---------|---------|
-| `welcome` | `{}` | Once on connect |
+| `welcome` | `{ server, version }` (top-level fields, no `data`) | Once on connect |
 | `now_playing` | `{ track, artist, album, duration, elapsed, isPlaying, artworkURL }` | Track change |
 | `progress` | `{ elapsed, duration, isPlaying }` | ~1 Hz |
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | State change |
@@ -231,6 +231,9 @@ behavior:
 - **LAN pages** read `?token=<hex>` from the URL and forward it as an overlay
   subprotocol. Every widget document sets `no-referrer`, so cross-origin artwork
   requests cannot leak that query token.
+- **Untrusted feed.** The widget ignores oversized or wrongly shaped frames,
+  only loads `https:` artwork, accepts a `port` of 1-65535 only, and
+  reconnects with jittered backoff capped at 10 seconds.
 
 ## See also
 

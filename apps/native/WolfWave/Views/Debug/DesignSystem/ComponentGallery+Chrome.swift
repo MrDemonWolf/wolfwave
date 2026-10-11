@@ -18,10 +18,10 @@ extension DebugComponentGalleryCard {
         GalleryEntry(
             typeName: "WhatsNewView",
             width: GalleryWidth.full,
-            note: "static; Get Started would dismiss the window"
+            note: "static; Got it would dismiss the window"
         ) {
-            // Its "Get Started" calls `dismiss`, which in a Settings window can
-            // close the window, so hit testing is off. Use the trigger in UI
+            // With no `onClose`, its "Got it" calls `dismiss`, which in a Settings
+            // window can close the window, so hit testing is off. Use the trigger in UI
             // Previews for the live sheet.
             WhatsNewView()
                 .frame(width: DSDimension.WhatsNew.windowWidth, height: DSDimension.WhatsNew.windowHeight)

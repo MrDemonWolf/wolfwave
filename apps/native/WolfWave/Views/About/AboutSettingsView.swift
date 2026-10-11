@@ -117,8 +117,8 @@ struct AboutSettingsView: View {
                 Text("Quick actions")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
                 Text(sponsorLinksEnabled
-                     ? "Release notes, website, feedback, and sponsorship."
-                     : "Release notes, website, and feedback.")
+                     ? "Release notes, docs, feedback, and sponsorship."
+                     : "Release notes, docs, and feedback.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
@@ -134,8 +134,8 @@ struct AboutSettingsView: View {
             GridRow {
                 ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: openReleaseNotes,
                                  accessibilityIdentifier: "about-settings.action.Release Notes")
-                ActionGridButton(title: "Website", systemImage: "globe", action: openWebsite,
-                                 accessibilityIdentifier: "about-settings.action.Website")
+                ActionGridButton(title: "Docs", systemImage: "book", action: openDocs,
+                                 accessibilityIdentifier: "about-settings.action.Docs")
             }
             GridRow {
                 ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback,
@@ -168,7 +168,7 @@ struct AboutSettingsView: View {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Links & legal")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
-                Text("Documentation, policies, and attributions.")
+                Text("Privacy, terms, and attributions.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
@@ -186,12 +186,6 @@ struct AboutSettingsView: View {
 
     private var legalLinksRow: some View {
         HStack(spacing: DSSpace.s3) {
-            if let url = URL(string: AppConstants.URLs.docs) {
-                Link("Documentation", destination: url)
-                    .accessibilityLabel("Open WolfWave documentation")
-                    .accessibilityIdentifier("about-settings.link.docs")
-            }
-            Text("·").foregroundStyle(.tertiary)
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {
                 Link("Privacy", destination: url)
                     .accessibilityLabel("Open privacy policy")
@@ -249,7 +243,8 @@ struct AboutSettingsView: View {
                         "Twitch: EventSub WebSocket + Helix API",
                         "Discord: local IPC Rich Presence",
                         "Apple Music: ScriptingBridge and MusicKit",
-                        "Odesli (song.link): cross-platform track link API",
+                        "Odesli (song.link): link target only, no API calls",
+                        "Spotify and YouTube oEmbed: titles for pasted song request links",
                         "iTunes Search API: album artwork and Apple Music URLs"
                     ]
                 )
@@ -308,7 +303,9 @@ struct AboutSettingsView: View {
         ExternalLink.open(AppConstants.URLs.githubSponsors)
     }
 
-    private func openWebsite() {
+    /// The single entry to the documentation site. Website and Documentation
+    /// used to be two controls that opened the same URL.
+    private func openDocs() {
         ExternalLink.open(AppConstants.URLs.docs)
     }
 

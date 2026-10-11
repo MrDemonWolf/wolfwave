@@ -65,6 +65,12 @@ queue view. The behavior is documented in
 [Song Requests](/docs/features#song-requests); the chat side lives in
 [Bot Commands](/docs/bot-commands).
 
+The channel point and Bits switches live in one place, the **Channel Points &
+Bits** card. **Who Can Request** only shows a read-only "Paid requests" summary,
+with a button that jumps there. A held queue shows an **On hold** chip, and
+**Resume** stays one click away even when the queue is empty. In the Blocklist,
+Return adds the entry.
+
 ## Stream Widgets
 
 <small>Open in WolfWave: [`wolfwave://settings/stream-widgets`](wolfwave://settings/stream-widgets)</small>
@@ -74,6 +80,13 @@ and style it. Cards run in the order you need them, so the raw WebSocket feed
 (port, read-only overlay token, and the two addresses) sits last, under **Build
 your own overlay**, because only a hand-written overlay needs it. Sizes, themes,
 and the message contract are in the [widget guide](/docs/widget).
+
+The header chip follows the server: **Listening** (or **N connected** once an
+overlay joins), **Starting**, **Stopped**, or **Couldn't start**. When a port is
+busy, a **Couldn't start** callout sits under the switch (fix:
+[Port already in use](/docs/troubleshooting#port-in-use)). Port fields put an
+invalid entry back to the saved port and say **Saved** or **Not saved**. A
+greyed-out copy button or Widget Webpage switch says what to turn on first.
 
 ## Stream Deck
 
@@ -86,6 +99,12 @@ your network, while the control token runs commands and is accepted only from
 this Mac. Turning commands off leaves your overlay running. Full walkthrough:
 [Stream Deck](/docs/streamdeck).
 
+The header chip names the first thing in your way: **Server off** (Stream Widgets
+is off), **Server error** (the server couldn't start, usually a busy port; the
+pane adds a button to Stream Widgets), **Starting**, **Commands off**, then
+**Ready**. Ready only shows when the server is really listening. The plugin's own
+panel says whether WolfWave accepted the token.
+
 ## History & Stats
 
 <small>Open in WolfWave: [`wolfwave://settings/history-stats`](wolfwave://settings/history-stats)</small>
@@ -94,16 +113,21 @@ Opt-in, on-device listening history with charts and the Monthly Wrap. What
 counts as a play and how retention works:
 [Listening History](/docs/listening-history).
 Wrap export failures appear in the sheet. Temporary share images are removed
-after sharing finishes or is cancelled.
+after sharing finishes or is cancelled. The `!stats` facts are chips, and the last
+one you have selected locks ("Keep at least one.").
 
 ## Twitch
 
 <small>Open in WolfWave: [`wolfwave://settings/twitch`](wolfwave://settings/twitch)</small>
 
-Connect your Twitch account (device code — no password typed into WolfWave),
-manage the chat bot, built-in command toggles and aliases, custom commands (each
-with its own delivery mode: reply, plain message, or announcement), and
-cooldowns. Command reference: [Bot Commands](/docs/bot-commands).
+Connect your Twitch account (device code — no password typed into WolfWave).
+The code shows how long it has left and offers **Get a new code** when it
+expires. Once you're in, the account row reads **Bot account**, and **Log Out**
+asks "Sign out of Twitch?" first. Then manage the chat bot, built-in command
+toggles and aliases, custom commands (each with its own delivery mode: reply,
+plain message, or announcement), and cooldowns. Custom commands can be created
+and edited before you connect; they start replying once Twitch is connected.
+Command reference: [Bot Commands](/docs/bot-commands).
 
 ## Discord
 
@@ -127,19 +151,25 @@ instead of always guessing that Discord is closed:
 <small>Open in WolfWave: [`wolfwave://settings/software-update`](wolfwave://settings/software-update)</small>
 
 Check for updates, switch between the Stable and Nightly channels, and see
-what's new. Channel details: [Nightly Builds](/docs/nightly).
+what's new. Channel details: [Nightly Builds](/docs/nightly). **Check for
+Updates** is also in the menu bar's Help submenu.
 
 ## Advanced
 
 <small>Open in WolfWave: [`wolfwave://settings/advanced`](wolfwave://settings/advanced)</small>
 
 Settings [backup and restore](/docs/backup) plus the **Sync with iCloud**
-switch, log export, the bug-report flow, and opt-in on-device diagnostics.
+switch, log export, the bug-report flow, and opt-in on-device diagnostics (the
+**Share Diagnostics** card). Turning diagnostics off deletes the saved reports;
+while it's on, WolfWave keeps the newest 50 from the last 30 days.
 **Export Logs** writes one diagnostics file: an environment summary (version,
 macOS, install method), the last crash if there was one, and every rotated
 log, oldest first, so a bug report carries everything in a single attachment.
-Copy, reveal, and export report missing logs or failures. **Clear Logs** removes
-the current contents and rotated backups, then starts a fresh log.
+Copy, reveal, and export report missing logs or failures. **Clear Logs** sits
+with those log actions and removes the current contents and rotated backups,
+then starts a fresh log. **Clear Artwork Cache** sits in the Artwork Cache card.
+The **Danger Zone** holds only **Erase All Data & Reset**. **Rerun Setup Wizard**
+asks first; its confirm button reads **Open Wizard**.
 If WolfWave ever crashes, a one-time recovery callout appears here and says
 what crashed.
 
@@ -147,8 +177,11 @@ what crashed.
 
 <small>Open in WolfWave: [`wolfwave://settings/about`](wolfwave://settings/about)</small>
 
-Version, credits, license, and links to the docs, community Discord, and
-acknowledgements.
+Version, credits, license, and quick actions: **Release Notes**, **Docs** (one
+button; it used to be separate Website and Documentation buttons), **Send
+Feedback**, and **Sponsor on GitHub**. Below them are the privacy and terms links
+and an Acknowledgements card listing the services and open-source software
+WolfWave uses.
 
 **Show sponsor links** controls whether WolfWave asks for support. Leave it on
 and you get a Sponsor item here, in the menu bar's Help submenu, and in the

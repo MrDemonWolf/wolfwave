@@ -36,6 +36,14 @@ struct StreamDeckSettingsView: View {
     /// reject a control token that collides with it.
     @State private var currentOverlayToken: String = ""
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Live state of the shared server, seeded from the running service so the
+    /// first frame already reflects reality, then kept current by
+    /// `.websocketServerStateChanged`. The chip reads Ready only for `.listening`.
+    @State private var serverState: WebSocketServerService.ServerState =
+        AppDelegate.shared?.websocketServer?.state ?? .stopped
+
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
     // MARK: - Body
@@ -68,6 +76,22 @@ struct StreamDeckSettingsView: View {
             currentControlToken = tokens.0
             currentOverlayToken = tokens.1
         }
+        .task(id: websocketEnabled) {
+            // Re-seed when the switch flips: the notification may have fired
+            // while this pane was not on screen.
+            serverState = AppDelegate.shared?.websocketServer?.state ?? .stopped
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: Notification.Name.websocketServerStateChanged
+            )
+        ) { notification in
+            guard let rawValue = notification.stateString,
+                  let state = WebSocketServerService.ServerState(rawValue: rawValue) else { return }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                serverState = state
+            }
+        }
     }
 
     // MARK: - Status
@@ -79,7 +103,8 @@ struct StreamDeckSettingsView: View {
     private var status: StreamDeckPaneStatus.Resolved {
         StreamDeckPaneStatus.resolve(
             controlEnabled: controlEnabled,
-            serverEnabled: websocketEnabled
+            serverEnabled: websocketEnabled,
+            serverState: serverState
         )
     }
 
@@ -124,6 +149,24 @@ struct StreamDeckSettingsView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                         .accessibilityIdentifier("streamDeckOpenStreamWidgetsButton")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, cardPadding)
+                .padding(.bottom, DSSpace.s4)
+            } else if serverState == .error {
+                // Switch on, server dead: a key would do nothing, so say why and
+                // where the fix lives (the port is set in Stream Widgets).
+                VStack(alignment: .leading, spacing: DSSpace.s2) {
+                    CalloutBanner(
+                        "Port may be in use. Turn Stream Widgets off, pick another port, then turn it back on.",
+                        title: "Couldn't start",
+                        style: .error,
+                        systemImage: "exclamationmark.octagon"
+                    )
+                    Button("Open Stream Widgets", action: openStreamWidgets)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("streamDeckServerErrorOpenStreamWidgetsButton")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, cardPadding)

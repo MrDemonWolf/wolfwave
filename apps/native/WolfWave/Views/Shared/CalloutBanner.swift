@@ -52,6 +52,13 @@ struct CalloutBanner: View {
             }
         }
 
+        /// Icon color for this style on its own wash. In light appearance the
+        /// bright semantic tints fall under 3:1 on that wash, so the glyph uses
+        /// the darker `glyph…Light` token; dark appearance keeps the tint.
+        func glyph(in colorScheme: ColorScheme) -> Color {
+            DSColor.glyph(for: tint, in: colorScheme)
+        }
+
         /// SF Symbol used when the caller does not supply `systemImage`.
         var defaultSymbol: String {
             switch self {
@@ -71,6 +78,8 @@ struct CalloutBanner: View {
     /// Overrides the style's default SF Symbol when non-nil.
     var systemImage: String?
     var strokeVisible: Bool = false
+
+    @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Init
 
@@ -99,7 +108,7 @@ struct CalloutBanner: View {
         HStack(alignment: .top, spacing: DSSpace.s2) {
             Image(systemName: symbol)
                 .font(.system(size: DSFont.Size.body))
-                .foregroundStyle(tint)
+                .foregroundStyle(style.glyph(in: colorScheme))
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -117,7 +126,7 @@ struct CalloutBanner: View {
         }
         .padding(.horizontal, DSSpace.s4)
         .padding(.vertical, DSSpace.s2)
-        .background(tint.opacity(0.1))
+        .background(tint.opacity(DSOpacity.wash))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .overlay {
             if strokeVisible {

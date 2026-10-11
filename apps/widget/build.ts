@@ -33,6 +33,27 @@ function log(step: string, detail = ""): void {
   console.log(`[widget:build] ${step}${detail ? ": " + detail : ""}`);
 }
 
+/**
+ * The minifier's output (mangled identifiers) changes between Bun releases,
+ * so a widget.html built with a different Bun than CI's pinned one fails the
+ * generated-drift check even when the source is identical. Warn early.
+ */
+async function warnOnBunVersionDrift(): Promise<void> {
+  try {
+    const pkg = JSON.parse(await readFile(resolve(ROOT, "package.json"), "utf8"));
+    const pinned = String(pkg.packageManager ?? "").split("bun@")[1];
+    if (pinned && typeof Bun !== "undefined" && Bun.version !== pinned) {
+      console.warn(
+        `[widget:build] warning: Bun ${Bun.version} differs from the pinned bun@${pinned} ` +
+          "(package.json packageManager). The minified bundle will not match CI's, " +
+          "so check-generated-drift will fail. Rebuild with Bun " + pinned + ".",
+      );
+    }
+  } catch {
+    // Best effort only; never block a build on the version probe.
+  }
+}
+
 function replaceExactlyOnce(source: string, marker: string, payload: string): string {
   const parts = source.split(marker);
   if (parts.length !== 2) {
@@ -172,6 +193,7 @@ async function emit(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await warnOnBunVersionDrift();
   await rm(DIST, { recursive: true, force: true });
   await mkdir(DIST, { recursive: true });
   await emit();

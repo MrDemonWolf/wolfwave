@@ -37,6 +37,7 @@ final class DiagnosticsServiceTests: WolfWaveTestCase {
         service = nil
         defaults = nil
         suiteName = nil
+        cleanupTrackedTempDirs()
         try await super.tearDown()
     }
 
@@ -106,5 +107,64 @@ final class DiagnosticsServiceTests: WolfWaveTestCase {
             service.diagnosticSummary,
             "Diagnostic callback should have recorded a summary from the background queue"
         )
+    }
+
+    // MARK: - Payload Retention
+
+    /// Writes `count` payload files, one day apart, newest first by mtime.
+    private func seedPayloads(in dir: URL, count: Int, now: Date) throws -> [URL] {
+        try (0..<count).map { index in
+            let url = dir.appending(path: "metric-\(index).json")
+            try Data("{}".utf8).write(to: url)
+            try FileManager.default.setAttributes(
+                [.modificationDate: now.addingTimeInterval(-Double(index) * 86_400)],
+                ofItemAtPath: url.path)
+            return url
+        }
+    }
+
+    func testMetricKitPayloadsPrunedToLimit() throws {
+        let dir = makeTempDir()
+        let pruning = DiagnosticsService(
+            defaults: defaults,
+            payloadDirectory: dir,
+            maxStoredPayloads: 3,
+            maxPayloadAge: 365 * 86_400)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let urls = try seedPayloads(in: dir, count: 5, now: now)
+
+        pruning.prunePayloads(now: now)
+
+        let kept = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+        XCTAssertEqual(kept, urls.prefix(3).map(\.lastPathComponent).sorted(), "Newest three must survive")
+    }
+
+    func testMetricKitPayloadsOlderThanMaxAgeArePruned() throws {
+        let dir = makeTempDir()
+        let pruning = DiagnosticsService(
+            defaults: defaults,
+            payloadDirectory: dir,
+            maxStoredPayloads: 100,
+            maxPayloadAge: 2.5 * 86_400)
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let urls = try seedPayloads(in: dir, count: 5, now: now)
+
+        pruning.prunePayloads(now: now)
+
+        let kept = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+        XCTAssertEqual(kept, urls.prefix(3).map(\.lastPathComponent).sorted(), "Day 0, 1, 2 are inside the window")
+    }
+
+    func testOptingOutDeletesStoredPayloads() throws {
+        let dir = makeTempDir().appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: dir.appending(path: "diagnostic-1.json"))
+        let optOut = DiagnosticsService(defaults: defaults, payloadDirectory: dir)
+
+        // Never subscribed, so this only exercises the delete path; MetricKit
+        // itself is untouched.
+        optOut.setEnabled(false)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
     }
 }

@@ -16,6 +16,7 @@ jobs:
   update-cask:
     name: Update wolfwave cask in homebrew-den
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # `homebrew-tap` environment requires Nathanial's manual approval before
     # any step runs and scopes HOMEBREW_TAP_TOKEN to this job only.
     # See repo Settings → Environments.

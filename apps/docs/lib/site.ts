@@ -21,31 +21,90 @@ export const basePath = (() => {
   return normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
 })();
 
-/** Joins `path` onto the canonical site origin, yielding an absolute URL. */
+/**
+ * Joins `path` onto the canonical site origin, yielding an absolute URL. Use it
+ * for assets and files (`/opengraph-image.png`); pages want {@link pageUrl}.
+ */
 export function absoluteUrl(path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   return `${siteUrl}${clean === "/" ? "" : clean}`;
 }
 
 /**
- * Build-time fetch of the latest GitHub release tag, normalized to a bare
- * SemVer string (e.g. `2.0.0`). Returns `null` on any failure (rate limit,
- * offline, no releases) so callers can drop the field rather than ship a
- * stale hardcoded version. The static export bakes the result in per deploy.
+ * Absolute URL for a page route, with the trailing slash the static export
+ * actually serves (`trailingSlash: true`). Canonicals, og:url, JSON-LD, and the
+ * sitemap all go through this so a page never advertises two spellings of
+ * itself. `pageUrl("/")` is `${siteUrl}/`; `pageUrl("/download")` is
+ * `${siteUrl}/download/`.
  */
-export async function getLatestVersion(): Promise<string | null> {
+export function pageUrl(path: string): string {
+  const lead = path.startsWith("/") ? path : `/${path}`;
+  const clean = lead.endsWith("/") ? lead : `${lead}/`;
+  return `${siteUrl}${clean}`;
+}
+
+const API_REPO = repoUrl.replace("https://github.com", "https://api.github.com/repos");
+const GITHUB_HEADERS = {
+  Accept: "application/vnd.github+json",
+  "User-Agent": "wolfwave-docs",
+} as const;
+
+/** The newest stable GitHub release, as resolved at build time. */
+export interface LatestRelease {
+  /** Bare SemVer, e.g. `2.1.0`. */
+  version: string;
+  /** ISO-8601 publish time, or null when GitHub omitted it. */
+  publishedAt: string | null;
+}
+
+/**
+ * Build-time fetch of the latest GitHub release. Returns `null` on any failure
+ * (rate limit, offline, no releases) so callers drop the field rather than ship
+ * a stale hardcoded version. The static export bakes the result in per deploy.
+ */
+export async function getLatestRelease(): Promise<LatestRelease | null> {
   try {
-    const res = await fetch(`${repoUrl.replace("https://github.com", "https://api.github.com/repos")}/releases/latest`, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "wolfwave-docs",
-      },
+    const res = await fetch(`${API_REPO}/releases/latest`, {
+      headers: GITHUB_HEADERS,
       signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) return null;
     const rel = await res.json();
     if (typeof rel?.tag_name !== "string") return null;
-    return rel.tag_name.replace(/^v/, "") || null;
+    const version = rel.tag_name.replace(/^v/, "");
+    if (!version) return null;
+    const publishedAt = typeof rel.published_at === "string" ? rel.published_at : null;
+    return { version, publishedAt };
+  } catch {
+    return null;
+  }
+}
+
+/** Bare SemVer of the latest release (e.g. `2.1.0`), or `null` on failure. */
+export async function getLatestVersion(): Promise<string | null> {
+  return (await getLatestRelease())?.version ?? null;
+}
+
+/**
+ * The star count earns a landing-page chip only at or above this. A small real
+ * number reads as weak proof next to "Signed & notarized", so below it the chip
+ * stays hidden instead of being padded or invented.
+ */
+export const STAR_CHIP_MIN = 50;
+
+/**
+ * Build-time GitHub star count for the repo. Returns `null` on any failure so
+ * the landing page simply omits the chip; never a cached or invented number.
+ */
+export async function getRepoStars(): Promise<number | null> {
+  try {
+    const res = await fetch(API_REPO, {
+      headers: GITHUB_HEADERS,
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const repo = await res.json();
+    return typeof repo?.stargazers_count === "number" ? repo.stargazers_count : null;
   } catch {
     return null;
   }

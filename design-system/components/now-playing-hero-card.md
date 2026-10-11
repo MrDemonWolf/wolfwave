@@ -3,14 +3,14 @@
 **File:** [`apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift`](../../apps/native/WolfWave/Views/Shared/NowPlayingHeroCard.swift)
 
 ## Purpose
-The "Now Playing" hero on the General tab: 92pt album art, title/artist/album, and a scrubber. Composes `AlbumArtView` for the artwork tile and the standard macOS card surface (`.cardStyleUnpadded()`) for the card background.
+The "Now Playing" hero on the Music Monitor pane: 92pt album art, title/artist/album, and a scrubber. Composes `AlbumArtView` for the artwork tile and the standard macOS card surface (`.cardStyleUnpadded()`) for the card background.
 
 ## API
 ```swift
 NowPlayingHeroCard(
-    track: "Anti-Hero",
-    artist: "Taylor Swift",
-    album: "Midnights",
+    track: "Moonlit Howl",
+    artist: "Arctic Wolf",
+    album: "Tundra Sessions",
     elapsed: 68,
     duration: 201
 )
@@ -18,23 +18,28 @@ NowPlayingHeroCard(
 
 | Param | Type | Notes |
 |---|---|---|
-| `track` | `String?` | Nil renders the empty state ("Nothing playing right now" or "Sync Music is off"). |
+| `track` | `String?` | Nil renders the empty state. The headline comes from `emptyStateTitle(trackingEnabled:musicNotRunning:)`: "Sync Music is off" when tracking is off, "Apple Music isn't open" when Music is closed, otherwise "Nothing playing right now". |
 | `artist` | `String?` | Combined with album into a single em-dash separated subtitle. |
 | `album` | `String?` | Same; either, both, or neither can be nil. |
-| `artwork` | `NSImage?` | When nil the inner `AlbumArtView` falls back to a hashed gradient. |
+| `artwork` | `NSImage?` | When nil the inner `AlbumArtView` falls back to `artworkURL`, then to a hashed gradient. |
+| `artworkURL` | `URL?` | Remote artwork source passed to `AlbumArtView(url:)`, used when `artwork` is nil. |
 | `elapsed` | `TimeInterval` | Seconds. Shown as `M:SS` in monospaced caption. |
 | `duration` | `TimeInterval` | Seconds. Scrubber + total time hidden when 0. |
 | `trackingEnabled` | `Bool` | Drives the empty-state copy when `track == nil`. |
+| `isPaused` | `Bool` | Paused affordance: dims and desaturates the artwork, overlays a pause glyph, freezes the scrubber, and changes the eyebrow to "Paused". Title and subtitle stay at full opacity. The VoiceOver label starts with "Paused:". |
+| `musicNotRunning` | `Bool` | Music.app has no running process. With tracking on and `track == nil`, shows "Apple Music isn't open", a separate empty state from "nothing playing". |
+| `onOpenMusic` | `(() -> Void)?` | Open Music button action. The button shows only when `track == nil`, tracking is on, and `musicNotRunning` is true. Leave it nil to hide the button. |
 
 ## Tokens used
 - `DSDimension.Settings.cardCornerRadius` (14): card corner radius via `.cardStyleUnpadded()` (opaque `controlBackgroundColor` surface)
-- `DSFont.Size.sm` (11) `.semibold` `.tertiary` `.uppercase` `tracking(0.6)`: "Now playing" eyebrow label
-- `DSFont.Size.lg` (17→18) `.semibold`: track title
+- `.sectionEyebrow()` (`DSFont.Size.sm` 11, semibold, `.secondary`, sentence case): "Now playing" / "Paused" eyebrow label
+- `DSFont.Size.lg` (17) `.semibold`: track title
 - `DSFont.Size.base` (13) `.secondary`: artist · album subtitle
 - `DSFont.Size.sm` (11) monospaced: scrubber timestamps
-- `DSSpace.s6` (16): card outer padding (rendered as 18 for hero weight)
+- `DSSpace.s7` (20): card outer padding
 - `DSSpace.s6` (16): artwork ↔ text gap
-- `DSMotion.Duration.base` (0.22): track-change and pause-state animation, gated by `@Environment(\.accessibilityReduceMotion)`
+- `DSMotion.Duration.base` (0.22): track-change and pause-state animation, via `.motionSafe(_:value:)` so it drops out under Reduce Motion
+- `DSRadius.lg` (10): empty-state artwork placeholder corner
 - Composes `AlbumArtView` (92pt); see [album-art-view.md](album-art-view.md)
 
 ## Motion
@@ -43,7 +48,7 @@ NowPlayingHeroCard(
 - **Subtitle swap:** same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist · album`.
 - **Timecode:** `.contentTransition(.numericText())` on the `M:SS / M:SS` text. Digits tween instead of blink-replacing every second.
 - **Scrubber:** `ProgressView(value:)` reads the supplied `elapsed` and `duration`. It updates when those inputs change, without a recurring timeline that redraws an unchanged value.
-- **Outer animation:** `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` and the same modifier with `value: isPaused`, both on the card, so callers don't need to wrap track or pause changes in `withAnimation`. The `isPaused` one covers the pause glyph's insertion and removal, the artwork dim and desaturate, and the eyebrow swap.
+- **Outer animation:** `.motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: track)` and the same modifier with `value: isPaused`, both on the card, so callers don't need to wrap track or pause changes in `withAnimation`. The `isPaused` one covers the pause glyph's insertion and removal, the artwork dim and desaturate, and the eyebrow swap.
 - Track-change animations respect `accessibilityReduceMotion`; progress remains input-driven in either mode.
 
 ## Anatomy
@@ -53,7 +58,7 @@ graph LR
   Card --> Column[VStack alignment leading spacing 4]
   Column --> Text[VStack, combined VoiceOver element]
   Column --> Open[Button Open Music, only when Music is closed]
-  Text --> Eyebrow[Text, NOW PLAYING uppercase]
+  Text --> Eyebrow[Text, Now playing or Paused, .sectionEyebrow]
   Text --> Title[Text, lg semibold .contentTransition .opacity id track]
   Text --> Subtitle[Text, base secondary .contentTransition .opacity id subtitle]
   Text --> Progress[Input-driven progress]
@@ -70,7 +75,7 @@ graph LR
 - Reduce Motion: track swaps are instant; scrubber updates still follow the supplied playback position.
 
 ## Do / Don't
-- ✅ Place at the top of the General tab, single instance per pane.
+- ✅ Place under the Music Monitor pane's "Live from Apple Music" eyebrow, single instance per pane.
 - ✅ Pass nil `track` rather than empty strings so the empty state copy renders.
 - ❌ Don't use elsewhere as a "song chip"; use a `Compact` widget layout or a custom row instead.
 - ❌ Don't override the card padding/radius; they're tuned to the standard card surface.
@@ -78,12 +83,13 @@ graph LR
 ## Example
 ```swift
 NowPlayingHeroCard(
-    track: nowPlaying?.track,
-    artist: nowPlaying?.artist,
-    album: nowPlaying?.album,
-    artwork: nowPlaying?.artwork,
-    elapsed: elapsed,
-    duration: nowPlaying?.duration ?? 0,
-    trackingEnabled: trackingEnabled
+    track: currentTrack,
+    artist: currentArtist,
+    album: currentAlbum,
+    artworkURL: currentArtworkURL,
+    trackingEnabled: trackingEnabled,
+    isPaused: currentIsPaused,
+    musicNotRunning: currentTrack == nil && !MusicProcess.isRunning,
+    onOpenMusic: { Task { await MusicPermissionChecker.ensureMusicRunning() } }
 )
 ```

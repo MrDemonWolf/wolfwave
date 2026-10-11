@@ -46,7 +46,7 @@ flowchart LR
 ## Example
 ```swift
 VStack(spacing: AppConstants.SettingsUI.sectionSpacing) {
-    WebSocketServerCard(localNetworkIP: localNetworkIP)
+    WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
         .deepLinkSection("server")
     WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
         .deepLinkSection("browser-source")

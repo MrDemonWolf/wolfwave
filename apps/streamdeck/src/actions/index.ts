@@ -290,20 +290,34 @@ export class NowPlayingAction extends WolfWaveKeyAction {
     super.onWillDisappear(ev);
   }
 
+  protected override onReset(action: KeyAction): void {
+    // Going offline must stop the marquee, or it keeps scrolling the last track
+    // over the "Offline" title and reads as live.
+    this.stopScrolling(action.id);
+  }
+
   protected async render(
     key: KeyAction,
     state: WolfWaveState,
   ): Promise<void> {
+    // Every await below is a point where the key can go offline or disappear.
+    // A render that resumes after that must not install a timer nobody clears.
+    const generation = this.generationOf(key.id);
+
     // The title is the streamer's to label the key with; the track goes in the
     // art, which is the only way it can scroll.
     await key.setTitle("");
+    if (this.isStale(key.id, generation)) return;
     await key.setState(state.isPlaying ? KeyState.secondary : KeyState.primary);
+    if (this.isStale(key.id, generation)) return;
 
     const label = nowPlayingLabel(state);
     const art = state.artworkURL
       ? await artworkDataURI(state.artworkURL)
       : undefined;
+    if (this.isStale(key.id, generation)) return;
 
+    // Last step before the new timer, so overlapping renders leave one interval.
     this.stopScrolling(key.id);
     if (!overflows(label, MARQUEE_FONT_SIZE, KEY_SIZE)) {
       // Short enough to sit still. Scrolling "Home" back and forth forever

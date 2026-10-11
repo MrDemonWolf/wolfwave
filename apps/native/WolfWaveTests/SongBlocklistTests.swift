@@ -23,6 +23,42 @@ final class SongBlocklistTests: WolfWaveTestCase {
         }
     }
 
+    func testFtAndFeaturingSeparatorsAreSplit() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        await list.add(BlocklistItem(value: "Beyoncé", type: .artist))
+        for artist in ["Other ft. Beyoncé", "Other featuring Beyoncé"] {
+            let blocked = await list.isBlocked(title: "Song", artist: artist)
+            XCTAssertTrue(blocked, artist)
+        }
+    }
+
+    /// A comma-named act must stay blocked when it collaborates. Splitting on
+    /// ", " alone turned "Tyler, The Creator & Kali Uchis" into three names,
+    /// none of which equalled the entry.
+    func testCommaNamedActIsBlockedInsideCollaboration() async {
+        let list = SongBlocklist(storage: InMemoryBlocklistStorage())
+        await list.add(BlocklistItem(value: "Tyler, The Creator", type: .artist))
+        for artist in [
+            "Tyler, The Creator",
+            "Tyler, The Creator & Kali Uchis",
+            "Kali Uchis feat. Tyler, The Creator"
+        ] {
+            let blocked = await list.isBlocked(title: "Song", artist: artist)
+            XCTAssertTrue(blocked, artist)
+        }
+        let unrelated = await list.isBlocked(title: "Song", artist: "Kali Uchis")
+        XCTAssertFalse(unrelated)
+    }
+
+    func testArtistCandidatesKeepOriginalSeparatorsInRuns() {
+        let candidates = TrackTextNormalizer.artistCandidates("Tyler, The Creator & Kali Uchis")
+        XCTAssertEqual(candidates, [
+            "tyler, the creator & kali uchis",
+            "tyler", "the creator", "kali uchis",
+            "tyler, the creator", "the creator & kali uchis"
+        ])
+    }
+
     func testDiacriticAndCaseInsensitiveMatch() async {
         let list = SongBlocklist(storage: InMemoryBlocklistStorage())
         await list.add(BlocklistItem(value: "  CAFÉ   SONG  ", type: .song))

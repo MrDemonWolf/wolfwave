@@ -12,7 +12,7 @@ import Foundation
 ///
 /// Accepts plain text queries, Spotify links, and YouTube links.
 /// Returns an immediate acknowledgment, then resolves asynchronously.
-final class SongRequestCommand: AsyncBotCommand {
+final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.
@@ -53,6 +53,30 @@ final class SongRequestCommand: AsyncBotCommand {
         return SongRequestPriority.mode().skipsCooldown && SongRequestPriority.qualifies(context)
     }
 
+    // MARK: - PreflightCheckedCommand
+
+    /// Chat reply when the feature is off and the streamer opted into replying.
+    static let disabledReply = "Song requests are off right now."
+
+    /// Refuses `!sr` before the dispatcher claims its cooldown when song
+    /// requests are off or the sender is outside the chat audience, so a refused
+    /// viewer never starts the cooldown allowed viewers share.
+    /// `SongRequestService.processRequest` repeats both checks as defense in depth.
+    ///
+    /// - Parameter context: The sender's chat context.
+    /// - Returns: The refusal, or `nil` when the request may proceed.
+    func preflightDenial(context: BotCommandContext) -> PreflightDenial? {
+        let defaults = DefaultsStore.store
+        guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
+            return defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
+                ? .reply(Self.disabledReply)
+                : .silent
+        }
+        let audience = RequestAudience.current(in: defaults)
+        guard audience.permits(context) else { return .reply(audience.denialMessage) }
+        return nil
+    }
+
     // MARK: - AsyncBotCommand
 
     /// Parses the search query, dispatches to the resolver, and formats the
@@ -71,12 +95,12 @@ final class SongRequestCommand: AsyncBotCommand {
         let defaults = DefaultsStore.store
         guard defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled) else {
             return defaults.bool(forKey: AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
-                ? "Song requests are off right now."
+                ? Self.disabledReply
                 : nil
         }
 
         // Extract the query (everything after the trigger)
-        let query = extractQuery(from: message)
+        let query = Self.extractQuery(from: message)
 
         guard !query.isEmpty else {
             return "Usage: !sr <song name or Spotify/YouTube link>"
@@ -127,7 +151,7 @@ final class SongRequestCommand: AsyncBotCommand {
             response = "Song requests aren't available right now."
 
         case .featureDisabled:
-            response = "Song requests are off right now."
+            response = Self.disabledReply
 
         case .error(let message):
             response = message
@@ -136,27 +160,21 @@ final class SongRequestCommand: AsyncBotCommand {
         return response
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Query Parsing
 
-    /// Strips the matched trigger prefix from `message` and returns the remaining
-    /// search query, trimmed of surrounding whitespace.
+    /// Drops the first whitespace-delimited token (the trigger) and returns the
+    /// rest as the search query, trimmed of surrounding whitespace.
     ///
-    /// - Parameter message: Full chat message including the `!sr` prefix.
-    /// - Returns: The query portion, or the entire message if no trigger matched.
-    private func extractQuery(from message: String) -> String {
-        let lowered = message.lowercased()
-        for trigger in allTriggers {
-            let triggerLowered = trigger.lowercased()
-            if lowered.hasPrefix(triggerLowered) {
-                // `limitedBy` so the offset can't trap: lowercasing can change a
-                // string's Character count for some scripts, so `trigger.count`
-                // isn't guaranteed ≤ `message.count` even after `hasPrefix`.
-                let startIndex = message.index(
-                    message.startIndex, offsetBy: trigger.count, limitedBy: message.endIndex
-                ) ?? message.endIndex
-                return String(message[startIndex...]).trimmingCharacters(in: .whitespaces)
-            }
-        }
-        return message
+    /// The dispatcher routes on exact first-token equality, so that token is
+    /// already one of this command's triggers. Stripping by token instead of by
+    /// prefix keeps an alias that extends a base trigger (`!srq`, `!request2`)
+    /// from losing its tail characters to the shorter `!sr` / `!request`.
+    ///
+    /// - Parameter message: Full chat message including the trigger.
+    /// - Returns: The query portion, or an empty string when there is none.
+    static func extractQuery(from message: String) -> String {
+        let parts = message.split(maxSplits: 1, whereSeparator: \.isWhitespace)
+        guard parts.count > 1 else { return "" }
+        return String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

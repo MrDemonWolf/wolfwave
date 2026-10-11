@@ -19,6 +19,10 @@ import SwiftUI
 /// color alone (WCAG 1.4.1). When omitted, the chip falls back to a plain
 /// colored dot, fine for non-status category tags where there is no shared
 /// icon vocabulary.
+///
+/// The glyph (or dot) is drawn in ``DSColor/glyph(for:in:)`` rather than the raw
+/// tint, so in light appearance a semantic token swaps to its darker
+/// `glyph…Light` variant and stays above 3:1 on the chip's own wash (WCAG 1.4.11).
 struct StatusChip: View {
 
     // MARK: - Properties
@@ -29,23 +33,27 @@ struct StatusChip: View {
     /// dot so state is conveyed by shape and color together, not color alone.
     var systemImage: String? = nil
 
-    // MARK: - Body
+    @Environment(\.colorScheme) private var colorScheme
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Contrast-safe color for the leading glyph or dot.
+    private var glyphColor: Color { DSColor.glyph(for: color, in: colorScheme) }
+
+    // MARK: - Body
 
     var body: some View {
         HStack(spacing: DSSpace.s1h) {
             if let systemImage {
                 Image(systemName: systemImage)
                     .font(.system(size: DSFont.Size.sm, weight: .semibold))
-                    .foregroundStyle(color)
+                    .foregroundStyle(glyphColor)
                     .contentTransition(.symbolEffect(.replace))
                     .accessibilityHidden(true)
             } else {
                 Circle()
-                    .fill(color)
-                    .frame(width: 6, height: 6)
+                    .fill(glyphColor)
+                    .frame(width: DSDimension.StatusChip.dot, height: DSDimension.StatusChip.dot)
                     .contentTransition(.interpolate)
+                    .accessibilityHidden(true)
             }
 
             Text(text)
@@ -53,16 +61,16 @@ struct StatusChip: View {
                 .foregroundStyle(.primary)
                 .contentTransition(.opacity)
         }
-        .frame(minWidth: 88)
+        .frame(minWidth: DSDimension.StatusChip.minWidth)
         .padding(.horizontal, DSSpace.s3)
         .padding(.vertical, DSSpace.s1)
-        .background(color.opacity(0.1))
+        .background(color.opacity(DSOpacity.wash))
         .clipShape(Capsule())
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: text)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: color)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: text)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: color)
+        // Label only: a value equal to the label made VoiceOver read the state twice.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(text)
-        .accessibilityValue(text)
         .accessibilityIdentifier("statusChip.\(text)")
     }
 }
@@ -92,6 +100,36 @@ extension StatusChip {
     }
 }
 
+// MARK: - Semantic Glyph Contrast
+
+extension DSColor {
+
+    /// The color to draw a glyph in when it sits on a wash of `tint`.
+    ///
+    /// The semantic tints are tuned for dark appearance. In light appearance a
+    /// bright tint drawn on a 10% wash of itself lands under 3:1 (success and
+    /// warning near 2:1), which fails WCAG 1.4.11 for meaningful non-text marks.
+    /// Each semantic token therefore maps to its darker `glyph…Light` variant in
+    /// light appearance. Dark appearance, and any non-semantic color (a category
+    /// tag's `.purple`, a tint with its own opacity), pass through unchanged.
+    ///
+    /// Use only for the glyph or dot. Keep the wash itself on the semantic
+    /// tint, so the chip still reads as the same state color.
+    ///
+    /// `nonisolated` so the mapping is unit-testable off the main actor.
+    nonisolated static func glyph(for tint: Color, in colorScheme: ColorScheme) -> Color {
+        guard colorScheme == .light else { return tint }
+        switch tint {
+        case DSColor.success: return DSColor.glyphSuccessLight
+        case DSColor.warning: return DSColor.glyphWarningLight
+        case DSColor.error: return DSColor.glyphErrorLight
+        case DSColor.info: return DSColor.glyphInfoLight
+        case DSColor.neutral: return DSColor.glyphNeutralLight
+        default: return tint
+        }
+    }
+}
+
 // MARK: - Previews
 
 #Preview("Live") {
@@ -110,6 +148,24 @@ extension StatusChip {
     StatusChip(text: "Error", color: DSColor.error, systemImage: StatusChip.StateGlyph.error)
         .padding()
         .frame(width: 360)
+}
+
+#Preview("Light vs dark glyphs") {
+    HStack(spacing: DSSpace.s4) {
+        ForEach([ColorScheme.light, .dark], id: \.self) { scheme in
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                StatusChip(text: "Live", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
+                StatusChip(text: "Starting", color: DSColor.warning, systemImage: StatusChip.StateGlyph.starting)
+                StatusChip(text: "Error", color: DSColor.error, systemImage: StatusChip.StateGlyph.error)
+                StatusChip(text: "Joined", color: DSColor.info, systemImage: StatusChip.StateGlyph.off)
+                StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
+            }
+            .padding()
+            .background(Color(nsColor: .windowBackgroundColor))
+            .environment(\.colorScheme, scheme)
+        }
+    }
+    .padding()
 }
 
 #Preview("Dot fallback (category tag)") {

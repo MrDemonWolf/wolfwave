@@ -177,16 +177,45 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
 
     /// Returns the open write handle, creating the directory, file, and handle
     /// on first use. Runs on `ioQueue`.
+    ///
+    /// When the existing file ends mid-line (a crash tore the last append), a
+    /// newline is written first so the next record starts on its own line.
+    /// Without it the new record would glue onto the torn fragment and both
+    /// would be unreadable.
     private func openHandle() -> FileHandle? {
         if let handle = fileHandle { return handle }
         ensureDirectoryExists()
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
-        let handle = FileHandle(forWritingAtPath: fileURL.path)
+        // Read + write, so the last byte can be checked before appending.
+        guard let handle = FileHandle(forUpdatingAtPath: fileURL.path) else { return nil }
+        terminateTornLine(handle)
         fileHandle = handle
         return handle
     }
+
+    /// Appends a newline when the file's last byte is not one. Runs on `ioQueue`.
+    private func terminateTornLine(_ handle: FileHandle) {
+        do {
+            let end = try handle.seekToEnd()
+            guard end > 0 else { return }
+            try handle.seek(toOffset: end - 1)
+            let lastByte = try handle.read(upToCount: 1)
+            guard let lastByte, lastByte.first != Self.newline else { return }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data([Self.newline]))
+            Log.warn("PlayLogStore: Closed a torn last line before appending", category: .history)
+        } catch {
+            Log.warn(
+                "PlayLogStore: Could not check the log's last line: \(error.localizedDescription)",
+                category: .history
+            )
+        }
+    }
+
+    /// NDJSON record separator.
+    private static let newline = UInt8(0x0A)
 
     /// Creates the containing directory if it does not exist. Runs on `ioQueue`.
     private func ensureDirectoryExists() {

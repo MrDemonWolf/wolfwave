@@ -13,19 +13,20 @@ import SwiftUI
 /// Lists the user's own chat commands and hosts the add/edit sheet. Backed by
 /// the shared ``CustomCommandStore`` singleton (the same instance the dispatcher
 /// reads), so a saved edit takes effect on the next chat line.
+///
+/// Editing stays open while Twitch is disconnected: the store is local, so a
+/// streamer can set commands up before going live. The connection notice only
+/// explains that the commands won't reply until Twitch is connected.
 struct CustomCommandsCard: View {
 
-    /// Custom commands only work while the Twitch chat connection is authorized.
+    /// Drives the connection notice. Commands reply only while Twitch chat is
+    /// connected and the sign-in is valid.
     let viewModel: TwitchViewModel
 
-    private var twitchReady: Bool {
-        viewModel.channelConnected && !viewModel.reauthNeeded
-    }
-
     private let expiredMessage =
-        "Your Twitch sign-in expired. Reconnect above to manage custom commands."
+        "Your Twitch sign-in expired. You can still edit these, but they won't reply until you reconnect above."
     private let disconnectedMessage =
-        "Connect with Twitch above to create and manage custom chat commands."
+        "You can set these up now. They reply in chat once you connect with Twitch above."
 
     /// The shared store; `@State` pins the singleton's identity for the view's
     /// lifetime while Observation tracks its property reads.
@@ -66,28 +67,25 @@ struct CustomCommandsCard: View {
                     .accessibilityIdentifier("customCommandAnnounceBanner")
             }
 
-            Group {
-                if store.commands.isEmpty {
-                    emptyState
-                } else {
-                    VStack(spacing: 1) {
-                        ForEach(store.commands) { command in
-                            row(for: command)
-                        }
+            if store.commands.isEmpty {
+                emptyState
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(store.commands) { command in
+                        row(for: command)
                     }
-                    .cardStyleUnpadded()
                 }
-
-                Button {
-                    isNewCommand = true
-                    editing = CustomCommand()
-                } label: {
-                    Label("Add command", systemImage: "plus")
-                }
-                .controlSize(.small)
-                .accessibilityIdentifier("addCustomCommand")
+                .cardStyleUnpadded()
             }
-            .disabled(!twitchReady)
+
+            Button {
+                isNewCommand = true
+                editing = CustomCommand()
+            } label: {
+                Label("Add command", systemImage: "plus")
+            }
+            .controlSize(.small)
+            .accessibilityIdentifier("addCustomCommand")
 
             HintRow("Use variables like $user, $touser, $args, $1, $song in your reply.")
         }
@@ -97,12 +95,11 @@ struct CustomCommandsCard: View {
                 isNew: isNewCommand,
                 store: store,
                 onSave: { saved in
-                    if isNewCommand {
-                        store.add(saved)
-                    } else {
-                        store.update(saved)
-                    }
-                    editing = nil
+                    // The editor only enables Save for a valid draft, but the
+                    // store re-checks the whole set. Keep the sheet open if it
+                    // still refuses, so the streamer's typing is never lost.
+                    let stored = isNewCommand ? store.add(saved) : store.update(saved)
+                    if stored { editing = nil }
                 },
                 onDelete: {
                     store.delete(id: command.id)
@@ -110,9 +107,6 @@ struct CustomCommandsCard: View {
                 },
                 onCancel: { editing = nil }
             )
-        }
-        .onChange(of: twitchReady) { _, ready in
-            if !ready { editing = nil }
         }
     }
 
@@ -190,10 +184,14 @@ struct CustomCommandsCard: View {
 // MARK: - Editor
 
 /// Add/edit sheet for one custom command. Keeps a working copy so Cancel is a
-/// true no-op; validation blocks Save on an empty or duplicate trigger.
+/// true no-op; ``CustomCommandStore/validationIssue(for:)`` blocks Save and
+/// names the problem under the field that needs fixing.
 private struct CustomCommandEditor: View {
 
     @State private var draft: CustomCommand
+    /// Fields the user has edited. A mistake shows only once its field is
+    /// dirty, so a fresh sheet doesn't open covered in red.
+    @State private var dirtyFields: Set<CustomCommandIssue.Field> = []
     let isNew: Bool
     let store: CustomCommandStore
     let onSave: (CustomCommand) -> Void
@@ -216,9 +214,14 @@ private struct CustomCommandEditor: View {
         self.onCancel = onCancel
     }
 
-    private var triggerEmpty: Bool { draft.normalizedTrigger.isEmpty }
-    private var triggerConflicts: Bool { store.commandConflicts(draft) }
-    private var isValid: Bool { !triggerEmpty && !triggerConflicts }
+    private var issue: CustomCommandIssue? { store.validationIssue(for: draft) }
+    private var isValid: Bool { issue == nil }
+
+    /// Counted in Unicode scalars to match the Save gate and the send-time
+    /// truncation, so the counter never reads under the limit for a reply
+    /// that would be cut.
+    private var replyLength: Int { draft.response.unicodeScalars.count }
+    private var replyOverLimit: Bool { replyLength > AppConstants.Twitch.maxMessageLength }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
@@ -230,19 +233,20 @@ private struct CustomCommandEditor: View {
                 TextField("!hug", text: $draft.trigger)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("customCommandTrigger")
-                if triggerConflicts {
-                    Text("Each trigger and alias must be complete and unique.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(DSColor.error)
-                }
+                issueMessage(for: .trigger)
             }
 
             VStack(alignment: .leading, spacing: DSSpace.s2) {
-                Text("Reply").sectionEyebrow()
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Reply").sectionEyebrow()
+                    Spacer()
+                    replyCounter
+                }
                 TextField("$user gives $touser a big hug!", text: $draft.response, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(2...5)
                     .accessibilityIdentifier("customCommandResponse")
+                issueMessage(for: .reply)
             }
 
             HStack(spacing: DSSpace.s2) {
@@ -281,10 +285,13 @@ private struct CustomCommandEditor: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            CommandAliasField(
-                aliases: $draft.aliases,
-                accessibilityIdentifier: "customCommandAliases"
-            )
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                CommandAliasField(
+                    aliases: $draft.aliases,
+                    accessibilityIdentifier: "customCommandAliases"
+                )
+                issueMessage(for: .aliases)
+            }
 
             CooldownSliderPair(
                 everyone: .init(
@@ -323,7 +330,42 @@ private struct CustomCommandEditor: View {
             }
         }
         .padding(DSSpace.s7)
-        .frame(width: 460, height: 580)
+        .frame(width: 460)
+        .frame(minHeight: 580)
+        .onChange(of: draft.trigger) { dirtyFields.insert(.trigger) }
+        .onChange(of: draft.aliases) { dirtyFields.insert(.aliases) }
+        .onChange(of: draft.response) { dirtyFields.insert(.reply) }
+    }
+
+    /// The current issue, rendered under `field` once that field is dirty.
+    ///
+    /// Guidance for an unfilled field (no trigger yet, no reply yet) reads
+    /// neutral and shows straight away; a real mistake waits for the field to
+    /// be edited and then uses the error color.
+    @ViewBuilder
+    private func issueMessage(for field: CustomCommandIssue.Field) -> some View {
+        if let issue, issue.field(trigger: draft.normalizedTrigger) == field {
+            if issue.isNeutralHint {
+                Text(issue.message)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("customCommandHint.\(field)")
+            } else if dirtyFields.contains(field) {
+                FieldValidationRow(state: .invalid(issue.message))
+                    .accessibilityIdentifier("customCommandError.\(field)")
+            }
+        }
+    }
+
+    /// Live reply length against Twitch's per-message limit.
+    private var replyCounter: some View {
+        Text("\(replyLength)/\(AppConstants.Twitch.maxMessageLength)")
+            .font(.system(size: DSFont.Size.sm))
+            .monospacedDigit()
+            .foregroundStyle(replyOverLimit ? DSColor.error : Color.secondary)
+            .accessibilityLabel(
+                "\(replyLength) of \(AppConstants.Twitch.maxMessageLength) characters")
+            .accessibilityIdentifier("customCommandReplyCounter")
     }
 
     /// A short reference of the supported variables.

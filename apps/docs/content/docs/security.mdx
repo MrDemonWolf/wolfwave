@@ -78,7 +78,10 @@ External traffic uses encrypted transport. Local browser-source traffic is plain
 | `api.twitch.tv/helix` | HTTPS | Twitch Helix API |
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
-| `itunes.apple.com/search` | HTTPS | Album artwork for Discord Rich Presence |
+| `itunes.apple.com/search` | HTTPS | Album artwork and Apple Music / song.link track URLs (Discord, widget, chat). song.link URLs are built locally and never fetched |
+| `api.music.apple.com` | HTTPS | Song-request search and Apple Music link lookup (MusicKit) |
+| `open.spotify.com/oembed`, `www.youtube.com/oembed` | HTTPS | Resolve Spotify and YouTube links pasted in chat for song requests |
+| iCloud Key-Value Storage | Apple-managed | Opt-in "Sync with iCloud" settings mirror. Off by default; only in builds signed with the iCloud entitlement |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
 | `0.0.0.0:8765` | WS (plaintext LAN) | Read-only now-playing over LAN; control only from loopback, both token-gated |
 | `0.0.0.0:8766` | HTTP (plaintext LAN) | Unauthenticated widget shell |

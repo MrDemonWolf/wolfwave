@@ -172,7 +172,7 @@ struct TwitchSettingsView: View {
                     viewModel.startOAuth(owner: oauthOwner)
                 case .retry:
                     viewModel.connectionError = nil
-                    viewModel.joinChannel()
+                    retry(TwitchViewModel.retryTarget(for: error))
                 case .reportBug:
                     BugReportURL.openPrefilledIssue()
                 case .openDocs(let anchor):
@@ -181,26 +181,61 @@ struct TwitchSettingsView: View {
                     viewModel.connectionError = nil
                 }
             }
-        } else if !viewModel.progressMessage.isEmpty {
+        } else if !viewModel.progressMessage.isEmpty, !viewModel.authState.isInProgress {
+            // While signing in, the auth card's own status row carries this
+            // text, so it isn't shown twice.
             LoadingRow(text: viewModel.progressMessage)
                 .accessibilityIdentifier("twitch-settings.progress")
         }
     }
 
+    /// Re-runs whatever the failed banner was about.
+    private func retry(_ target: TwitchViewModel.RetryTarget) {
+        switch target {
+        case .signIn:
+            hasStartedActivation = false
+            viewModel.startOAuth(owner: oauthOwner)
+        case .signOut:
+            Task { @MainActor in await viewModel.clearCredentials() }
+        case .joinChannel:
+            viewModel.joinChannel()
+        }
+    }
+
+    /// Whether the auth card shows the signed-in controls. A failure while
+    /// still signed in (a sign-out that didn't finish) keeps them; the error
+    /// banner above explains it.
+    private var showsSignedInCard: Bool {
+        switch viewModel.integrationState {
+        case .connected: true
+        case .error: viewModel.credentialsSaved
+        case .notConnected, .authorizing: false
+        }
+    }
+
+    /// The signed-in card.
+    ///
+    /// `SignedInView` is already a full card (own header rows + single
+    /// border). Wrapping it in the outer `.cardStyle()` shell would draw
+    /// a second outline around it, so the connected state stands alone
+    /// with one outline, matching the Bot Commands cards below.
+    private var signedInCard: some View {
+        connectedContent
+            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+    }
+
     /// Main card that switches content based on integration state.
     ///
-    /// Shows one of: sign-in button, device-code flow, connected controls, or error retry.
+    /// Shows one of: sign-in button, device-code flow, or connected controls.
+    /// After a failure it shows the sign-in button again; the reason itself
+    /// renders once, in ``connectionStatus``.
     @ViewBuilder
     private var authCard: some View {
-        switch viewModel.integrationState {
-        case .connected:
-            // `SignedInView` is already a full card (own header rows + single
-            // border). Wrapping it in the outer `.cardStyle()` shell would draw
-            // a second outline around it, so the connected state stands alone
-            // with one outline, matching the Bot Commands cards below.
-            connectedContent
-                .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
-        default:
+        // One branch for both signed-in shapes, so moving between them keeps
+        // the card's identity instead of swapping views.
+        if showsSignedInCard {
+            signedInCard
+        } else {
             VStack(spacing: DSSpace.s5) {
                 // Card header is always present for non-connected states so the
                 // card never collapses its top section mid-transition.
@@ -225,8 +260,10 @@ struct TwitchSettingsView: View {
                         notConnectedContent
                     case .authorizing:
                         authorizingContent
-                    case .error(let message):
-                        errorContent(message: message)
+                    case .error:
+                        // The reason renders once, in the ErrorCallout above.
+                        // Here the card just offers the way back in.
+                        notConnectedContent
                     case .connected:
                         EmptyView()  // Handled by the standalone branch above.
                     }
@@ -239,6 +276,14 @@ struct TwitchSettingsView: View {
     }
 
     // MARK: - State Content Subviews
+
+    /// "Get a new code" right after a code timed out, so the button says what
+    /// it does; "Connect with Twitch" otherwise.
+    private var signInButtonTitle: String {
+        viewModel.connectionError?.id == "twitch.deviceCodeExpired"
+            ? "Get a new code"
+            : "Connect with Twitch"
+    }
 
     /// Sign-in CTA shown when no token is stored.
     private var notConnectedContent: some View {
@@ -254,7 +299,7 @@ struct TwitchSettingsView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 14, height: 14)
                         .foregroundStyle(.white)
-                    Text("Connect with Twitch")
+                    Text(signInButtonTitle)
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
@@ -268,10 +313,20 @@ struct TwitchSettingsView: View {
                 reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast),
                 value: viewModel.authState.isInProgress
             )
-            .accessibilityLabel("Connect with Twitch")
+            .accessibilityLabel(signInButtonTitle)
             .accessibilityHint("Starts the Twitch authorization flow")
+            .accessibilityIdentifier("twitchSignInButton")
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// Status line beside the spinner while signing in.
+    private var authorizingStatusText: String {
+        if case .requestingCode = viewModel.authState {
+            return "Getting your code\u{2026}"
+        }
+        let progress = viewModel.progressMessage
+        return progress.isEmpty ? "Waiting for you to approve on Twitch\u{2026}" : progress
     }
 
     /// Device-code flow with copy + cancel affordances.
@@ -286,6 +341,11 @@ struct TwitchSettingsView: View {
                     },
                     onActivate: {
                         hasStartedActivation = true
+                    },
+                    expiresAt: viewModel.deviceCodeExpiresAt,
+                    onRequestNewCode: {
+                        hasStartedActivation = false
+                        viewModel.startOAuth(owner: oauthOwner)
                     }
                 )
                 // Symmetric transition (same shape in and out) so the card
@@ -300,9 +360,10 @@ struct TwitchSettingsView: View {
                     .progressViewStyle(.circular)
                     .controlSize(.small)
 
-                Text("Waiting for you to approve on Twitch\u{2026}")
+                Text(authorizingStatusText)
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("twitch-settings.authStatus")
 
                 Spacer()
 
@@ -348,24 +409,6 @@ struct TwitchSettingsView: View {
         )
         .transition(.opacity)
     }
-
-    /// Error message + retry CTA.
-    private func errorContent(message: String) -> some View {
-        VStack(spacing: DSSpace.s2) {
-            Text(message)
-                .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(DSColor.error)
-            HStack {
-                Button("Retry") { viewModel.startOAuth(owner: oauthOwner) }
-                    .buttonStyle(.bordered)
-                    .pointerCursor()
-                    .accessibilityLabel("Retry Twitch authorization")
-                    .accessibilityHint("Tries the Twitch sign-in process again")
-                Spacer()
-            }
-        }
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
 }
 
 // MARK: - Sub-Views
@@ -390,6 +433,7 @@ private struct SignedInView: View {
     var onLeaveChannel: () -> Void
     var onChannelIDChanged: () -> Void
     @State private var showingDisconnectConfirmation = false
+    @State private var showingLogOutConfirmation = false
 
     /// Shared height for every button in the action row. Pinning all of them to
     /// one value keeps Join/Leave and Log Out visually aligned.
@@ -426,11 +470,14 @@ private struct SignedInView: View {
     private var botAccountSection: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
-                Text("Twitch Account")
+                Text("Bot account")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
                 Text(displayUsername)
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
+                Text("WolfWave posts chat replies as this account.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             statusIcon(reauthNeeded: reauthNeeded)
@@ -438,7 +485,7 @@ private struct SignedInView: View {
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Twitch account: \(displayUsername)")
+        .accessibilityLabel("Bot account: \(displayUsername)")
         .accessibilityValue(reauthNeeded ? "Sign-in expired" : "Signed in")
     }
 
@@ -464,60 +511,36 @@ private struct SignedInView: View {
     }
 
     /// Small inline indicator below the channel field showing validation progress or result.
+    ///
+    /// Uses the shared ``FieldValidationRow`` so the glyphs and tints match
+    /// every other field, and so a failed check shows its real reason inline
+    /// instead of hiding it in a hover tooltip.
     @ViewBuilder
     private var channelValidationIndicator: some View {
+        if channelValidationRowState != .idle {
+            FieldValidationRow(state: channelValidationRowState)
+                .padding(.top, DSSpace.s2)
+        }
+    }
+
+    /// Maps the view model's channel check onto the shared field states.
+    private var channelValidationRowState: FieldValidationRow.State {
         switch channelValidationState {
         case .idle:
-            EmptyView()
+            return .idle
         case .validating:
-            HStack(spacing: DSSpace.s1h) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .controlSize(.mini)
-                Text("Verifying channel...")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, DSSpace.s2)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Verifying channel")
+            return .validating("Verifying channel\u{2026}")
         case .valid:
-            HStack(spacing: DSSpace.s1) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.system(size: DSFont.Size.sm))
-                Text("Channel verified")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.green)
-            }
-            .padding(.top, DSSpace.s2)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Channel verified successfully")
+            return .valid("Channel verified")
         case .invalid:
-            HStack(spacing: DSSpace.s1) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(DSColor.error)
-                    .font(.system(size: DSFont.Size.sm))
-                Text("Channel not found")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(DSColor.error)
-            }
-            .padding(.top, DSSpace.s2)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Channel not found")
+            return .invalid("Channel not found")
         case .error(let message):
-            HStack(spacing: DSSpace.s1) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.system(size: DSFont.Size.sm))
-                Text("Couldn't check channel")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.orange)
-                    .help(message)
-            }
-            .padding(.top, DSSpace.s2)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Couldn't check channel: \(message)")
+            return .failed(UserFacingError(
+                id: "twitch.channelCheckFailed",
+                title: "Couldn't check channel",
+                cause: message,
+                severity: .warning
+            ))
         }
     }
 
@@ -531,7 +554,7 @@ private struct SignedInView: View {
                     .font(.system(size: DSFont.Size.base, weight: .semibold))
                 if !channelID.isEmpty {
                     Image(systemName: "checkmark.seal.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(DSColor.info)
                         .font(.system(size: DSFont.Size.base))
                         .accessibilityLabel("Verified channel")
                 }
@@ -587,12 +610,12 @@ private struct SignedInView: View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
             Image(systemName: "wifi")
-                .foregroundStyle(.green)
+                .foregroundStyle(DSColor.success)
                 .font(.system(size: DSFont.Size.md))
                 .accessibilityLabel("Connected to channel")
         case (false, true):
             Image(systemName: "wifi.slash")
-                .foregroundStyle(.orange)
+                .foregroundStyle(DSColor.warning)
                 .font(.system(size: DSFont.Size.md))
                 .accessibilityLabel("Disconnected, sign-in expired")
         case (false, false):
@@ -610,7 +633,7 @@ private struct SignedInView: View {
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                 }
                 .buttonStyle(.bordered)
-                .tint(.orange)
+                .tint(DSColor.warning)
                 .controlSize(.small)
                 .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
@@ -698,14 +721,14 @@ private struct SignedInView: View {
                 Text("Sign out")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text("Removes chat commands until you reconnect.")
+                Text("Chat commands stop until you sign in again.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
             }
 
             Spacer()
 
-            Button("Log Out", action: onClearCredentials)
+            Button("Log Out") { showingLogOutConfirmation = true }
                 .font(.system(size: DSFont.Size.body))
                 .buttonStyle(.bordered)
                 .tint(DSColor.error)
@@ -719,6 +742,16 @@ private struct SignedInView: View {
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
+        .confirmationDialog(
+            "Sign out of Twitch?", isPresented: $showingLogOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Sign Out", role: .destructive, action: onClearCredentials)
+                .accessibilityIdentifier("twitchConfirmSignOutButton")
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Chat commands stop until you sign in again.")
+        }
     }
 
     /// Whether the Connect button should be grayed out (missing channel name or still connecting).
@@ -733,15 +766,15 @@ private struct SignedInView: View {
         return botUsername.isEmpty || !validChannel
     }
 
-    /// Builds the connection-status SF Symbol (orange exclamation for
-    /// re-auth needed, green checkmark otherwise).
+    /// Builds the connection-status SF Symbol (warning exclamation for
+    /// re-auth needed, success checkmark otherwise).
     ///
     /// - Parameter reauthNeeded: When `true`, returns the warning icon.
     /// - Returns: A pre-sized status icon view.
     @ViewBuilder
     private func statusIcon(reauthNeeded: Bool) -> some View {
         Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-            .foregroundStyle(reauthNeeded ? .orange : .green)
+            .foregroundStyle(reauthNeeded ? DSColor.warning : DSColor.success)
             .font(.system(size: DSFont.Size.md))
     }
 }
@@ -775,6 +808,17 @@ private struct SignedInView: View {
         .frame(width: 700)
 }
 
+#Preview("Requesting Code") {
+    let mockViewModel: TwitchViewModel = {
+        let vm = TwitchViewModel()
+        vm.authState = .requestingCode
+        return vm
+    }()
+    TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
+        .padding()
+        .frame(width: 700)
+}
+
 #Preview("Authorizing State") {
     let mockViewModel: TwitchViewModel = {
         let vm = TwitchViewModel()
@@ -782,6 +826,7 @@ private struct SignedInView: View {
             userCode: "ABCD-WXYZ",
             verificationURI: "https://www.twitch.tv/activate"
         )
+        vm.deviceCodeExpiresAt = Date().addingTimeInterval(14 * 60)
         return vm
     }()
     TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))
@@ -821,7 +866,8 @@ private struct SignedInView: View {
 #Preview("Error State") {
     let mockViewModel: TwitchViewModel = {
         let vm = TwitchViewModel()
-        vm.authState = .error("Failed to authenticate. Please try again.")
+        vm.authState = .error("That sign-in code expired. Codes last only a few minutes.")
+        vm.connectionError = TwitchViewModel.Failure.deviceCodeExpired()
         return vm
     }()
     TwitchSettingsView(viewModel: mockViewModel, oauthOwner: .settings(UUID()))

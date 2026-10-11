@@ -145,6 +145,22 @@ final class SettingsSyncService {
         Log.info("SettingsSync: pushed settings to iCloud", category: .app)
     }
 
+    /// Pushes a debounced local change right now instead of waiting out the
+    /// debounce. Call on quit, before logging shuts down, so a setting changed
+    /// in the last couple of seconds still reaches iCloud.
+    ///
+    /// Only pushes when a local change is actually pending. With nothing
+    /// pending there is nothing new to say, and pushing anyway could stamp an
+    /// unchanged local copy over a newer cloud payload this launch has not
+    /// pulled yet.
+    func flush(now: Date = Date()) {
+        guard let pending = pendingPush else { return }
+        pending.cancel()
+        pendingPush = nil
+        guard isEnabled else { return }
+        push(now: now)
+    }
+
     // MARK: Private Helpers
 
     private func start() {
