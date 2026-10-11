@@ -35,7 +35,6 @@ check 'bun run tokens' \
   apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift \
   apps/docs/app/tokens.generated.css \
   apps/native/WolfWave/Resources/widget-tokens.generated.js \
-  apps/marketing/shared/tokens.generated.ts \
   'apps/docs/app/(home)/_widgets/widget-themes.generated.ts'
 
 check 'make sponsor-config' \

@@ -34,7 +34,8 @@ make clean 2>/dev/null || true
 DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData"
 if [ -d "$DERIVED_DATA" ]; then
     echo "  Removing DerivedData..."
-    rm -rf "$DERIVED_DATA"/wolfwave-* 2>/dev/null || true
+    # Xcode names these <ProjectName>-<hash>, so the glob is case-sensitive.
+    rm -rf "$DERIVED_DATA"/WolfWave-* 2>/dev/null || true
 fi
 
 # Remove app from /Applications if installed

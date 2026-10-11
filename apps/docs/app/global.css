@@ -141,16 +141,11 @@
 /* ── Surfaces ────────────────────────────────────────────── */
 .ww-bg-base    { background-color: var(--bg-base); }
 .ww-bg-surface { background-color: var(--bg-surface); }
-.ww-bg-elev    { background-color: var(--bg-elev); }
 
 .ww-text-1     { color: var(--txt-1); }
 .ww-text-2     { color: var(--txt-2); }
 .ww-text-brand { color: var(--brand-600); }
 .dark .ww-text-brand { color: var(--brand-500); }
-
-.ww-hairline {
-  border-color: var(--hairline);
-}
 
 /* ── Frosted card. Flat: translucent frost + hairline, no bevel highlight,
    no glassy sheen, no heavy drop shadow (kept deliberately un-3D). ─────── */

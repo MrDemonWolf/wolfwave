@@ -32,13 +32,6 @@ export interface ClientSettings {
   token: string;
 }
 
-export interface ClientEvents {
-  /** Fired whenever the folded state actually changes. */
-  onState: (state: WolfWaveState) => void;
-  /** Fired for every ack, so the originating key can flash ok/alert. */
-  onAck: (ack: AckFrame) => void;
-}
-
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
