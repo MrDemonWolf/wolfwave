@@ -46,6 +46,18 @@ All notable changes to this project will be documented in this file.
 - Hardened backup imports with bounded values, HTTPS URL validation, size checks, and explicit sharing/server settings review.
 - Restricted nightly builds to `main`, serialized release workflows, and validated Homebrew release versions.
 - Pin sponsor generation dependencies and publish sponsor updates with a step-scoped token.
+- `!song`, `!last`, and `!stats` no longer all reply when several viewers spam them at once. The cooldown now holds.
+- WolfWave no longer stays disconnected from Twitch after a quick Wi-Fi or VPN switch.
+- Song Request queue Decline and Remove buttons are easier to click, and the queue uses the standard warning and success colors.
+- The Twitch sign-in code copies through the Copy button only, so VoiceOver and keyboard users get one clear control.
+- VoiceOver can reach the Open Music button on the Now Playing card, and the Open System Settings, Show me how, and Try again buttons on the Music Access screen.
+- The pause icon on the Now Playing card fades instead of popping.
+- The Stream Deck Clear Queue key also clears Music.app's queue, like the menu bar item does.
+- Stream Widgets port fields save when you Tab or click away, not only on Return.
+- Erase & Reset tells you if your history and logs couldn't be erased, and offers a Relaunch instead of leaving a half-reset app running.
+- What's New no longer opens a second window when one is already showing.
+- Monthly Wrap month arrows are easier to click.
+- A damaged lifetime stats file is logged and backed up instead of silently reset.
 
 - **Channel-point refunds no longer claim success before Twitch confirms them.** Rejected resolution requests are checked against Twitch and retried a bounded number of times; persistent conflicts are surfaced in Settings and stop blocking sign-out.
 - **Apple Music share links resolve to the selected track.** Song links now use their catalog ID, album links use the track ID in `?i=`, and link requests ask for Music access when needed.
@@ -93,6 +105,14 @@ All notable changes to this project will be documented in this file.
 - **Removed `scripts/generate-og-image.mjs` and its two root devDependencies.** The docs site has generated its Open Graph cards at build time since before 2.1.0 and nothing referenced the standalone version.
 - **Nightly was red for a week, and the next stable release would have been too.** `scripts/generate-appcast.sh` (shared by Release and Nightly since the CI dedup) runs under `set -euo pipefail`, and its `find` over both Homebrew Caskroom roots exits 1 because only one exists, which the `$(...)` assignment turned into a silent exit before the first line of output. Every nightly from 2026-08-15 to 08-21 failed at "Generate nightly appcast"; v2.1.0 shipped 47 minutes before the dedup merged, so the script had never run green anywhere. One `|| true`.
 - **Nightly builds at midnight Chicago and skips docs-only days.** Cron moved from 08:00 UTC to 05:00 UTC. The guard job now checks out `main` and diffs the last published `built-from:` sha against HEAD with an exclude list (`apps/docs`, `apps/marketing`, `apps/streamdeck`, `*.md`, `*.mdx`), because `schedule` triggers ignore `paths-ignore`. A missing or rewritten last sha builds rather than skipping forever.
+- **Cooldown claims are atomic.** `CooldownManager` gains `tryClaim` / `release`, and `BotCommandDispatcher.processMessageReplyAsync` claims the slot before any `await` instead of checking first and recording after. The dispatcher is MainActor-isolated, so every `await` is a reentrancy point, and a burst of `!song`, `!last`, or `!stats` messages all passed the check and all replied. A claimed slot is released again when a track or sync command ends up silent, so a silent command never warms the cooldown; async commands keep it, since they may already have acted.
+- **Network path updates arrive in order.** `NWPathMonitor` callbacks now feed one `AsyncStream` that a single task drains, instead of spawning a `Task` per update. On a fast flap (Wi-Fi roam, VPN switch) a stale "unreachable" could land last and leave `isNetworkReachable` false, which suppressed every reconnect until the next path event.
+- **Dead-code purge, guided by Periphery 3.8.** Removed unused or test-only APIs across Twitch, Keychain, song requests, Sparkle, logging, and formatting, including `KeychainService.loadTwitchRefreshToken`, `HelixClient.sendRaw` / `patch`, the synchronous song, last-song, and stats setters and `resetCooldowns` on `BotCommandDispatcher`, `LinkResolverService.is*Link`, `SongRequestQueue.isFull` / `clearPending` / `move`, `SparkleUpdaterService.isAvailable`, and `TwitchViewModel.testConnection` / `refreshAuthStatus` / `integrationColor`. Tests now drive the production entry points instead of the removed setters. Deliberate test seams were kept and their doc comments corrected.
+- **Removed the unused `InfoRow`, `UpdateBannerView`, and `TwitchGlitchShape` views**, along with their gallery entries and component-catalog docs.
+- **Removed the unused `apps/marketing/shared` token package.** `bun run tokens` now emits four outputs: Swift, CSS, widget JS, and the docs widget themes. `bun dev` no longer launches the archived Remotion studio; run it on purpose with `bun run --filter wolfwave-announcement studio`. Also deleted: the unreferenced brand PNG exports, the dummy docs service worker, and two unused CSS utilities.
+- **`make clean-dev`.** New target wrapping `scripts/clean-dev.sh`. It resets WolfWave Dev for a fresh first run: quits it, clears its defaults and Keychain entry, runs `make clean`, and removes `/Applications/WolfWave Dev.app`. The production app is never touched.
+- **Test hygiene.** `DefaultsStoreTests` now takes the shared-state lock, one keychain-swap helper replaces the hand-rolled copies, fixed sleeps became readiness waits, and the month-boundary-sensitive tests no longer fail when a run straddles midnight on the last day of a month. New tests cover the Stream Deck clear-queue path, a corrupt lifetime tally, and a failed factory-reset wipe.
+- **Docs site moved to Next.js 16.4.0.** Clears the 38 open Dependabot alerts on `apps/docs`, and a lockfile dedupe leaves a single `postcss`.
 
 ## [2.1.0] - 2026-08-14
 

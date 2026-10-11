@@ -247,12 +247,13 @@ Monorepo (bun + Turborepo):
 - `bun run --filter widget build` rebuilds the OBS overlay widget.
 - `bun run --filter streamdeck build` bundles the Stream Deck plugin.
 - `bun run --filter streamdeck test` runs the Stream Deck plugin tests.
-- `bun run dev --filter wolfwave-announcement` opens Remotion studio for the launch announcement video.
+- `bun run --filter wolfwave-announcement studio` opens Remotion studio for the launch announcement video.
 
 Native app (Make):
 
 - `make build` runs a debug build via `xcodebuild`.
 - `make clean` cleans build artifacts.
+- `make clean-dev` resets the Debug app (WolfWave Dev) for a fresh first run: quits it, clears its settings and Keychain entry, cleans build output, and removes `/Applications/WolfWave Dev.app`. It never touches the production app.
 - `make test` runs the unit test suite (run `make test` for the current pass count).
 - `make test-verbose` runs the tests with full `xcodebuild` output.
 - `make test-ci` runs the tests in CI mode and writes `TestResults.xcresult`.
@@ -265,6 +266,9 @@ Native app (Make):
 - `make notarize` notarizes the DMG (requires Developer ID and env vars).
 - `make verify-notarize` checks that the notarization ticket is stapled.
 - `make widget` rebuilds the OBS overlay widget (`apps/widget/` to `Resources/widget.html`). Run `bun run tokens` first when token definitions or their generator changed, or use the ordered root `bun run build`.
+- `make icons` regenerates the Debug app icon (`AppIcon.icon` to `AppIcon-Dev.icon`: the same blue mark plus a `DEV` badge). Run it after editing the Release icon.
+- `make sponsor-config` regenerates `SponsorConfig.generated.swift` from `.github/FUNDING.yml`. The build, test, and `prod-build` targets already run it.
+- `make check-drift` regenerates the widget, design tokens, `SponsorConfig`, and the Debug icon, then fails on drift. It is the same gate CI runs, so run it before you push.
 
 Linting (the four validation targets run as blocking CI jobs; `make lint-baseline` is maintenance-only):
 
@@ -297,7 +301,7 @@ wolfwave/
 │   │   ├── docs/               # Internal design and protocol docs
 │   │   └── WolfWave.xcodeproj  # Xcode project
 │   ├── docs/                   # Fumadocs documentation site
-│   ├── marketing/              # Remotion-based promo videos (+ shared/ tokens)
+│   ├── marketing/              # Remotion-based promo videos
 │   ├── streamdeck/             # Elgato Stream Deck plugin (TypeScript)
 │   └── widget/                 # OBS overlay widget source (builds Resources/widget.html)
 ├── assets/                     # Brand assets, logos

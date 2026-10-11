@@ -93,6 +93,7 @@ Hit **⌘R** in Xcode. That's it.
 | ---------------------- | ------------------------------------------ |
 | `make build`           | Debug build                                |
 | `make clean`           | Clean build artifacts                      |
+| `make clean-dev`       | Reset WolfWave Dev (quit it, wipe its defaults + Keychain entry, clean builds) |
 | `make test`            | Run unit tests (XCTest + Swift Testing)    |
 | `make test-verbose`    | Unit tests with full `xcodebuild` output   |
 | `make test-ui`         | XCUITest suite (launches the real app)     |
@@ -167,6 +168,11 @@ The DMG lands at `builds/WolfWave-{version}.dmg`. With a Developer ID
 Application certificate in your Keychain, the app is re-signed for distribution
 as part of the build. `make prod-install` builds and drops straight into
 `/Applications`.
+
+The DMG window background (`assets/dmg-background.png` and `@2x`) is generated
+by `scripts/generate-dmg-background.swift`. Run
+`swift scripts/generate-dmg-background.swift assets` to regenerate it, then
+commit the PNGs.
 
 ### Notarization
 
