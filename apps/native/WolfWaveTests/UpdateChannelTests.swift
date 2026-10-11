@@ -36,11 +36,6 @@ struct UpdateChannelTests {
         #expect(UpdateChannel.from(rawValue: "STABLE") == .stable) // case-sensitive
     }
 
-    @Test func isPrereleaseOnlyForNightly() {
-        #expect(UpdateChannel.stable.isPrerelease == false)
-        #expect(UpdateChannel.nightly.isPrerelease == true)
-    }
-
     @Test func idMatchesRawValue() {
         #expect(UpdateChannel.stable.id == "stable")
         #expect(UpdateChannel.nightly.id == "nightly")

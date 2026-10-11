@@ -130,7 +130,7 @@ struct WebSocketTokenEditorRow: View {
                         .font(.system(size: DSFont.Size.sm))
                     Text(tokenError).font(.system(size: DSFont.Size.sm))
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(DSColor.error)
                 .accessibilityIdentifier(errorIdentifier)
             }
 
@@ -142,9 +142,9 @@ struct WebSocketTokenEditorRow: View {
                         Image(systemName: "arrow.clockwise").font(.system(size: DSFont.Size.sm))
                         Text("Regenerate").font(.system(size: DSFont.Size.sm))
                     }
+                    .foregroundStyle(DSColor.error)
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
                 .controlSize(.small)
                 .disabled(streamerMode)
                 .help(regenerateHelp)

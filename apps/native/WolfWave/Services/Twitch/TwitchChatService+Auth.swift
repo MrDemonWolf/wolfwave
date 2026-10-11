@@ -107,7 +107,7 @@ extension TwitchChatService {
         http: HTTPClient = .shared
     ) async -> TokenValidationResult {
         guard !token.isEmpty else { return .invalid }
-        guard let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
+        guard let url = URL(string: AppConstants.API.twitchOAuthValidate) else {
             Log.error("TwitchChatService: Invalid validate URL", category: .twitchAuth)
             return .temporarilyUnavailable
         }
@@ -227,7 +227,7 @@ extension TwitchChatService {
             return await pollScopeValidationOverride()
         }
         guard let token = oauthToken,
-              let url = URL(string: "https://id.twitch.tv/oauth2/validate") else {
+              let url = URL(string: AppConstants.API.twitchOAuthValidate) else {
             return .missing
         }
         var request = URLRequest(url: url)

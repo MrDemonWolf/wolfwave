@@ -36,7 +36,6 @@ struct AdvancedSettingsView: View {
     /// `applicationDidFinishLaunching`). Drives the "Recovered from a crash"
     /// callout at the top of this pane.
     @AppStorage(AppConstants.UserDefaults.lastLaunchCrashed) private var lastLaunchCrashed = false
-    @AppStorage(AppConstants.UserDefaults.lastCrashSummary) private var lastCrashSummary: String?
 
     /// Mirrors the opt-in MetricKit diagnostics toggle so the crash callout can
     /// point the user at it without enabling anything on their behalf.

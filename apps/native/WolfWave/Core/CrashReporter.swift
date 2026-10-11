@@ -27,7 +27,7 @@ import Foundation
 /// signal path resets to the default disposition and re-raises, so the OS still
 /// generates its normal crash report and MetricKit's `MXCrashDiagnostic` (consumed
 /// by ``DiagnosticsService``) still fires next launch. Nothing here runs on the
-/// happy path. The next launch reads the breadcrumb via ``didCrashLastLaunch()``.
+/// happy path. The next launch reads the breadcrumb via ``readMarker()``.
 ///
 /// - Important: The signal handler is restricted to **async-signal-safe** work
 ///   only (see `man 7 signal-safety`): `open`/`write`/`close`/`strlen`/`signal`/
@@ -94,7 +94,10 @@ enum CrashReporter {
     // MARK: Breadcrumb lifecycle
 
     /// Whether the previous run left a crash breadcrumb. Existence check only;
-    /// does not clear the marker (the caller clears after reading).
+    /// does not clear the marker.
+    ///
+    /// Test seam: the app launch path uses ``readMarker()`` instead. Kept so
+    /// `CrashReporterTests` can assert the write/clear lifecycle.
     nonisolated static func didCrashLastLaunch() -> Bool {
         FileManager.default.fileExists(atPath: markerURL().path)
     }

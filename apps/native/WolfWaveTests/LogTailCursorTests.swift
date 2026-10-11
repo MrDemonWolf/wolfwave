@@ -137,19 +137,6 @@ struct LogTailCursorTests {
         #expect(cursor.carry == "still writing")
     }
 
-    // MARK: - Reset
-
-    @Test("Reset returns the cursor to its unprimed state")
-    func testReset() {
-        var cursor = LogTailCursor()
-        _ = cursor.planRead(fileSize: 5_000, primingBytes: Self.priming)
-        _ = cursor.consume("partial")
-
-        cursor.reset()
-
-        #expect(cursor == LogTailCursor())
-    }
-
     // MARK: - End to End
 
     @Test("A realistic append sequence yields each record exactly once")

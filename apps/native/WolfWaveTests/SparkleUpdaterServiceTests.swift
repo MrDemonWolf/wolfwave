@@ -14,12 +14,13 @@ final class SparkleUpdaterServiceTests: WolfWaveTestCase {
 
     // MARK: - Feed URL Tests
 
-    func testFeedURLPointsAtBundledDevAppcastInDebug() {
+    func testDevAppcastIsBundledForDebugFeed() {
         // DEBUG builds route Sparkle at the bundled dev-appcast.xml so manual
         // "Check for Updates" exercises the real Sparkle UI against a dummy entry.
-        let service = SparkleUpdaterService()
-        let url = service.feedURL
-        XCTAssertNotNil(url, "feedURL should point at the bundled dev-appcast.xml in DEBUG builds")
+        // `feedURLString(for:)` hands exactly this lookup to the resolver, so a
+        // missing resource would silently send DEBUG checks nowhere.
+        let url = Bundle.main.url(forResource: "dev-appcast", withExtension: "xml")
+        XCTAssertNotNil(url, "dev-appcast.xml should be bundled in the test host")
         XCTAssertEqual(url?.lastPathComponent, "dev-appcast.xml")
     }
 
@@ -29,29 +30,6 @@ final class SparkleUpdaterServiceTests: WolfWaveTestCase {
         // The getter falls back to true when the underlying updater is unset.
         let service = SparkleUpdaterService()
         XCTAssertTrue(service.automaticCheckEnabled, "automaticCheckEnabled getter should default to true when updater is nil")
-    }
-
-    func testUpdateCheckIntervalReturnsConstantWhenUpdaterNil() {
-        let service = SparkleUpdaterService()
-        XCTAssertEqual(
-            service.updateCheckInterval,
-            AppConstants.Update.checkInterval,
-            "updateCheckInterval should return AppConstants.Update.checkInterval when updater is nil"
-        )
-    }
-
-    func testIsAvailableReflectsUpdaterAndHomebrewState() {
-        // In a unit-test host bundle Sparkle's `SPUStandardUpdaterController`
-        // typically does not produce an `SPUUpdater` (no main bundle Info.plist
-        // appcast wiring), so `isAvailable` should be false. Either way, the
-        // boolean must agree with the `checkForUpdates()` return so callers
-        // can rely on a single signal to decide whether to open the fallback.
-        let service = SparkleUpdaterService()
-        XCTAssertEqual(
-            service.isAvailable,
-            service.checkForUpdates(),
-            "isAvailable and checkForUpdates() must agree on whether Sparkle handled the call"
-        )
     }
 
     // MARK: - Feed Resolver Tests (channel selection)

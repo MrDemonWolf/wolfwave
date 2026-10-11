@@ -78,15 +78,6 @@ final class TwitchViewModel {
     var connectionError: UserFacingError?
     /// Current state of the channel name lookup against the Twitch API.
     var channelValidationState: ChannelValidationState = .idle
-    /// Current state of the lightweight token validation check.
-    var testAuthResult: TestAuthResult = .idle
-
-    // MARK: - Test Auth State
-
-    /// State of the "Test Auth" button feedback.
-    enum TestAuthResult: Equatable {
-        case idle, testing, success, failure
-    }
 
     // MARK: - Auth State
 
@@ -113,16 +104,6 @@ final class TwitchViewModel {
             switch self {
             case .waitingForAuth(let code, _):
                 return code
-            default:
-                return ""
-            }
-        }
-
-        /// The Twitch URL where the user enters the code, or empty if not in that state.
-        var verificationURI: String {
-            switch self {
-            case .waitingForAuth(_, let uri):
-                return uri
             default:
                 return ""
             }
@@ -155,16 +136,6 @@ final class TwitchViewModel {
             return .authorizing
         default:
             return .notConnected
-        }
-    }
-
-    /// Color appropriate for the integration state (UI should respect system semantic colors)
-    var integrationColor: Color {
-        switch integrationState {
-        case .connected: return DSColor.success
-        case .authorizing: return DSColor.warning
-        case .error: return DSColor.error
-        case .notConnected: return DSColor.neutral
         }
     }
 
@@ -248,10 +219,6 @@ final class TwitchViewModel {
     @ObservationIgnored private var channelDraftGeneration: UInt64 = 0
     /// Prevents a second production surface from rehydrating over a live draft.
     @ObservationIgnored private var hasLoadedSavedCredentials = false
-    /// Task that resets the test-auth result badge back to idle after a delay.
-    @ObservationIgnored private var pendingAuthResetTask: Task<Void, Never>?
-    /// In-flight task for the lightweight token validation check.
-    @ObservationIgnored private var pendingTestAuthTask: Task<Void, Never>?
     /// Stops the validation owner for the account being replaced or cleared.
     @ObservationIgnored private let cancelTokenValidationSchedule:
         @MainActor @Sendable () -> Void
@@ -512,8 +479,6 @@ final class TwitchViewModel {
     isolated deinit {
         oAuthTask?.cancel()
         joinTask?.cancel()
-        pendingAuthResetTask?.cancel()
-        pendingTestAuthTask?.cancel()
         connectionObserverTask?.cancel()
         if let token = reauthObserver {
             NotificationCenter.default.removeObserver(token)
@@ -701,8 +666,6 @@ final class TwitchViewModel {
         oAuthTask = nil
         oauthCredentialRevision = nil
         oauthGrantCommitted = false
-        pendingTestAuthTask?.cancel()
-        pendingTestAuthTask = nil
         let service = twitchService
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(
@@ -755,8 +718,6 @@ final class TwitchViewModel {
         oAuthTask = nil
         oauthCredentialRevision = nil
         oauthGrantCommitted = false
-        pendingTestAuthTask?.cancel()
-        pendingTestAuthTask = nil
         let service = twitchService
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(service) else {
@@ -989,113 +950,15 @@ final class TwitchViewModel {
         }
     }
 
-    /// Validates the stored OAuth token against the Twitch API without making a full connection.
-    ///
-    /// Performs a lightweight HTTP GET to the Twitch token validation endpoint
-    /// to verify the token is still valid and has the required scopes.
-    func testConnection() {
-        let token: String
-        do {
-            guard let storedToken = try KeychainService
-                .loadTwitchCredentialGrantChecked().accessToken,
-                  !storedToken.isEmpty else {
-                connectionError = Failure.noCredentials()
-                testAuthResult = .failure
-                scheduleTestAuthReset()
-                return
-            }
-            token = storedToken
-        } catch {
-            connectionError = Failure.keychainUnreadable()
-            testAuthResult = .failure
-            scheduleTestAuthReset()
-            return
-        }
-
-        guard let service = twitchService else {
-            connectionError = Failure.serviceUnavailable()
-            testAuthResult = .failure
-            scheduleTestAuthReset()
-            return
-        }
-
-        progressMessage = "Testing token…"
-        testAuthResult = .testing
-
-        // Cancel any in-flight test-auth task to prevent stale resets
-        pendingTestAuthTask?.cancel()
-        pendingTestAuthTask = Task {
-            let result = await service.validateToken(token)
-            guard !Task.isCancelled else { return }
-            switch result {
-            case .valid:
-                self.progressMessage = "Token is valid."
-                self.testAuthResult = .success
-            case .invalid:
-                self.connectionError = Failure.signInExpired()
-                self.testAuthResult = .failure
-            case .missingScopes(let scopes):
-                // The token works. Reporting this as a failure would be a lie,
-                // and would push the user to reconnect a live session.
-                self.connectionError = Failure.missingScopes(scopes)
-                self.testAuthResult = .success
-            case .temporarilyUnavailable:
-                self.connectionError = Failure.connectionFailed("Twitch could not be reached to check the token.")
-                self.testAuthResult = .failure
-            }
-            self.scheduleTestAuthReset()
-        }
-    }
-
-    /// Silently re-validates the saved OAuth token so the status chip flips to
-    /// "Sign-in expired" on its own when a token dies, without the user pressing
-    /// a button. Called on a cadence by the settings pane while it's open.
-    ///
-    /// No-ops when there's nothing to check (no saved credentials) or when reauth
-    /// is already flagged. Unlike `testConnection()`, this never touches
-    /// `testAuthResult` or `connectionError` so it stays invisible until something
-    /// actually changes.
-    func refreshAuthStatus() async {
-        guard credentialsSaved, !reauthNeeded else { return }
-        let token: String
-        do {
-            guard let storedToken = try KeychainService
-                .loadTwitchCredentialGrantChecked().accessToken,
-                  !storedToken.isEmpty else { return }
-            token = storedToken
-        } catch {
-            Log.warn(
-                "TwitchViewModel: Skipping background token validation because "
-                    + "Keychain is temporarily unavailable",
-                category: .twitch
-            )
-            return
-        }
-        guard let service = twitchService else { return }
-
-        let result = await service.validateToken(token)
-        applyTokenValidationResult(result)
-    }
-
-    /// Applies a background validation result without conflating an outage with
-    /// an expired grant. Internal so the credential-preservation rule has direct
-    /// regression coverage without performing a live Twitch request.
+    /// Maps a token-validation result onto the re-auth flag without conflating
+    /// an outage with an expired grant. Internal so the credential-preservation
+    /// rule has direct regression coverage without a live Twitch request.
     func applyTokenValidationResult(_ result: TwitchChatService.TokenValidationResult) {
-        // Only Twitch's explicit invalid-token response (or confirmed missing
-        // required scopes) may expire the local session. Outages are retried on
-        // the next cadence without touching credentials or the re-auth flag.
+        // Only Twitch's explicit invalid-token response may expire the local
+        // session. Outages and missing scopes never touch credentials or the
+        // re-auth flag.
         guard result == .invalid else { return }
         setReauthFlag(true)
-    }
-
-    /// Resets `testAuthResult` back to `.idle` after 3 seconds.
-    private func scheduleTestAuthReset() {
-        pendingAuthResetTask?.cancel()
-        pendingAuthResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
-            guard !Task.isCancelled else { return }
-            self.testAuthResult = .idle
-        }
     }
 
     /// Leaves the connected Twitch channel and closes EventSub connection.
@@ -1172,21 +1035,6 @@ final class TwitchViewModel {
                 severity: .error,
                 actions: [.retry, .reportBug],
                 docsAnchor: "keychain-write-failed"
-            )
-        }
-
-        /// The token works; a feature-specific permission is absent. Reconnect
-        /// is the right fix here, and the only place it is offered for a token
-        /// Twitch still honors.
-        static func missingScopes(_ scopes: [String]) -> UserFacingError {
-            UserFacingError(
-                id: "twitch.missingScopes",
-                title: "Signed in, but missing a permission",
-                cause: "WolfWave wasn't granted: \(scopes.joined(separator: ", ")).",
-                fix: "Reconnect to grant it. Everything else keeps working.",
-                severity: .warning,
-                actions: [.reconnectTwitch],
-                docsAnchor: "twitch-missing-permission"
             )
         }
 

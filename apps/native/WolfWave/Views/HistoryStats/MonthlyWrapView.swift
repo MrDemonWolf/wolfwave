@@ -96,6 +96,11 @@ struct MonthlyWrapView: View {
                 shiftMonth(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
+                    .frame(
+                        minWidth: DSDimension.IconButton.minWidth,
+                        minHeight: DSDimension.IconButton.minHeight
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .pointerCursor()
@@ -113,6 +118,11 @@ struct MonthlyWrapView: View {
                 shiftMonth(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
+                    .frame(
+                        minWidth: DSDimension.IconButton.minWidth,
+                        minHeight: DSDimension.IconButton.minHeight
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .pointerCursor()

@@ -65,7 +65,9 @@ struct PermissionDeniedBanner: View {
         }
         .padding(DSSpace.s7)
         .cardStyleUnpadded()
-        .accessibilityElement(children: .combine)
+        // `.contain`, not `.combine`: combining would merge the three recovery
+        // buttons into one label and hide them as separate VoiceOver targets.
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Music access required. Open System Settings to grant Automation access for the Music app.")
     }
 
@@ -82,6 +84,7 @@ struct PermissionDeniedBanner: View {
                 .foregroundStyle(DSColor.warning)
         }
         .frame(width: 52, height: 52)
+        .accessibilityHidden(true)
     }
 }
 

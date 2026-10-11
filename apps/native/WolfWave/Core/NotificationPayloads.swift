@@ -203,13 +203,6 @@ extension Notification {
     /// The `isReducedMode` flag, when present.
     nonisolated var isReducedModeFlag: Bool? { userInfo?[NotificationKeys.isReducedMode] as? Bool }
 
-    /// Vote-skip progress from `.voteSkipStateChanged`, or `nil` when cleared.
-    nonisolated var voteSkipState: (count: Int, needed: Int)? {
-        guard let count = userInfo?[NotificationKeys.count] as? Int,
-              let needed = userInfo?[NotificationKeys.needed] as? Int else { return nil }
-        return (count, needed)
-    }
-
     /// Update-availability payload from `.updateStateChanged`, when complete.
     nonisolated var updateState: (isUpdateAvailable: Bool, latestVersion: String, releaseURL: String?)? {
         guard let available = userInfo?[NotificationKeys.isUpdateAvailable] as? Bool,

@@ -14,7 +14,7 @@ import SwiftUI
 extension DebugComponentGalleryCard {
 
     /// Banners & callouts: `CalloutBanner`, `ErrorCallout`, `MusicPermissionBanner`,
-    /// `TwitchConnectionNotice`, `UpdateBannerView`.
+    /// `TwitchConnectionNotice`.
     @ViewBuilder var bannersSection: some View {
         GalleryEntry(typeName: "CalloutBanner", width: GalleryWidth.wide) {
             VStack(spacing: DSSpace.s4) {
@@ -104,17 +104,6 @@ extension DebugComponentGalleryCard {
                     disconnectedMessage: "Connect with Twitch to enable song requests."
                 )
             }
-        }
-
-        GalleryEntry(
-            typeName: "UpdateBannerView",
-            width: GalleryWidth.full,
-            note: "appears after Simulate Update Available in UI Previews"
-        ) {
-            // Renders only on the app-wide update notification; the existing
-            // trigger in `DebugUIPreviewsCard` posts it, so this instance lights
-            // up alongside the real banner.
-            UpdateBannerView().listening()
         }
     }
 }

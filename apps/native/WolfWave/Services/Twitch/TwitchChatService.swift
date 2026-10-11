@@ -423,18 +423,6 @@ actor TwitchChatService {
         outcome == .retryableFailure
     }
 
-    /// Returns the next 1-based reconnect attempt, or `nil` once the configured
-    /// cap has been consumed. The counter advances when an attempt begins and is
-    /// reset after EventSub sends `session_welcome` or an accepted network-
-    /// recovery cycle starts a fresh bounded budget.
-    nonisolated static func nextReconnectAttempt(
-        after attempts: Int,
-        maximum: Int
-    ) -> Int? {
-        guard attempts >= 0, attempts < maximum else { return nil }
-        return attempts + 1
-    }
-
     /// Cheap off-MainActor prefilter for the command dispatcher. All built-in,
     /// alias, and custom triggers are normalized to a leading `!`. Skipping
     /// leading whitespace preserves the dispatcher's existing trim behavior.
@@ -683,7 +671,8 @@ actor TwitchChatService {
     // MARK: - Toggles
 
     var shouldSendConnectionMessageOnSubscribe = true
-    var debugLoggingEnabled = false
+    /// Whether chat commands are dispatched. Always `true` in production; only
+    /// `setCommandsEnabledForTesting(_:)` turns it off.
     private(set) var commandsEnabled = true
 
     // MARK: - Track-Info Providers (async, nonisolated)
@@ -755,13 +744,6 @@ actor TwitchChatService {
 
     var isConnected: Bool { _connected }
 
-    /// Whether the broadcaster's stream is currently live.
-    ///
-    /// Maintained by the `stream.online` / `stream.offline` EventSub events and
-    /// seeded by a one-shot Helix check on connect. The `!stats` command stays
-    /// silent unless this is `true`.
-    var isStreamLive: Bool { streamLive }
-
     func setConnected(_ value: Bool) {
         _connected = value
     }
@@ -819,6 +801,10 @@ actor TwitchChatService {
                 || migrationSourceWebSocketTask === context.webSocketTask)
     }
     var networkPathMonitor: NWPathMonitor?
+    /// Feeds path updates from `networkMonitorQueue` into the ordered consumer.
+    var networkPathContinuation: AsyncStream<Bool>.Continuation?
+    /// The single consumer that applies reachability updates in arrival order.
+    var networkPathTask: Task<Void, Never>?
     /// Invalidates callbacks already queued by a canceled/replaced path monitor.
     var networkMonitorGeneration: UInt64 = 0
     let networkMonitorQueue = DispatchQueue(
@@ -1016,6 +1002,8 @@ actor TwitchChatService {
         paidRedemptionTasks.values.forEach { $0.cancel() }
         redemptionResolutionTasks.values.forEach { $0.cancel() }
         networkPathMonitor?.cancel()
+        networkPathContinuation?.finish()
+        networkPathTask?.cancel()
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         migrationSourceWebSocketTask?.cancel(with: .goingAway, reason: nil)
         chatMessagesContinuation.finish()
@@ -1070,14 +1058,10 @@ actor TwitchChatService {
         providers.setStats(provider)
     }
 
-    /// Toggle whether bot commands are processed.
-    func setCommandsEnabled(_ enabled: Bool) {
+    /// Test seam: toggles whether bot commands are dispatched. No production
+    /// caller; the app always dispatches commands.
+    func setCommandsEnabledForTesting(_ enabled: Bool) {
         self.commandsEnabled = enabled
-    }
-
-    /// Toggle verbose debug logging.
-    func setDebugLoggingEnabled(_ enabled: Bool) {
-        self.debugLoggingEnabled = enabled
     }
 
     /// Toggle whether the connection confirmation message is sent on subscribe.
@@ -1658,10 +1642,7 @@ actor TwitchChatService {
         // Network monitoring is needed only while a Twitch channel is active.
         // Recreate it on the next join rather than keeping a process-lifetime
         // path monitor after the integration is disabled.
-        networkPathMonitor?.pathUpdateHandler = nil
-        networkPathMonitor?.cancel()
-        networkPathMonitor = nil
-        networkMonitorGeneration &+= 1
+        stopNetworkMonitoring()
         isNetworkReachable = true
 
         broadcasterID = nil
@@ -2004,8 +1985,9 @@ actor TwitchChatService {
     ///
     /// `attempts` is the attempt number that just failed (1-based). The message
     /// is requeued only while `attempts < maxRetries`; once the count reaches the
-    /// limit the message is dropped. `nonisolated` so the bounded-retry contract
-    /// is unit-testable without the actor or the network.
+    /// limit the message is dropped. `queueMessageForRetry` gates on it, and it is
+    /// `nonisolated` so the bounded-retry contract is unit-testable without the
+    /// actor or the network.
     nonisolated static func shouldRequeueAfterFailure(attempts: Int, maxRetries: Int) -> Bool {
         attempts < maxRetries
     }
@@ -2016,7 +1998,7 @@ actor TwitchChatService {
     /// (drop-oldest). A single long-lived drain loop (`pendingRetryTask`) walks
     /// the queue instead of one detached Task per retry.
     private func queueMessageForRetry(message: String, parentMessageID: String?, attempts: Int) {
-        guard attempts < maxMessageRetries else {
+        guard Self.shouldRequeueAfterFailure(attempts: attempts, maxRetries: maxMessageRetries) else {
             Log.error(
                 "TwitchChatService: Message dropped after \(maxMessageRetries) retry attempts",
                 category: .twitchChat)
@@ -2217,7 +2199,7 @@ actor TwitchChatService {
     // runChannelPointsRedemption, clearRedemptionTask, handleBitsUse, runBitsUse)
     // live in TwitchChatService+Redemptions.swift
 
-    // Redemption helpers (resolveRedemption, redemptionOutcome, bitsOutcomeMessage,
+    // Redemption helpers (redemptionOutcome, bitsOutcomeMessage,
     // currentChannelPointCredentials, channelPointsCostSetting, bitsMinimumSetting,
     // setRedemptionStatus, cleanBitsMessage, stripLeadingCheermotes) live in
     // TwitchChatService+Redemptions.swift

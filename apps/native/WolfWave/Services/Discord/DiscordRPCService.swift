@@ -206,10 +206,11 @@ actor DiscordRPCService {
         }
     }
 
-    /// Records why a connection attempt failed, from outside the actor.
+    /// Test seam: sets ``lastFailure`` from outside the actor so the
+    /// ``failureSnapshot`` mirror can be exercised deterministically.
     ///
-    /// The IPC extension assigns ``lastFailure`` directly since it shares this
-    /// actor; this is the entry point for callers that do not.
+    /// Production code never calls this. The IPC extension shares this actor
+    /// and assigns ``lastFailure`` directly.
     func recordFailure(_ failure: ConnectionFailure) {
         lastFailure = failure
     }
@@ -997,6 +998,8 @@ actor DiscordRPCService {
     }
 
     /// Whether the coarse availability timer currently exists.
+    ///
+    /// Test seam: state probe read only by `DiscordRPCServiceTests`.
     var isAvailabilityPolling: Bool { pollTask != nil }
 
     /// Synchronizes the timer with the current enabled/connection state.

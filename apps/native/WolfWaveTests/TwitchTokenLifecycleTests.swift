@@ -15,30 +15,26 @@ import XCTest
 /// Covers credential persistence, OAuth validation ownership, reactive refresh,
 /// token adoption, and EventSub reconnect behavior.
 @MainActor
-final class TwitchTokenLifecycleTests: XCTestCase {
+final class TwitchTokenLifecycleTests: WolfWaveTestCase {
 
-    private var previousBackend: KeychainBackend!
-    private var backend: InMemoryKeychainBackend!
     private let handlerStore = MockURLProtocol.HandlerStore()
 
     override func setUp() async throws {
+        // Acquires the shared-state lock (released by a teardown block) and
+        // resets settings before anything below touches DefaultsStore.store.
         try await super.setUp()
         handlerStore.handler = nil
-        // Acquire before touching DefaultsStore.store: an unguarded reset here
-        // is the same cross-suite race SharedTestStateIsolation exists to close.
-        await SharedTestStateIsolation.acquireAsync()
         Self.resetRedemptionDefaults()
-        previousBackend = KeychainService.backend
-        backend = InMemoryKeychainBackend()
-        KeychainService.backend = backend
-    }
-
-    override func tearDown() async throws {
-        Self.resetRedemptionDefaults()
-        handlerStore.handler = nil
-        KeychainService.backend = previousBackend
-        SharedTestStateIsolation.release()
-        try await super.tearDown()
+        let previousBackend = KeychainService.backend
+        KeychainService.backend = InMemoryKeychainBackend()
+        // Teardown blocks run last-in-first-out, so this restores the backend
+        // and clears the redemption keys before the base class releases the lock.
+        let handlerStore = handlerStore
+        addTeardownBlock {
+            Self.resetRedemptionDefaults()
+            handlerStore.handler = nil
+            KeychainService.backend = previousBackend
+        }
     }
 
     nonisolated private static func resetRedemptionDefaults() {
@@ -462,7 +458,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(cancellations.value, 2)
         XCTAssertEqual(restarts.value, 1)
         XCTAssertEqual(KeychainService.loadTwitchToken(), "ACCESS")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "REFRESH")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "REFRESH")
         XCTAssertEqual(viewModel.botUsername, "wolfwave")
         XCTAssertEqual(viewModel.authState, .idle)
     }
@@ -496,7 +492,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
 
         XCTAssertEqual(restarts.value, 1)
         XCTAssertEqual(KeychainService.loadTwitchToken(), "ACCESS")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "REFRESH")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "REFRESH")
         if case .error = viewModel.authState {
             // expected
         } else {
@@ -1159,7 +1155,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
 
         XCTAssertEqual(result, .refreshed("NEW_AT"))
         XCTAssertEqual(KeychainService.loadTwitchToken(), "NEW_AT")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "NEW_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_RT")
         XCTAssertEqual(KeychainService.loadTwitchChannelID(), "channel")
     }
 
@@ -1273,7 +1269,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         let result = try await refresh.value
         XCTAssertEqual(result, .superseded)
         XCTAssertEqual(KeychainService.loadTwitchToken(), "NEW_ACCOUNT_AT")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "NEW_ACCOUNT_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_ACCOUNT_RT")
     }
 
     func testReactiveRefreshHonorsRetryAfterThenSucceeds() async throws {
@@ -1326,7 +1322,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(result, .invalid)
         XCTAssertEqual(attempts.value, 1)
         XCTAssertTrue(delays.value.isEmpty)
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "OLD_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "OLD_RT")
     }
 
     func testMalformedRefreshSuccessRetriesWithoutReplacingStoredGrant() async throws {
@@ -1354,7 +1350,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(attempts.value, 3)
         XCTAssertEqual(delays.value, [.milliseconds(250), .milliseconds(500)])
         XCTAssertEqual(KeychainService.loadTwitchToken(), "OLD_AT")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "OLD_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "OLD_RT")
     }
 
     func testMalformedRefreshSuccessRecoversOnValidRetry() async throws {
@@ -1387,14 +1383,17 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(attempts.value, 2)
         XCTAssertEqual(delays.value, [.milliseconds(250)])
         XCTAssertEqual(KeychainService.loadTwitchToken(), "NEW_AT")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "NEW_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_RT")
     }
 
     func testReactiveRefreshReturnsInvalidWithoutStoredRefreshToken() async throws {
         await TwitchTokenRefresher.invalidateSession()
-        XCTAssertNil(KeychainService.loadTwitchRefreshToken())
+        XCTAssertNil(KeychainService.loadTwitchCredentialGrant().refreshToken)
+        // No handler is installed, so any network attempt would surface as a
+        // transport failure rather than `.invalid`.
         let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
-            clientID: "test-client"
+            clientID: "test-client",
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore)
         )
         XCTAssertEqual(result, .invalid)
     }
@@ -1404,7 +1403,10 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "AT", refreshToken: "RT")
         )
-        let result = try await TwitchTokenRefresher.attemptReactiveRefresh(clientID: "")
+        let result = try await TwitchTokenRefresher.attemptReactiveRefresh(
+            clientID: "",
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore)
+        )
         XCTAssertEqual(result, .invalid)
     }
 
@@ -1448,7 +1450,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         XCTAssertEqual(result, .superseded)
         XCTAssertEqual(attempts.value, 0)
         XCTAssertEqual(KeychainService.loadTwitchToken(), "NEW_ACCOUNT_AT")
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "NEW_ACCOUNT_RT")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_ACCOUNT_RT")
     }
 
     func testHourlyRotationAdoptsActiveAndPendingReconnectTokens() async throws {
@@ -1569,8 +1571,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
             with: try XCTUnwrap(URL(string: "wss://eventsub.wss.twitch.tv/target")))
         let helixAuthorization = ThreadSafeBox<[String]>([])
         let factoryCalls = ThreadSafeBox(0)
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-live-adoption-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-live-adoption")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             helixHTTPClient: HTTPClient(
@@ -1661,8 +1662,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
                     Data(
                         #"{"data":[{"id":"broadcaster","login":"channel","display_name":"Channel"}]}"#.utf8))
             })
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-eventsub-chat-rotation-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-eventsub-chat-rotation")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             eventSubHTTPClient: eventSubClient,
@@ -1722,8 +1722,7 @@ final class TwitchTokenLifecycleTests: XCTestCase {
         let target = socketSession.webSocketTask(
             with: try XCTUnwrap(URL(string: "wss://eventsub.wss.twitch.tv/target")))
         let factoryCalls = ThreadSafeBox(0)
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-eventsub-chat-account-switch-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-eventsub-chat-account-switch")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             eventSubHTTPClient: HTTPClient(

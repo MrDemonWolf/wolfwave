@@ -13,18 +13,11 @@ import SwiftUI
 
 extension DebugComponentGalleryCard {
 
-    /// Rows & fields: `InfoRow`, `ToggleSettingRow`, `CommandAliasField`,
+    /// Rows & fields: `ToggleSettingRow`, `CommandAliasField`,
     /// `CommandSettingRow`, `CooldownSliderPair`, `LabeledSlider`, `CopyableURLRow`,
     /// `FieldValidationRow`, `LoadingRow`, `SuccessFeedbackRow`, `HintRow`, `StatTile`,
     /// and the `Binding+Sanitized` helpers.
     @ViewBuilder var rowsSection: some View {
-        GalleryEntry(typeName: "InfoRow") {
-            VStack(spacing: DSSpace.s4) {
-                InfoRow(label: "Local Address", value: "ws://localhost:8765")
-                InfoRow(label: "Version", value: "1.2.0", isMonospaced: false)
-            }
-        }
-
         GalleryEntry(typeName: "ToggleSettingRow", width: GalleryWidth.wide) {
             VStack(spacing: DSSpace.s6) {
                 ToggleSettingRow(

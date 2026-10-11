@@ -19,10 +19,7 @@ struct AppConstantsTests {
     
     @Test("App info constants are defined")
     func testAppInfoConstants() async throws {
-        #expect(!AppConstants.AppInfo.bundleIdentifier.isEmpty)
         #expect(!AppConstants.AppInfo.displayName.isEmpty)
-        // AppInfo identifies the release product; runtime isolation uses Bundle.main.bundleIdentifier.
-        #expect(AppConstants.AppInfo.bundleIdentifier == "com.mrdemonwolf.wolfwave")
         #if DEBUG
         #expect(AppConstants.AppInfo.displayName == "WolfWave Dev")
         #else
@@ -86,14 +83,6 @@ struct AppConstantsTests {
         #expect(AppConstants.DockVisibility.dockOnly == "dockOnly")
         #expect(AppConstants.DockVisibility.both == "both")
         #expect(AppConstants.DockVisibility.default == "both")
-    }
-    
-    // MARK: - Keychain Tests
-    
-    @Test("Keychain service identifier is defined")
-    func testKeychainService() async throws {
-        #expect(!AppConstants.Keychain.service.isEmpty)
-        #expect(AppConstants.Keychain.service == "com.mrdemonwolf.wolfwave")
     }
     
     // MARK: - Music App Tests

@@ -248,17 +248,6 @@ nonisolated final class TwitchCredentialStore: @unchecked Sendable {
         }
     }
 
-    /// Replaces an access token that has no paired refresh grant.
-    func replaceWithManualAccessToken(_ token: String) throws {
-        try lock.withLock {
-            try KeychainService.mutateTwitchCredentialGrant { current in
-                current = .init(accessToken: token, channelID: current.channelID)
-                return true
-            }
-            revision &+= 1
-        }
-    }
-
     /// Changes only the configured channel and advances the account revision
     /// after the canonical write commits. In-flight connect/reconnect work tied
     /// to the old channel therefore fails its existing revision checks.
@@ -1156,21 +1145,6 @@ actor TwitchTokenRefresher {
         inFlight?.task.cancel()
         inFlight = nil
         pendingRotation = nil
-    }
-
-    /// Convenience for work that begins from the currently stored credential.
-    /// Async callers handling a prior request's 401 must use the explicit
-    /// expected overload so they cannot refresh a replacement account.
-    static func attemptReactiveRefresh(clientID: String) async throws -> RefreshResult {
-        guard let expected = TwitchCredentialStore.shared
-            .connectionSnapshot()?.accessExpectation else {
-            return .invalid
-        }
-        return try await shared.refresh(
-            clientID: clientID,
-            expected: expected,
-            session: .shared
-        )
     }
 
     /// Attempts one credential-bound refresh. A stale expectation returns

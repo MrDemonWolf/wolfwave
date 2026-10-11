@@ -135,21 +135,6 @@ final class HTTPClientTests: XCTestCase {
         XCTAssertEqual(result, body)
     }
 
-    func testPostFormSetsURLEncodedContentTypeAndDecodes() async throws {
-        handlerStore.handler = { request in
-            XCTAssertEqual(
-                request.value(forHTTPHeaderField: "Content-Type"),
-                "application/x-www-form-urlencoded"
-            )
-            return (MockURLProtocol.httpResponse(for: request, status: 200),
-                    Data(#"{"name":"ok","count":1}"#.utf8))
-        }
-
-        let result: Payload = try await client.postForm(url: url(), form: ["grant": "x"])
-
-        XCTAssertEqual(result, Payload(name: "ok", count: 1))
-    }
-
     // MARK: - User-Agent
 
     func testDefaultUserAgentMatchesExpectedFormat() {

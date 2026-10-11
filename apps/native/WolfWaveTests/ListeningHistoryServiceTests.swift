@@ -224,7 +224,11 @@ struct ListeningHistoryServiceTests {
         let dir = makeTempDirectory()
         let service = makeService(enabled: true, directory: dir)
 
-        // Record a play "now" (current month).
+        // Record a play "now" (current month). Snapshot the month on both sides
+        // of the call so a run straddling midnight on the last day of a month
+        // still passes.
+        let cal = Calendar.current
+        let monthBefore = cal.dateInterval(of: .month, for: Date())?.start
         service.recordTrackChange(
             track: "Recent", artist: "A", album: "",
             duration: 200, playedSeconds: 188
@@ -236,9 +240,8 @@ struct ListeningHistoryServiceTests {
             return
         }
 
-        let cal = Calendar.current
-        let expected = cal.dateInterval(of: .month, for: Date())?.start
-        #expect(earliest == expected)
+        let monthAfter = cal.dateInterval(of: .month, for: Date())?.start
+        #expect(earliest == monthBefore || earliest == monthAfter)
         // Always the first day of the month.
         #expect(cal.component(.day, from: earliest) == 1)
         try? FileManager.default.removeItem(at: dir)
@@ -250,6 +253,10 @@ struct ListeningHistoryServiceTests {
         let service = makeService(enabled: true, directory: dir)
 
         // Insert recent first, older second. Earliest should still be the older one.
+        // Month snapshots on both sides of the calls keep a month-end midnight
+        // run from failing.
+        let cal = Calendar.current
+        let monthBefore = cal.dateInterval(of: .month, for: Date())?.start
         service.recordTrackChange(
             track: "Recent", artist: "A", album: "",
             duration: 200, playedSeconds: 188
@@ -260,9 +267,9 @@ struct ListeningHistoryServiceTests {
         )
 
         // Both fall in the current month. Earliest should be start-of-current-month.
-        let cal = Calendar.current
-        let expected = cal.dateInterval(of: .month, for: Date())?.start
-        #expect(service.earliestRecordedMonth == expected)
+        let monthAfter = cal.dateInterval(of: .month, for: Date())?.start
+        let earliest = service.earliestRecordedMonth
+        #expect(earliest == monthBefore || earliest == monthAfter)
         try? FileManager.default.removeItem(at: dir)
     }
 

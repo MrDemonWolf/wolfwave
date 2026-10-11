@@ -47,7 +47,7 @@ struct WebSocketSettingsView: View {
             // because it is only for people building their own overlay, and
             // leading with it made a two-click setup look like a programming
             // task.
-            WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
+            WebSocketServerCard(localNetworkIP: localNetworkIP)
                 .deepLinkSection("server")
 
             WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
@@ -165,7 +165,6 @@ fileprivate struct WebSocketServerCard: View {
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
-    let serverState: WebSocketServerService.ServerState
     let localNetworkIP: String?
 
     private let cardPadding = AppConstants.SettingsUI.cardPadding
@@ -247,6 +246,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
     @State private var widgetPortText: String = ""
+
+    /// Commits a typed widget port when the field loses focus, so Tab or a
+    /// click elsewhere keeps the edit instead of silently discarding it.
+    @FocusState private var widgetPortFocused: Bool
 
     /// Cached read-only overlay token. Seeded once in `.onAppear` so a SwiftUI recompute
     /// never reaches into the Keychain (which `WebSocketAuthToken.currentOrCreate()`
@@ -337,22 +340,29 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .frame(width: 80)
                     .multilineTextAlignment(.center)
                     .disabled(widgetHTTPEnabled)
+                    .focused($widgetPortFocused)
                     .accessibilityLabel("Widget server port")
                     .accessibilityIdentifier("widgetPortField")
                     .onSubmit { applyWidgetPort() }
+                    .onChange(of: widgetPortFocused) { _, focused in
+                        if !focused { applyWidgetPort() }
+                    }
+                    .onChange(of: widgetHTTPEnabled) { _, enabled in
+                        // Turning the server on locks the field; keep a typed port
+                        // the click on the toggle would otherwise skip.
+                        if enabled { applyWidgetPort() }
+                    }
             }
             .padding(.horizontal, cardPadding)
             .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
 
             if !widgetPortText.isEmpty && !isWidgetPortValid {
-                HStack(spacing: DSSpace.s1h) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: DSFont.Size.sm))
-                    Text(verbatim: "Port must be between \(AppConstants.WebSocketServer.minPort) and \(AppConstants.WebSocketServer.maxPort).")
-                        .font(.system(size: DSFont.Size.sm))
-                }
-                .foregroundStyle(.red)
+                FieldValidationRow(
+                    state: .invalid(
+                        "Port must be between \(AppConstants.WebSocketServer.minPort) "
+                            + "and \(AppConstants.WebSocketServer.maxPort).")
+                )
                 .padding(.horizontal, cardPadding)
                 .padding(.bottom, DSSpace.s2)
             }
@@ -445,7 +455,8 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     /// posts a `widgetHTTPServerChanged` notification so the widget server
     /// restarts on the new port.
     private func applyWidgetPort() {
-        guard isWidgetPortValid, let port = UInt16(widgetPortText) else { return }
+        guard isWidgetPortValid, let port = UInt16(widgetPortText),
+              Int(port) != storedWidgetPort else { return }
         storedWidgetPort = Int(port)
         NotificationCenter.default.post(
             name: Notification.Name.widgetHTTPServerChanged,

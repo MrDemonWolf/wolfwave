@@ -59,8 +59,6 @@ nonisolated enum AppConstants {
 
     /// Application bundle and display information.
     enum AppInfo {
-        static let bundleIdentifier = "com.mrdemonwolf.wolfwave"
-
         /// User-facing app name. Reads `CFBundleDisplayName` (set in Info.plist
         /// and overridden per build configuration via `PRODUCT_NAME` /
         /// `Config.Debug.xcconfig`). Forks rename by editing those.
@@ -174,15 +172,12 @@ nonisolated enum AppConstants {
         static let `default` = "both"
     }
 
-    // MARK: - Keychain Service Identifier
+    // MARK: - Keychain Identifiers
 
-    /// Keychain service identifiers for secure credential storage.
+    /// Keychain account identifiers for secure credential storage. The service
+    /// name is the running bundle id (see `SystemKeychainBackend`), so DEBUG and
+    /// release builds never share an item.
     enum Keychain {
-        /// Legacy release-build keychain service string. `KeychainService` derives
-        /// its actual service from `Bundle.main.bundleIdentifier` (which equals this
-        /// on release builds) and does not read this constant.
-        static let service = "com.mrdemonwolf.wolfwave"
-
         /// Account identifier for the Twitch OAuth refresh token.
         static let twitchBotAccountRefreshToken = "twitchBotAccountRefreshToken"
     }
@@ -336,6 +331,9 @@ nonisolated enum AppConstants {
         /// Twitch OAuth token exchange endpoint.
         static let twitchOAuthToken = "https://id.twitch.tv/oauth2/token"
 
+        /// Twitch OAuth token validation endpoint (`GET`, returns scopes + identity).
+        static let twitchOAuthValidate = "https://id.twitch.tv/oauth2/validate"
+
         /// Spotify public oEmbed endpoint (no auth required).
         static let spotifyOEmbed = "https://open.spotify.com/oembed"
 
@@ -428,9 +426,6 @@ nonisolated enum AppConstants {
     }
 
     enum SettingsUI {
-        /// Default application name shown in UI
-        static let defaultAppName = "WolfWave"
-
         /// Minimum width for settings window. Sized so sidebar + detail pane fit
         /// the integration dashboard rows (icon · text · status chip · Configure)
         /// without truncation, while still working on a 1280×720 display.
@@ -504,19 +499,6 @@ nonisolated enum AppConstants {
 
         /// Height of the onboarding window
         static let windowHeight: CGFloat = DSDimension.Onboarding.windowHeight
-
-        /// Standard height for primary action buttons (e.g. Sign in with Twitch).
-        static let primaryButtonHeight: CGFloat = DSDimension.Onboarding.primaryButtonHeight
-
-        /// Minimum width for primary action buttons so labels can swap without resizing.
-        static let primaryButtonMinWidth: CGFloat = DSDimension.Onboarding.primaryButtonMinWidth
-
-        /// Minimum width for navigation bar buttons (Back, Skip, Next/Finish, Skip All).
-        static let navButtonMinWidth: CGFloat = DSDimension.Onboarding.navButtonMinWidth
-
-        /// Reserved vertical space for state-swapping content within a step
-        /// (e.g. Twitch `notConnected` → `authorizing` → `connected`).
-        static let stepContentMinHeight: CGFloat = DSDimension.Onboarding.stepContentMinHeight
 
         /// Side length of the brand tile used as the visual anchor for each integration step.
         static let brandTileSize: CGFloat = DSDimension.Onboarding.brandTileSize

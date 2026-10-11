@@ -175,15 +175,45 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
 
     // MARK: - Public API
 
-    /// Loads the tally from disk, returning `.empty` when the file is absent or
-    /// malformed.
+    /// File name a tally that could not be decoded is copied to before the next
+    /// `save` overwrites the original.
+    private static let corruptBackupFileName = "lifetime-tally.corrupt.json"
+
+    /// Loads the tally from disk.
+    ///
+    /// Returns `.empty` silently when the file is missing or zero bytes. A file
+    /// that exists but cannot be decoded (truncated, or written by a newer
+    /// build's schema after a downgrade) also returns `.empty`, but it is logged
+    /// and copied to `lifetime-tally.corrupt.json` first, because the next
+    /// `save` atomically replaces it and the lifetime totals would otherwise be
+    /// lost without a trace.
     func load() -> LifetimeTally {
         ioQueue.sync {
-            guard let data = try? Data(contentsOf: fileURL), !data.isEmpty,
-                  let tally = try? decoder.decode(LifetimeTally.self, from: data) else {
+            let data: Data
+            do {
+                data = try Data(contentsOf: fileURL)
+            } catch {
+                let code = (error as? CocoaError)?.code
+                if code != .fileReadNoSuchFile && code != .fileNoSuchFile {
+                    Log.error(
+                        "LifetimeTallyStore: Read failed: \(error.localizedDescription)",
+                        category: .history
+                    )
+                }
                 return .empty
             }
-            return tally
+            guard !data.isEmpty else { return .empty }
+            do {
+                return try decoder.decode(LifetimeTally.self, from: data)
+            } catch {
+                Log.error(
+                    "LifetimeTallyStore: Tally is unreadable, starting empty - "
+                        + "\(error.localizedDescription) bytes=\(data.count)",
+                    category: .history
+                )
+                backUpCorruptFile(data)
+                return .empty
+            }
         }
     }
 
@@ -238,5 +268,23 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
 
     private func ensureDirectoryExists() {
         HistoryStoreSupport.ensureDirectory(for: fileURL)
+    }
+
+    /// Preserves an undecodable tally beside the original. Runs on `ioQueue`.
+    ///
+    /// `load()` runs more than once per launch, so an existing backup is kept
+    /// rather than overwritten. A failure is logged and never blocks the load.
+    private func backUpCorruptFile(_ data: Data) {
+        let backupURL = fileURL.deletingLastPathComponent()
+            .appending(path: Self.corruptBackupFileName)
+        guard !FileManager.default.fileExists(atPath: backupURL.path) else { return }
+        do {
+            try data.write(to: backupURL, options: .atomic)
+        } catch {
+            Log.error(
+                "LifetimeTallyStore: Corrupt-tally backup failed: \(error.localizedDescription)",
+                category: .history
+            )
+        }
     }
 }

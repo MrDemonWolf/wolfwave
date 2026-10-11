@@ -60,7 +60,9 @@ struct AppleMusicLibraryServiceTests {
     // MARK: - Playlist identity and ensure lifecycle
 
     @Test("ownership matching requires the exact WolfWave description marker")
-    func ownershipMatchingRequiresMarker() throws {
+    func ownershipMatchingRequiresMarker() async throws {
+        let (defaults, suiteName) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let data = try libraryData([
             (
                 id: "p.user",
@@ -73,12 +75,21 @@ struct AppleMusicLibraryServiceTests {
                 description: AppConstants.Music.requestsPlaylistDescription
             ),
         ])
+        let transport = PagingPlaylistTransport(
+            responses: ["/me/library/playlists?limit=100": data])
+        let service = AppleMusicLibraryService(
+            defaults: defaults,
+            getOverride: { path in try await transport.get(path) },
+            postOverride: { path, body in try await transport.post(path, body: body) })
 
-        #expect(AppleMusicLibraryService.parseOwnedPlaylistID(fromLibraryData: data) == "p.owned")
+        #expect(try await service.ensureRequestsPlaylist() == "p.owned")
+        #expect(await transport.callCounts() == (get: 1, post: 0))
     }
 
     @Test("same-name user playlist without marker is ignored")
-    func sameNameWithoutMarkerIsIgnored() throws {
+    func sameNameWithoutMarkerIsIgnored() async throws {
+        let (defaults, suiteName) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let data = try libraryData([
             (
                 id: "p.user",
@@ -86,8 +97,16 @@ struct AppleMusicLibraryServiceTests {
                 description: nil
             ),
         ])
+        let transport = PagingPlaylistTransport(
+            responses: ["/me/library/playlists?limit=100": data])
+        let service = AppleMusicLibraryService(
+            defaults: defaults,
+            getOverride: { path in try await transport.get(path) },
+            postOverride: { path, body in try await transport.post(path, body: body) })
 
-        #expect(AppleMusicLibraryService.parseOwnedPlaylistID(fromLibraryData: data) == nil)
+        // Discovery must not adopt the user's playlist; it creates its own.
+        #expect(try await service.ensureRequestsPlaylist() == "p.created")
+        #expect(await transport.callCounts() == (get: 1, post: 1))
     }
 
     @Test("persisted playlist id survives a user-edited description")

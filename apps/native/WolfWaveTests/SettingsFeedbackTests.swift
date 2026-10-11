@@ -2,7 +2,7 @@
 //  SettingsFeedbackTests.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-10-08.
+//  Created by Nathanial Henniges on 2026-10-10.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
@@ -36,6 +36,34 @@ final class SettingsFeedbackTests: XCTestCase {
         XCTAssertTrue(error?.message.contains("nothing was erased") == true)
         let success = await SettingsView.twitchResetError(clearCredentials: { true })
         XCTAssertNil(success)
+    }
+
+    func testContainerWipeFailureSurfacesIncompleteResetError() {
+        var attempts = 0
+        let error = SettingsView.containerWipeError(wipe: {
+            attempts += 1
+            return false
+        })
+        XCTAssertEqual(attempts, 2, "A failed wipe is retried exactly once")
+        XCTAssertEqual(error?.id, SettingsView.resetIncompleteErrorID)
+        XCTAssertFalse(error?.message.contains("nothing was erased") == true)
+        XCTAssertTrue(error?.message.contains("history and logs") == true)
+    }
+
+    func testContainerWipeSuccessReturnsNoError() {
+        var attempts = 0
+        XCTAssertNil(SettingsView.containerWipeError(wipe: {
+            attempts += 1
+            return true
+        }))
+        XCTAssertEqual(attempts, 1)
+
+        attempts = 0
+        XCTAssertNil(SettingsView.containerWipeError(wipe: {
+            attempts += 1
+            return attempts > 1
+        }), "A wipe that succeeds on the retry is not an error")
+        XCTAssertEqual(attempts, 2)
     }
 
     func testLaunchAtLoginFailureSurfacesError() {

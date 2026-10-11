@@ -114,7 +114,6 @@ banner or flips a toggle.
 ## Key files
 
 - `Core/AppConstants+UserDefaults.swift`: the three keys + `allKeys`/`runtimeStateKeys`.
-- `Core/FeatureFlags.swift`: `songRequestSetupComplete` accessor.
 - `Services/SongRequest/SongRequestAccess.swift`: `PlaylistSetupStatus`.
 - `Services/SongRequest/AppleMusicLibraryService.swift`: `PlaylistProbe`,
   `probeRequestsPlaylist`, `classifyProbe`, `resetCachedPlaylistID`. Cloud layer.

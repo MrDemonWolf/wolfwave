@@ -516,12 +516,6 @@ struct DiscordSettingsView: View {
         }
     }
 
-    private var buttonCountText: String {
-        guard buttonsEnabled else { return "Hidden" }
-        let count = (button1Enabled ? 1 : 0) + (button2Enabled ? 1 : 0)
-        return "\(count) of \(AppConstants.Discord.maxButtons) shown"
-    }
-
     static func previewButton(
         index: Int,
         url: String?,

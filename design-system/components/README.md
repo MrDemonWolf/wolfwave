@@ -18,7 +18,6 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | Component | File |
 |---|---|
 | StatusChip | [status-chip.md](status-chip.md) |
-| InfoRow | [info-row.md](info-row.md) |
 | ToggleSettingRow | [toggle-setting-row.md](toggle-setting-row.md) |
 | CommandSettingRow | [command-setting-row.md](command-setting-row.md) |
 | CommandAliasField | [command-alias-field.md](command-alias-field.md) |
@@ -46,9 +45,7 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | HintRow | [hint-row.md](hint-row.md) |
 | LoadingRow | [loading-row.md](loading-row.md) |
 | ActionGrid | [action-grid.md](action-grid.md) |
-| UpdateBannerView | [update-banner-view.md](update-banner-view.md) |
 | WhatsNewView | [whats-new-view.md](whats-new-view.md) |
-| TwitchGlitchShape | [twitch-glitch-shape.md](twitch-glitch-shape.md) |
 | ViewModifiers (cardStyle, subtleCardShell, heading ramp, …) | [view-modifiers.md](view-modifiers.md) |
 | StreamerModeBadge | [streamer-mode-badge.md](streamer-mode-badge.md) |
 | ResponsiveRow | [responsive-row.md](responsive-row.md) |

@@ -166,6 +166,12 @@ extension AppDelegate {
 
     /// Presents the What's New window and marks the feature version as seen.
     func showWhatsNew() {
+        if let existing = whatsNewWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+            return
+        }
+
         let whatsNewView = WhatsNewView()
         let hostingController = NSHostingController(rootView: whatsNewView)
         let window = NSWindow(contentViewController: hostingController)

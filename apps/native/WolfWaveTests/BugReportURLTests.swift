@@ -17,11 +17,13 @@ final class BugReportURLTests: XCTestCase {
     func testReturnsNonNilURLForValidBase() {
         let url = BugReportURL.make(
             base: base,
-            appVersion: "1.2.0",
-            build: "42",
-            osVersion: "macOS 26.0",
-            arch: "arm64",
-            install: .dmg
+            snapshot: makeSnapshot(
+                appVersion: "1.2.0",
+                build: "42",
+                osVersion: "macOS 26.0",
+                arch: "arm64",
+                install: .dmg
+            )
         )
         XCTAssertNotNil(url)
     }
@@ -29,11 +31,13 @@ final class BugReportURLTests: XCTestCase {
     func testReturnsNilForMalformedBase() {
         let url = BugReportURL.make(
             base: "not a url",
-            appVersion: "1.0",
-            build: "1",
-            osVersion: "macOS 26.0",
-            arch: "arm64",
-            install: .dmg
+            snapshot: makeSnapshot(
+                appVersion: "1.0",
+                build: "1",
+                osVersion: "macOS 26.0",
+                arch: "arm64",
+                install: .dmg
+            )
         )
         // URLComponents accepts most strings; check at least path/host are present
         if let url = url {
@@ -44,11 +48,13 @@ final class BugReportURLTests: XCTestCase {
     func testQueryItemsIncludeTemplateAndLabel() throws {
         let url = BugReportURL.make(
             base: base,
-            appVersion: "1.2.0",
-            build: "42",
-            osVersion: "macOS 26.0",
-            arch: "arm64",
-            install: .dmg
+            snapshot: makeSnapshot(
+                appVersion: "1.2.0",
+                build: "42",
+                osVersion: "macOS 26.0",
+                arch: "arm64",
+                install: .dmg
+            )
         )
         let url2 = try XCTUnwrap(url)
         let comps = URLComponents(url: url2, resolvingAgainstBaseURL: false)
@@ -70,11 +76,13 @@ final class BugReportURLTests: XCTestCase {
     func testBodyContainsEnvironmentFields() throws {
         let url = BugReportURL.make(
             base: base,
-            appVersion: "1.2.3",
-            build: "99",
-            osVersion: "macOS 26.1.0",
-            arch: "arm64",
-            install: .homebrew
+            snapshot: makeSnapshot(
+                appVersion: "1.2.3",
+                build: "99",
+                osVersion: "macOS 26.1.0",
+                arch: "arm64",
+                install: .homebrew
+            )
         )
         let url2 = try XCTUnwrap(url)
         let comps = URLComponents(url: url2, resolvingAgainstBaseURL: false)
@@ -88,8 +96,22 @@ final class BugReportURLTests: XCTestCase {
     }
 
     func testInstallMethodRawValues() {
-        XCTAssertEqual(BugReportURL.InstallMethod.dmg.rawValue, "DMG")
-        XCTAssertEqual(BugReportURL.InstallMethod.homebrew.rawValue, "Homebrew")
+        XCTAssertEqual(DiagnosticSnapshot.InstallMethod.dmg.rawValue, "DMG")
+        XCTAssertEqual(DiagnosticSnapshot.InstallMethod.homebrew.rawValue, "Homebrew")
+    }
+
+    func testBodyMentionsCrashOnlyWhenPreviousLaunchCrashed() throws {
+        func body(crashed: Bool) throws -> String {
+            let url = try XCTUnwrap(BugReportURL.make(
+                base: base,
+                snapshot: makeSnapshot(crashedLastLaunch: crashed, crashSummary: "SIGSEGV")
+            ))
+            let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            return comps?.queryItems?.first { $0.name == "body" }?.value ?? ""
+        }
+
+        XCTAssertTrue(try body(crashed: true).contains("Recovered from a crash:** SIGSEGV"))
+        XCTAssertFalse(try body(crashed: false).contains("Recovered from a crash"))
     }
 
     func testCurrentArchIsKnownValue() {
@@ -100,14 +122,41 @@ final class BugReportURLTests: XCTestCase {
     func testURLPathPointsToIssuesNew() throws {
         let url = BugReportURL.make(
             base: base,
-            appVersion: "1.0",
-            build: "1",
-            osVersion: "macOS 26.0",
-            arch: "arm64",
-            install: .dmg
+            snapshot: makeSnapshot(
+                appVersion: "1.0",
+                build: "1",
+                osVersion: "macOS 26.0",
+                arch: "arm64",
+                install: .dmg
+            )
         )
         let url2 = try XCTUnwrap(url)
         XCTAssertEqual(url2.host, "github.com")
         XCTAssertEqual(url2.path, "/mrdemonwolf/wolfwave/issues/new")
+    }
+
+    // MARK: - Fixtures
+
+    private func makeSnapshot(
+        appVersion: String = "1.0",
+        build: String = "1",
+        osVersion: String = "macOS 26.0",
+        arch: String = "arm64",
+        install: DiagnosticSnapshot.InstallMethod = .dmg,
+        crashedLastLaunch: Bool = false,
+        crashSummary: String? = nil
+    ) -> DiagnosticSnapshot {
+        DiagnosticSnapshot(
+            appVersion: appVersion,
+            build: build,
+            osVersion: osVersion,
+            arch: arch,
+            installMethod: install,
+            crashedLastLaunch: crashedLastLaunch,
+            crashSummary: crashSummary,
+            diagnosticsEnabled: false,
+            logSizeBytes: 0,
+            logSizeDescription: "Zero KB"
+        )
     }
 }

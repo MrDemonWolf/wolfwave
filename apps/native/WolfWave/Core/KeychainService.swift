@@ -225,10 +225,6 @@ nonisolated enum KeychainService {
         loadTwitchCredentialGrant().accessToken
     }
 
-    static func loadTwitchRefreshToken() -> String? {
-        loadTwitchCredentialGrant().refreshToken
-    }
-
     static func loadTwitchUsername() -> String? {
         loadTwitchCredentialGrant().username
     }

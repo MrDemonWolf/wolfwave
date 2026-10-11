@@ -12,7 +12,7 @@ import SwiftUI
 /// DEBUG-only card for previewing in-app UI surfaces without normal triggers.
 ///
 /// Includes shortcuts to the What's New popup, the onboarding wizard, and a
-/// simulated update banner so designers can iterate without bumping versions.
+/// simulated update notification (drives the Software Update pane) so designers can iterate without bumping versions.
 struct DebugUIPreviewsCard: View {
 
     var body: some View {

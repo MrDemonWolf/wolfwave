@@ -242,18 +242,20 @@ final class HelixClientTests: XCTestCase {
         XCTAssertNil(json)
     }
 
-    func testSendRawReturnsStatusForBranching() async throws {
+    func testSendRawResponseSkipsValidationAndKeepsHeaders() async throws {
         handlerStore.handler = { request in
             (
-                MockURLProtocol.httpResponse(for: request, status: 403),
+                MockURLProtocol.httpResponse(
+                    for: request, status: 403, headers: ["Retry-After": "7"]),
                 Data("missing scope".utf8)
             )
         }
 
-        let (data, status) = try await helix.sendRaw(
+        let (data, response) = try await helix.sendRawResponse(
             url: url(), method: "POST", credentials: credentials, body: nil)
 
-        XCTAssertEqual(status, 403)
+        XCTAssertEqual(response.statusCode, 403)
+        XCTAssertEqual(response.value(forHTTPHeaderField: "Retry-After"), "7")
         XCTAssertEqual(String(data: data, encoding: .utf8), "missing scope")
     }
 

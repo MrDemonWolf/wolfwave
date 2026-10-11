@@ -35,33 +35,33 @@ final class LinkResolverServiceTests: XCTestCase {
     // MARK: - Link Detection
 
     func testDetectsSpotifyLink() {
-        XCTAssertTrue(LinkResolverService.isSpotifyLink("https://open.spotify.com/track/abc"))
-        XCTAssertTrue(LinkResolverService.isSpotifyLink("https://open.spotify.com/intl-fr/track/abc"))
-        XCTAssertTrue(LinkResolverService.isSpotifyLink("https://spotify.link/abc"))
-        XCTAssertFalse(LinkResolverService.isSpotifyLink("https://example.com/track"))
-        XCTAssertFalse(LinkResolverService.isSpotifyLink("https://open.spotify.com.evil.test/track/abc"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://open.spotify.com/track/abc"), .spotify)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://open.spotify.com/intl-fr/track/abc"), .spotify)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://spotify.link/abc"), .spotify)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://example.com/track"), .spotify)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://open.spotify.com.evil.test/track/abc"), .spotify)
     }
 
     func testDetectsYouTubeLink() {
-        XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtu.be/abc"))
-        XCTAssertTrue(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch?v=abc"))
-        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch"))
-        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://www.youtube.com/watch?v="))
-        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://example.com"))
-        XCTAssertFalse(LinkResolverService.isYouTubeLink("https://notyoutube.com/watch?v=abc"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://youtu.be/abc"), .youtube)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://www.youtube.com/watch?v=abc"), .youtube)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://www.youtube.com/watch"), .youtube)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://www.youtube.com/watch?v="), .youtube)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://example.com"), .youtube)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://notyoutube.com/watch?v=abc"), .youtube)
     }
 
     func testDetectsAppleMusicLink() {
-        XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/x/1?i=2"))
-        XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/gb/song/x/2"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/x/1"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://example.com"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("http://music.apple.com/us/album/x/1"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com.evil.test/us/album/x/1"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://evil.test/music.apple.com/us/album/x/1"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/browse"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com/usa/album/x/1"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/x/not-an-id"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/x/1?i=2"), .appleMusic)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.apple.com/gb/song/x/2"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/x/1"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://example.com"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "http://music.apple.com/us/album/x/1"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com.evil.test/us/album/x/1"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://evil.test/music.apple.com/us/album/x/1"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/browse"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/usa/album/x/1"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/x/not-an-id"), .appleMusic)
     }
 
     func testExtractURLFindsFirstSupportedURLAndTrimsPunctuation() {
@@ -163,5 +163,18 @@ final class LinkResolverServiceTests: XCTestCase {
             XCTFail("Expected .notFound, got \(result)")
             return
         }
+    }
+}
+
+// MARK: - Test Helpers
+
+extension LinkResolverService {
+    /// Per-service detection for a chat message, through the production
+    /// entry points: ``extractURL(from:)`` finds the first supported URL and
+    /// ``service(for:)`` names its service. `nil` when nothing is supported.
+    static func detectedService(in text: String) -> MusicService? {
+        extractURL(from: text)
+            .flatMap { URL(string: $0) }
+            .flatMap { service(for: $0) }
     }
 }

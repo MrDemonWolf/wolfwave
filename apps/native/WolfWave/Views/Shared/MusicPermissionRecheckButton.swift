@@ -2,7 +2,7 @@
 //  MusicPermissionRecheckButton.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-10-09.
+//  Created by Nathanial Henniges on 2026-10-10.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 

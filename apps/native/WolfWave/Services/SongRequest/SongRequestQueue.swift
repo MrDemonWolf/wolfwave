@@ -59,11 +59,6 @@ final class SongRequestQueue {
         lock.withLock { items.isEmpty }
     }
 
-    /// Whether the queue is at capacity.
-    var isFull: Bool {
-        lock.withLock { items.count >= maxQueueSize }
-    }
-
     // MARK: - Queue Operations
 
     /// Result of attempting to add a song to the queue.
@@ -205,18 +200,6 @@ final class SongRequestQueue {
         return item
     }
 
-    /// Remove all pending items. Returns the number removed.
-    @discardableResult
-    func clearPending() -> Int {
-        let count: Int = lock.withLock {
-            let count = pending.count
-            pending.removeAll()
-            return count
-        }
-        postQueueChanged()
-        return count
-    }
-
     // MARK: - Two-Phase Playback
 
     /// Returns the current queue head without removing it.
@@ -313,14 +296,6 @@ final class SongRequestQueue {
     func remove(id: UUID) {
         lock.withLock {
             items.removeAll { $0.id == id }
-        }
-        postQueueChanged()
-    }
-
-    /// Move an item from one position to another (for drag-to-reorder).
-    func move(from source: IndexSet, to destination: Int) {
-        lock.withLock {
-            items.move(fromOffsets: source, toOffset: destination)
         }
         postQueueChanged()
     }

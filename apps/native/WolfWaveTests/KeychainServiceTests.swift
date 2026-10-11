@@ -954,7 +954,7 @@ final class KeychainServiceTests {
         try KeychainService.saveTwitchCredentialGrant(grant)
 
         #expect(KeychainService.loadTwitchToken() == "ACCESS")
-        #expect(KeychainService.loadTwitchRefreshToken() == "REFRESH")
+        #expect(KeychainService.loadTwitchCredentialGrant().refreshToken == "REFRESH")
         #expect(KeychainService.loadTwitchUsername() == "wolf")
         #expect(KeychainService.loadTwitchBotUserID() == "123")
         #expect(KeychainService.loadTwitchChannelID() == "channel")
@@ -1128,7 +1128,7 @@ final class KeychainServiceTests {
         #expect(KeychainService.loadToken() == nil)
         #expect(KeychainService.loadControlToken() == nil)
         #expect(KeychainService.loadTwitchToken() == nil)
-        #expect(KeychainService.loadTwitchRefreshToken() == nil)
+        #expect(KeychainService.loadTwitchCredentialGrant().refreshToken == nil)
         #expect(KeychainService.loadTwitchUsername() == nil)
         #expect(KeychainService.loadTwitchBotUserID() == nil)
         #expect(KeychainService.loadTwitchChannelID() == nil)

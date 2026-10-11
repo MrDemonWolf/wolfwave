@@ -100,29 +100,8 @@ final class SparkleUpdaterService: NSObject {
         checkForUpdatesInBackground()
     }
 
-    /// Update check interval in seconds (default: 24 hours)
-    var updateCheckInterval: TimeInterval {
-        get {
-            updater?.updateCheckInterval ?? AppConstants.Update.checkInterval
-        }
-        set {
-            guard let updater else {
-                Log.warn(
-                    "SparkleUpdaterService: updateCheckInterval ignored: updater not initialized",
-                    category: .update)
-                return
-            }
-            updater.updateCheckInterval = newValue
-            Log.info("SparkleUpdaterService: Check interval set to \(Int(newValue))s", category: .update)
-        }
-    }
-
     /// Whether the app was installed via Homebrew (Sparkle should be disabled in this case)
     private let isHomebrewInstall: Bool
-
-    /// True when Sparkle is wired and ready to drive a real update check.
-    /// False for Homebrew installs or when `setupSparkle()` never produced an `SPUUpdater`.
-    var isAvailable: Bool { !isHomebrewInstall && updater != nil }
 
     // MARK: - Initialization
 
@@ -249,26 +228,6 @@ final class SparkleUpdaterService: NSObject {
 
         Log.debug("SparkleUpdaterService: Background update check triggered", category: .update)
         updater.checkForUpdatesInBackground()
-        #endif
-    }
-
-    /// Returns the URL for the Sparkle appcast feed.
-    ///
-    /// Resolved from `SUFeedURL` in Info.plist (release Stable), the nightly
-    /// feed (release Nightly), or the bundled `dev-appcast.xml` (DEBUG).
-    var feedURL: URL? {
-        #if DEBUG
-        return Bundle.main.url(forResource: "dev-appcast", withExtension: "xml")
-        #else
-        switch channel {
-        case .nightly:
-            return URL(string: AppConstants.Update.nightlyFeedURL)
-        case .stable:
-            guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
-                return nil
-            }
-            return URL(string: raw)
-        }
         #endif
     }
 

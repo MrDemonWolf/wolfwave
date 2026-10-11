@@ -1374,6 +1374,11 @@ fileprivate struct SongRequestBlocklistCard: View {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: DSFont.Size.body))
                                     .foregroundStyle(.secondary)
+                                    .frame(
+                                        minWidth: DSDimension.IconButton.minWidth,
+                                        minHeight: DSDimension.IconButton.minHeight
+                                    )
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove from blocklist")

@@ -233,7 +233,7 @@ private struct CustomCommandEditor: View {
                 if triggerConflicts {
                     Text("Each trigger and alias must be complete and unique.")
                         .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(DSColor.error)
                 }
             }
 
