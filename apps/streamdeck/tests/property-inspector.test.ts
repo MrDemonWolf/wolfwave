@@ -66,6 +66,8 @@ interface Panel {
   sent: unknown[];
   refreshStatus(): void;
   save(): void;
+  /** Delivers a message from the plugin, as Stream Deck would. */
+  receive(message: unknown): void;
 }
 
 /**
@@ -81,6 +83,8 @@ function loadPanel(): Panel {
   const port = stubField();
   const status = { ...stubField(), textContent: "" };
   const sent: unknown[] = [];
+  let socketInstance: { onmessage: ((e: { data: string }) => void) | null } | null =
+    null;
 
   const elements: Record<string, unknown> = { token, port, status };
 
@@ -89,6 +93,9 @@ function loadPanel(): Panel {
     readyState = 1;
     onopen: (() => void) | null = null;
     onmessage: ((event: { data: string }) => void) | null = null;
+    constructor() {
+      socketInstance = this;
+    }
     send(raw: string) {
       sent.push(JSON.parse(raw));
     }
@@ -127,6 +134,8 @@ function loadPanel(): Panel {
     sent,
     refreshStatus: () => scoped.refreshStatus(),
     save: () => scoped.save(),
+    receive: (message) =>
+      socketInstance?.onmessage?.({ data: JSON.stringify(message) }),
   };
 }
 
@@ -205,7 +214,7 @@ describe("status line", () => {
 
     panel.port.value = "8765";
     panel.refreshStatus();
-    expect(panel.status.textContent).toBe("Control token looks right.");
+    expect(panel.status.textContent).toBe("Token format is valid.");
     expect(panel.port.attributes["aria-invalid"]).toBe("false");
   });
 
@@ -228,7 +237,7 @@ describe("status line", () => {
     panel.token.value = HEX64;
     panel.refreshStatus();
     expect(panel.token.attributes["aria-invalid"]).toBe("false");
-    expect(panel.status.textContent).toBe("Control token looks right.");
+    expect(panel.status.textContent).toBe("Token format is valid.");
   });
 
   test("blank token prompts rather than erroring", () => {
@@ -293,6 +302,75 @@ describe("event wiring", () => {
     panel.token.value = "nope";
     panel.token.dispatch("input");
     expect(panel.sent).toHaveLength(0);
+    expect(panel.status.textContent).toContain("64 hex characters");
+  });
+});
+
+describe("connection feedback", () => {
+  const relay = (phase: string) => ({
+    event: "sendToPropertyInspector",
+    payload: { type: "connection", phase },
+  });
+
+  function withToken() {
+    const panel = loadPanel();
+    panel.token.value = HEX64;
+    panel.refreshStatus();
+    return panel;
+  }
+
+  test("saves as soon as a pasted token is well formed", () => {
+    const panel = loadPanel();
+    panel.token.value = HEX64;
+    panel.token.dispatch("input");
+    expect(panel.sent).toHaveLength(1);
+    expect(panel.sent[0]).toMatchObject({
+      event: "setGlobalSettings",
+      payload: { token: HEX64 },
+    });
+  });
+
+  test("typing the port never saves", () => {
+    const panel = loadPanel();
+    panel.token.value = HEX64;
+    panel.port.value = "9";
+    panel.port.dispatch("input");
+    expect(panel.sent).toHaveLength(0);
+  });
+
+  test("reports a connected socket", () => {
+    const panel = withToken();
+    panel.receive(relay("connected"));
+    expect(panel.status.textContent).toBe("Connected.");
+    expect(panel.status.attributes["data-ok"]).toBe("true");
+  });
+
+  test("says WolfWave rejected a well-formed token", () => {
+    const panel = withToken();
+    panel.receive(relay("rejected"));
+    expect(panel.status.textContent).toContain("WolfWave rejected this token");
+    expect(panel.status.attributes["data-ok"]).toBe("false");
+  });
+
+  test("tells the user to update the plugin", () => {
+    const panel = withToken();
+    panel.receive(relay("outdated"));
+    expect(panel.status.textContent).toBe("Update the plugin.");
+  });
+
+  test("an edit discards the stale connection message", () => {
+    const panel = withToken();
+    panel.receive(relay("rejected"));
+    panel.token.value = "b".repeat(64);
+    panel.token.dispatch("input");
+    expect(panel.status.textContent).toBe("Token format is valid.");
+  });
+
+  test("a bad token shape outranks a relayed phase", () => {
+    const panel = loadPanel();
+    panel.token.value = "nope";
+    panel.receive(relay("connected"));
+    panel.refreshStatus();
     expect(panel.status.textContent).toContain("64 hex characters");
   });
 });

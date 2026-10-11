@@ -3,11 +3,12 @@
  *
  * Owns the single {@link WolfWaveClient} shared by every key, wires connection
  * settings from global settings (so the streamer configures port/control token once
- * rather than per key), and registers the v2 action set.
+ * rather than per key), and registers the v3 action set.
  */
 
 import streamDeck from "@elgato/streamdeck";
 import { ACTION_CLASSES } from "./actions/index.js";
+import { connectionStatus } from "./connection-status.js";
 import { WolfWaveClient } from "./wolfwave/client.js";
 import { DEFAULT_PORT } from "./wolfwave/protocol.js";
 
@@ -16,6 +17,29 @@ const client = new WolfWaveClient();
 for (const ActionClass of ACTION_CLASSES) {
   streamDeck.actions.registerAction(new ActionClass(client));
 }
+
+/**
+ * Tells the open Property Inspector whether WolfWave accepted the token. A
+ * panel can only check the token's shape, so without this a wrong-but-valid
+ * token reads as "looks right" while every key says Offline.
+ */
+function pushConnectionStatus(): void {
+  const message = connectionStatus(
+    client.currentState,
+    client.handshakeRejected,
+  );
+  // No panel open is the normal case; a failed send must never reach the
+  // process as an unhandled rejection.
+  try {
+    streamDeck.ui.sendToPropertyInspector(message).catch(() => {});
+  } catch {
+    // Same: nothing to tell.
+  }
+}
+
+client.onState(pushConnectionStatus);
+client.onRejection(pushConnectionStatus);
+streamDeck.ui.onDidAppear(pushConnectionStatus);
 
 /**
  * Applies connection settings.

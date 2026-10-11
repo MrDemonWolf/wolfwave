@@ -2,8 +2,8 @@
  * Shared behaviour for every WolfWave key.
  *
  * A key does two things: send a command on press and reflect live state. Both
- * are the same for all eleven v2 actions apart from which token they send and
- * what they render, so subclasses override only that.
+ * are the same for every key apart from which token it sends and what it
+ * renders, so subclasses override only that.
  */
 
 import {
@@ -43,6 +43,13 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
   constructor(protected readonly client: WolfWaveClient) {
     super();
   }
+
+  /**
+   * Per-key paint generation. Bumped whenever a key is repainted, reset to its
+   * offline art, or disappears, so a render suspended on an `await` can tell the
+   * key moved on while it waited and must not install anything.
+   */
+  private readonly generations = new Map<string, number>();
 
   /** Press-start timestamps for keys that must be held. Keyed by action id. */
   private readonly pressStarts = new Map<string, number>();
@@ -93,6 +100,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
   }
 
   override onWillDisappear(ev: WillDisappearEvent): void {
+    this.bumpGeneration(ev.action.id);
     const unsubscribe = this.subscriptions.get(ev.action.id);
     if (!unsubscribe) return;
     unsubscribe();
@@ -129,7 +137,36 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
     await this.send(action);
   }
 
+  // MARK: - Subclass hooks
+
+  /**
+   * Called when a key leaves the live state (offline, bad token, outdated). A
+   * subclass that runs its own timers stops them here, or they keep repainting
+   * the last live frame over the "Offline" title.
+   */
+  protected onReset(_action: KeyAction): void {}
+
+  /**
+   * Snapshot of the key's paint generation. Take it at the top of `render`, and
+   * check {@link isStale} after each `await`.
+   */
+  protected generationOf(id: string): number {
+    return this.generations.get(id) ?? 0;
+  }
+
+  /**
+   * True when the key was repainted, reset, or removed since `generation` was
+   * taken. A stale render must return without touching the key.
+   */
+  protected isStale(id: string, generation: number): boolean {
+    return this.generationOf(id) !== generation;
+  }
+
   // MARK: - Private helpers
+
+  private bumpGeneration(id: string): void {
+    this.generations.set(id, this.generationOf(id) + 1);
+  }
 
   /** Sends this key's command and shows the ack's outcome on the key. */
   private async send(action: KeyAction): Promise<void> {
@@ -150,6 +187,8 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * would be actively misleading on stream.
    */
   private async paint(action: KeyAction, state: WolfWaveState): Promise<void> {
+    // Supersedes any render still suspended from an earlier state.
+    this.bumpGeneration(action.id);
     switch (state.phase) {
       case "disconnected":
         await this.reset(action, "Offline");
@@ -173,6 +212,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * under an "Offline" title, which reads as a live queue.
    */
   private async reset(action: KeyAction, title: string): Promise<void> {
+    this.onReset(action);
     await action.setImage();
     await action.setTitle(title);
     await action.setState(KeyState.primary);

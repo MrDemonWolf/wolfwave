@@ -12,7 +12,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ACTION_CLASSES } from "../src/actions/index.js";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
-import { initialState, type WolfWaveState } from "../src/wolfwave/state.js";
+import {
+  initialState,
+  withPhase,
+  type WolfWaveState,
+} from "../src/wolfwave/state.js";
 
 interface Painted {
   images: string[];
@@ -157,5 +161,73 @@ describe("willAppear wiring", () => {
 
     const subs = (action as unknown as { subscriptions?: Map<string, unknown> }).subscriptions;
     expect(subs?.size).toBe(0);
+  });
+});
+
+describe("NowPlayingAction marquee lifecycle", () => {
+  const NowPlaying = ACTION_CLASSES[ACTION_CLASSES.length - 1];
+
+  function scrollerCount(action: object): number {
+    return (action as unknown as { scrollers: Map<string, unknown> }).scrollers
+      .size;
+  }
+
+  /** Pushes a state through the client the way a socket frame would. */
+  function push(client: WolfWaveClient, state: WolfWaveState) {
+    (client as unknown as { setState(s: WolfWaveState): void }).setState(state);
+  }
+
+  test("disconnectStopsMarqueeInterval", async () => {
+    const client = new WolfWaveClient();
+    push(client, playing);
+    const action = new NowPlaying(client);
+    const key = fakeKey();
+    (action as unknown as { onWillAppear(e: unknown): void }).onWillAppear({
+      action: key,
+    });
+    await Bun.sleep(20);
+    expect(scrollerCount(action)).toBe(1);
+
+    push(client, withPhase(playing, "disconnected"));
+    await Bun.sleep(20);
+    expect(scrollerCount(action)).toBe(0);
+    expect(key.painted.titles.at(-1)).toBe("Offline");
+
+    // No further frames once the marquee is stopped.
+    const frames = key.painted.images.length;
+    await Bun.sleep(600);
+    expect(key.painted.images.length).toBe(frames);
+  });
+
+  test("renderAfterDisappearDoesNotStartInterval", async () => {
+    const realFetch = globalThis.fetch;
+    let release: (r: Response) => void = () => {};
+    globalThis.fetch = (() =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      })) as unknown as typeof fetch;
+    try {
+      const client = new WolfWaveClient();
+      push(client, {
+        ...playing,
+        artworkURL: "https://is1-ssl.mzstatic.com/image/thumb/pending-art/1.jpg",
+      });
+      const action = new NowPlaying(client);
+      const key = fakeKey();
+      const a = action as unknown as {
+        onWillAppear(e: unknown): void;
+        onWillDisappear(e: unknown): void;
+      };
+      a.onWillAppear({ action: key });
+      await Bun.sleep(20); // render is now parked on the artwork fetch
+      a.onWillDisappear({ action: key });
+      release(new Response(null, { status: 404 }));
+      await Bun.sleep(20);
+
+      expect(scrollerCount(action)).toBe(0);
+      expect(key.painted.images).toEqual([]);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

@@ -12,6 +12,7 @@
  */
 
 import WebSocket from "ws";
+import { now } from "../clock.js";
 import {
   encodeCommand,
   parseFrame,
@@ -42,9 +43,24 @@ const RECONNECT_MAX_MS = 30_000;
  */
 const ACK_TIMEOUT_MS = 5_000;
 
+/**
+ * How long a timed-out press stays "owed" an ack. A late ack normally lands
+ * within seconds; an ack the app never sends must not poison every later press
+ * of that key, so the debt expires.
+ */
+const LATE_ACK_TTL_MS = 30_000;
+
 interface PendingAck {
   resolve: (ack: AckFrame | null) => void;
   timer: ReturnType<typeof setTimeout>;
+  /**
+   * Set when an ack for this action was swallowed as an earlier press's late
+   * ack while this press was waiting. That ack may in fact have been this
+   * press's, so if this press then times out it owes no new debt. Without it,
+   * one never-answered press would swallow every following press's real ack
+   * for as long as presses arrive inside the late-ack window.
+   */
+  forgiven?: boolean;
 }
 
 export class WolfWaveClient {
@@ -67,6 +83,26 @@ export class WolfWaveClient {
    * of one key per action.
    */
   private readonly pendingAcks = new Map<string, PendingAck[]>();
+  /**
+   * Expiry times of presses that timed out, per action token.
+   *
+   * A timed-out press's ack can still arrive later. Without this it would be
+   * handed to the *next* press of the same action, which would then show the
+   * wrong outcome. Each late ack is swallowed against one entry here, so the
+   * protocol is unchanged (the ack still has no correlation id).
+   */
+  private readonly lateAcks = new Map<string, number[]>();
+  /**
+   * True when the last handshake was answered with an HTTP rejection rather than
+   * a refused connection: WolfWave is up but did not accept the token.
+   */
+  private rejected = false;
+  private readonly rejectionListeners = new Set<() => void>();
+  private readonly ackTimeoutMs: number;
+
+  constructor(options: { ackTimeoutMs?: number } = {}) {
+    this.ackTimeoutMs = options.ackTimeoutMs ?? ACK_TIMEOUT_MS;
+  }
 
   // MARK: - Public API
 
@@ -80,6 +116,17 @@ export class WolfWaveClient {
     // renders correctly instead of waiting for the next broadcast.
     listener(this.state);
     return () => this.stateListeners.delete(listener);
+  }
+
+  /** Whether WolfWave answered the last handshake by rejecting the token. */
+  get handshakeRejected(): boolean {
+    return this.rejected;
+  }
+
+  /** Fires each time a handshake is rejected, even if the phase did not change. */
+  onRejection(listener: () => void): () => void {
+    this.rejectionListeners.add(listener);
+    return () => this.rejectionListeners.delete(listener);
   }
 
   onAck(listener: (ack: AckFrame) => void): () => void {
@@ -113,6 +160,7 @@ export class WolfWaveClient {
     this.closeSocket();
     this.flushPending();
     this.settings = settings;
+    this.rejected = false;
     this.attempt = 0;
     this.stopped = false;
     this.reconnect(0);
@@ -141,7 +189,7 @@ export class WolfWaveClient {
    * Sends a command and resolves with its ack.
    *
    * Resolves `null` when there's no open socket, or when no ack arrives within
-   * {@link ACK_TIMEOUT_MS} — both mean "show an alert", so the caller doesn't
+   * the ack timeout — both mean "show an alert", so the caller doesn't
    * need to tell them apart.
    */
   sendAwaitingAck(
@@ -156,8 +204,9 @@ export class WolfWaveClient {
         resolve,
         timer: setTimeout(() => {
           this.removePending(action, pending);
+          if (!pending.forgiven) this.oweLateAck(action);
           resolve(null);
-        }, ACK_TIMEOUT_MS),
+        }, this.ackTimeoutMs),
       };
       pending.timer.unref?.();
       queue.push(pending);
@@ -193,6 +242,7 @@ export class WolfWaveClient {
 
     socket.on("open", () => {
       this.attempt = 0;
+      this.rejected = false;
     });
 
     socket.on("close", () => {
@@ -203,9 +253,15 @@ export class WolfWaveClient {
       this.scheduleReconnect();
     });
 
-    socket.on("error", () => {
+    socket.on("error", (error: Error) => {
       // `ws` always follows an error with a close, which is where the reconnect
-      // is scheduled. Handling it here too would double-schedule.
+      // is scheduled. Handling it here too would double-schedule; this only
+      // records *why*. An HTTP answer to the upgrade means the app is running
+      // and refused us, which looks identical to "app not running" otherwise.
+      if (/^Unexpected server response/.test(error?.message ?? "")) {
+        this.rejected = true;
+        for (const listener of this.rejectionListeners) listener();
+      }
     });
   }
 
@@ -221,7 +277,34 @@ export class WolfWaveClient {
     this.setState(reduce(this.state, frame));
   }
 
+  /** Records that a press timed out and its ack may still arrive. */
+  private oweLateAck(action: string): void {
+    const list = this.lateAcks.get(action) ?? [];
+    list.push(now() + LATE_ACK_TTL_MS);
+    this.lateAcks.set(action, list);
+  }
+
+  /** Consumes one owed late ack for `action`; true when this ack was it. */
+  private swallowLateAck(action: string): boolean {
+    const list = this.lateAcks.get(action);
+    if (!list) return false;
+    const t = now();
+    const live = list.filter((expiry) => expiry > t);
+    const swallowed = live.length > 0;
+    if (swallowed) live.shift();
+    if (live.length === 0) this.lateAcks.delete(action);
+    else this.lateAcks.set(action, live);
+    return swallowed;
+  }
+
   private resolvePending(ack: AckFrame): void {
+    if (this.swallowLateAck(ack.action)) {
+      // The swallowed ack may have been the oldest waiting press's own; if so
+      // that press will time out, and must not start a new debt (cascade).
+      const oldest = this.pendingAcks.get(ack.action)?.find((p) => !p.forgiven);
+      if (oldest) oldest.forgiven = true;
+      return;
+    }
     const queue = this.pendingAcks.get(ack.action);
     const pending = queue?.shift();
     if (!pending) return;
@@ -250,6 +333,8 @@ export class WolfWaveClient {
       }
     }
     this.pendingAcks.clear();
+    // A dropped socket takes its unanswered commands with it.
+    this.lateAcks.clear();
   }
 
   private scheduleReconnect(): void {
