@@ -11,10 +11,19 @@
  * Allowlist: design-system/lint-allowlist.txt; one `path:line` per line,
  * `#` starts a comment. Use sparingly; prefer fixing the source.
  *
+ * Known blind spots (the scan is line-based, pinned in lint.test.ts):
+ *  - A call split across lines, e.g. `.system(` then `size: 13` on the next
+ *    line, or `.padding(.horizontal,` then `12)`, is not seen.
+ *  - Spacing, padding and radius rules only flag values that have a token. An
+ *    off-scale literal (`spacing: 1.5`, `cornerRadius: 3`) is not flagged
+ *    because there is no token to point at; add the token first.
+ *  - `.frame(width:/height:)` literals are not linted (staged follow-up).
+ *
  * Rules:
- *  - `raw-font-size`: font(.system(size: N)) → use DSFont.Size.*
+ *  - `raw-font-size`: .system(size: N) (any `Font.system` / `.font(.system(` form on one line) → use DSFont.Size.*
  *  - `raw-spacing`: spacing: N → use DSSpace.*
- *  - `raw-padding`: .padding(N) → use DSSpace.*
+ *  - `raw-padding`: .padding(N), .padding(.edge, N), .padding([.a, .b], N) → use DSSpace.*
+ *  - `raw-radius`: cornerRadius: N / .cornerRadius(N) → use DSRadius.*
  *  - `raw-animation-duration`: numeric animation duration/response → use DSMotion.Duration.*
  *  - `raw-status-color`: raw colors in `color:` / `statusColor:` → use semantic DSColor tokens
  */
@@ -36,18 +45,37 @@ interface Violation {
 export const RULES: Array<{ name: string; pattern: RegExp; appliesToOnboarding: boolean }> = [
   {
     name: "raw-font-size",
-    pattern: /\bfont\(\.system\(size:\s*\d+/,
+    // `\.system\(\s*size:` also catches `Font.system(size: 13)` and a `.system(`
+    // call that is not literally preceded by `font(` on the same line.
+    pattern: /\.system\(\s*size:\s*\d/,
     appliesToOnboarding: false,
   },
   {
     name: "raw-spacing",
-    // matches `spacing: N)` or `spacing: N,` where N is a tokenized value
-    pattern: /\bspacing:\s*(2|4|6|8|10|12|14|16|20|24|28|32|44)(?=[,)\s])/,
+    // matches `spacing: N)` or `spacing: N,` where N is a tokenized value.
+    // An all-zero fraction (`12.0`) is the same value and is flagged too;
+    // `12.5` is off-scale and is not.
+    pattern: /\bspacing:\s*(2|4|6|8|10|12|14|16|20|24|28|32|44)(?:\.0+)?(?=[,)\s])/,
     appliesToOnboarding: false,
   },
   {
     name: "raw-padding",
-    pattern: /\.padding\(\s*(2|4|6|8|10|12|14|16|20|24|28|32|44)\s*\)/,
+    // Three forms: `.padding(12)`, `.padding(.horizontal, 12)` and
+    // `.padding([.horizontal, .top], 12)`. `12.0` is flagged like `12`; the
+    // lookahead keeps an off-scale `12.5` out.
+    pattern:
+      /\.padding\(\s*(?:(?:\.[a-zA-Z]+|\[[^\]]*\])\s*,\s*)?(2|4|6|8|10|12|14|16|20|24|28|32|44)(?:\.0+)?(?=\s*\))/,
+    appliesToOnboarding: false,
+  },
+  {
+    name: "raw-radius",
+    // `RoundedRectangle(cornerRadius: 12)`, `.clipShape(.rect(cornerRadius: 8))`
+    // and the chart-mark / view modifier `.cornerRadius(4)`. Only values that
+    // exist as DSRadius tokens are flagged (the pill, 9999, is never a literal
+    // worth writing), including the `8.0` spelling of a whole value.
+    // Onboarding keeps its own radii, like its font/spacing.
+    pattern:
+      /(?:\bcornerRadius:\s*|\.cornerRadius\(\s*)(4|6|8|10|12|14|16)(?:\.0+)?(?=[,)\s])/,
     appliesToOnboarding: false,
   },
   {
@@ -159,7 +187,7 @@ function runLint(): never {
   }
   console.error("");
   console.error(
-    "Fix: replace literals with DSFont.Size.* / DSSpace.* / DSMotion.Duration.* / DSColor.* tokens."
+    "Fix: replace literals with DSFont.Size.* / DSSpace.* / DSRadius.* / DSMotion.Duration.* / DSColor.* tokens."
   );
   console.error("See: design-system/components/README.md");
   console.error("Allowlist exceptions: design-system/lint-allowlist.txt");

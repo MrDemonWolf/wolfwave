@@ -355,7 +355,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             let failures = min((transientMisses[key.cacheKey]?.failures ?? 0) + 1, 7)
             let delay = max(
                 min(60 * pow(2, Double(failures - 1)), 3_600),
-                TwitchDeviceAuth.retryAfterSeconds(retryAfter, now: now()) ?? 0)
+                RetryAfter.seconds(retryAfter, now: now()) ?? 0)
             transientMisses[key.cacheKey] = TransientMiss(failures: failures, retryAt: now().addingTimeInterval(delay))
             if transientMisses.count > cacheMaxEntries,
                let oldest = transientMisses.min(by: { $0.value.retryAt < $1.value.retryAt })?.key {

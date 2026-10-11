@@ -806,7 +806,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
         statusCode: Int,
         retryAfter: String?
     ) -> PollFailureDisposition {
-        let boundedRetry = retryAfterSeconds(retryAfter).map {
+        let boundedRetry = RetryAfter.seconds(retryAfter).map {
             Int($0.rounded(.up))
         }
         if statusCode == 429 {
@@ -1002,7 +1002,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 }
                 throw TwitchDeviceAuthError.http(
                     status: http.statusCode,
-                    retryAfter: Self.retryAfterDuration(
+                    retryAfter: RetryAfter.duration(
                         http.value(forHTTPHeaderField: "Retry-After")))
             }
             guard let parsed = TwitchDeviceAuth.parseRotatingTokenResponse(data) else {
@@ -1021,59 +1021,6 @@ nonisolated final class TwitchDeviceAuth: Sendable {
             }
             throw TwitchDeviceAuthError.transport(error.localizedDescription)
         }
-    }
-
-    /// Maximum delay accepted from a server header. Five minutes matches the
-    /// durable redemption backoff ceiling and prevents overflow traps or
-    /// impractically long in-memory tasks.
-    nonisolated static let maximumServerRetryDelay: TimeInterval = 300
-
-    /// Validates and caps a server delay before constructing a Swift Duration.
-    nonisolated static func boundedServerRetryDelay(
-        _ seconds: TimeInterval
-    ) -> TimeInterval? {
-        guard seconds.isFinite, seconds >= 0 else { return nil }
-        return min(seconds, maximumServerRetryDelay)
-    }
-
-    /// Parses Retry-After delta-seconds or any RFC 9110 HTTP-date form into a
-    /// finite, nonnegative, bounded number of seconds.
-    nonisolated static func retryAfterSeconds(
-        _ value: String?,
-        now: Date = Date()
-    ) -> TimeInterval? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let seconds = TimeInterval(trimmed) {
-            return boundedServerRetryDelay(seconds)
-        }
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.isLenient = false
-        formatter.twoDigitStartDate = Date(timeIntervalSince1970: 0)
-        let formats = [
-            "EEE, dd MMM yyyy HH:mm:ss zzz", // IMF-fixdate
-            "EEEE, dd-MMM-yy HH:mm:ss zzz", // obsolete RFC 850
-            "EEE MMM  d HH:mm:ss yyyy",      // ANSI C asctime, day < 10
-            "EEE MMM dd HH:mm:ss yyyy",      // ANSI C asctime, day >= 10
-        ]
-        for format in formats {
-            formatter.dateFormat = format
-            if let date = formatter.date(from: trimmed) {
-                return boundedServerRetryDelay(max(0, date.timeIntervalSince(now)))
-            }
-        }
-        return nil
-    }
-
-    /// Parses Retry-After into Duration only after numeric range validation.
-    nonisolated static func retryAfterDuration(
-        _ value: String?,
-        now: Date = Date()
-    ) -> Duration? {
-        retryAfterSeconds(value, now: now).map(Duration.seconds)
     }
 
     // MARK: - Private Helpers

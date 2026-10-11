@@ -11,10 +11,12 @@ import SwiftUI
 /// Renders a ``UserFacingError`` as a tinted banner with the buttons that fix it.
 ///
 /// The banner itself is a plain ``CalloutBanner``; the actions sit **beside** it
-/// rather than inside, which is the rule the component catalog already sets and
-/// that `MusicPermissionBanner` and the Song Requests health banner follow. This
-/// generalizes those two so a new error surface never has to hand-roll the pair
-/// again.
+/// rather than inside, which is the rule the component catalog already sets. It
+/// generalizes the banner-plus-button pairs that used to be hand-rolled, so a
+/// new error surface never has to build the pair again. ``MusicPermissionBanner``
+/// and the expired state of ``TwitchConnectionNotice`` are thin wrappers over it.
+///
+/// Use a bare ``CalloutBanner`` for a note with nothing to press.
 ///
 /// Actions arrive as intent, not closures, so the view model decides what
 /// "Reconnect with Twitch" means and a test can assert which fix was offered

@@ -518,7 +518,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
                 throw RedemptionResolutionError.http(
                     status: response.statusCode,
                     body: String(data: data, encoding: .utf8) ?? "",
-                    retryAfter: TwitchDeviceAuth.retryAfterDuration(
+                    retryAfter: RetryAfter.duration(
                         response.value(forHTTPHeaderField: "Retry-After"))
                 )
             }

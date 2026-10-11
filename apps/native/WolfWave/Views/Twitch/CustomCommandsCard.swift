@@ -23,8 +23,14 @@ struct CustomCommandsCard: View {
     /// connected and the sign-in is valid.
     let viewModel: TwitchViewModel
 
+    /// Starts the Twitch reconnect from the expired-sign-in notice. Wired by
+    /// `SettingsView`; `nil` (previews) leaves the notice as a plain note.
+    var onReconnect: (@MainActor () -> Void)?
+
+    /// The expired notice's title already says the sign-in expired, so this
+    /// says what stopped working.
     private let expiredMessage =
-        "Your Twitch sign-in expired. You can still edit these, but they won't reply until you reconnect above."
+        "You can still edit these, but they won't reply until you reconnect."
     private let disconnectedMessage =
         "You can set these up now. They reply in chat once you connect with Twitch above."
 
@@ -59,7 +65,8 @@ struct CustomCommandsCard: View {
                 isConnected: viewModel.channelConnected,
                 reauthNeeded: viewModel.reauthNeeded,
                 expiredMessage: expiredMessage,
-                disconnectedMessage: disconnectedMessage
+                disconnectedMessage: disconnectedMessage,
+                onReconnect: onReconnect
             )
 
             if let announceBanner {

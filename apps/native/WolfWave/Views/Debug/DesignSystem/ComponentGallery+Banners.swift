@@ -88,6 +88,13 @@ extension DebugComponentGalleryCard {
                 TwitchConnectionNotice(
                     isConnected: false,
                     reauthNeeded: true,
+                    expiredMessage: "Song requests are paused until you reconnect.",
+                    disconnectedMessage: "Connect with Twitch to enable song requests.",
+                    onReconnect: {}
+                )
+                TwitchConnectionNotice(
+                    isConnected: false,
+                    reauthNeeded: true,
                     expiredMessage: "Your Twitch sign-in expired. Reconnect to keep song requests working.",
                     disconnectedMessage: "Connect with Twitch to enable song requests."
                 )

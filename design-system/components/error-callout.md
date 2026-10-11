@@ -5,7 +5,7 @@
 ## Purpose
 Renders a `UserFacingError` as a tinted banner plus the buttons that fix it. This is the one surface for a failure the user can act on: what broke, why, what to do, and a control that does it.
 
-It generalizes the two hand-rolled banner+CTA pairs that came before it (`MusicPermissionBanner` and the fileprivate `SongRequestHealthBanner`), so a new error surface never rebuilds the pair again. The banner itself is a plain `CalloutBanner`; actions sit **beside** it, never inside, per that component's rule.
+It generalizes the hand-rolled banner+CTA pairs that came before it, so a new error surface never rebuilds the pair again. [`MusicPermissionBanner`](music-permission-banner.md) and the actionable expired state of [`TwitchConnectionNotice`](twitch-connection-notice.md) are now thin wrappers over it. A note with nothing to press stays a plain [`CalloutBanner`](callout-banner.md). The banner itself is a plain `CalloutBanner`; actions sit **beside** it, never inside, per that component's rule.
 
 Use `FieldValidationRow` instead when the failure is about what was typed into a field, and an `.alert` only when the user just asked for something that failed outright (an import, an export, a reset).
 

@@ -73,10 +73,10 @@ struct ResponsiveRow<Left: View, Right: View>: View {
 #Preview("Wide vs narrow") {
     VStack(spacing: DSSpace.s8) {
         ResponsiveRow {
-            RoundedRectangle(cornerRadius: 12).fill(.blue.opacity(0.2)).frame(height: 80)
+            RoundedRectangle(cornerRadius: DSRadius.lg2).fill(.blue.opacity(0.2)).frame(height: 80)
                 .overlay(Text("Left"))
         } right: {
-            RoundedRectangle(cornerRadius: 12).fill(.green.opacity(0.2)).frame(height: 80)
+            RoundedRectangle(cornerRadius: DSRadius.lg2).fill(.green.opacity(0.2)).frame(height: 80)
                 .overlay(Text("Right"))
         }
     }

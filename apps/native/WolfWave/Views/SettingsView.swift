@@ -324,9 +324,15 @@ struct SettingsView: View {
         if selectedSection == .general {
             generalDetail
         } else if selectedSection == .songRequests {
-            SongRequestSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
+            SongRequestSettingsView(
+                openTwitchSettings: { selectedSection = .twitchIntegration },
+                reconnectTwitch: reconnectTwitch
+            )
         } else if selectedSection == .historyStats {
-            HistoryStatsSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
+            HistoryStatsSettingsView(
+                openTwitchSettings: { selectedSection = .twitchIntegration },
+                reconnectTwitch: reconnectTwitch
+            )
         } else {
             #if DEBUG
             if selectedSection == .debug {
@@ -470,15 +476,27 @@ struct SettingsView: View {
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
-            TwitchCommandsCard(viewModel: twitchViewModel)
+            TwitchCommandsCard(viewModel: twitchViewModel, onReconnect: reconnectTwitch)
                 .deepLinkSection("commands")
 
             Divider()
                 .padding(.vertical, DSSpace.s1)
 
-            CustomCommandsCard(viewModel: twitchViewModel)
+            CustomCommandsCard(viewModel: twitchViewModel, onReconnect: reconnectTwitch)
                 .deepLinkSection("custom-commands")
         }
+    }
+
+    /// The "Reconnect with Twitch" action behind every expired-sign-in
+    /// ``TwitchConnectionNotice`` outside the Twitch auth card.
+    ///
+    /// Jumps to the Twitch pane's account card first, because that is where the
+    /// device code renders: starting OAuth from Song Requests or History & Stats
+    /// alone would leave the code off screen. Navigating *to* the Twitch pane
+    /// never trips the leave-pane OAuth cancel in `onChange(of: selectedSection)`.
+    private func reconnectTwitch() {
+        SettingsNavigation.shared.pending = SettingsDeepLink(pane: .twitchIntegration, section: "account")
+        twitchViewModel.startOAuth(owner: twitchOAuthOwner)
     }
 
     // MARK: - Helpers

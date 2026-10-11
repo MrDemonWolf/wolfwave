@@ -24,6 +24,11 @@ struct HistoryStatsSettingsView: View {
     /// (and any param-less call site) compiling.
     var openTwitchSettings: () -> Void = {}
 
+    /// Starts the Twitch reconnect from the `!stats` expired-sign-in notice.
+    /// Wired by `SettingsView`; `nil` (previews) leaves the notice as a plain
+    /// note, and the "Open Twitch settings" link stays as the way out.
+    var reconnectTwitch: (@MainActor () -> Void)?
+
     // MARK: - User Settings
 
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
@@ -621,18 +626,22 @@ struct HistoryStatsSettingsView: View {
                 TwitchConnectionNotice(
                     isConnected: isTwitchConnected,
                     reauthNeeded: twitchReauthNeeded,
-                    expiredMessage:
-                        "Your Twitch sign-in expired. Reconnect in Twitch settings to keep the !stats command working.",
+                    expiredMessage: "The !stats command is paused until you reconnect.",
                     disconnectedMessage:
-                        "Connect with Twitch to let chat use the !stats command."
+                        "Connect with Twitch to let chat use the !stats command.",
+                    onReconnect: reconnectTwitch
                 )
 
-                Button(action: openTwitchSettings) {
-                    Label("Open Twitch settings", systemImage: "arrow.up.forward.app")
-                        .font(.system(size: DSFont.Size.body))
+                // The actionable expired notice carries its own Reconnect
+                // button, so this link only covers the other cases.
+                if !twitchReauthNeeded || reconnectTwitch == nil {
+                    Button(action: openTwitchSettings) {
+                        Label("Open Twitch settings", systemImage: "arrow.up.forward.app")
+                            .font(.system(size: DSFont.Size.body))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityIdentifier("statsOpenTwitchSettingsButton")
                 }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("statsOpenTwitchSettingsButton")
             }
 
             if statsCommandEnabled {

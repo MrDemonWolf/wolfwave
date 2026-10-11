@@ -52,6 +52,8 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **Song Requests settings work better with VoiceOver and the keyboard.** Every picker has a spoken name, blocklist Remove buttons say which entry they remove, and pressing Return adds a blocklist entry.
 - **The Stream Deck panel tells you whether the token works.** It saves the control token as soon as a valid one is pasted and shows "Connected", "WolfWave rejected this token", or "Update the plugin". The old green message now reads "Token format is valid", because it only checks the shape. See [Stream Deck](/docs/streamdeck).
 - **Phones get a "Send to my Mac" button on the website.** A phone can't install a .dmg, so the hero, the closing call to action, and the download page swap the download for a button that shares the link. The song-requests pitch moved into the Twitch section, every demo widget is labelled as a demo with made-up songs, and the hero shows the real latest version.
+- **The Apple Music permission warning has a Learn More link.** It sits next to Open System Settings and opens the troubleshooting page, and the warning now uses the same style as the rest of the app.
+- **An expired Twitch sign-in has a Reconnect button wherever it shows up.** The notices in Bot Commands, Custom Commands, Song Requests, and the `!stats` card now say what stopped and offer **Reconnect with Twitch**, which jumps to the Twitch page and starts signing in.
 
 ### Fixed
 - Permission rechecks report the actual Automation result and close the instruction sheet after a grant. Setup and onboarding refresh permissions on return from System Settings, and Song Request setup links to Twitch settings.
