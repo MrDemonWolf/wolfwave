@@ -32,11 +32,6 @@ enum ByteFormatting {
         formatter.string(fromByteCount: byteCount)
     }
 
-    /// Formats an `Int` byte count using the file-size style.
-    static func string(_ byteCount: Int) -> String {
-        string(Int64(byteCount))
-    }
-
     /// Reused formatter for the memory-style readout (MB, `.memory` count
     /// style). Distinct from the file-size formatter above so each call site
     /// keeps its intended units without reconfiguring a shared instance.
@@ -51,10 +46,5 @@ enum ByteFormatting {
     /// Used by the Debug metrics card for resident-memory readout.
     static func memory(_ byteCount: Int64) -> String {
         memoryFormatter.string(fromByteCount: byteCount)
-    }
-
-    /// Formats an `Int` byte count using the memory style in MB.
-    static func memory(_ byteCount: Int) -> String {
-        memory(Int64(byteCount))
     }
 }

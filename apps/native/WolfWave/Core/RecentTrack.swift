@@ -83,7 +83,4 @@ struct RecentTracksBuffer: Equatable {
 
     /// Whether the buffer currently has no entries.
     var isEmpty: Bool { entries.isEmpty }
-
-    /// Convenience accessor for the number of stored entries.
-    var count: Int { entries.count }
 }

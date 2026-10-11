@@ -289,8 +289,19 @@ struct SettingsView: View {
         // property no view rendered and then return, so the user was told
         // nothing and could reasonably believe their data was erased.
         .alert("Reset Stopped Partway", isPresented: .constant(resetError != nil)) {
-            Button("OK") { resetError = nil }
-                .accessibilityIdentifier("resetSettingsErrorDismiss")
+            if resetError?.id == Self.resetIncompleteErrorID {
+                // Sign-ins and settings are already gone at this point, so
+                // dismissing would leave a half-reset process running. The only
+                // way out is the relaunch; the next launch starts clean.
+                Button("Relaunch") {
+                    resetError = nil
+                    relaunchApp()
+                }
+                .accessibilityIdentifier("resetSettingsErrorRelaunch")
+            } else {
+                Button("OK") { resetError = nil }
+                    .accessibilityIdentifier("resetSettingsErrorDismiss")
+            }
         } message: {
             Text(resetError?.message ?? "")
         }
@@ -313,7 +324,7 @@ struct SettingsView: View {
         if selectedSection == .general {
             generalDetail
         } else if selectedSection == .songRequests {
-            SongRequestSettingsView()
+            SongRequestSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
         } else if selectedSection == .historyStats {
             HistoryStatsSettingsView(openTwitchSettings: { selectedSection = .twitchIntegration })
         } else {
@@ -496,6 +507,43 @@ struct SettingsView: View {
         Task { @MainActor in await performResetSettings() }
     }
 
+    static func twitchResetError(clearCredentials: () async -> Bool) async -> UserFacingError? {
+        guard await clearCredentials() else {
+            return UserFacingError(
+                id: "settings.resetAborted.twitch",
+                title: "Reset stopped",
+                cause: "Twitch couldn't disconnect safely, so nothing was erased.",
+                fix: "Try again. If it keeps failing, restart WolfWave and retry.",
+                severity: .error,
+                actions: [.retry, .reportBug]
+            )
+        }
+        return nil
+    }
+
+    /// Error id for a reset whose credentials and settings were cleared but
+    /// whose on-disk container could not be removed.
+    static let resetIncompleteErrorID = "settings.resetIncomplete"
+
+    /// Removes the on-disk container, retrying once because the logger can
+    /// recreate a file mid-removal. Returns `nil` when the container is gone,
+    /// or the banner to show when it is not.
+    ///
+    /// By the time this runs, sign-ins and preferences are already erased, so
+    /// the copy must not claim that nothing was.
+    static func containerWipeError(wipe: () -> Bool) -> UserFacingError? {
+        if wipe() || wipe() { return nil }
+        return UserFacingError(
+            id: resetIncompleteErrorID,
+            title: "Reset stopped partway",
+            cause: "Your settings and sign-ins were cleared, but your history and logs "
+                + "couldn't be erased.",
+            fix: "Relaunch to finish. If it keeps happening, restart your Mac.",
+            severity: .error,
+            actions: [.reportBug]
+        )
+    }
+
     /// Performs factory-reset teardown in order; notably, Twitch must finish
     /// leaving before a later account or relaunch can reuse the service.
     private func performResetSettings() async {
@@ -503,9 +551,10 @@ struct SettingsView: View {
         // disable unrelated outward integrations.
         // Twitch: disconnect + clear in-memory view-model state.
         // clearCredentials() leaves the channel first when connected.
-        guard await twitchViewModel.clearCredentials(
-            discardOpaqueRedemptionRecovery: true
-        ) else {
+        if let error = await Self.twitchResetError(clearCredentials: {
+            await twitchViewModel.clearCredentials(discardOpaqueRedemptionRecovery: true)
+        }) {
+            resetError = error
             Log.warn(
                 "SettingsView: Factory reset aborted because Twitch teardown was not safe",
                 category: .app)
@@ -558,7 +607,15 @@ struct SettingsView: View {
 
         // On-disk data: logs, listening history, artwork cache, crash
         // markers, diagnostics: the whole Application Support container.
-        AppContainer.wipe()
+        if let error = Self.containerWipeError(wipe: { AppContainer.wipe() }) {
+            // Do not return into a half-reset process: the alert's only button
+            // relaunches the app.
+            resetError = error
+            Log.error(
+                "SettingsView: Factory reset could not remove the on-disk container",
+                category: .reset)
+            return
+        }
 
         // Relaunch into a clean, fresh-install state.
         relaunchApp()

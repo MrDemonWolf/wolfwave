@@ -113,19 +113,6 @@ nonisolated struct HelixClient: Sendable {
         return try decode(data: data)
     }
 
-    /// Performs a PATCH request with a JSON body and decodes the response.
-    func patch<T: Decodable>(
-        url: URL,
-        credentials: Credentials,
-        body: [String: Any]
-    ) async throws -> T {
-        let request = try makeRequest(
-            url: url, method: "PATCH", credentials: credentials, body: body)
-        let (data, http) = try await send(request)
-        try validate(http: http, data: data)
-        return try decode(data: data)
-    }
-
     // MARK: - Untyped (JSON Object) Requests
 
     /// Performs a request and returns the parsed JSON object dictionary, or
@@ -148,21 +135,6 @@ nonisolated struct HelixClient: Sendable {
         try validate(http: http, data: data)
         guard !data.isEmpty else { return nil }
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-    }
-
-    /// Performs a request and returns `(data, statusCode)` without status
-    /// validation. Use when the caller needs to branch on a specific non-2xx
-    /// code (e.g. 404 → "doesn't exist", 403 → "missing scope").
-    func sendRaw(
-        url: URL,
-        method: String,
-        credentials: Credentials,
-        body: [String: Any]? = nil
-    ) async throws -> (Data, Int) {
-        let request = try makeRequest(
-            url: url, method: method, credentials: credentials, body: body)
-        let (data, http) = try await send(request)
-        return (data, http.statusCode)
     }
 
     /// Performs a request without status validation while retaining all HTTP

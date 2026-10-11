@@ -34,9 +34,6 @@ nonisolated enum UpdateChannel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// True for tracks that ship pre-release, potentially unstable builds.
-    var isPrerelease: Bool { self == .nightly }
-
     /// Resolves a stored raw value to a channel, falling back to ``stable`` for
     /// a missing or unrecognized value.
     static func from(rawValue: String?) -> UpdateChannel {

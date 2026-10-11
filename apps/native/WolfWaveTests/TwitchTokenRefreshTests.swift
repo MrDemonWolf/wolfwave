@@ -280,8 +280,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-reconcile-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-reconcile")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -375,8 +374,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-reconcile-store-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-reconcile-store")
         defer { try? FileManager.default.removeItem(at: directory) }
         let writes = ThreadSafeBox(0)
         let outbox = TwitchRedemptionResolutionOutbox(
@@ -452,8 +450,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-reconcile-api-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-reconcile-api")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -516,8 +513,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-recreate-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-recreate")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -676,8 +672,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             }
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -736,8 +731,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 MockURLProtocol.httpResponse(for: request, status: 503),
                 Data("unavailable".utf8))
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-teardown-failure-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-teardown-failure")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -818,8 +812,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             captured.value = request
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-disconnected-redemption-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-disconnected-redemption-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -861,8 +854,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 MockURLProtocol.httpResponse(for: request, status: 404),
                 Data("missing".utf8))
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-missing-redemption-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-missing-redemption-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -905,8 +897,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             }
             return (MockURLProtocol.httpResponse(for: request, status: 204), Data())
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-stale-leave-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-stale-leave")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -997,8 +988,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 MockURLProtocol.httpResponse(for: request, status: 202),
                 Data(#"{"data":[{"id":"subscription"}]}"#.utf8))
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-stale-pause-repair-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-stale-pause-repair")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             eventSubHTTPClient: HTTPClient(
@@ -1050,8 +1040,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH-B",
                 username: "account-b",
                 userID: "account-b"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-foreign-outbox-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-foreign-outbox-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1093,8 +1082,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-retrying-outbox-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-retrying-outbox-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1139,8 +1127,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-live-intake-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-live-intake-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1227,8 +1214,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 MockURLProtocol.httpResponse(for: request, status: 204),
                 Data())
         }
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-setup-teardown-order-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-setup-teardown-order")
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = TwitchChatService(
             channelPointsService: TwitchChannelPointsService(
@@ -1275,8 +1261,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-containment-teardown-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-containment-teardown")
         defer { try? FileManager.default.removeItem(at: directory) }
         let writeAttempts = ThreadSafeBox(0)
         let outbox = TwitchRedemptionResolutionOutbox(
@@ -1428,8 +1413,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-intake-replay-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-intake-replay")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1470,8 +1454,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-owner-404-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-owner-404")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1506,8 +1489,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-stale-owner-404-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-stale-owner-404")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1564,8 +1546,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "ACCESS", userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-409-resolved-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-409-resolved")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1601,8 +1582,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "ACCESS", userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-400-unfulfilled-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-400-unfulfilled")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1662,8 +1642,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 refreshToken: "OLD_REFRESH",
                 username: "wolf",
                 userID: "broadcaster"))
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-refresh-adopt-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-refresh-adopt")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1742,8 +1721,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-replay-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-replay")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1808,8 +1786,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .init(accessToken: "ACCESS", userID: "broadcaster")
         )
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-long-drain-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-long-drain")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1866,8 +1843,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             )
         )
 
-        let directory = FileManager.default.temporaryDirectory
-            .appending(path: "wolfwave-redemption-account-switch-\(UUID().uuidString)")
+        let directory = makeIsolatedTempDirectory(prefix: "wolfwave-redemption-account-switch")
         defer { try? FileManager.default.removeItem(at: directory) }
         let outbox = TwitchRedemptionResolutionOutbox(
             fileURL: directory.appending(path: "outbox.json"))
@@ -1910,7 +1886,19 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         )
         XCTAssertTrue(entered)
 
-        try TwitchCredentialStore.shared.replaceWithManualAccessToken("ACCESS-B")
+        // Switch accounts through the production device-flow path: supersede
+        // advances the revision, then the new grant replaces the old atomically.
+        let replacementRevision = TwitchCredentialStore.shared.supersede()
+        XCTAssertTrue(
+            try TwitchCredentialStore.shared.commitDeviceGrant(
+                TwitchTokenResponse(
+                    accessToken: "ACCESS-B",
+                    refreshToken: "REFRESH-B",
+                    expiresIn: nil
+                ),
+                expectedRevision: replacementRevision
+            )
+        )
         releasePatch.signal()
         await service.awaitRedemptionResolutionWorkersForTesting()
 
@@ -2001,7 +1989,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             clientID: "test-client", session: MockURLProtocol.makeSession(handlerStore: handlerStore),
             sleep: { _ in })
         XCTAssertEqual(result, .refreshed("new-access"))
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "new-refresh")
         XCTAssertEqual(calls.value, 1)
     }
 
@@ -2029,17 +2017,17 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             clientID: "test-client", session: session, sleep: { _ in })
         XCTAssertEqual(second, .refreshed("new-access"))
         XCTAssertEqual(calls.value, 1)
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "new-refresh")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "new-refresh")
     }
 
     func testRefreshTokenKeychainRoundTrip() throws {
-        XCTAssertNil(KeychainService.loadTwitchRefreshToken())
+        XCTAssertNil(KeychainService.loadTwitchCredentialGrant().refreshToken)
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "AT-123", refreshToken: "RT-123")
         )
-        XCTAssertEqual(KeychainService.loadTwitchRefreshToken(), "RT-123")
+        XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "RT-123")
         try KeychainService.deleteTwitchCredentialGrant()
-        XCTAssertNil(KeychainService.loadTwitchRefreshToken())
+        XCTAssertNil(KeychainService.loadTwitchCredentialGrant().refreshToken)
     }
 }
 

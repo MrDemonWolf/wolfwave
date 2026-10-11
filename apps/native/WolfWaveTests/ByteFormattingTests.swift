@@ -29,13 +29,9 @@ final class ByteFormattingTests: XCTestCase {
         XCTAssertTrue(ByteFormatting.string(5_000_000).contains("MB"))
     }
 
-    func testIntAndInt64OverloadsAgree() {
-        XCTAssertEqual(ByteFormatting.string(160_000), ByteFormatting.string(Int64(160_000)))
-    }
-
     func testZeroIsStableAndKilobyteBased() {
         let zero = ByteFormatting.string(0)
-        XCTAssertEqual(zero, ByteFormatting.string(Int64(0)))
+        XCTAssertEqual(zero, ByteFormatting.string(0))
         XCTAssertTrue(zero.contains("KB"))
     }
 }

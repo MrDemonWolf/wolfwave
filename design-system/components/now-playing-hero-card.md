@@ -34,7 +34,7 @@ NowPlayingHeroCard(
 - `DSFont.Size.sm` (11) monospaced: scrubber timestamps
 - `DSSpace.s6` (16): card outer padding (rendered as 18 for hero weight)
 - `DSSpace.s6` (16): artwork ↔ text gap
-- `DSMotion.Duration.base` (0.22): track-change animation, gated by `@Environment(\.accessibilityReduceMotion)`
+- `DSMotion.Duration.base` (0.22): track-change and pause-state animation, gated by `@Environment(\.accessibilityReduceMotion)`
 - Composes `AlbumArtView` (92pt); see [album-art-view.md](album-art-view.md)
 
 ## Motion
@@ -43,14 +43,16 @@ NowPlayingHeroCard(
 - **Subtitle swap:** same `id(subtitle)` + `.contentTransition(.opacity)` pattern for `artist · album`.
 - **Timecode:** `.contentTransition(.numericText())` on the `M:SS / M:SS` text. Digits tween instead of blink-replacing every second.
 - **Scrubber:** `ProgressView(value:)` reads the supplied `elapsed` and `duration`. It updates when those inputs change, without a recurring timeline that redraws an unchanged value.
-- **Outer animation:** `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` so callers don't need to wrap track mutations in `withAnimation`.
+- **Outer animation:** `.animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)` and the same modifier with `value: isPaused`, both on the card, so callers don't need to wrap track or pause changes in `withAnimation`. The `isPaused` one covers the pause glyph's insertion and removal, the artwork dim and desaturate, and the eyebrow swap.
 - Track-change animations respect `accessibilityReduceMotion`; progress remains input-driven in either mode.
 
 ## Anatomy
 ```mermaid
 graph LR
-  Card[HStack spacing 16 padding 18 .cardStyleUnpadded] --> Art[AlbumArtView 92pt or fallback music.note tile]
-  Card --> Text[VStack alignment leading spacing 4]
+  Card[HStack spacing 16 padding 18 .cardStyleUnpadded] --> Art[AlbumArtView 92pt or fallback music.note tile, hidden from VoiceOver]
+  Card --> Column[VStack alignment leading spacing 4]
+  Column --> Text[VStack, combined VoiceOver element]
+  Column --> Open[Button Open Music, only when Music is closed]
   Text --> Eyebrow[Text, NOW PLAYING uppercase]
   Text --> Title[Text, lg semibold .contentTransition .opacity id track]
   Text --> Subtitle[Text, base secondary .contentTransition .opacity id subtitle]
@@ -60,7 +62,8 @@ graph LR
 ```
 
 ## Accessibility
-- `accessibilityElement(children: .combine)`: VoiceOver reads the whole card.
+- `accessibilityElement(children: .combine)` is applied to the information group only (eyebrow, title, subtitle, scrubber). The artwork is hidden from VoiceOver because the compound label already says paused or playing.
+- The `Open Music` button sits outside the combined group, so it stays its own VoiceOver and Voice Control target in the empty state.
 - Compound label: `"Now playing: <track>, by <artist>, on <album>"`; falls back to permission-state copy when no track.
 - When `duration > 0` the label appends the scrubber clock: `"…, <elapsed> elapsed, <remaining> remaining"` (formatted via `HistoryFormat.clock`), so VoiceOver announces playback position that the visual scrubber otherwise conveys only graphically.
 - `monospacedDigit()` keeps timestamps stable as the seconds tick.

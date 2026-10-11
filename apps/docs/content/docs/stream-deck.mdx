@@ -23,7 +23,7 @@ keys can skip tracks, hold the queue, or flip toggles without touching the app.
 
 Just want to use a Stream Deck? Install the [Stream Deck plugin](/docs/streamdeck)
 instead — this page is the wire protocol for anyone building their own client.
-Announce actions and volume dials are planned follow-ups and not documented here.
+A now-playing dial (album art plus a volume encoder) is a planned follow-up and not documented here.
 
 ## Connect
 
@@ -71,11 +71,19 @@ Every command gets an ack on the same connection:
 | `approve_next` | Approve the first pending request | `empty` |
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add the current song to the blocklist | `empty` |
-| `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | — |
+| `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | `unavailable` |
 | `announce_song` | Post the current track to Twitch chat | `twitch` / `empty` |
 | `reject_current` | Drop the playing request and announce it | `unavailable` / `empty` |
-| `block_requester` | Blocklist whoever requested the playing song | `unavailable` / `empty` |
+| `block_requester` | Blocklist whoever requested the playing song | `empty` |
 | `cycle_audience` | Advance the request audience, wrapping | `unavailable` |
+
+Errors that can come back for any action:
+
+- `protocol`: the client's protocol version does not match WolfWave's.
+- `unknown_action`: the action token is not one WolfWave knows.
+- `unauthorized`: the sender used the overlay token, or is not on loopback.
+- `disabled`: **Allow Stream Deck commands** is off in Settings → Stream Deck.
+- `unavailable`: the server or handler was not ready for that action.
 
 `discord_toggle`, `music_sync_toggle`, and `cycle_theme` were removed in
 protocol v3. They flipped set-once preferences that never earned a key. A client

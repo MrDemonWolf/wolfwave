@@ -61,10 +61,6 @@ final class OnboardingViewModel {
         currentStep == OnboardingStep.allCases.last
     }
 
-    var totalSteps: Int {
-        OnboardingStep.allCases.count
-    }
-
     /// Advances to the next step if one exists.
     func goToNextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }

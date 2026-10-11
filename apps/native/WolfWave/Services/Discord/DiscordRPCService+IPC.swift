@@ -1195,9 +1195,9 @@ extension DiscordRPCService {
 
     /// Computes the next exponential-backoff delay: doubles `current` and clamps
     /// to `max`. Pure and `nonisolated` so the backoff math is unit-testable
-    /// without the actor. Reset is just `base` (see `reconnectBaseDelay`).
+    /// without the actor. Reset is just `AppConstants.Discord.reconnectBaseDelay`.
     nonisolated static func nextBackoff(
-        _ current: TimeInterval, base: TimeInterval, max: TimeInterval
+        _ current: TimeInterval, max: TimeInterval
     ) -> TimeInterval {
         Swift.min(current * 2, max)
     }
@@ -1223,7 +1223,6 @@ extension DiscordRPCService {
 
         reconnectDelay = Self.nextBackoff(
             reconnectDelay,
-            base: AppConstants.Discord.reconnectBaseDelay,
             max: AppConstants.Discord.reconnectMaxDelay)
     }
 

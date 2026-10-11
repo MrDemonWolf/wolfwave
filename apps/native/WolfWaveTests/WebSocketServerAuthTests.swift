@@ -208,10 +208,13 @@ final class WebSocketServerAuthTests: XCTestCase {
 
     // MARK: - Role-isolated persistence
 
-    private func withInMemoryKeychain(_ body: () throws -> Void) rethrows {
+    private func withInMemoryKeychain(
+        backend: KeychainBackend = InMemoryKeychainBackend(),
+        _ body: () throws -> Void
+    ) rethrows {
         SharedTestStateIsolation.acquire()
         let previous = KeychainService.backend
-        KeychainService.backend = InMemoryKeychainBackend()
+        KeychainService.backend = backend
         defer {
             WebSocketAuthToken.resetSessionCredentialsForTesting()
             KeychainService.backend = previous
@@ -283,84 +286,51 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 
     func testSessionFallbackDoesNotOverwriteCredentialInstalledDuringRecovery() {
-        SharedTestStateIsolation.acquire()
-        let previous = KeychainService.backend
-        KeychainService.backend = FailingKeychainBackend()
-        defer {
-            WebSocketAuthToken.resetSessionCredentialsForTesting()
-            KeychainService.backend = previous
-            SharedTestStateIsolation.release()
+        withInMemoryKeychain(backend: FailingKeychainBackend()) {
+            let first = WebSocketAuthToken.currentOrCreate(for: .overlay)
+            let second = WebSocketAuthToken.currentOrCreate(for: .overlay)
+            XCTAssertEqual(first, second)
+
+            let recovered = InMemoryKeychainBackend()
+            KeychainService.backend = recovered
+            let durable = String(repeating: "a", count: 64)
+            try? KeychainService.saveToken(durable)
+
+            XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .overlay), first)
+            XCTAssertEqual(KeychainService.loadToken(), durable)
+            XCTAssertNil(KeychainService.loadControlToken())
         }
-        WebSocketAuthToken.resetSessionCredentialsForTesting()
-
-        let first = WebSocketAuthToken.currentOrCreate(for: .overlay)
-        let second = WebSocketAuthToken.currentOrCreate(for: .overlay)
-        XCTAssertEqual(first, second)
-
-        let recovered = InMemoryKeychainBackend()
-        KeychainService.backend = recovered
-        let durable = String(repeating: "a", count: 64)
-        try? KeychainService.saveToken(durable)
-
-        XCTAssertEqual(WebSocketAuthToken.currentOrCreate(for: .overlay), first)
-        XCTAssertEqual(KeychainService.loadToken(), durable)
-        XCTAssertNil(KeychainService.loadControlToken())
     }
 
     func testSessionFallbackPersistsAfterConfirmedAbsenceRecovers() {
-        SharedTestStateIsolation.acquire()
-        let previous = KeychainService.backend
-        KeychainService.backend = FailingKeychainBackend()
-        defer {
-            WebSocketAuthToken.resetSessionCredentialsForTesting()
-            KeychainService.backend = previous
-            SharedTestStateIsolation.release()
+        withInMemoryKeychain(backend: FailingKeychainBackend()) {
+            let fallback = WebSocketAuthToken.currentOrCreate(for: .overlay)
+            let recovered = InMemoryKeychainBackend()
+            KeychainService.backend = recovered
+
+            XCTAssertEqual(
+                WebSocketAuthToken.currentOrCreate(for: .overlay),
+                fallback)
+            XCTAssertEqual(KeychainService.loadToken(), fallback)
         }
-        WebSocketAuthToken.resetSessionCredentialsForTesting()
-
-        let fallback = WebSocketAuthToken.currentOrCreate(for: .overlay)
-        let recovered = InMemoryKeychainBackend()
-        KeychainService.backend = recovered
-
-        XCTAssertEqual(
-            WebSocketAuthToken.currentOrCreate(for: .overlay),
-            fallback)
-        XCTAssertEqual(KeychainService.loadToken(), fallback)
     }
 
     func testReadFailureNeverAttemptsToPersistFallback() {
-        SharedTestStateIsolation.acquire()
-        let previous = KeychainService.backend
         let failing = ReadFailingKeychainBackend()
-        KeychainService.backend = failing
-        defer {
-            WebSocketAuthToken.resetSessionCredentialsForTesting()
-            KeychainService.backend = previous
-            SharedTestStateIsolation.release()
+        withInMemoryKeychain(backend: failing) {
+            let first = WebSocketAuthToken.currentOrCreate(for: .control)
+            let second = WebSocketAuthToken.currentOrCreate(for: .control)
+
+            XCTAssertEqual(first, second)
+            XCTAssertEqual(failing.saveAttempts, 0)
         }
-        WebSocketAuthToken.resetSessionCredentialsForTesting()
-
-        let first = WebSocketAuthToken.currentOrCreate(for: .control)
-        let second = WebSocketAuthToken.currentOrCreate(for: .control)
-
-        XCTAssertEqual(first, second)
-        XCTAssertEqual(failing.saveAttempts, 0)
     }
 
-    func testRotateDoesNotPublishUnpersistedCredential() {
-        SharedTestStateIsolation.acquire()
-        let previous = KeychainService.backend
-        KeychainService.backend = FailingKeychainBackend()
-        defer {
-            WebSocketAuthToken.resetSessionCredentialsForTesting()
-            KeychainService.backend = previous
-            SharedTestStateIsolation.release()
+    func testRotateDoesNotPublishUnpersistedCredential() throws {
+        try withInMemoryKeychain(backend: FailingKeychainBackend()) {
+            XCTAssertThrowsError(try WebSocketAuthToken.rotate(.control))
+            XCTAssertNil(KeychainService.loadControlToken())
         }
-
-        WebSocketAuthToken.resetSessionCredentialsForTesting()
-
-        XCTAssertThrowsError(try WebSocketAuthToken.rotate(.control))
-        XCTAssertNil(KeychainService.loadControlToken())
     }
 }
 

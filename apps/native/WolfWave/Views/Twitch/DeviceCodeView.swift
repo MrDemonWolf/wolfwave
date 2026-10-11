@@ -27,8 +27,6 @@ struct DeviceCodeView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var showCopyFeedback = false
-
     // MARK: - Body
 
     var body: some View {
@@ -73,10 +71,6 @@ struct DeviceCodeView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
-            .pointerCursor()
-            .onTapGesture {
-                copyDeviceCode()
-            }
 
             // Primary action: open activation URL with subtler, smaller button
             Button(action: openActivationURL) {
@@ -96,65 +90,16 @@ struct DeviceCodeView: View {
             .accessibilityHint("Opens the Twitch activation page in your browser so you can approve WolfWave")
             .accessibilityIdentifier("openTwitchButton")
         }
-        // Position the small "copied" toast near the copy button (top-right)
-        .overlay(
-            copyFeedbackView
-                .padding(.trailing, DSSpace.s2)
-                .offset(x: -8, y: -8),
-            alignment: .topTrailing
-        )
         .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: userCode)
     }
 
     // MARK: - Helpers
-
-    /// Tap-anywhere copy path for the code container: copies the code, forwards
-    /// `onCopy`, and shows the "Copied to clipboard" toast for ~1.3 seconds.
-    /// The explicit ``CopyButton`` provides its own checkmark feedback.
-    private func copyDeviceCode() {
-        Pasteboard.copy(userCode, sensitive: true)
-        onCopy()
-
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
-            showCopyFeedback = true
-        }
-
-        // Auto-dismiss the toast after a beat.
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(1300))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
-                showCopyFeedback = false
-            }
-        }
-    }
 
     /// Opens the Twitch device activation URL in the user's default browser
     /// and forwards the action to the parent via `onActivate`.
     private func openActivationURL() {
         if ExternalLink.open(verificationURI) {
             onActivate?()
-        }
-    }
-
-    // MARK: - Subviews
-
-    @ViewBuilder
-    private var copyFeedbackView: some View {
-        if showCopyFeedback {
-            HStack(spacing: DSSpace.s2) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Copied to clipboard")
-                    .font(.system(size: DSFont.Size.body, weight: .semibold))
-            }
-            .padding(.horizontal, DSSpace.s4)
-            .padding(.vertical, DSSpace.s2)
-            .background(
-                Color(nsColor: .windowBackgroundColor).opacity(0.98)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous))
-            .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
-            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 }

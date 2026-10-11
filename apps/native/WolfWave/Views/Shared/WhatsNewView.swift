@@ -45,7 +45,7 @@ struct WhatsNewView: View {
             // MARK: Feature List
             ScrollView {
                 VStack(spacing: DSSpace.s3) {
-                    ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
+                    ForEach(features, id: \.title) { feature in
                         featureRow(feature)
                     }
                 }
@@ -89,7 +89,7 @@ struct WhatsNewView: View {
                 .foregroundStyle(feature.iconColor)
                 .frame(width: 36, height: 36)
                 .background(feature.iconColor.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
 
             VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(feature.title)

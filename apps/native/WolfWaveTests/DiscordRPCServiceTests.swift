@@ -941,18 +941,17 @@ final class DiscordRPCServiceTests: XCTestCase {
     func testNextBackoffDoubles() {
         let base = AppConstants.Discord.reconnectBaseDelay
         let max = AppConstants.Discord.reconnectMaxDelay
-        let next = DiscordRPCService.nextBackoff(base, base: base, max: max)
+        let next = DiscordRPCService.nextBackoff(base, max: max)
         XCTAssertEqual(next, base * 2, accuracy: 0.0001)
     }
 
     func testNextBackoffClampsAtMax() {
-        let base = AppConstants.Discord.reconnectBaseDelay
         let max = AppConstants.Discord.reconnectMaxDelay
         // Already at max: doubling would overshoot, so it must clamp.
-        let next = DiscordRPCService.nextBackoff(max, base: base, max: max)
+        let next = DiscordRPCService.nextBackoff(max, max: max)
         XCTAssertEqual(next, max, accuracy: 0.0001)
         // Just under max: doubling overshoots, still clamps.
-        let nearMax = DiscordRPCService.nextBackoff(max * 0.75, base: base, max: max)
+        let nearMax = DiscordRPCService.nextBackoff(max * 0.75, max: max)
         XCTAssertEqual(nearMax, max, accuracy: 0.0001)
     }
 
@@ -961,7 +960,7 @@ final class DiscordRPCServiceTests: XCTestCase {
         let max = AppConstants.Discord.reconnectMaxDelay
         var delay = base
         for _ in 0..<20 {
-            delay = DiscordRPCService.nextBackoff(delay, base: base, max: max)
+            delay = DiscordRPCService.nextBackoff(delay, max: max)
             XCTAssertLessThanOrEqual(delay, max)
         }
         XCTAssertEqual(delay, max, accuracy: 0.0001)

@@ -348,6 +348,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Read-only snapshot of dead-lettered items, oldest first. A test and
+    /// diagnostics seam: ``pendingItems()`` excludes dead letters, so this is
+    /// the only way to assert dead-letter state. Not shown in the UI.
     func deadLetterItems() -> [Item] {
         lock.withLock { items.filter(\.deadLetter).sorted { $0.createdAt < $1.createdAt } }
     }
@@ -848,8 +851,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     }
 
     /// Removes a pending item without marking its business transaction done.
-    /// Production Helix acknowledgement uses `acknowledge(_:at:)`; this raw
-    /// removal remains useful for explicit administrative/test cleanup.
+    /// Production Helix acknowledgement uses `acknowledge(_:at:)`; nothing in
+    /// the app calls this. It is a test seam for draining fixtures and for
+    /// exercising the failed-write path without writing tombstones.
     func remove(_ id: Item.ID) throws {
         try lock.withLock {
             guard !existingStoreIsUnreadable else {

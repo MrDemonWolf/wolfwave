@@ -227,7 +227,9 @@ extension TwitchChatService {
 
     // MARK: - EventSub Message Routing
 
-    /// Handles a received WebSocket message.
+    /// Handles a received WebSocket message with no receive context. Parsing
+    /// seam for focused unit tests; production frames go through the
+    /// `receiveContext` overload below.
     func handleWebSocketMessage(_ text: String) async {
         await handleWebSocketMessage(text, receiveContext: nil)
     }

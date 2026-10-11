@@ -310,7 +310,7 @@ struct TwitchSettingsView: View {
                     viewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
+                .tint(DSColor.error)
                 .controlSize(.small)
                 .pointerCursor()
                 .accessibilityLabel("Cancel authorization")
@@ -354,7 +354,7 @@ struct TwitchSettingsView: View {
         VStack(spacing: DSSpace.s2) {
             Text(message)
                 .font(.system(size: DSFont.Size.base))
-                .foregroundStyle(.red)
+                .foregroundStyle(DSColor.error)
             HStack {
                 Button("Retry") { viewModel.startOAuth(owner: oauthOwner) }
                     .buttonStyle(.bordered)
@@ -496,11 +496,11 @@ private struct SignedInView: View {
         case .invalid:
             HStack(spacing: DSSpace.s1) {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(DSColor.error)
                     .font(.system(size: DSFont.Size.sm))
                 Text("Channel not found")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(DSColor.error)
             }
             .padding(.top, DSSpace.s2)
             .accessibilityElement(children: .combine)
@@ -708,7 +708,7 @@ private struct SignedInView: View {
             Button("Log Out", action: onClearCredentials)
                 .font(.system(size: DSFont.Size.body))
                 .buttonStyle(.bordered)
-                .tint(.red)
+                .tint(DSColor.error)
                 .controlSize(.small)
                 .frame(height: Self.actionButtonHeight)
                 .pointerCursor()

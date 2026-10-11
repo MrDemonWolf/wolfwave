@@ -14,7 +14,7 @@ import SwiftUI
 extension DebugComponentGalleryCard {
 
     /// Status & headers: `StatusChip`, `SectionHeaderWithStatus`, `CardEyebrowHeader`,
-    /// `StreamerModeBadge`, the `ViewModifiers` ramp, `TwitchGlitchShape`.
+    /// `StreamerModeBadge`, the `ViewModifiers` ramp.
     @ViewBuilder var statusSection: some View {
         GalleryEntry(typeName: "StatusChip", width: GalleryWidth.wide) {
             // The four previews, plus the two remaining `StateGlyph` members.
@@ -110,20 +110,6 @@ extension DebugComponentGalleryCard {
                     .background(Color.accentColor.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
                     .pointerCursor()
-            }
-        }
-
-        GalleryEntry(typeName: "TwitchGlitchShape", note: "Shape, eoFill") {
-            HStack(spacing: DSSpace.s8) {
-                TwitchGlitchShape()
-                    .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
-                    .frame(width: DSSpace.s6, height: DSSpace.s6)
-                TwitchGlitchShape()
-                    .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
-                    .frame(width: DSSpace.s10, height: DSSpace.s10)
-                TwitchGlitchShape()
-                    .fill(AppConstants.Brand.twitch, style: FillStyle(eoFill: true))
-                    .frame(width: DSSpace.s10 * 2, height: DSSpace.s10 * 2)
             }
         }
     }

@@ -267,11 +267,11 @@ struct OnboardingTwitchStepView: View {
         case .invalid:
             HStack(spacing: DSSpace.s1) {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(DSColor.error)
                     .font(.system(size: DSFont.Size.sm))
                 Text("Channel not found")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(DSColor.error)
             }
         case .error(let message):
             HStack(spacing: DSSpace.s1) {

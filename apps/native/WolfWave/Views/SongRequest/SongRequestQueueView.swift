@@ -51,18 +51,18 @@ struct SongRequestQueueView: View {
                 if isHeld {
                     Label("Hold. Curate, then tap Resume", systemImage: "pause.circle.fill")
                         .font(.system(size: DSFont.Size.xs, weight: .medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DSColor.warning)
                         .padding(.horizontal, DSSpace.s2)
                         .padding(.vertical, DSSpace.s1)
-                        .background(.orange.opacity(0.12))
+                        .background(DSColor.warning.opacity(0.12))
                         .clipShape(Capsule())
                 } else if isMusicAppClosed {
                     Label("Music is closed, requests are saved", systemImage: "pause.circle.fill")
                         .font(.system(size: DSFont.Size.xs, weight: .medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DSColor.warning)
                         .padding(.horizontal, DSSpace.s2)
                         .padding(.vertical, DSSpace.s1)
-                        .background(.orange.opacity(0.12))
+                        .background(DSColor.warning.opacity(0.12))
                         .clipShape(Capsule())
                 } else if !items.isEmpty {
                     Text("\(items.count) in queue")
@@ -139,10 +139,10 @@ struct SongRequestQueueView: View {
                 HStack(spacing: DSSpace.s1h) {
                     Image(systemName: "waveform")
                         .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(DSColor.success)
                     Text("Now Playing")
                         .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(DSColor.success)
                 }
                 Text(item.title)
                     .font(.system(size: DSFont.Size.body, weight: .medium))
@@ -156,7 +156,7 @@ struct SongRequestQueueView: View {
             Spacer()
         }
         .padding(DSSpace.s2)
-        .background(.green.opacity(0.1))
+        .background(DSColor.success.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -172,7 +172,7 @@ struct SongRequestQueueView: View {
         VStack(alignment: .leading, spacing: DSSpace.s1) {
             Text("Waiting for approval (\(pending.count))")
                 .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(DSColor.warning)
 
             ForEach(pending, id: \.id) { item in
                 HStack(spacing: DSSpace.s3) {
@@ -197,7 +197,7 @@ struct SongRequestQueueView: View {
                     AsyncActionButton(
                         title: "Approve",
                         systemImage: "checkmark",
-                        tint: .green,
+                        tint: DSColor.success,
                         labelSize: DSFont.Size.sm,
                         showsSuccess: false,
                         accessibilityIdentifier: "songRequestQueue.approve"
@@ -214,13 +214,18 @@ struct SongRequestQueueView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(.secondary)
+                            .frame(
+                                minWidth: DSDimension.IconButton.minWidth,
+                                minHeight: DSDimension.IconButton.minHeight
+                            )
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Decline \(item.title)")
                 }
                 .padding(.vertical, DSSpace.s1)
                 .padding(.horizontal, DSSpace.s2)
-                .background(.orange.opacity(0.08))
+                .background(DSColor.warning.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
             }
         }
@@ -268,6 +273,11 @@ struct SongRequestQueueView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: DSFont.Size.body))
                             .foregroundStyle(.secondary)
+                            .frame(
+                                minWidth: DSDimension.IconButton.minWidth,
+                                minHeight: DSDimension.IconButton.minHeight
+                            )
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Remove \(item.title) from queue")
@@ -315,7 +325,7 @@ struct SongRequestQueueView: View {
             AsyncActionButton(
                 title: isHeld ? "Resume" : "Hold",
                 systemImage: isHeld ? "play.fill" : "pause.fill",
-                tint: isHeld ? .green : .orange,
+                tint: isHeld ? DSColor.success : DSColor.warning,
                 labelSize: DSFont.Size.sm,
                 showsSuccess: false,
                 accessibilityIdentifier: "songRequestQueue.hold"

@@ -45,41 +45,50 @@ struct NowPlayingHeroCard: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: DSSpace.s6) {
+            // The card label already says "Paused" / "Now playing", so the
+            // artwork adds nothing for VoiceOver.
             artworkView
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: DSSpace.s1) {
-                HStack(spacing: DSSpace.s2) {
-                    Text(isPaused && track != nil ? "Paused" : "Now playing")
-                        .sectionEyebrow()
-                        .contentTransition(.opacity)
-                        .id(isPaused)
-                }
+                // Information only: one combined VoiceOver element. The Open
+                // Music button stays outside it so it remains its own control.
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
+                    HStack(spacing: DSSpace.s2) {
+                        Text(isPaused && track != nil ? "Paused" : "Now playing")
+                            .sectionEyebrow()
+                            .contentTransition(.opacity)
+                            .id(isPaused)
+                    }
 
-                Text(track ?? emptyStateTitle)
-                    .font(.system(size: DSFont.Size.lg, weight: .semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(track == nil ? .secondary : .primary)
-                    .contentTransition(.opacity)
-                    .id(track ?? emptyStateTitle)
-
-                if let subtitle = subtitleText {
-                    Text(subtitle)
-                        .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(.secondary)
+                    Text(track ?? emptyStateTitle)
+                        .font(.system(size: DSFont.Size.lg, weight: .semibold))
                         .lineLimit(1)
+                        .foregroundStyle(track == nil ? .secondary : .primary)
                         .contentTransition(.opacity)
-                        .id(subtitle)
+                        .id(track ?? emptyStateTitle)
+
+                    if let subtitle = subtitleText {
+                        Text(subtitle)
+                            .font(.system(size: DSFont.Size.base))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                            .id(subtitle)
+                    }
+
+                    if track != nil, duration > 0 {
+                        progressBar
+                            .padding(.top, DSSpace.s2)
+                    }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(accessibilityLabel)
 
                 if track == nil, showsOpenMusic, let onOpenMusic {
                     Button("Open Music", action: onOpenMusic)
                         .buttonStyle(.bordered)
                         .controlSize(.small)
-                        .padding(.top, DSSpace.s2)
-                }
-
-                if track != nil, duration > 0 {
-                    progressBar
                         .padding(.top, DSSpace.s2)
                 }
             }
@@ -88,8 +97,10 @@ struct NowPlayingHeroCard: View {
         .padding(DSSpace.s7)
         .cardStyleUnpadded()
         .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: track)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
+        // Card-level so the pause glyph's insertion/removal, the artwork dim and
+        // the eyebrow swap animate even when a caller flips `isPaused` without
+        // `withAnimation`.
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -103,7 +114,6 @@ struct NowPlayingHeroCard: View {
                 AlbumArtView(image: artwork, url: artworkURL, size: 92)
                     .opacity(isPaused ? 0.55 : 1)
                     .saturation(isPaused ? 0.6 : 1)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: isPaused)
 
                 if isPaused {
                     Image(systemName: "pause.circle.fill")
@@ -114,7 +124,6 @@ struct NowPlayingHeroCard: View {
                         .transition(.opacity.combined(with: .scale))
                 }
             }
-            .accessibilityLabel(isPaused ? "Paused" : "Now playing")
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

@@ -209,12 +209,12 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
             exportedAt: Date.distantFuture, discordEnabled: true)
 
         center.post(name: store.externalChangeNotificationName, object: store)
-        // The observer hops through a Task; give it a few turns.
-        for _ in 0..<20 where !defaults.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled) {
-            try await Task.sleep(for: .milliseconds(10))
+        // The observer hops through a Task, so poll for the observable result.
+        let applied = await waitUntil(timeout: .seconds(2)) {
+            defaults.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
         }
 
-        XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled))
+        XCTAssertTrue(applied)
     }
 
     func testDelayedStartupPayloadIsAppliedWithoutOverwritingCloud() async throws {

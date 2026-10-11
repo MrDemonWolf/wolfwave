@@ -30,14 +30,12 @@ final class MockAppleMusicController: AppleMusicControlling {
 
     var playNowCalled = false
     var playNowCallCount = 0
-    var enqueueCalled = false
     var skipCalled = false
     var clearCalled = false
     var clearCallCount = 0
     var rebuildCalled = false
     var playFallbackCalled = false
     var fallbackPlaylistName: String?
-    var enqueuedSongs: [Song] = []
     var shouldThrowMusicAppNotRunning = false
     var shouldThrowNotPlayable = false
     var searchProvider: ((String) async -> AppleMusicController.SearchResult)?
@@ -98,10 +96,6 @@ final class MockAppleMusicController: AppleMusicControlling {
         }
         if shouldThrowNotPlayable { throw PlaybackError.notPlayable(title: song.title) }
         playNowCalled = true
-    }
-    func enqueue(song: Song) async throws {
-        enqueueCalled = true
-        enqueuedSongs.append(song)
     }
     func skipToNext() async throws { skipCalled = true }
     func performTargetedPlayback(
@@ -746,7 +740,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         let playback = Task { await service.playNextInQueue() }
         await gate.waitUntilStarted()
-        queue.move(from: IndexSet(integer: 0), to: 2)
+        // A bit-cheer boost is the production path that reorders the head.
+        queue.boost(username: "second")
         await gate.release()
         let result = await playback.value
 
@@ -1260,13 +1255,13 @@ final class SongRequestServiceTests: WolfWaveTestCase {
     // MARK: - VoteSkip
 
     func testVoteSkipIdleCallsSkipToNext() async {
-        // With nothing in nowPlaying, voteSkip() should forward straight to
+        // With nothing in nowPlaying, a passed vote should forward straight to
         // Apple Music's own skip (so vote-skip works during normal streaming).
         mockController.isMusicAppRunning = true
         mockController.isPlaying = true
         mockController.currentTrackID = "Playing\tArtist"
 
-        await service.voteSkip()
+        await service.captureAndVoteSkip()
 
         XCTAssertTrue(mockController.skipCalled, "voteSkip with empty nowPlaying must call skipToNext()")
     }
@@ -1279,7 +1274,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertNotNil(queue.nowPlaying, "Precondition: a request must be in nowPlaying")
         mockController.currentTrackID = "Playing\tA"
 
-        await service.voteSkip()
+        await service.captureAndVoteSkip()
 
         XCTAssertTrue(mockController.skipCalled)
         XCTAssertNil(queue.nowPlaying)
@@ -1295,7 +1290,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue.dequeue()
         mockController.currentTrackID = "Playing\tA"
 
-        await service.voteSkip()
+        await service.captureAndVoteSkip()
 
         XCTAssertTrue(mockController.playFallbackCalled)
         XCTAssertEqual(mockController.fallbackPlaylistName, "Gaming Vibes")
@@ -1312,7 +1307,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         queue.dequeue()
         mockController.currentTrackID = "Playing\tA"
 
-        await service.voteSkip()
+        await service.captureAndVoteSkip()
 
         XCTAssertTrue(mockController.clearCalled)
         XCTAssertNil(queue.nowPlaying)
@@ -1580,8 +1575,13 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         service.startPlaybackMonitoring()
 
         // Let the first poll tick establish playingRequestTrackID = "playing-A"
-        // before switching the track, so the poll sees a real divergence.
-        try? await Task.sleep(for: .milliseconds(60))
+        // before switching the track, so the poll sees a real divergence. A
+        // second snapshot call proves the first tick finished handling its
+        // "playing-A" read (ticks run serially).
+        let polled = await waitUntil(timeout: .seconds(1)) {
+            self.mockController.playbackSnapshotCallCount >= 2
+        }
+        XCTAssertTrue(polled, "The playback poll should tick before the track changes")
 
         // Trigger divergence: Music.app loads a different track → advanceQueue fires.
         mockController.currentTrackID = "playing-B"
@@ -1624,5 +1624,18 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertTrue(
             capturedMessages.first { $0.hasPrefix("Now playing:") }?.contains("Released Track") == true,
             "Hold-release message must name the dequeued track")
+    }
+}
+
+// MARK: - Vote-skip helper
+
+@MainActor
+private extension SongRequestService {
+    /// Captures the loaded track and applies a passed vote to it, the same
+    /// capture-then-apply pair `AppDelegate` wires into `SkipVoteManager`.
+    @discardableResult
+    func captureAndVoteSkip() async -> Bool {
+        guard let target = await capturePlaybackTarget() else { return false }
+        return await voteSkip(target: target)
     }
 }

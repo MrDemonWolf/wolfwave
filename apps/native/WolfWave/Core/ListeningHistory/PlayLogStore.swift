@@ -104,27 +104,9 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         replaceAll(with: [])
     }
 
-    /// Current on-disk size of the log in bytes (0 when the file is absent).
-    var fileSizeBytes: Int {
-        ioQueue.sync {
-            guard let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
-                  let size = attrs[.size] as? NSNumber else { return 0 }
-            return size.intValue
-        }
-    }
-
     /// Flushes buffered data to disk. Call before the app terminates.
     func flush() {
         ioQueue.sync { try? fileHandle?.synchronize() }
-    }
-
-    /// Closes the file handle. Called at app termination.
-    func shutdown() {
-        ioQueue.sync {
-            try? fileHandle?.synchronize()
-            try? fileHandle?.close()
-            fileHandle = nil
-        }
     }
 
     deinit { try? fileHandle?.close() }
@@ -153,10 +135,21 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         guard let data = try? Data(contentsOf: fileURL), !data.isEmpty else { return [] }
         var records: [PlayRecord] = []
         let newline = UInt8(0x0A)
+        var skipped = 0
         for lineData in data.split(separator: newline, omittingEmptySubsequences: true) {
             if let record = try? decoder.decode(PlayRecord.self, from: Data(lineData)) {
                 records.append(record)
+            } else {
+                skipped += 1
             }
+        }
+        if skipped > 0 {
+            // Compaction or a retention rewrite drops these lines for good, so
+            // this is the only trace that they existed.
+            Log.warn(
+                "PlayLogStore: Skipped \(skipped) unreadable line(s) while loading the play log",
+                category: .history
+            )
         }
         return records
     }

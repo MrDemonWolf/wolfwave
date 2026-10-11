@@ -114,10 +114,10 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     // MARK: - Enable/Disable via Dispatcher
 
-    func testDispatcherSkipsDisabledCommand() {
+    func testDispatcherSkipsDisabledCommand() async {
         DefaultsStore.store.set(false, forKey: AppConstants.UserDefaults.queueCommandEnabled)
         let dispatcher = BotCommandDispatcher()
-        let result = dispatcher.processMessage("!queue")
+        let result = await dispatcher.processMessageAsync("!queue", context: nil)
         XCTAssertNil(result)
     }
 
@@ -149,29 +149,29 @@ final class SongRequestCommandTests: WolfWaveTestCase {
     // MARK: - Link Detection
 
     func testSpotifyLinkDetection() {
-        XCTAssertTrue(LinkResolverService.isSpotifyLink("https://open.spotify.com/track/abc123"))
-        XCTAssertFalse(LinkResolverService.isSpotifyLink("bohemian rhapsody"))
-        XCTAssertFalse(LinkResolverService.isSpotifyLink("https://youtube.com/watch?v=abc"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://open.spotify.com/track/abc123"), .spotify)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "bohemian rhapsody"), .spotify)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://youtube.com/watch?v=abc"), .spotify)
     }
 
     func testYouTubeLinkDetection() {
-        XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtube.com/watch?v=abc123"))
-        XCTAssertTrue(LinkResolverService.isYouTubeLink("https://youtu.be/abc123"))
-        XCTAssertTrue(LinkResolverService.isYouTubeLink("https://music.youtube.com/watch?v=abc"))
-        XCTAssertFalse(LinkResolverService.isYouTubeLink("bohemian rhapsody"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://youtube.com/watch?v=abc123"), .youtube)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://youtu.be/abc123"), .youtube)
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.youtube.com/watch?v=abc"), .youtube)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "bohemian rhapsody"), .youtube)
     }
 
     func testAppleMusicLinkDetection() {
-        XCTAssertTrue(LinkResolverService.isAppleMusicLink("https://music.apple.com/us/album/song/123?i=456"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("bohemian rhapsody"))
-        XCTAssertFalse(LinkResolverService.isAppleMusicLink("https://open.spotify.com/track/abc"))
+        XCTAssertEqual(LinkResolverService.detectedService(in: "https://music.apple.com/us/album/song/123?i=456"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "bohemian rhapsody"), .appleMusic)
+        XCTAssertNotEqual(LinkResolverService.detectedService(in: "https://open.spotify.com/track/abc"), .appleMusic)
     }
 
     func testMusicLinkDetection() {
-        XCTAssertTrue(LinkResolverService.isMusicLink("https://open.spotify.com/track/abc123"))
-        XCTAssertTrue(LinkResolverService.isMusicLink("https://youtu.be/abc123"))
-        XCTAssertTrue(LinkResolverService.isMusicLink("https://music.apple.com/us/album/song/123?i=456"))
-        XCTAssertFalse(LinkResolverService.isMusicLink("just a song name"))
+        XCTAssertNotNil(LinkResolverService.extractURL(from: "https://open.spotify.com/track/abc123"))
+        XCTAssertNotNil(LinkResolverService.extractURL(from: "https://youtu.be/abc123"))
+        XCTAssertNotNil(LinkResolverService.extractURL(from: "https://music.apple.com/us/album/song/123?i=456"))
+        XCTAssertNil(LinkResolverService.extractURL(from: "just a song name"))
     }
 
     func testExtractURL() {

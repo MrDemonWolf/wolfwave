@@ -217,11 +217,6 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         self.helix = HelixClient(http: HTTPClient(session: session))
     }
 
-    /// Test seam. Inject a fully-configured `HelixClient`.
-    init(helix: HelixClient) {
-        self.helix = helix
-    }
-
     // MARK: - Reward Lifecycle
 
     /// Ensures the WolfWave "Request a Song" reward exists, creating it when
@@ -486,40 +481,6 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             return status.uppercased() == "UNFULFILLED"
         } catch let error as HelixClient.HelixError {
             throw RewardError.from(error)
-        }
-    }
-
-    /// Resolves a redemption. `fulfilled` spends the points, `canceled` refunds
-    /// them. A failure here is non-fatal (the song may still have queued); the
-    /// caller should log and continue.
-    func resolveRedemption(
-        credentials: Credentials,
-        rewardID: String,
-        redemptionID: String,
-        as resolution: Resolution
-    ) async throws {
-        do {
-            try await resolveRedemptionWithMetadata(
-                credentials: credentials,
-                rewardID: rewardID,
-                redemptionID: redemptionID,
-                as: resolution
-            )
-        } catch let error as RedemptionResolutionError {
-            switch error {
-            case let .http(status, body, _):
-                throw RewardError.http(status: status, body: body)
-            case let .transport(message):
-                throw RewardError.transport(
-                    underlying: NSError(
-                        domain: "HelixTransport",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: message]))
-            case .malformedResponse:
-                throw RewardError.malformedResponse
-            case .ownershipUnverified:
-                throw RewardError.ownershipUnverified
-            }
         }
     }
 

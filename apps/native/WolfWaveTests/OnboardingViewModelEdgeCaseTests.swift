@@ -78,14 +78,6 @@ final class OnboardingViewModelEdgeCaseTests: WolfWaveTestCase {
         }
     }
 
-    func testAllCasesCountEqualsTotalSteps() {
-        guard let viewModel = viewModel else { XCTFail("Expected non-nil viewModel"); return }
-        XCTAssertEqual(
-            OnboardingViewModel.OnboardingStep.allCases.count,
-            viewModel.totalSteps
-        )
-    }
-
     // MARK: - Re-instantiation Tests
     // testReInstantiatingAfterCompletionStartsAtWelcome removed:
     // @Observable causes malloc double-free when completeOnboarding() triggers

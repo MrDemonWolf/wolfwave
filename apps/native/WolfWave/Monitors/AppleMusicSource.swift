@@ -109,7 +109,6 @@ final class AppleMusicSource: @unchecked Sendable {
             static let isRunning = "isRunning"
             static let playerState = "playerState"
             static let currentTrack = "currentTrack"
-            static let trackMetadata = "trackMetadata"
         }
 
         enum DelegateStatus {
@@ -638,7 +637,7 @@ final class AppleMusicSource: @unchecked Sendable {
             isPaused: isPaused,
             generation: generation
         )
-        logTrackIfNew(trackInfo, trackName: trackName, artist: artist, album: album)
+        logTrackIfNew(trackName: trackName, artist: artist, album: album)
     }
 
     nonisolated private func handleTrackInfo(_ trackInfo: String, generation: UInt64) {
@@ -693,7 +692,7 @@ final class AppleMusicSource: @unchecked Sendable {
         notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying, generation: generation)
     }
 
-    nonisolated private func logTrackIfNew(_ trackInfo: String, trackName: String, artist: String, album: String) {
+    nonisolated private func logTrackIfNew(trackName: String, artist: String, album: String) {
         let dedupKey = trackName + Constants.trackSeparator + artist + Constants.trackSeparator + album
         let isNew = stateLock.withLock { () -> Bool in
             guard lastLoggedTrack != dedupKey else { return false }

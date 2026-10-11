@@ -25,7 +25,7 @@ Example entries (current release):
 - `.sectionHeader()` view modifier: title typography
 - `DSFont.Size.base` (13) `.secondary`: header tagline + feature title
 - `DSFont.Size.body` (12) `.secondary`: feature description
-- `DSFont.Size.lg` (17) `.semibold` icons in 36×36 colour-tinted tiles (`opacity 0.12` background, `DSRadius.md` 8)
+- `DSFont.Size.xl` (20) icons in 36×36 colour-tinted tiles (`opacity 0.12` background, `DSRadius.md` 8)
 - `.borderedProminent` + `.controlSize(.large)`: Get Started CTA
 - `.cardStyle()` per row
 - `DSSpace.s5`-ish (14): row internal spacing

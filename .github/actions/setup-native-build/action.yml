@@ -32,7 +32,7 @@ runs:
       run: bun install --frozen-lockfile
 
     # `tokens` is a build prerequisite of every workspace, so this regenerates
-    # the five generated design-token outputs and then inlines them into the
+    # the four generated design-token outputs and then inlines them into the
     # shipped widget.html.
     - name: Generate design tokens and build OBS widget
       shell: bash

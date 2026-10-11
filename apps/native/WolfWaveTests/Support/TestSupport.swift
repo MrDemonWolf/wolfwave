@@ -412,29 +412,3 @@ func collectFirst<Element: Sendable>(
         return result
     }
 }
-
-/// Round-trips a credential through a save/load/delete cycle and asserts the
-/// loaded value matches what was saved.
-///
-/// Collapses the save → assert → delete → assert-nil pattern repeated for
-/// every credential variant in `KeychainServiceTests`. Pass save/load/delete
-/// closures bound to the specific KeychainService API under test.
-///
-/// - Parameters:
-///   - value: Value to round-trip. Must not be empty.
-///   - save: Save closure (throwing).
-///   - load: Load closure returning the persisted value or nil.
-///   - delete: Delete closure.
-///   - sourceLocation: Forwarded so Swift Testing reports the caller's line.
-func assertKeychainRoundTrip(
-    _ value: String,
-    save: (String) throws -> Void,
-    load: () -> String?,
-    delete: () throws -> Void,
-    sourceLocation: Testing.SourceLocation = #_sourceLocation
-) throws {
-    try save(value)
-    #expect(load() == value, sourceLocation: sourceLocation)
-    try delete()
-    #expect(load() == nil, sourceLocation: sourceLocation)
-}

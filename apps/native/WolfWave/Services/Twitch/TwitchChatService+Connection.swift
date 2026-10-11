@@ -196,31 +196,72 @@ extension TwitchChatService {
     // MARK: - Network Monitoring
 
     /// Starts monitoring network connectivity and sets up automatic reconnection.
+    ///
+    /// Path updates arrive on `networkMonitorQueue`. They are funneled through
+    /// one `AsyncStream` drained by a single consumer task, so the actor applies
+    /// them in the order the monitor reported them. Spawning one `Task` per
+    /// update gave no ordering guarantee: on a fast flap (Wi-Fi roam, VPN
+    /// switch) a stale "unreachable" could land last and leave
+    /// `isNetworkReachable` false while the network was up, suppressing every
+    /// reconnect until the next path event.
     func startNetworkMonitoring() {
-        networkPathMonitor?.pathUpdateHandler = nil
-        networkPathMonitor?.cancel()
-        networkMonitorGeneration &+= 1
-        let generation = networkMonitorGeneration
+        stopNetworkMonitoring()
 
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Bool.self, bufferingPolicy: .unbounded)
         let monitor = NWPathMonitor()
         networkPathMonitor = monitor
-
-        monitor.pathUpdateHandler = { [weak self] path in
-            Task { await self?.handleNetworkPathChange(path, generation: generation) }
+        monitor.pathUpdateHandler = { path in
+            continuation.yield(path.status == .satisfied)
         }
+        startNetworkPathConsumer(stream: stream, continuation: continuation)
 
         monitor.start(queue: networkMonitorQueue)
     }
 
-    /// Handles network path changes and triggers reconnection if needed.
+    /// Tears down the path monitor and its ordered consumer, and invalidates any
+    /// update still in flight from them. Safe to call when nothing is running.
+    func stopNetworkMonitoring() {
+        networkPathMonitor?.pathUpdateHandler = nil
+        networkPathMonitor?.cancel()
+        networkPathMonitor = nil
+        networkPathContinuation?.finish()
+        networkPathContinuation = nil
+        networkPathTask?.cancel()
+        networkPathTask = nil
+        networkMonitorGeneration &+= 1
+    }
+
+    /// Starts the single task that applies reachability values in arrival order.
+    ///
+    /// The task captures `self` weakly so it never keeps the actor alive; it ends
+    /// when the stream finishes (teardown or `deinit`) or the actor is gone.
+    private func startNetworkPathConsumer(
+        stream: AsyncStream<Bool>,
+        continuation: AsyncStream<Bool>.Continuation
+    ) {
+        let generation = networkMonitorGeneration
+        networkPathContinuation = continuation
+        networkPathTask = Task { [weak self] in
+            for await isReachable in stream {
+                guard let self else { return }
+                await self.applyNetworkPathReachability(isReachable, generation: generation)
+            }
+        }
+    }
+
+    /// Applies one path update unless its monitor has since been replaced or
+    /// torn down.
+    private func applyNetworkPathReachability(_ isReachable: Bool, generation: UInt64) async {
+        guard generation == networkMonitorGeneration else { return }
+        await handleNetworkReachabilityChange(isReachable)
+    }
+
+    /// Handles a reachability change and triggers reconnection if needed.
     ///
     /// Rate-limits network-triggered reconnects to prevent infinite loops when
     /// the network path flaps rapidly between available/unavailable states.
-    private func handleNetworkPathChange(_ path: NWPath, generation: UInt64) async {
-        guard generation == networkMonitorGeneration else { return }
-        await handleNetworkReachabilityChange(path.status == .satisfied)
-    }
-
+    ///
     /// Boolean seam shared by the path monitor and lifecycle tests.
     func handleNetworkReachabilityChange(_ isReachable: Bool) async {
         let wasReachable = isNetworkReachable
@@ -893,6 +934,17 @@ extension TwitchChatService {
     }
 
     #if DEBUG
+    /// Test seam: starts the ordered reachability consumer without a real
+    /// `NWPathMonitor`. Yield values into the returned continuation in place of
+    /// path updates; `finish()` it and await `networkPathTask` to drain.
+    func startNetworkPathConsumerForTesting() -> AsyncStream<Bool>.Continuation {
+        stopNetworkMonitoring()
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Bool.self, bufferingPolicy: .unbounded)
+        startNetworkPathConsumer(stream: stream, continuation: continuation)
+        return continuation
+    }
+
     func handleQueuedReceiveErrorForTesting(
         webSocketTask: URLSessionWebSocketTask
     ) async {

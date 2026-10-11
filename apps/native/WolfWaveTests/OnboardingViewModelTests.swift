@@ -32,7 +32,7 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
     }
 
     func testTotalStepsEquals8() {
-        XCTAssertEqual(viewModel.totalSteps, 8)
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep.allCases.count, 8)
     }
 
     func testIsFirstStepAtWelcome() {

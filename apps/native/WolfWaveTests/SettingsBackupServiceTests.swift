@@ -11,21 +11,15 @@ import XCTest
 @testable import WolfWave
 
 @MainActor
-final class SettingsBackupServiceTests: XCTestCase {
-
-    private var previousBackend: KeychainBackend!
+final class SettingsBackupServiceTests: WolfWaveTestCase {
 
     override func setUp() async throws {
+        // Acquires the shared-state lock (released by a teardown block) and
+        // resets settings before the backend swap below.
         try await super.setUp()
-        await SharedTestStateIsolation.acquireAsync()
-        previousBackend = KeychainService.backend
+        let previousBackend = KeychainService.backend
         KeychainService.backend = InMemoryKeychainBackend()
-    }
-
-    override func tearDown() async throws {
-        KeychainService.backend = previousBackend
-        SharedTestStateIsolation.release()
-        try await super.tearDown()
+        addTeardownBlock { KeychainService.backend = previousBackend }
     }
 
     func testOversizedFileRejectedWithTooLarge() async throws {

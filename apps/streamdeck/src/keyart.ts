@@ -19,7 +19,7 @@
 /** Key images are authored at 72x72; Stream Deck scales for @2x displays. */
 export const KEY_SIZE = 72;
 /** Elgato's required size for the action-list icon. */
-export const ACTION_ICON_SIZE = 20;
+const ACTION_ICON_SIZE = 20;
 
 export const Palette = {
   /** WolfWave navy gives every idle key an intentional, branded surface. */
@@ -122,7 +122,7 @@ export const rejectRequest: Glyph = (c, w = 1) =>
 
 // MARK: - Composers
 
-export interface KeyArtOptions {
+interface KeyArtOptions {
   glyph: Glyph;
   /**
    * Fills the whole key. The glyph is knocked out in white on top of it, which

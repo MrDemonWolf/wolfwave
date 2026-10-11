@@ -31,7 +31,6 @@ struct TwitchViewModelTests {
         #expect(viewModel.reauthNeeded == false)
         #expect(viewModel.progressMessage == "")
         #expect(viewModel.channelValidationState == .idle)
-        #expect(viewModel.testAuthResult == .idle)
         #expect(viewModel.authState == .idle)
     }
     
@@ -77,23 +76,6 @@ struct TwitchViewModelTests {
         // No user code in error state
         viewModel.authState = .error("Test error")
         #expect(viewModel.authState.userCode == "")
-    }
-    
-    @Test("Auth state verificationURI extraction works")
-    func testAuthStateVerificationURI() async throws {
-        let viewModel = TwitchViewModel()
-        
-        // No URI when idle
-        viewModel.authState = .idle
-        #expect(viewModel.authState.verificationURI == "")
-        
-        // URI present when waiting
-        viewModel.authState = .waitingForAuth(userCode: "ABCD-1234", verificationURI: "https://twitch.tv/activate")
-        #expect(viewModel.authState.verificationURI == "https://twitch.tv/activate")
-        
-        // No URI in error state
-        viewModel.authState = .error("Test error")
-        #expect(viewModel.authState.verificationURI == "")
     }
     
     // MARK: - Integration State Tests
@@ -157,28 +139,6 @@ struct TwitchViewModelTests {
         }
     }
     
-    @Test("Integration color matches state")
-    func testIntegrationColor() async throws {
-        let viewModel = TwitchViewModel()
-        
-        // Not connected = neutral
-        #expect(viewModel.integrationColor == DSColor.neutral)
-        
-        // Authorizing = warning
-        viewModel.authState = .requestingCode
-        #expect(viewModel.integrationColor == DSColor.warning)
-        
-        // Connected = success
-        viewModel.authState = .idle
-        viewModel.channelConnected = true
-        #expect(viewModel.integrationColor == DSColor.success)
-        
-        // Error = error
-        viewModel.channelConnected = false
-        viewModel.authState = .error("Test error")
-        #expect(viewModel.integrationColor == DSColor.error)
-    }
-    
     // MARK: - Status Chip Tests
     
     @Test("Status chip text reflects state")
@@ -231,16 +191,6 @@ struct TwitchViewModelTests {
         #expect(TwitchViewModel.ChannelValidationState.invalid == .invalid)
         #expect(TwitchViewModel.ChannelValidationState.error("msg1") == .error("msg1"))
         #expect(TwitchViewModel.ChannelValidationState.error("msg1") != .error("msg2"))
-    }
-    
-    // MARK: - Test Auth Result Tests
-    
-    @Test("Test auth result enum equality works")
-    func testTestAuthResultEquality() async throws {
-        #expect(TwitchViewModel.TestAuthResult.idle == .idle)
-        #expect(TwitchViewModel.TestAuthResult.testing == .testing)
-        #expect(TwitchViewModel.TestAuthResult.success == .success)
-        #expect(TwitchViewModel.TestAuthResult.failure == .failure)
     }
     
     @Test("Temporary token validation failure preserves credentials and reauth state")

@@ -40,7 +40,7 @@ const PLUGIN_UUID = "com.mrdemonwolf.wolfwave";
 // MARK: - Playback
 
 @action({ UUID: `${PLUGIN_UUID}.playpause` })
-export class PlayPauseAction extends WolfWaveKeyAction {
+class PlayPauseAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "play_pause";
   }
@@ -58,7 +58,7 @@ export class PlayPauseAction extends WolfWaveKeyAction {
 }
 
 @action({ UUID: `${PLUGIN_UUID}.skip` })
-export class SkipAction extends WolfWaveKeyAction {
+class SkipAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "skip";
   }
@@ -102,7 +102,7 @@ export class QueueHoldAction extends WolfWaveKeyAction {
 }
 
 @action({ UUID: `${PLUGIN_UUID}.approvenext` })
-export class ApproveNextAction extends WolfWaveKeyAction {
+class ApproveNextAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "approve_next";
   }
@@ -159,7 +159,7 @@ export class ClearQueueAction extends WolfWaveKeyAction {
 }
 
 @action({ UUID: `${PLUGIN_UUID}.blockcurrent` })
-export class BlockCurrentAction extends WolfWaveKeyAction {
+class BlockCurrentAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "block_current";
   }
@@ -172,7 +172,7 @@ export class BlockCurrentAction extends WolfWaveKeyAction {
 // MARK: - Integration toggles
 
 @action({ UUID: `${PLUGIN_UUID}.overlaytoggle` })
-export class OverlayToggleAction extends WolfWaveKeyAction {
+class OverlayToggleAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "overlay_toggle";
   }
@@ -191,7 +191,7 @@ export class OverlayToggleAction extends WolfWaveKeyAction {
 // MARK: - Chat
 
 @action({ UUID: `${PLUGIN_UUID}.announcesong` })
-export class AnnounceSongAction extends WolfWaveKeyAction {
+class AnnounceSongAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "announce_song";
   }
@@ -207,7 +207,7 @@ export class AnnounceSongAction extends WolfWaveKeyAction {
  * the requester like the bot ate their song.
  */
 @action({ UUID: `${PLUGIN_UUID}.rejectcurrent` })
-export class RejectCurrentAction extends WolfWaveKeyAction {
+class RejectCurrentAction extends WolfWaveKeyAction {
   protected commandFor(): WolfWaveAction {
     return "reject_current";
   }

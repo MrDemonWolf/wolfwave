@@ -19,7 +19,7 @@ final class RecentTracksBufferTests: XCTestCase {
     func testStartsEmpty() {
         let buffer = RecentTracksBuffer(maxEntries: 5)
         XCTAssertTrue(buffer.isEmpty)
-        XCTAssertEqual(buffer.count, 0)
+        XCTAssertEqual(buffer.entries.count, 0)
         XCTAssertEqual(buffer.entries, [])
     }
 
@@ -36,7 +36,7 @@ final class RecentTracksBufferTests: XCTestCase {
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("A"))
         buffer.push(makeTrack("A"))
-        XCTAssertEqual(buffer.count, 1)
+        XCTAssertEqual(buffer.entries.count, 1)
     }
 
     func testNonHeadDuplicateMovesToFront() {
@@ -102,6 +102,6 @@ final class RecentTracksBufferTests: XCTestCase {
         buffer.push(makeTrack("B"))
         XCTAssertEqual(buffer.entries.map(\.title), ["B"]) // tail-trim keeps newest
         buffer.push(makeTrack("B"))                        // head dup ignored, no growth
-        XCTAssertEqual(buffer.count, 1)
+        XCTAssertEqual(buffer.entries.count, 1)
     }
 }

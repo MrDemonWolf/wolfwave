@@ -1285,7 +1285,6 @@ struct TwitchChatServiceTests {
         let service = TwitchChatService()
 
         #expect(await service.commandsEnabled == true)
-        #expect(await service.debugLoggingEnabled == false)
         #expect(await service.isConnected == false)
         #expect(service.currentSongCommandEnabled == false)
         #expect(service.lastSongCommandEnabled == false)
@@ -1536,20 +1535,10 @@ struct TwitchChatServiceTests {
     func testCommandsEnabledToggle() async throws {
         let service = TwitchChatService()
         #expect(await service.commandsEnabled == true)
-        await service.setCommandsEnabled(false)
+        await service.setCommandsEnabledForTesting(false)
         #expect(await service.commandsEnabled == false)
-        await service.setCommandsEnabled(true)
+        await service.setCommandsEnabledForTesting(true)
         #expect(await service.commandsEnabled == true)
-    }
-
-    @Test("Debug logging enabled toggle works")
-    func testDebugLoggingEnabledToggle() async throws {
-        let service = TwitchChatService()
-        #expect(await service.debugLoggingEnabled == false)
-        await service.setDebugLoggingEnabled(true)
-        #expect(await service.debugLoggingEnabled == true)
-        await service.setDebugLoggingEnabled(false)
-        #expect(await service.debugLoggingEnabled == false)
     }
 
     // MARK: - Connection Error Distinctness Tests
@@ -1965,21 +1954,6 @@ struct TwitchChatServiceTests {
         ) == .retryableFailure)
     }
 
-    @Test("Reconnect attempts advance to the cap and never wrap")
-    func testReconnectAttemptCap() {
-        let maximum = AppConstants.Twitch.maxReconnectionAttempts
-        var attempts = 0
-        for expected in 1...maximum {
-            let next = TwitchChatService.nextReconnectAttempt(
-                after: attempts,
-                maximum: maximum)
-            #expect(next == expected)
-            attempts = next ?? attempts
-        }
-        #expect(TwitchChatService.nextReconnectAttempt(after: attempts, maximum: maximum) == nil)
-        #expect(TwitchChatService.nextReconnectAttempt(after: -1, maximum: maximum) == nil)
-    }
-
     @Test("First non-whitespace character must be an exclamation for command dispatch")
     func testPotentialCommandPrefilter() {
         #expect(TwitchChatService.isPotentialCommand("!song"))
@@ -2117,6 +2091,26 @@ struct TwitchChatServiceTests {
         #expect(await service.networkReconnectCycles == 1)
     }
 
+    @Test("Path updates are applied in the order the monitor reported them")
+    func testNetworkPathUpdatesApplyInOrder() async {
+        let service = TwitchChatService()
+        await service.configureReconnectCredentialsForTesting()
+        await service.configureNetworkRecoveryForTesting(attempts: 0)
+        let path = await service.startNetworkPathConsumerForTesting()
+
+        // A fast flap that ends reachable: two offline→online edges.
+        path.yield(true)
+        path.yield(false)
+        path.yield(true)
+        path.finish()
+        await service.networkPathTask?.value
+
+        #expect(await service.isNetworkReachable)
+        #expect(await service.networkReconnectCycles == 2)
+        #expect(await service.hasScheduledReconnectForTesting)
+        await service.handleNetworkReachabilityChange(false)
+    }
+
     @Test("Exhausted fast reconnect budget enters the slow tier")
     func reconnectEntersSlowTierAfterFastBudget() async {
         let service = TwitchChatService()
@@ -2218,12 +2212,12 @@ struct TwitchChatServiceTests {
         service.commandDispatcher.register(SuspendedTestCommand(gate: gate))
         _ = await service.configureCommandSessionForTesting(
             broadcasterID: "channel-1")
-        await service.setCommandsEnabled(false)
+        await service.setCommandsEnabledForTesting(false)
         await service.handleEventSubMessage(Self.chatEvent(
             id: "disabled-command",
             text: "!suspend",
             broadcasterID: "channel-1"))
-        await service.setCommandsEnabled(true)
+        await service.setCommandsEnabledForTesting(true)
         await service.handleEventSubMessage(Self.chatEvent(
             id: "disabled-command",
             text: "!suspend",

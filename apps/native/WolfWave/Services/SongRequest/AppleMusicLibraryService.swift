@@ -488,20 +488,15 @@ final class AppleMusicLibraryService {
         return page?.data.first?.attributes?.playParams?.globalId
     }
 
-    /// Returns the first playlist whose name and description exactly match
-    /// WolfWave's ownership marker. Name alone is intentionally insufficient:
-    /// users are free to create their own `WolfWave Requests` playlist.
-    static func parseOwnedPlaylistID(fromLibraryData data: Data) -> String? {
-        let page = try? JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
-        return page?.data.first(where: Self.isOwnedRequestsPlaylist)?.id
-    }
-
     /// Extracts the user's storefront id (e.g. `us`) from a storefront response.
     static func parseStorefront(fromData data: Data) -> String? {
         let page = try? JSONCoders.default.decode(StorefrontsPage.self, from: data)
         return page?.data.first?.id
     }
 
+    /// Whether a library playlist's name and description exactly match
+    /// WolfWave's ownership marker. Name alone is intentionally insufficient:
+    /// users are free to create their own `WolfWave Requests` playlist.
     private static func isOwnedRequestsPlaylist(_ resource: LibraryPlaylistResource) -> Bool {
         resource.attributes?.name == AppConstants.Music.requestsPlaylistName
             && resource.attributes?.description?.standard
