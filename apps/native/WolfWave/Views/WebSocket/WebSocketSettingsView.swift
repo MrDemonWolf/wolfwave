@@ -214,11 +214,18 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
+    /// The port the widget server actually listens on: the same fallback and
+    /// clamping as `Preferences.resolvePort`, so a stored value above the valid
+    /// range can't produce a link the server isn't on.
+    private var resolvedWidgetPort: UInt16 {
+        Preferences.resolvePort(storedWidgetPort, default: AppConstants.WebSocketServer.widgetDefaultPort)
+    }
+
     /// Loopback widget URL. Carries no token: `WidgetHTTPService` injects the
     /// overlay token itself for literal-loopback requests. A stored port of
     /// zero or less falls back to the default.
     private var widgetURL: String {
-        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        let port = resolvedWidgetPort
         return "http://localhost:\(port)"
     }
 
@@ -226,7 +233,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     /// query, so it stays hidden until the token has loaded.
     private var networkWidgetURL: String? {
         guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
-        let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
+        let port = resolvedWidgetPort
         return "http://\(ip):\(port)/?token=\(currentToken)"
     }
 

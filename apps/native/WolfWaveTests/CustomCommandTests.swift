@@ -478,6 +478,29 @@ struct CustomCommandStoreTests {
         #expect(store.commands.map(\.response) == ["hi"])
     }
 
+    /// A stored command can already fail validation (old storage, an import).
+    /// The list toggle must still switch it off, but not back on.
+    @Test("an invalid stored command can still be turned off, but not on")
+    func invalidStoredCommandCanBeDisabled() throws {
+        let (_, defaults) = makeStore()
+        let legacy = CustomCommand(trigger: "blank", response: "")
+        let raw = try JSONCoders.defaultEncoder.encode([legacy])
+        defaults.set(raw, forKey: AppConstants.UserDefaults.customCommands)
+        let store = CustomCommandStore(defaults: defaults)
+        let stored = try #require(store.commands.first)
+        try #require(stored.enabled)
+
+        var off = stored
+        off.enabled = false
+        #expect(store.update(off))
+        #expect(store.commands.first?.enabled == false)
+
+        var on = off
+        on.enabled = true
+        #expect(!store.update(on))
+        #expect(store.commands.first?.enabled == false)
+    }
+
     @Test("load migrates shadowed legacy aliases without dropping commands")
     func migratesLegacyAliases() throws {
         let (_, defaults) = makeStore()

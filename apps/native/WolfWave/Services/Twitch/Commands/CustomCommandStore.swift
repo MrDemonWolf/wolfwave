@@ -66,14 +66,21 @@ final class CustomCommandStore {
 
     /// Replaces the command with the same `id` and persists.
     ///
-    /// Checked by ``validationIssue(for:)`` and the import rules, as in ``add(_:)``.
+    /// Checked by ``validationIssue(for:)`` and the import rules, as in ``add(_:)``,
+    /// with one exception: turning a command off without changing anything else
+    /// skips ``validationIssue(for:)``. A command loaded from old storage or an
+    /// import can already fail it (an empty reply, say), and the list toggle must
+    /// still be able to switch that command off.
     ///
     /// - Returns: `false` when no command has that `id` or the result would be
     ///   invalid, in which case nothing changes.
     @discardableResult
     func update(_ command: CustomCommand) -> Bool {
-        guard let index = commands.firstIndex(where: { $0.id == command.id }),
-              validationIssue(for: command) == nil else { return false }
+        guard let index = commands.firstIndex(where: { $0.id == command.id }) else { return false }
+        var unchangedExceptEnabled = command
+        unchangedExceptEnabled.enabled = commands[index].enabled
+        let isDisableOnly = !command.enabled && unchangedExceptEnabled == commands[index]
+        guard isDisableOnly || validationIssue(for: command) == nil else { return false }
         var updated = commands
         updated[index] = command
         guard let normalized = CustomCommand.normalizedForImport(updated) else { return false }
