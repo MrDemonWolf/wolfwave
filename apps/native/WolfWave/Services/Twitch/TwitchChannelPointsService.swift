@@ -208,6 +208,23 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         case malformedResponse
         /// The stored managed reward does not belong to these credentials.
         case ownershipUnverified
+
+        /// Maps a `HelixError`. These paths lose the `Retry-After` header, so
+        /// `retryAfter` is always `nil`.
+        static func from(_ error: HelixClient.HelixError) -> RedemptionResolutionError {
+            switch error {
+            case let .transport(message):
+                return .transport(message)
+            case .malformedResponse, .encodingFailed, .decodingFailed:
+                return .malformedResponse
+            case let .http(status, body):
+                return .http(status: status, body: body, retryAfter: nil)
+            case let .unauthorized(body):
+                return .http(status: 401, body: body, retryAfter: nil)
+            case let .rateLimited(body):
+                return .http(status: 429, body: body, retryAfter: nil)
+            }
+        }
     }
 
     /// Errors produced by Helix channel-point calls.
@@ -536,8 +553,8 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     /// - Returns: `false` when Twitch returns no row (already resolved or gone)
     ///   or a status other than `UNFULFILLED`; the caller then acknowledges the
     ///   outbox item instead of retrying.
-    /// - Throws: `RedemptionResolutionError` from the ownership check, else a
-    ///   mapped `RewardError` (note: the two error types differ by stage).
+    /// - Throws: `RedemptionResolutionError` at every stage, the same type
+    ///   the outbox worker's PATCH path throws.
     func isRedemptionUnfulfilled(
         credentials: Credentials,
         rewardID: String,
@@ -552,22 +569,22 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             URLQueryItem(name: "reward_id", value: rewardID),
             URLQueryItem(name: "id", value: redemptionID),
         ]
-        guard let url = components?.url else { throw RewardError.malformedResponse }
+        guard let url = components?.url else { throw RedemptionResolutionError.malformedResponse }
         do {
             let json = try await helix.sendJSON(
                 url: url,
                 method: "GET",
                 credentials: credentials.helix)
             guard let data = json?["data"] as? [[String: Any]] else {
-                throw RewardError.malformedResponse
+                throw RedemptionResolutionError.malformedResponse
             }
             guard let redemption = data.first else { return false }
             guard let status = redemption["status"] as? String else {
-                throw RewardError.malformedResponse
+                throw RedemptionResolutionError.malformedResponse
             }
             return status.uppercased() == "UNFULFILLED"
         } catch let error as HelixClient.HelixError {
-            throw RewardError.from(error)
+            throw RedemptionResolutionError.from(error)
         }
     }
 
@@ -623,22 +640,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             throw error
         } catch let error as HelixClient.HelixError {
             if Task.isCancelled { throw CancellationError() }
-            // These cases lose the Retry-After header, so `retryAfter` is nil.
-            switch error {
-            case let .transport(message):
-                throw RedemptionResolutionError.transport(message)
-            case .malformedResponse, .encodingFailed, .decodingFailed:
-                throw RedemptionResolutionError.malformedResponse
-            case let .http(status, body):
-                throw RedemptionResolutionError.http(
-                    status: status, body: body, retryAfter: nil)
-            case let .unauthorized(body):
-                throw RedemptionResolutionError.http(
-                    status: 401, body: body, retryAfter: nil)
-            case let .rateLimited(body):
-                throw RedemptionResolutionError.http(
-                    status: 429, body: body, retryAfter: nil)
-            }
+            throw RedemptionResolutionError.from(error)
         } catch {
             if Task.isCancelled { throw CancellationError() }
             throw RedemptionResolutionError.transport(error.localizedDescription)

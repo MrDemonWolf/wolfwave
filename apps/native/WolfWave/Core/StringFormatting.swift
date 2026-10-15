@@ -33,6 +33,11 @@ nonisolated enum StringFormatting {
 // MARK: - Twitch Chat Truncation
 
 nonisolated extension String {
+    /// Length as Twitch counts it for the 500-character chat limit: Unicode
+    /// scalars (code points), not `Character`s. The one measure every chat
+    /// length check uses, so the editor, backup import, and send path agree.
+    var chatLength: Int { unicodeScalars.count }
+
     /// Truncates the string so it fits within Twitch chat's 500-character
     /// per-message limit, appending the configured truncation suffix
     /// (`AppConstants.Twitch.messageTruncationSuffix`) when shortened.
@@ -52,7 +57,7 @@ nonisolated extension String {
     ///   `AppConstants.Twitch.maxMessageLength`.
     func truncatedForChat() -> String {
         let maxLen = AppConstants.Twitch.maxMessageLength
-        guard unicodeScalars.count > maxLen else { return self }
+        guard chatLength > maxLen else { return self }
         let suffix = AppConstants.Twitch.messageTruncationSuffix
         let budget = max(maxLen - suffix.unicodeScalars.count, 0)
 

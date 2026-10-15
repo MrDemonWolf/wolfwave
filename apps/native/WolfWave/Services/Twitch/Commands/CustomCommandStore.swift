@@ -46,16 +46,17 @@ final class CustomCommandStore {
 
     /// Appends a new command and persists.
     ///
-    /// Validation here is the import rules (trigger/alias identity and
-    /// cooldown bounds), not the reply checks; the editor gates the reply via
-    /// ``validationIssue(for:)`` before calling this. A valid draft is stored
-    /// in normalized form, so the saved trigger may differ from what was typed.
+    /// The draft must pass ``validationIssue(for:)`` (trigger, aliases,
+    /// clashes, reply) and the combined set the import rules (identity and
+    /// cooldown bounds). A valid draft is stored in normalized form, so the
+    /// saved trigger may differ from what was typed.
     ///
-    /// - Returns: `false` when the combined set would be invalid, in which case
-    ///   nothing changes.
+    /// - Returns: `false` when the draft or the combined set would be invalid,
+    ///   in which case nothing changes.
     @discardableResult
     func add(_ command: CustomCommand) -> Bool {
-        guard let normalized = CustomCommand.normalizedForImport(commands + [command]) else {
+        guard validationIssue(for: command) == nil,
+              let normalized = CustomCommand.normalizedForImport(commands + [command]) else {
             return false
         }
         commands = normalized
@@ -65,11 +66,14 @@ final class CustomCommandStore {
 
     /// Replaces the command with the same `id` and persists.
     ///
+    /// Checked by ``validationIssue(for:)`` and the import rules, as in ``add(_:)``.
+    ///
     /// - Returns: `false` when no command has that `id` or the result would be
     ///   invalid, in which case nothing changes.
     @discardableResult
     func update(_ command: CustomCommand) -> Bool {
-        guard let index = commands.firstIndex(where: { $0.id == command.id }) else { return false }
+        guard let index = commands.firstIndex(where: { $0.id == command.id }),
+              validationIssue(for: command) == nil else { return false }
         var updated = commands
         updated[index] = command
         guard let normalized = CustomCommand.normalizedForImport(updated) else { return false }
@@ -128,10 +132,10 @@ final class CustomCommandStore {
         if candidate.response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return .emptyReply
         }
-        // Unicode scalars, not grapheme clusters: the same measure Twitch and
+        // `chatLength` (Unicode scalars) is the measure Twitch and
         // `truncatedForChat()` use, so a reply that passes here is never
         // truncated on send (a flag emoji is one Character but two scalars).
-        let length = candidate.response.unicodeScalars.count
+        let length = candidate.response.chatLength
         if length > AppConstants.Twitch.maxMessageLength {
             return .replyTooLong(count: length)
         }

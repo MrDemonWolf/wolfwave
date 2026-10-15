@@ -164,4 +164,49 @@ final class CooldownManagerTests: XCTestCase {
             globalCooldown: 60.0, userCooldown: 60.0
         ))
     }
+
+    // MARK: - Pruning
+
+    /// Pruning (which starts past 100 per-user entries) must not forget a
+    /// cooldown longer than 5 minutes while it is still running.
+    func testPruningKeepsCooldownLongerThanFiveMinutes() {
+        var clock = Date(timeIntervalSince1970: 1_000_000)
+        let manager = CooldownManager(now: { clock })
+        let longCooldown: TimeInterval = 600
+
+        XCTAssertNotNil(manager.tryClaim(
+            trigger: "!long", userID: "victim", isModerator: false,
+            globalCooldown: 0, userCooldown: longCooldown))
+
+        clock = clock.addingTimeInterval(400)
+        for index in 0..<150 {
+            _ = manager.tryClaim(
+                trigger: "!long", userID: "chatter\(index)", isModerator: false,
+                globalCooldown: 0, userCooldown: longCooldown)
+        }
+
+        XCTAssertTrue(manager.isOnCooldown(
+            trigger: "!long", userID: "victim", isModerator: false,
+            globalCooldown: 0, userCooldown: longCooldown))
+    }
+
+    /// Entries older than every cooldown in force are still pruned.
+    func testPruningDropsEntriesPastLongestCooldown() {
+        var clock = Date(timeIntervalSince1970: 1_000_000)
+        let manager = CooldownManager(now: { clock })
+
+        XCTAssertNotNil(manager.tryClaim(
+            trigger: "!song", userID: "old", isModerator: false,
+            globalCooldown: 0, userCooldown: 30))
+        clock = clock.addingTimeInterval(31)
+        for index in 0..<150 {
+            _ = manager.tryClaim(
+                trigger: "!song", userID: "chatter\(index)", isModerator: false,
+                globalCooldown: 0, userCooldown: 30)
+        }
+
+        // Asked with a longer window: a pruned entry reports nothing remaining.
+        XCTAssertEqual(manager.remainingCooldown(
+            trigger: "!song", userID: "old", globalCooldown: 0, userCooldown: 600).perUser, 0)
+    }
 }
