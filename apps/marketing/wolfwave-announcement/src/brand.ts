@@ -1,3 +1,8 @@
+/**
+ * Brand palette and fonts shared by every scene. Colors are hex or rgba strings
+ * for inline styles; the `*Glow` values are translucent for radial gradients.
+ * `fontDisplay` / `fontMono` are loaded in `MainVideo.tsx`.
+ */
 export const brand = {
   navy: '#091533',
   navyDeep: '#060E20',
@@ -15,6 +20,7 @@ export const brand = {
   fontMono: 'JetBrains Mono',
 };
 
+/** Neon accents that `raveColor` cycles through. */
 const raveColors = [brand.cyan, brand.magenta, brand.purple, brand.lime, brand.pink];
 
 /** Pick a rave color based on frame and index for cycling effects */

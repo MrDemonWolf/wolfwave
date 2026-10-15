@@ -63,6 +63,9 @@ final class WebSocketServerServiceTests: XCTestCase {
         )
     }
 
+    /// `shouldAcceptNewConnection` truth table: refuses at the pending and total caps (and a
+    /// negative count), applies tighter pending and total limits to remote peers (including
+    /// per-peer pending), and never applies the remote limits to loopback.
     func testConnectionAdmissionCapsPendingAndTotalPeers() {
         XCTAssertTrue(WebSocketServerService.shouldAcceptNewConnection(
             activeCount: 0,
@@ -154,6 +157,9 @@ final class WebSocketServerServiceTests: XCTestCase {
         XCTAssertTrue(service.overlayVisible)
     }
 
+    /// A new track clears the previous artwork. A late artwork result for the old track is
+    /// ignored, the current track's is accepted, and an identical repeat is a no-op (returns
+    /// false).
     func testArtworkResultIsScopedToCurrentTrackIdentity() async {
         let service = WebSocketServerService(port: 0)
 

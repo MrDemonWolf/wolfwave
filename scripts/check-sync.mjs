@@ -8,13 +8,16 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Repo root, resolved from this file's location so the script works from any cwd. */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+/** Swift directories whose views must each have a catalog entry in `CATALOG_DIR`. */
 const COMPONENT_ROOTS = [
   "apps/native/WolfWave/Views/Shared",
   "apps/native/WolfWave/Views/Onboarding/Components",
   "apps/native/WolfWave/Views/HistoryStats",
 ];
 const CATALOG_DIR = "design-system/components";
+/** Section headings every catalog entry must contain, in this order (see status-chip.md). */
 const REQUIRED_HEADINGS = [
   "Purpose",
   "API",
@@ -24,6 +27,7 @@ const REQUIRED_HEADINGS = [
   "Do / Don't",
   "Example",
 ];
+/** Docs checked for widget theme/layout counts, lists, and dimensions against tokens.json. */
 const DOC_FILES = [
   "README.md",
   "CLAUDE.md",
@@ -31,6 +35,7 @@ const DOC_FILES = [
   "apps/docs/content/docs/widget.mdx",
 ];
 
+/** Recursively collects files under `dir` whose name ends with `suffix`. */
 function walk(dir, suffix, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
@@ -40,14 +45,17 @@ function walk(dir, suffix, out = []) {
   return out;
 }
 
+/** 1-based line number of character offset `index` in `text`. */
 function lineAt(text, index) {
   return text.slice(0, index).split("\n").length;
 }
 
+/** Order-insensitive equality for two lists of unique strings. */
 function sameMembers(actual, expected) {
   return actual.length === expected.length && expected.every((value) => actual.includes(value));
 }
 
+/** Returns the offset just past a Swift block comment starting at `start`; Swift block comments nest. */
 function skipSwiftBlockComment(source, start) {
   let cursor = start + 2;
   let depth = 1;
@@ -65,6 +73,7 @@ function skipSwiftBlockComment(source, start) {
   return cursor;
 }
 
+/** Skips whitespace and `//` / block comments, returning the offset of the next real token. */
 function skipSwiftTrivia(source, start) {
   let cursor = start;
   while (cursor < source.length) {
@@ -82,6 +91,7 @@ function skipSwiftTrivia(source, start) {
   return cursor;
 }
 
+/** Reads a plain double-quoted Swift string literal at `start`. Returns the raw contents (escapes unprocessed) and the end offset, or null if unterminated. */
 function readSwiftString(source, start) {
   let cursor = start + 1;
   while (cursor < source.length) {
@@ -92,6 +102,7 @@ function readSwiftString(source, start) {
   return null;
 }
 
+/** Parses `["a", "b"]` starting at the `[`. Returns null unless the bracket holds only string literals, so index subscripts and other arrays are ignored. */
 function parseSwiftStringArray(source, start) {
   const values = [];
   let cursor = skipSwiftTrivia(source, start + 1);
@@ -106,6 +117,7 @@ function parseSwiftStringArray(source, start) {
   return values.length > 0 && source[cursor] === "]" ? { values, end: cursor + 1 } : null;
 }
 
+/** Finds Swift array literals whose members equal a token-derived group (theme or layout names). Such a copy would drift from tokens.json; comments and strings are skipped. `groups` maps a label to its expected names. */
 export function findDuplicateTokenLists(source, groups) {
   const failures = [];
   let cursor = 0;
@@ -139,6 +151,7 @@ export function findDuplicateTokenLists(source, groups) {
   return failures;
 }
 
+/** Returns the entries of `REQUIRED_HEADINGS` missing from a catalog entry, or out of order (each must appear after the previous one). */
 export function checkRequiredHeadings(text) {
   const headings = [...text.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   let cursor = -1;
@@ -151,6 +164,7 @@ export function checkRequiredHeadings(text) {
   return missing;
 }
 
+/** Compares the `name:` entries of `RULES` in lint.ts against the backticked names in its `* Rules:` comment block, in both directions. */
 export function checkLintRuleParity(source) {
   const implemented = [...source.matchAll(/\bname:\s*"([a-z0-9-]+)"/g)].map((match) => match[1]);
   const rulesComment = source.match(/\* Rules:\s*([\s\S]*?)\*\//)?.[1] ?? "";
@@ -161,13 +175,16 @@ export function checkLintRuleParity(source) {
   };
 }
 
+/** Spelled-out numbers docs may use for counts ("five layouts"); index is the value. */
 const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
 
+/** Converts a digit string or spelled-out number to a number, or -1 if unrecognised. */
 function claimedNumber(raw) {
   const number = Number(raw);
   return Number.isNaN(number) ? NUMBER_WORDS.indexOf(raw.toLowerCase()) : number;
 }
 
+/** Finds markdown tables whose header starts with `Layout` and returns their body rows (cells plus 1-based line), skipping the separator row. */
 function markdownTableBlocks(text) {
   const lines = text.split("\n");
   const tables = [];
@@ -182,6 +199,7 @@ function markdownTableBlocks(text) {
   return tables;
 }
 
+/** Checks one docs file against tokens.json: theme/layout counts, inline theme and layout lists, the "selectable themes" sentence, the layout dimension table, and the OBS canvas padding claims. Returns `{ line, message }` failures. */
 export function checkDocsText(text, expected) {
   const failures = [];
   const countChecks = [
@@ -247,6 +265,7 @@ export function checkDocsText(text, expected) {
   return failures;
 }
 
+/** Checks landing-page source: any `ws://` / `http://` localhost example must use the real default port for its scheme and must not point at a `now-playing` URL, and the page must not claim an unauthenticated JSON endpoint. */
 export function checkLandingProtocol(text, { webSocketPort, widgetPort }) {
   const failures = [];
   for (const match of text.matchAll(/\b(ws|http):\/\/(?:localhost|mac\.local):(\d+)([^\s"'<>`]*)/g)) {
@@ -262,12 +281,6 @@ export function checkLandingProtocol(text, { webSocketPort, widgetPort }) {
 }
 
 /**
- * Flags a WebSocket or widget-HTTP port in docs prose that differs from the
- * AppConstants defaults. A port is read from `scheme://host:N`, `port N`, or
- * `host:N`; the line's own wording (websocket/ws vs http/widget/shell) picks
- * which default it must equal, and a line naming both accepts either.
- */
-/**
  * Ports that legitimately appear in the docs but are not WolfWave's servers,
  * so `checkDocPorts` must not hold them to the AppConstants defaults. Add a
  * port here (with what owns it) rather than rewording a correct doc.
@@ -276,6 +289,12 @@ export const FOREIGN_DOC_PORTS = new Set([
   3000, // the docs site's own `bun run dev` server
 ]);
 
+/**
+ * Flags a WebSocket or widget-HTTP port in docs prose that differs from the
+ * AppConstants defaults. A port is read from `scheme://host:N`, `port N`, or
+ * `host:N`; the line's own wording (websocket/ws vs http/widget/shell) picks
+ * which default it must equal, and a line naming both accepts either.
+ */
 export function checkDocPorts(text, { webSocketPort, widgetPort }) {
   const failures = [];
   const lines = text.split("\n");
@@ -306,6 +325,7 @@ export function checkDocPorts(text, { webSocketPort, widgetPort }) {
   return failures;
 }
 
+/** Reads the source-of-truth values the checks compare against: visible theme names, layout names and sizes (tokens.json), and the viewport padding and default ports parsed out of AppConstants.swift. Throws if the padding can't be found. */
 function projectExpected(root) {
   const tokens = JSON.parse(readFileSync(resolve(root, "design-system/tokens.json"), "utf8"));
   const themes = Object.entries(tokens.widget.themes).filter(([, value]) => !value.hidden).map(([name]) => name);
@@ -321,6 +341,7 @@ function projectExpected(root) {
   return { themes, layouts, layoutSizes, viewportPadding, webSocketPort, widgetPort };
 }
 
+/** Verifies the component catalog: every Swift view under `COMPONENT_ROOTS` has an entry, every entry names an existing covered source, follows the heading template, and is listed in the catalog README index (and vice versa). */
 function catalogFailures(root) {
   const failures = [];
   const sources = COMPONENT_ROOTS.flatMap((dir) => walk(resolve(root, dir), ".swift"))
@@ -369,6 +390,7 @@ function catalogFailures(root) {
   return failures;
 }
 
+/** Runs every sync check against the tree at `root` and returns all failures as `{ file, line, message }`. Pure aside from reading files, so tests can point it at a fixture tree. */
 export function runChecks(root = ROOT) {
   const failures = [];
   const expected = projectExpected(root);

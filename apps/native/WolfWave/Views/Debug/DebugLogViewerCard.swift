@@ -24,6 +24,8 @@ import SwiftUI
 /// second ad-hoc regex.
 struct DebugLogViewerCard: View {
 
+    // MARK: - Configuration
+
     /// How much history to show on open, and after a clear or rotation.
     private static let primingBytes: UInt64 = 256 * 1024
 
@@ -31,14 +33,26 @@ struct DebugLogViewerCard: View {
     /// view without limit. Oldest are dropped.
     private static let maxRecords = 2_000
 
+    /// Delay between tail reads while the card is mounted.
     private static let pollInterval: Duration = .seconds(1)
 
+    // MARK: - State
+
+    /// Read position in the log file. Copied into each detached read and
+    /// replaced with the advanced copy it returns.
     @State private var cursor = LogTailCursor()
+    /// Parsed records, oldest first, capped at `maxRecords`. Ids increase
+    /// monotonically across polls (see `pollOnce()`).
     @State private var records: [LogRecord] = []
+    /// Lowest level to show; `nil` shows everything.
     @State private var minimumLevel: LogLevel?
+    /// Category to show; `nil` shows every category.
     @State private var category: LogCategory?
+    /// Case-insensitive substring match over the message and field keys/values.
     @State private var searchText = ""
+    /// Whether new lines scroll the list to the bottom.
     @State private var following = true
+    /// Ids of rows tapped open to show their source location and one field per line.
     @State private var expanded: Set<Int> = []
 
     var body: some View {
@@ -62,6 +76,7 @@ struct DebugLogViewerCard: View {
 
     // MARK: - Controls
 
+    /// Level picker, Follow toggle, category picker, and search field.
     private var controls: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             HStack(spacing: DSSpace.s2) {
@@ -111,6 +126,11 @@ struct DebugLogViewerCard: View {
 
     // MARK: - List
 
+    /// The scrolling, filtered record list.
+    ///
+    /// Auto-scroll keys off `records.count`. Once the list is at `maxRecords`,
+    /// each poll appends and trims the same number of rows, the count stops
+    /// changing, and Follow no longer scrolls to new lines.
     private var logList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -150,6 +170,9 @@ struct DebugLogViewerCard: View {
         }
     }
 
+    /// One record: timestamp, level, category, and message on one line, with its
+    /// fields on a single truncated line below. Tapping toggles the expanded form
+    /// (source location plus one field per line).
     private func row(_ record: LogRecord) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s0) {
             HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
@@ -201,6 +224,8 @@ struct DebugLogViewerCard: View {
         }
     }
 
+    /// Visible / total counts, Copy Visible (the raw lines, as written), and
+    /// Clear View, which empties this list without touching the file.
     private var footer: some View {
         HStack {
             Text("\(filtered.count) of \(records.count) lines")
@@ -233,6 +258,8 @@ struct DebugLogViewerCard: View {
 
     // MARK: - Filtering
 
+    /// `records` after the level, category, and search filters. Recomputed on
+    /// every access; at `maxRecords` that is cheap enough for a DEBUG view.
     private var filtered: [LogRecord] {
         let needle = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         return records.filter { record in
@@ -246,6 +273,7 @@ struct DebugLogViewerCard: View {
         }
     }
 
+    /// Orders levels for the minimum-level filter (debug lowest, error highest).
     private func severity(_ level: LogLevel) -> Int {
         switch level {
         case .debug: return 0
@@ -255,6 +283,7 @@ struct DebugLogViewerCard: View {
         }
     }
 
+    /// Text color for a level label.
     private func color(for level: LogLevel) -> Color {
         switch level {
         case .debug: return .secondary
@@ -267,7 +296,7 @@ struct DebugLogViewerCard: View {
     // MARK: - Tailing
 
     /// Reads whatever has been appended since the last tick and appends the
-    /// parsed records.
+    /// parsed records, dropping the oldest past `maxRecords`.
     private func pollOnce() async {
         let snapshot = cursor
         let result = await Task.detached(priority: .utility) {
@@ -299,6 +328,15 @@ struct DebugLogViewerCard: View {
     /// `nonisolated` because the module defaults to `MainActor` isolation and this
     /// is called from `Task.detached` precisely so the file read never blocks the
     /// UI.
+    ///
+    /// `planRead` advances the cursor's offset before the bytes are read, so a
+    /// failed open, seek, or read, or a chunk that is not valid UTF-8 (for
+    /// example a priming window that starts inside a multi-byte character),
+    /// skips that range for good rather than retrying it.
+    ///
+    /// - Parameter cursor: The caller's current cursor (a copy).
+    /// - Returns: The advanced cursor and the complete lines read; a trailing
+    ///   partial line stays in the cursor's carry for the next poll.
     nonisolated private static func readNewLines(cursor: LogTailCursor) -> (cursor: LogTailCursor, lines: [String]) {
         var cursor = cursor
         guard let url = Log.exportLogFile(),

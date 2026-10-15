@@ -16,6 +16,13 @@ import Foundation
 /// receive session through command execution.
 protocol AsyncBotCommand: BotCommand {
     /// Executes the command and returns the reply, or nil to stay silent.
+    ///
+    /// - Parameters:
+    ///   - message: The whitespace-trimmed chat line, trigger included.
+    ///   - context: Who sent it. Only called when the dispatcher has a
+    ///     context; a context-less dispatch skips async commands entirely.
+    /// - Returns: The reply text, or `nil`. The dispatcher keeps the cooldown
+    ///   claimed even on `nil`, because the command may already have acted.
     func execute(message: String, context: BotCommandContext) async -> String?
 }
 
@@ -26,7 +33,7 @@ extension AsyncBotCommand {
     ///
     /// A synchronous caller cannot safely block on async work, so it receives
     /// nil. Production always routes this conformance through
-    /// BotCommandDispatcher.processMessageAsync.
+    /// `BotCommandDispatcher.processMessageReplyAsync`.
     func execute(message: String) -> String? {
         nil
     }

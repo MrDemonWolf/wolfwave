@@ -20,9 +20,13 @@ struct DeviceCodeView: View {
 
     // MARK: - Properties
 
+    /// The device-flow user code to type on twitch.tv/activate.
     let userCode: String
+    /// Activation page URL from Twitch (may already carry the device code).
     let verificationURI: String
+    /// Called after the code is copied (the copy itself is done by `CopyButton`).
     let onCopy: () -> Void
+    /// Called only when the activation URL actually opened in the browser.
     var onActivate: (() -> Void)? = nil
     /// When the code stops working. `nil` hides the countdown, which keeps
     /// call sites that don't track expiry (onboarding) unchanged.
@@ -30,6 +34,7 @@ struct DeviceCodeView: View {
     /// Starts a fresh device flow. Offered once `expiresAt` has passed.
     var onRequestNewCode: (() -> Void)?
 
+    /// Disables the code-change spring under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
@@ -104,8 +109,9 @@ struct DeviceCodeView: View {
 
     // MARK: - Expiry
 
-    /// "Expires in about N min", re-evaluated every few seconds, turning into
-    /// a "Get a new code" button once the code is dead.
+    /// "Expires in about N min", re-evaluated every five seconds, turning into
+    /// a "Get a new code" button once the code is dead (the button only shows
+    /// when `onRequestNewCode` is set).
     private func expiryRow(_ expiresAt: Date) -> some View {
         TimelineView(.periodic(from: .now, by: 5)) { context in
             let remaining = expiresAt.timeIntervalSince(context.date)

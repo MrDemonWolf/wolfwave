@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
+/** Parsed `tokens.json`, the single source every output below is derived from. */
 const tokens = JSON.parse(
   readFileSync(resolve(ROOT, "design-system/tokens.json"), "utf8")
 );
@@ -511,12 +512,15 @@ function generateDocsWidgetThemes(): string {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+/** Upper-cases the first character (`fooBar` to `FooBar`) for Swift type names. */
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+/** camelCase to kebab-case, used for CSS custom property names. */
 function kebab(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
+/** Prefixes `x` when a token key starts with a digit, since Swift identifiers cannot (`2xl` becomes `x2xl`). */
 function safeIdent(s: string): string {
   // Swift identifiers cannot start with a digit. Prefix with "x" if needed.
   return /^[0-9]/.test(s) ? `x${s}` : s;

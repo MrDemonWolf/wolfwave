@@ -22,7 +22,10 @@ enum Pasteboard {
 
     /// Replaces the general pasteboard contents with `string` as plain text.
     ///
-    /// - Parameter string: The text to place on the pasteboard.
+    /// - Parameters:
+    ///   - string: The text to place on the pasteboard.
+    ///   - sensitive: When `true` (tokens), schedules a clear after
+    ///     `sensitiveLifetime`, skipped if anything else was copied meanwhile.
     /// - Returns: `true` if the write succeeded.
     @discardableResult
     static func copy(_ string: String, sensitive: Bool = false) -> Bool {
@@ -42,6 +45,11 @@ enum Pasteboard {
 
     /// Clears only the value this app wrote. A user's newer clipboard contents
     /// must never be erased by the delayed sensitive-value cleanup.
+    ///
+    /// Requires both the change count and the string to still match, so a
+    /// re-copy of the same text by the user (new change count) is also kept.
+    ///
+    /// - Returns: `true` when the pasteboard was cleared.
     @discardableResult
     static func clearIfUnchanged(
         _ expectedString: String,

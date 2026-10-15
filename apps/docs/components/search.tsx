@@ -14,6 +14,7 @@ import { useDocsSearch } from 'fumadocs-core/search/client';
 import { useI18n } from 'fumadocs-ui/contexts/i18n';
 import { basePath } from '@/lib/site';
 
+/** Static (client-side) search dialog backed by the index served from `app/api/search/route.ts`. */
 export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n(); // (optional) for i18n
   const { search, setSearch, query } = useDocsSearch({

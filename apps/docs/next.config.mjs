@@ -1,5 +1,6 @@
 import { createMDX } from "fumadocs-mdx/next";
 
+// Static export for GitHub Pages; basePath logic mirrors `getAssetPath` in lib/utils.ts.
 const withMDX = createMDX();
 // Resolve basePath: default to "/wolfwave" (GitHub Pages project path).
 // Set NEXT_PUBLIC_BASE_PATH="" to opt out (local dev). Any other value overrides.

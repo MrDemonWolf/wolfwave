@@ -29,7 +29,8 @@ extension AppConstants {
         /// is 10s; this mirrors it so the watchdog still arms safely.
         static let keepaliveDefaultTimeoutSeconds: TimeInterval = 10.0
 
-        /// Maximum length for bot chat messages (Twitch limit)
+        /// Maximum length for bot chat messages (Twitch limit). Measured in Unicode
+        /// scalars, as Twitch counts it; see `String.truncatedForChat()`.
         static let maxMessageLength = 500
 
         /// Truncation suffix appended when a message exceeds `maxMessageLength`

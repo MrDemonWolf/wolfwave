@@ -179,6 +179,7 @@ final class LinkResolverServiceTests: XCTestCase {
 
 // MARK: - Test Helpers
 
+/// Test-only helper composing the production URL extraction and service detection.
 extension LinkResolverService {
     /// Per-service detection for a chat message, through the production
     /// entry points: ``extractURL(from:)`` finds the first supported URL and

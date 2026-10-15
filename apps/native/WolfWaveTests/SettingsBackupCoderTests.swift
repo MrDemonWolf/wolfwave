@@ -119,6 +119,8 @@ struct SettingsBackupCoderTests {
 
     // MARK: - Round trip
 
+    /// Encode then decode keeps each value's tagged type (bool, int, double, string, raw
+    /// `Data`), including the portable collections, plus the format and schema version.
     @MainActor
     @Test func roundTripPreservesValueTypes() throws {
         let keys = AppConstants.UserDefaults.self
@@ -434,6 +436,8 @@ struct SettingsBackupCoderTests {
         #expect(plan.ignoredKeyCount == 0)
     }
 
+    /// A value with the wrong tagged shape for its preference (a string for a bool, a double
+    /// for an int, and so on) is dropped from the apply plan and counted as ignored.
     @Test func applyPlanRejectsMismatchedTypesForEverySupportedShape() {
         let keys = AppConstants.UserDefaults.self
         var backup = makeBackup(snapshot: [:])
@@ -463,6 +467,9 @@ struct SettingsBackupCoderTests {
         )
     }
 
+    /// Strings that are not a known picker option or list member (dock visibility, update
+    /// channel, widget theme, audience, stats parts) are ignored rather than stored, because an
+    /// unknown tag would trap the picker.
     @Test func applyPlanRejectsUnknownPickerAndStringListValues() {
         let keys = AppConstants.UserDefaults.self
         var backup = makeBackup(snapshot: [:])
@@ -490,6 +497,9 @@ struct SettingsBackupCoderTests {
         )
     }
 
+    /// Numbers that the matching Settings control cannot offer (a queue size of 6, a
+    /// vote-skip window of 45 s, and similar) are ignored, so importing cannot put a control
+    /// into a state it cannot show.
     @Test func applyPlanRejectsNumericValuesSettingsControlsCannotRepresent() {
         let keys = AppConstants.UserDefaults.self
         var backup = makeBackup(snapshot: [:])
@@ -518,8 +528,11 @@ struct SettingsBackupCoderTests {
 
 }
 
+/// Apply-plan normalization tests, split out of the main suite body.
 extension SettingsBackupCoderTests {
 
+    /// Imported commands and blocklist entries are cleaned on the way in: triggers gain a
+    /// single leading `!` and lowercase, aliases lose `!`, and blocklist values are trimmed.
     @Test func applyPlanNormalizesCustomCommandsAndBlocklist() throws {
         let keys = AppConstants.UserDefaults.self
         let command = CustomCommand(
@@ -578,6 +591,9 @@ extension SettingsBackupCoderTests {
         #expect(commands[1].aliases == "salute")
     }
 
+    /// A command list that is well-formed JSON but unusable is dropped whole: blank trigger,
+    /// bad alias, duplicate trigger, duplicate id, off-step or out-of-range cooldown, and
+    /// non-finite cooldowns.
     @Test func applyPlanRejectsSemanticallyInvalidCustomCommands() throws {
         let keys = AppConstants.UserDefaults.self
         let sharedID = UUID()
@@ -612,6 +628,8 @@ extension SettingsBackupCoderTests {
         #expect(CustomCommand.normalizedForImport([nonfinite]) == nil)
     }
 
+    /// A blocklist with a blank value, a duplicate after normalization, or a repeated id is dropped
+    /// whole.
     @Test func applyPlanRejectsSemanticallyInvalidBlocklist() throws {
         let keys = AppConstants.UserDefaults.self
         let sharedID = UUID()

@@ -31,6 +31,13 @@ import SwiftUI
 extension Binding where Value == Int {
 
     /// Renders as `fallback` when the stored value is not one of `allowed`.
+    ///
+    /// - Parameters:
+    ///   - allowed: The picker's tag set. Pass every tag, or a valid choice will
+    ///     render as `fallback`.
+    ///   - fallback: Shown when the stored value is not in `allowed`. Should itself
+    ///     be one of `allowed`.
+    /// - Returns: A binding whose getter is sanitized and whose setter writes through.
     func snapped(to allowed: [Int], fallback: Int) -> Binding<Int> {
         Binding(
             get: { Preferences.resolveAllowed(wrappedValue, allowed: Set(allowed), default: fallback) },
@@ -42,6 +49,11 @@ extension Binding where Value == Int {
 extension Binding where Value == Double {
 
     /// Clamps into `range`; a non-finite stored value renders as `fallback`.
+    ///
+    /// - Parameters:
+    ///   - range: The slider's bounds.
+    ///   - fallback: Shown for NaN or infinity, where clamping has no answer.
+    /// - Returns: A binding whose getter is sanitized and whose setter writes through.
     func clamped(to range: ClosedRange<Double>, fallback: Double) -> Binding<Double> {
         Binding(
             get: { Preferences.resolveClamped(wrappedValue, range: range, default: fallback) },

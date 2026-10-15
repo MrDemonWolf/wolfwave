@@ -14,6 +14,7 @@ struct OnboardingDiscordStepView: View {
 
     // MARK: - Properties
 
+    /// The `discordPresenceEnabled` preference, owned by `OnboardingView`.
     @Binding var presenceEnabled: Bool
 
     // MARK: - Body
@@ -39,6 +40,8 @@ struct OnboardingDiscordStepView: View {
                         controlSize: .regular,
                         accessibilityLabel: "Enable Discord Status",
                         accessibilityIdentifier: "onboardingDiscordToggle",
+                        // The binding only stores the preference; this post is what
+                        // tells AppDelegate to start or stop Discord Rich Presence now.
                         onChange: { newValue in
                             NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: newValue)
                         }

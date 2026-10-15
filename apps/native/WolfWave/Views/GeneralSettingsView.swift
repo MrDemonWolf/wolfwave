@@ -16,10 +16,19 @@ import SwiftUI
 /// has no jump-nav rail; it is short enough to scroll directly.)
 struct GeneralSettingsView: View {
 
+    // MARK: - Properties
+
+    /// Called when a "Configure" row in the integrations dashboard is tapped.
+    /// `SettingsView` maps the target to a sidebar section; the default no-op
+    /// keeps previews self-contained.
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
 
+    /// Master music-tracking switch. Read here only to drive the header chip;
+    /// the toggle itself lives in `MusicMonitorSettingsView`.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
+
+    // MARK: - Body
 
     var body: some View {
         ScrollView {
@@ -47,6 +56,7 @@ struct GeneralSettingsView: View {
 
     // MARK: - Header
 
+    /// Pane title plus a "Music on" / "Music off" chip mirroring `trackingEnabled`.
     private var header: some View {
         SectionHeaderWithStatus(
             title: "General",

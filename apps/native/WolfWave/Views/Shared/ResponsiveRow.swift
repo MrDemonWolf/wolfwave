@@ -13,7 +13,8 @@ import SwiftUI
 ///
 /// Used by the History & Stats dashboard to pair cards (summary + today's top
 /// track, the two charts, retention + actions) into two columns on a wide
-/// settings window while stacking them on a narrow one.
+/// settings window while stacking them on a narrow one. The Discord pane uses
+/// it too, for its controls beside the live presence preview.
 ///
 /// The wide (`HStack`) candidate declares a `minWidth` floor so `ViewThatFits`
 /// only selects it when the pane is genuinely wide enough. Without that floor,
@@ -33,11 +34,18 @@ struct ResponsiveRow<Left: View, Right: View>: View {
     /// Gap between the two columns, and between the stacked views when collapsed.
     let spacing: CGFloat
 
+    /// Builds the leading (or top, when stacked) view.
     private let left: () -> Left
+    /// Builds the trailing (or bottom, when stacked) view.
     private let right: () -> Right
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - floor: Minimum width for the two-column layout.
+    ///   - spacing: Gap between the two views in either layout.
+    ///   - left: Leading view; top when stacked.
+    ///   - right: Trailing view; bottom when stacked.
     init(
         floor: CGFloat = DSDimension.HistoryStats.twoColumnFloor,
         spacing: CGFloat = AppConstants.SettingsUI.sectionSpacing,
@@ -52,6 +60,9 @@ struct ResponsiveRow<Left: View, Right: View>: View {
 
     // MARK: - Body
 
+    // Each closure is called once per candidate layout, so `left` / `right` are
+    // built twice per evaluation. Keep them cheap and free of side effects; state
+    // they own is not shared between the two candidates.
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: spacing) {

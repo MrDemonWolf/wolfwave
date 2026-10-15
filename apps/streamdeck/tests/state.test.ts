@@ -7,8 +7,10 @@ import {
   type WolfWaveState,
 } from "../src/wolfwave/state.js";
 
+/** A live connection with otherwise-default fields. */
 const connected: WolfWaveState = { ...initialState, phase: "connected" };
 
+/** Folding inbound frames into the state snapshot. Pure; no client or socket. */
 describe("reduce", () => {
   test("welcome marks the connection live and records the version", () => {
     const next = reduce(initialState, {
@@ -126,6 +128,7 @@ describe("reduce", () => {
   });
 });
 
+/** An unchanged fold must return the same object so subscribers can skip repaints. */
 describe("reference stability", () => {
   test("an unchanged fold returns the same object", () => {
     // This is what stops a per-second `progress`/`now_playing` re-emit from
@@ -160,6 +163,7 @@ describe("reference stability", () => {
   });
 });
 
+/** Phase transitions and which of them discard the track snapshot. */
 describe("withPhase", () => {
   test("is a no-op for the current phase", () => {
     expect(withPhase(connected, "connected")).toBe(connected);

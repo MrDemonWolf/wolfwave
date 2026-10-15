@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// The `UserFacingError` model: message composition, accessibility label and identifier, action
+/// ordering (primary first), docs-anchor "Learn more" handling, and wait-delay labels.
 final class UserFacingErrorTests: XCTestCase {
 
     // MARK: - Message Composition

@@ -17,17 +17,26 @@ import SwiftUI
 /// their own overlay needs an address and a token. Leading with these rows made
 /// a two-click setup look like a programming task.
 struct WebSocketCustomOverlayCard: View {
+    // MARK: - Properties
+
+    /// The network-address row slides in unless Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Shared server switch. While on, the port field is locked and the copy
+    /// buttons work; while off, copying is disabled.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    /// Masks the token and addresses on camera.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// Persisted WebSocket port; written only by `applyPort()`.
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
+    /// Port field text. Seeded from `storedPort` on appear; may hold an
+    /// uncommitted or invalid entry until `applyPort()` runs.
     @State private var portText: String = ""
 
     /// Result of the last port commit ("Saved" or "Not saved, kept X"), shown
@@ -48,8 +57,10 @@ struct WebSocketCustomOverlayCard: View {
     /// or the role separation in `WebSocketAuthToken` collapses.
     @State private var currentControlToken: String = ""
 
+    /// This Mac's LAN IPv4 address; `nil` hides the Network Address row.
     let localNetworkIP: String?
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
     /// `nil` until the token is loaded.
@@ -64,16 +75,22 @@ struct WebSocketCustomOverlayCard: View {
         return "ws://localhost:\(storedPort)/?token=\(currentToken)"
     }
 
+    /// LAN variant of `connectionURL`; `nil` without an IP or before the
+    /// token loads.
     private var networkConnectionURL: String? {
         guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
         return "ws://\(ip):\(storedPort)/?token=\(currentToken)"
     }
 
+    /// Whether `portText` parses as a port inside the allowed
+    /// `WebSocketServer.minPort ... maxPort` range.
     private var isPortValid: Bool {
         guard let port = UInt16(portText) else { return false }
         return port >= AppConstants.WebSocketServer.minPort
             && port <= AppConstants.WebSocketServer.maxPort
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

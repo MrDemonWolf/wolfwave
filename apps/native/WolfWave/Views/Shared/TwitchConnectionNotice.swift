@@ -54,10 +54,14 @@ struct TwitchConnectionNotice: View {
     /// which would otherwise pin this value type to the main actor and block the
     /// nonisolated unit tests from touching it.
     nonisolated enum State: Equatable {
+        /// Sign-in expired; reconnect needed.
         case expired
+        /// Twitch was never connected (or is not connected now).
         case disconnected
+        /// Connected with a valid sign-in; renders nothing.
         case ready
 
+        /// Maps the two flags to a state, with `reauthNeeded` taking priority.
         static func resolve(isConnected: Bool, reauthNeeded: Bool) -> State {
             if reauthNeeded { return .expired }
             if !isConnected { return .disconnected }
@@ -81,6 +85,12 @@ struct TwitchConnectionNotice: View {
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - isConnected: Whether Twitch chat is connected.
+    ///   - reauthNeeded: Whether the stored sign-in expired.
+    ///   - expiredMessage: Feature-specific copy for the expired state.
+    ///   - disconnectedMessage: Feature-specific copy for the never-connected state.
+    ///   - onReconnect: Optional reconnect handler; adds the reconnect button.
     init(
         isConnected: Bool,
         reauthNeeded: Bool,

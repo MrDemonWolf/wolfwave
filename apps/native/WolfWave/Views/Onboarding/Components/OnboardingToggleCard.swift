@@ -19,12 +19,18 @@ struct OnboardingToggleCard: View {
 
     // MARK: - Properties
 
+    /// SF Symbol name for the leading tile.
     let icon: String
+    /// Tint for the symbol and (washed out) the tile behind it.
     let iconColor: Color
     let title: String
     let subtitle: String
+    /// The setting the switch edits.
     @Binding var isOn: Bool
+    /// VoiceOver label for the switch. The switch's own label is hidden, so this
+    /// is the only name it has.
     let accessibilityLabel: String
+    /// UI-test identifier for the switch.
     let accessibilityIdentifier: String
 
     /// When `true` (default) the row draws its own bordered card. Set `false`
@@ -106,6 +112,9 @@ struct OnboardingTintedToggleShell: ViewModifier {
     /// Glow shadow vertical offset.
     let glowYOffset: CGFloat
 
+    /// Pads the content, then layers fill, hairline stroke, and glow. The on/off
+    /// change animates with a plain ease-in-out that does not check Reduce Motion
+    /// (it only fades color and shadow; nothing moves).
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
         return content
@@ -135,6 +144,9 @@ extension View {
     /// Wraps an onboarding smart-toggle row in the tinted card shell:
     /// neutral card when off, brand-tinted fill + 0.40 stroke + glow when on.
     /// Includes the row's `DSSpace.s5` padding and the on/off animation.
+    ///
+    /// The tint numbers are per-brand on purpose, so each caller passes its own;
+    /// see `OnboardingTintedToggleShell` for what each parameter controls.
     func onboardingTintedToggleShell(
         isOn: Bool,
         tint: Color,

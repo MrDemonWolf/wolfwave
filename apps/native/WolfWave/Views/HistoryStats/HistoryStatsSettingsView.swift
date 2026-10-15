@@ -13,7 +13,13 @@ import AppKit
 ///
 /// Two interlocked toggles: *Listening History* records plays to disk; *Stats &
 /// Charts* visualizes them and unlocks the `!stats` command. Stats can't be
-/// enabled until History is on, and turning History off cascades Stats off.
+/// enabled until History is on, and turning History off cascades Stats (and
+/// the `!stats` command) off. Both are blocked while Music Automation access
+/// is denied, since nothing could be recorded.
+///
+/// Owns its own centered scroll column (it bypasses the shell's
+/// `standardDetailScroll`). Data comes from `AppDelegate.historyService`,
+/// which is `@Observable`, so the dashboard updates live as plays land.
 struct HistoryStatsSettingsView: View {
 
     // MARK: - Navigation
@@ -31,44 +37,66 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - User Settings
 
+    /// Records plays to disk. Changes post `listeningHistorySettingChanged`
+    /// (see `handleHistoryChange`).
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)
     private var historyEnabled = false
 
+    /// Shows the dashboard band and unlocks `!stats` + Monthly Wrap.
     @AppStorage(AppConstants.UserDefaults.statsEnabled)
     private var statsEnabled = false
 
+    /// `!stats` chat command switch.
     @AppStorage(AppConstants.UserDefaults.statsCommandEnabled)
     private var statsCommandEnabled = false
 
+    /// Channel-wide `!stats` cooldown, in seconds.
     @AppStorage(AppConstants.UserDefaults.statsCommandGlobalCooldown)
     private var statsGlobalCooldown: Double = 15
 
+    /// Per-viewer `!stats` cooldown, in seconds.
     @AppStorage(AppConstants.UserDefaults.statsCommandUserCooldown)
     private var statsUserCooldown: Double = 15
 
+    /// Comma-separated extra triggers for `!stats`.
     @AppStorage(AppConstants.UserDefaults.statsCommandAliases)
     private var statsCommandAliases = ""
 
+    /// `StatsWindow` raw value the reply covers.
     @AppStorage(AppConstants.UserDefaults.statsCommandWindow)
     private var statsCommandWindow = StatsWindow.default.rawValue
 
+    /// Encoded `StatsPart` list (see `StatsPart.encode` / `decode`).
     @AppStorage(AppConstants.UserDefaults.statsCommandParts)
     private var statsCommandParts = StatsPart.encode(StatsPart.defaults)
 
+    /// Days of history to keep; `0` means forever.
     @AppStorage(AppConstants.UserDefaults.historyRetentionDays)
     private var historyRetentionDays = 0
 
+    /// Allowed retention values, matching the picker tags. A stored value
+    /// outside this list displays as Forever.
     fileprivate static let retentionOptions = [0, 7, 30, 90, 180, 365]
 
     // MARK: - State
 
+    /// Presents `MonthlyWrapView`.
     @State private var showWrapSheet = false
+    /// Confirm-before-clear alert.
     @State private var showClearAlert = false
+    /// Shown when `clearHistory()` couldn't finish removing the files.
     @State private var showClearFailureAlert = false
+    /// Confirm alert for a shorter retention that would delete existing plays.
     @State private var showRetentionAlert = false
+    /// Retention choice awaiting confirmation.
     @State private var pendingRetentionDays = 0
+    /// How many plays `pendingRetentionDays` would remove (for the alert title).
     @State private var pendingExpiredCount = 0
+    /// Music Automation grant. Seeded from the session cache, then re-probed
+    /// on appear and whenever the app becomes active.
     @State private var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
+    /// How many recent plays the list shows; grows by `recentPageStep` per
+    /// "Load more" and resets when History is turned off.
     @State private var visibleRecentCount: Int = AppConstants.History.recentDisplayCount
 
     /// Live Twitch connection state, mirrored from the shared service so the
@@ -90,7 +118,9 @@ struct HistoryStatsSettingsView: View {
     /// Source list for the segmented "Top" card.
     private enum TopListKind: String, CaseIterable, Identifiable {
         case artists, tracks, albums
+        /// Stable `ForEach` identity.
         var id: String { rawValue }
+        /// Segment title.
         var label: String {
             switch self {
             case .artists: return "Artists"
@@ -106,6 +136,7 @@ struct HistoryStatsSettingsView: View {
         AppDelegate.shared?.historyService
     }
 
+    /// The running app delegate (`nil` in previews).
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     /// `!stats` only fires when chat is connected and the sign-in hasn't expired.
@@ -114,6 +145,7 @@ struct HistoryStatsSettingsView: View {
         isTwitchConnected && !twitchReauthNeeded
     }
 
+    /// Current rollup, or `.empty` when the service isn't available.
     private var snapshot: StatsSnapshot {
         service?.snapshot ?? .empty
     }
@@ -177,6 +209,10 @@ struct HistoryStatsSettingsView: View {
         }
     }
 
+    // MARK: - Retention Actions
+
+    /// Picker setter for retention. A shorter window that would delete existing
+    /// plays asks first (`showRetentionAlert`); anything else applies at once.
     private func chooseRetentionDays(_ days: Int) {
         let shorter = days > 0 && (historyRetentionDays == 0 || days < historyRetentionDays)
         let count = service?.expiredRecordCount(retentionDays: days) ?? 0
@@ -189,6 +225,7 @@ struct HistoryStatsSettingsView: View {
         }
     }
 
+    /// Persists the retention and tells the service to prune now.
     private func applyRetentionDays(_ days: Int) {
         historyRetentionDays = days
         service?.setRetentionDays(days)
@@ -288,6 +325,7 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Intro
 
+    /// One-line privacy promise above the toggles.
     private var intro: some View {
         Text("WolfWave can remember what you play, kept on this Mac, never uploaded.")
             .font(.system(size: DSFont.Size.body))
@@ -297,6 +335,8 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Toggles
 
+    /// Listening History + Show Stats & Charts switches. Both disable while
+    /// Music access is denied; Stats also needs History on.
     private var togglesCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
@@ -332,6 +372,7 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Summary
 
+    /// This week / Today / All time play counts with listening time.
     private var summaryCard: some View {
         HStack(spacing: 0) {
             StatTile(
@@ -412,9 +453,7 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Top Leaderboard
 
-    /// One card whose segmented header switches between top artists, tracks,
-    /// and albums. Replaces the old artists-only card and surfaces the
-    /// `topTracks` / `topAlbums` lists that were computed but never displayed.
+    /// The leaderboard for the selected segment.
     private var topListItems: [CountedItem] {
         switch topListKind {
         case .artists: return snapshot.topArtists
@@ -423,6 +462,9 @@ struct HistoryStatsSettingsView: View {
         }
     }
 
+    /// One card whose segmented header switches between top artists, tracks,
+    /// and albums. Replaces the old artists-only card and surfaces the
+    /// `topTracks` / `topAlbums` lists that were computed but never displayed.
     private var topListCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             HStack(spacing: DSSpace.s3) {
@@ -453,6 +495,7 @@ struct HistoryStatsSettingsView: View {
         .cardStyleUnpadded()
     }
 
+    /// Up to five ranked rows, or a "Not enough plays" note.
     @ViewBuilder
     private var topListContent: some View {
         let items = topListItems
@@ -524,6 +567,7 @@ struct HistoryStatsSettingsView: View {
         .cardStyleUnpadded()
     }
 
+    /// Centered icon + title + subtitle filling the recent card's reserved height.
     @ViewBuilder
     private func emptyStateContent(title: String, subtitle: String) -> some View {
         VStack(spacing: DSSpace.s2) {
@@ -540,6 +584,8 @@ struct HistoryStatsSettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Newest-first list of the last `visibleRecentCount` plays in a fixed-height
+    /// scroll box, with "Load more" while older plays remain.
     private var recentPlaysList: some View {
         // `records` is append-ordered (chronological), so newest-first is a
         // bounded reverse of the tail, not a full O(n log n) sort of up to
@@ -606,6 +652,8 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - !stats Command
 
+    /// `!stats` switch, the Twitch connection gate, and (when on) cooldowns,
+    /// aliases, window, facts, and a live preview of the reply.
     private var statsCommandCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack(spacing: DSSpace.s3) {
@@ -773,7 +821,9 @@ struct HistoryStatsSettingsView: View {
         )
     }
 
-    /// Builds the live preview from the real listening history.
+    /// Builds the live preview from the real listening history. The session
+    /// window uses Twitch's live-since time; while offline the service falls
+    /// back to today.
     private var statsPreview: String {
         let window = StatsWindow(rawValue: statsCommandWindow) ?? .default
         let sessionStart = appDelegate?.twitchService?.currentStreamLiveSince
@@ -920,7 +970,8 @@ struct HistoryStatsSettingsView: View {
     // MARK: - Helpers
 
     /// Cascades Stats off when History is turned off, then notifies the app
-    /// delegate so recording starts or stops.
+    /// delegate so recording starts or stops. Turning History on while Music
+    /// access is denied is reverted without posting anything.
     private func handleHistoryChange(_ enabled: Bool) {
         if enabled, musicPermission == .denied {
             historyEnabled = false

@@ -43,6 +43,8 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertEqual(delays.value, [.milliseconds(250), .milliseconds(500)])
     }
 
+    /// An invalid token triggers exactly one refresh, and the refreshed token is validated
+    /// again before `onValid` is called with it.
     func testInvalidTokenRefreshesOnceThenRevalidatesReplacement() async {
         let currentToken = ThreadSafeBox("token-a")
         let validatedTokens = ThreadSafeBox<[String]>([])
@@ -133,6 +135,8 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertTrue(acceptedTokens.value.isEmpty)
     }
 
+    /// Cancelling while `validate` is suspended yields `.cancelled` and never calls `onValid`, even
+    /// though validation returned `.valid`.
     func testCancellationDuringValidateSuppressesValidCallback() async {
         let gate = TokenValidationSuspensionGate()
         let acceptedTokens = ThreadSafeBox<[String]>([])
@@ -166,6 +170,7 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertTrue(acceptedTokens.value.isEmpty)
     }
 
+    /// Cancelling during the retry backoff sleep stops the run after the first validation attempt.
     func testCancellationDuringRetrySleepStopsBeforeNextValidation() async {
         let gate = TokenValidationSuspensionGate()
         let validationCount = ThreadSafeBox(0)
@@ -197,6 +202,8 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertEqual(validationCount.value, 1)
     }
 
+    /// Cancelling while `onValid` is suspended reports `.cancelled`, not success, and the
+    /// callback records nothing.
     func testCancellationDuringOnValidCannotReportSuccess() async {
         let gate = TokenValidationSuspensionGate()
         let acceptedTokens = ThreadSafeBox<[String]>([])
@@ -229,6 +236,8 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertTrue(acceptedTokens.value.isEmpty)
     }
 
+    /// If the stored token changes while validation is suspended, the result is `.superseded` and
+    /// `onValid` does not run for the stale token.
     func testOnValidRunsOnlyForStillCurrentToken() async {
         let gate = TokenValidationSuspensionGate()
         let currentToken = ThreadSafeBox("token-a")
@@ -264,6 +273,9 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertTrue(acceptedTokens.value.isEmpty)
     }
 
+    /// The schedule validates immediately and then sleeps 3600 s between rounds. When the
+    /// credential revision changes, the new account's first valid result is flagged as the first
+    /// for that account.
     func testScheduleValidatesImmediatelyHourlyAndResetsForAccountRevision() async {
         let credential = ThreadSafeBox<Runner.Credential?>(
             Runner.Credential(token: "token-a", revision: 1)
@@ -437,6 +449,9 @@ final class TwitchTokenValidationLifecycleTests: XCTestCase {
         XCTAssertEqual(accepted.value, ["token-a"])
     }
 
+    /// When the hourly check rejects the old token and a refresh rotates it within the same
+    /// account revision, `onValid` receives the new token (not first-for-account) plus the token it
+    /// rotated from.
     func testHourlyValidationPropagatesSameAccountTokenRotation() async {
         let credential = ThreadSafeBox<Runner.Credential?>(
             Runner.Credential(token: "token-a", revision: 7)

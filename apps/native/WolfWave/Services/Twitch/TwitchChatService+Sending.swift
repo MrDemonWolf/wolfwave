@@ -8,11 +8,14 @@
 
 import Foundation
 
+/// Outbound chat: plain messages, threaded replies, announcements, and the
+/// bounded retry queue for transient send failures. Every send is bound to the
+/// channel session that requested it.
 extension TwitchChatService {
 
     // MARK: - Message Sending
 
-    /// Sends a message to the current channel.
+    /// Sends a message to the current channel. No-op when no channel is joined.
     func sendMessage(_ message: String) async {
         await sendMessage(message, replyTo: nil)
     }
@@ -287,8 +290,8 @@ extension TwitchChatService {
     /// Pure and `nonisolated` so it is unit-testable without spinning up the
     /// actor. Appends `pending` then trims the front until the queue is at most
     /// `cap` entries, returning the number of dropped (oldest) messages so the
-    /// caller can log. With `cap <= 0` everything but nothing is kept (the new
-    /// message itself is still appended, then trimmed to the cap).
+    /// caller can log. With `cap <= 0` the queue ends up empty: the new
+    /// element is appended, then trimmed away with everything else.
     nonisolated static func appendCapped<Element>(
         _ pending: Element, to queue: inout [Element], cap: Int
     ) -> Int {

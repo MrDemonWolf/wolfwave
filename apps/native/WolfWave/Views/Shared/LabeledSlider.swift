@@ -9,17 +9,26 @@
 import SwiftUI
 
 /// Slider row with a leading label and a trailing live value readout. Used
-/// by the Twitch cooldown rows so the user can see "15s" change as they
-/// drag, instead of a bare slider with no numeric feedback.
+/// by the cooldown rows (through ``CooldownSliderPair``) so the user can see
+/// "15s" change as they drag, instead of a bare slider with no numeric feedback.
+///
+/// VoiceOver reads the row as one element: the label, then the formatted value.
 struct LabeledSlider<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatingPoint {
 
     // MARK: - Properties
 
+    /// Leading label; also the VoiceOver label.
     let label: String
+    /// The stored value. Read through `displayValue(_:in:)`; written unchanged.
     @Binding var value: V
+    /// Slider bounds.
     let range: ClosedRange<V>
+    /// Slider increment.
     var step: V.Stride = 1
+    /// Formats the readout and the VoiceOver value. Only ever receives a
+    /// clamped, finite value.
     var format: (V) -> String = { String(Int($0)) }
+    /// UI-test identifier. Defaults to `labeledSlider.<label>`.
     var accessibilityIdentifier: String? = nil
 
     // MARK: - Body

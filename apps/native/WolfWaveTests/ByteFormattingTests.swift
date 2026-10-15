@@ -9,6 +9,7 @@
 import XCTest
 @testable import WolfWave
 
+/// `ByteFormatting` output is never empty and picks KB or MB by size.
 @MainActor
 final class ByteFormattingTests: XCTestCase {
 

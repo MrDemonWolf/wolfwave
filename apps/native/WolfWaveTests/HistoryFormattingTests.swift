@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `HistoryFormatting` listening-time and play-count strings, including negative, non-finite, and
+/// overflowing inputs that must not trap.
 @MainActor
 final class HistoryFormattingTests: XCTestCase {
 

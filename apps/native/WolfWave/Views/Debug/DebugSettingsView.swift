@@ -25,6 +25,11 @@ import SwiftUI
 /// ships zero footprint in release. The entire view compiles out under
 /// `#if DEBUG`.
 struct DebugSettingsView: View {
+
+    // MARK: - Properties
+
+    // Preference toggles, read only to fill the Preferences table of Copy
+    // Diagnostics. Defaults must match the ones the owning panes use.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled) private var musicTrackingEnabled = true
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) private var discordPresenceEnabled = false
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) private var widgetHTTPEnabled = false
@@ -76,6 +81,7 @@ struct DebugSettingsView: View {
 
     // MARK: - Header
 
+    /// Pane title, subtitle, and the Copy Diagnostics button.
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -100,6 +106,8 @@ struct DebugSettingsView: View {
 
     // MARK: - Warning Banner
 
+    /// Warning shown above the Active Controls group, whose buttons act on the
+    /// running app (services, windows, stored state).
     private var warningBanner: some View {
         CalloutBanner(
             "These tools mutate live state. Use at your own risk.",
@@ -109,6 +117,7 @@ struct DebugSettingsView: View {
 
     // MARK: - Group label
 
+    /// Eyebrow that introduces a group of cards. Matches the rail's group titles.
     private func groupLabel(_ title: String) -> some View {
         Text(title)
             .sectionEyebrow()
@@ -124,8 +133,12 @@ struct DebugSettingsView: View {
     /// is a synchronous `SecItemCopyMatching`; doing both on `@MainActor` beach-
     /// balled the pane on a large log, which is the exact stall
     /// `DebugLogsAndEventsCard` already documents moving off-main to avoid.
+    ///
+    /// Fire and forget: the copy lands a moment after the click, and there is no
+    /// visible confirmation beyond the `devTools` log line.
     private func copyDiagnostics() {
         // Live connection state, read on the main actor where the services live.
+        // Captured before the detached hop so the snapshot reflects click time.
         let twitchConnected = AppDelegate.shared?.twitchService?.currentlyConnected == true
         let discordConnection = (AppDelegate.shared?.discordService?.stateSnapshot
             ?? .disconnected).rawValue
@@ -188,6 +201,8 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
             sections: [.components, .tokens])
     ]
 
+    // Raw values are not shown; they feed the rail's accessibility identifiers
+    // (`debugNav.<rawValue>`) and group ids, so treat them as stable.
     case inspectors
     case metrics
     case logViewer
@@ -197,6 +212,7 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
     case components
     case tokens
 
+    /// Visible label for the rail row and the section heading.
     var title: String {
         switch self {
         case .inspectors: return "State Inspectors"
@@ -210,6 +226,7 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
         }
     }
 
+    /// SF Symbol name for the rail row.
     var icon: String {
         switch self {
         case .inspectors: return "magnifyingglass"

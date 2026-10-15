@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// Homebrew vs DMG detection from an app bundle path (Caskroom/Cellar on Apple Silicon, Intel, and
+/// custom prefixes).
 @MainActor
 final class BundleInstallMethodTests: XCTestCase {
 

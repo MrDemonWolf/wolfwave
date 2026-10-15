@@ -41,8 +41,13 @@ nonisolated protocol KeychainBackend: Sendable {
 /// Tests must never initialize or query the user's real Keychain: unsigned test
 /// products have unstable identities that trigger ACL prompts and can corrupt
 /// the trusted-application entry for the signed development app.
+///
+/// `@unchecked Sendable` because ``store`` is only touched under ``lock``.
+/// Never throws; the `throws` signatures exist only to satisfy the protocol.
 nonisolated final class InMemoryKeychainBackend: KeychainBackend, @unchecked Sendable {
+    /// Account name to stored value. Guarded by ``lock``.
     private var store: [String: String] = [:]
+    /// Serializes every read and write of ``store``.
     private let lock = NSLock()
 
     func save(account: String, value: String) throws {
@@ -92,6 +97,10 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     /// Probed once at init and cached.
     private let useDataProtectionKeychain: Bool
 
+    /// Creates a backend scoped to `service` and probes the data-protection
+    /// keychain once (a real add + delete against the Keychain).
+    ///
+    /// - Parameter service: `kSecAttrService` value for every item.
     init(service: String) {
         self.service = service
         self.useDataProtectionKeychain = SystemKeychainBackend.probeDataProtectionKeychain(service: service)
@@ -146,6 +155,9 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
 
     /// Returns the stored string for `account` via `SecItemCopyMatching`, or nil
     /// when absent. Other Security errors retain their OSStatus for callers.
+    ///
+    /// - Throws: `loadFailed(status)` for a Security error, or `invalidData`
+    ///   when the item exists but is not UTF-8.
     func load(account: String) throws -> String? {
         var query = queryFor(account: account)
         query[kSecReturnData as String] = true
@@ -219,9 +231,13 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     }
 
     /// One-shot capability probe: try to add + delete a throwaway item with the
-    /// data-protection flag set. If that yields `errSecMissingEntitlement`, the
-    /// binary lacks the team-ID-bound entitlement needed for the modern backend
-    /// (typically ad-hoc signing in CI), and we fall back to the legacy keychain.
+    /// data-protection flag set. Success or `errSecDuplicateItem` means the
+    /// modern backend works. Any other status (in practice
+    /// `errSecMissingEntitlement`, when the binary lacks the team-ID-bound
+    /// entitlement, typically ad-hoc signing in CI) falls back to the legacy
+    /// keychain. The probe item is deleted only on the supported path.
+    ///
+    /// - Returns: Whether to set `kSecUseDataProtectionKeychain` on queries.
     private static func probeDataProtectionKeychain(service: String) -> Bool {
         let probeAccount = "__wolfwave_dp_probe__"
         let probeData = Data("probe".utf8)

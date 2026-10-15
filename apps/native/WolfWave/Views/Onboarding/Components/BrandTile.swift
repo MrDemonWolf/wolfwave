@@ -8,11 +8,6 @@
 
 import SwiftUI
 
-/// 56×56 rounded-square brand tile used as the visual anchor for each onboarding integration step.
-///
-/// Renders a flat brand-colored fill (`Color` or `LinearGradient`) with a soft
-/// brand-tinted shadow glow, and centers an arbitrary glyph (typically `Image`
-/// at white tint). No inner-highlight bevel; flat by default per brand rules.
 // MARK: - BrandTileGlyph
 
 /// Glyph sizing standards for `BrandTile`. Lives in a non-generic enum because
@@ -33,6 +28,11 @@ enum BrandTileGlyph {
 
     /// A single-tint gradient `BrandTile` with a white SF Symbol glyph — the
     /// shape shared by the Preferences, Permissions, and Notifications steps.
+    ///
+    /// - Parameters:
+    ///   - systemName: SF Symbol name for the glyph.
+    ///   - tint: Fill color (fading slightly toward the bottom-trailing corner)
+    ///     and shadow glow color.
     static func symbol(_ systemName: String, tint: Color) -> some View {
         BrandTile(
             background: AnyShapeStyle(
@@ -64,12 +64,24 @@ enum BrandTileGlyph {
 
 // MARK: - BrandTile
 
+/// Rounded-square brand tile used as the visual anchor for each onboarding
+/// integration step, sized by `AppConstants.OnboardingUI.brandTileSize`.
+///
+/// Renders a flat brand-colored fill (`Color` or `LinearGradient`) with a soft
+/// brand-tinted shadow glow, and centers an arbitrary glyph (typically `Image`
+/// at white tint). No inner-highlight bevel; flat by default per brand rules.
+/// Decorative: hidden from VoiceOver, so the step title carries the meaning.
+/// Most call sites go through `BrandTileGlyph.symbol(_:tint:)` or pass
+/// `BrandTileGlyph.asset(_:)` as the glyph rather than building one by hand.
 struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
 
     // MARK: - Properties
 
+    /// Fill style: a flat brand `Color` or a gradient.
     let background: Background
+    /// Tint for the drop-shadow glow, usually the brand color.
     let glowColor: Color
+    /// Centered content, normally a white symbol or template logo.
     let glyph: Glyph
 
     // MARK: - Body

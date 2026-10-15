@@ -15,8 +15,12 @@ import SwiftUI
 /// The queue is intentionally not persisted. Each stream session starts fresh.
 /// MainActor-isolated (project default isolation); the `NSLock` is retained as a
 /// defense-in-depth guard around the mutation methods. Consumers (the queue
-/// settings view) poll the public state via a refresh timer rather than
+/// settings view, `SongRequestService`, the overlay broadcast) refresh on the
+/// `.songRequestQueueChanged` notification every mutator posts, rather than
 /// observing it reactively, so this type does not adopt the `@Observable` macro.
+///
+/// Requester names are compared case-insensitively everywhere (limits,
+/// fair-share rounds, boost, positions).
 final class SongRequestQueue {
     // MARK: - Properties
 
@@ -34,7 +38,9 @@ final class SongRequestQueue {
     /// Lock for thread-safe access to queue state.
     private let lock = NSLock()
 
-    /// Maximum number of items allowed in the queue.
+    /// Maximum number of items allowed in the queue. Read from preferences on
+    /// every access, so a settings change applies to the next add. The same
+    /// cap applies separately to the approval pen.
     var maxQueueSize: Int {
         Preferences.int(AppConstants.UserDefaults.songRequestMaxQueueSize, default: AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize)
     }
@@ -63,17 +69,30 @@ final class SongRequestQueue {
 
     /// Result of attempting to add a song to the queue.
     enum AddResult {
+        /// Inserted. `position` is 1-based in the list it went into (the live
+        /// queue, or the approval pen for ``addPending(_:)``).
         case added(position: Int)
+        /// The list is at `max` items.
         case queueFull(max: Int)
+        /// The requester already has `max` songs queued or playing.
         case userLimitReached(max: Int)
+        /// The same song by the same requester is already queued, pending, or
+        /// playing.
         case alreadyInQueue
     }
 
+    /// Posts `.songRequestQueueChanged` with this queue as the object. Called
+    /// after the lock is released so observers can read the queue.
     private func postQueueChanged() {
         NotificationCenter.default.post(name: .songRequestQueueChanged, object: self)
     }
 
-    /// Add a song request to the end of the queue.
+    /// Add a song request to the queue.
+    ///
+    /// Goes at the tail, or at its fair-share / priority slot when those are on
+    /// (see ``fairShareInsertIndex(for:)``). Checks, in order: capacity, the
+    /// per-user limit (counting the requester's now-playing song), then
+    /// duplicates. Posts `.songRequestQueueChanged` even when rejected.
     ///
     /// - Parameters:
     ///   - item: The song request to add.
@@ -169,6 +188,9 @@ final class SongRequestQueue {
     /// Add a request to the approval holding pen. Capacity-capped by
     /// `maxQueueSize`; dedups the same song by the same user. Per-user throttling
     /// is left to the upstream command cooldowns.
+    ///
+    /// Pending items are FIFO; fair-share and priority ordering apply only when
+    /// an item is approved into the live queue (``addApproved(_:)``).
     /// ponytail: no per-user cap on pending; cooldowns + Clear All bound spam.
     @discardableResult
     func addPending(_ item: SongRequestItem) -> AddResult {
@@ -190,7 +212,8 @@ final class SongRequestQueue {
         return result
     }
 
-    /// Remove and return a pending item by ID (used when approving it).
+    /// Remove and return a pending item by ID (used when approving or declining
+    /// it). Posts `.songRequestQueueChanged` only when something was removed.
     func takePending(id: UUID) -> SongRequestItem? {
         let item: SongRequestItem? = lock.withLock {
             guard let index = pending.firstIndex(where: { $0.id == id }) else { return nil }
@@ -262,7 +285,9 @@ final class SongRequestQueue {
 
     /// Remove and return the next item from the front of the queue.
     ///
-    /// Sets `nowPlaying` to the dequeued item.
+    /// Sets `nowPlaying` to the dequeued item. Single-step alternative to the
+    /// ``peekNext()`` / ``commitNext(id:)`` pair; the app's playback path uses
+    /// the two-phase form, so this is used by tests.
     /// - Returns: The next song request, or nil if the queue is empty.
     @discardableResult
     func dequeue() -> SongRequestItem? {
@@ -276,9 +301,10 @@ final class SongRequestQueue {
         return item
     }
 
-    /// Remove all items from the queue and clear now-playing.
+    /// Remove all items from the queue, the approval pen, and now-playing.
     ///
-    /// - Returns: The number of items that were removed.
+    /// - Returns: The number of live-queue items removed. Pending items and the
+    ///   now-playing slot are cleared but not counted.
     @discardableResult
     func clear() -> Int {
         let count: Int = lock.withLock {
@@ -292,7 +318,9 @@ final class SongRequestQueue {
         return count
     }
 
-    /// Remove a specific item from the queue by its ID.
+    /// Remove a specific item from the live queue by its ID. Pending items and
+    /// now-playing are not searched. Posts `.songRequestQueueChanged` even when
+    /// the ID was not found.
     func remove(id: UUID) {
         lock.withLock {
             items.removeAll { $0.id == id }
@@ -304,6 +332,9 @@ final class SongRequestQueue {
     /// the bit-cheer "boost" feature. Boosting the user's *oldest* queued request
     /// (the one they've waited on longest) matches "move me up" intuition better
     /// than jumping their newest addition ahead of it.
+    ///
+    /// Ignores fair-share and priority: the boosted item goes to index 0, ahead
+    /// of everything.
     ///
     /// - Parameter username: Twitch username whose request should jump ahead.
     /// - Returns: The boosted item, or `nil` when the user has nothing queued.
@@ -327,7 +358,8 @@ final class SongRequestQueue {
     /// Get the queue positions for a specific user.
     ///
     /// - Parameter username: The Twitch username to look up.
-    /// - Returns: Array of (position, item) tuples for this user's requests.
+    /// - Returns: Array of (position, item) tuples for this user's requests,
+    ///   1-based, in queue order. Pending and now-playing are not included.
     func positions(for username: String) -> [(position: Int, item: SongRequestItem)] {
         lock.withLock {
             items.enumerated()
@@ -345,6 +377,7 @@ final class SongRequestQueue {
     }
 
     /// Clear the now-playing state (e.g., when song finishes and queue is empty).
+    /// Always posts `.songRequestQueueChanged`.
     func clearNowPlaying() {
         lock.withLock {
             nowPlaying = nil

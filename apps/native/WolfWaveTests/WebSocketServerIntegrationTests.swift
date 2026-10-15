@@ -18,6 +18,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     private static let overlayToken = String(repeating: "a", count: 64)
     private static let controlToken = String(repeating: "b", count: 64)
 
+    /// The server-to-client fields these tests read; every other field is ignored.
     private struct Frame: Decodable, Sendable {
         struct DataPayload: Decodable, Sendable {
             let track: String?
@@ -43,6 +44,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Helpers
 
+    /// A control client that connects before any handler exists gets an `unavailable` ack.
+    /// After `setCommandHandler`, the same connection's next command is handled and acked ok.
     func testCommandUsesHandlerInstalledAfterConnection() async throws {
         let (service, port) = try await startListeningService()
         let (session, client) = try makeControlClient(port: port)
@@ -126,6 +129,8 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         return (service, port)
     }
 
+    /// An overlay-role client (read-only token in the subprotocol) pointed at loopback `port`. The
+    /// caller resumes it.
     private func makeClient(port: UInt16) throws -> (URLSession, URLSessionWebSocketTask) {
         let url = try XCTUnwrap(URL(string: "ws://127.0.0.1:\(port)/"))
         let session = URLSession(configuration: .ephemeral)
@@ -230,6 +235,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// Closes the socket normally and invalidates its session.
     private func close(
         session: URLSession,
         task: URLSessionWebSocketTask
@@ -240,6 +246,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Server Lifecycle Tests
 
+    /// The server can listen, stop, and listen again (port 0, so each start picks a free port).
     func testServerRestartCycle() async {
         let service = makeService(port: 0)
         let firstListen = expectation(description: "first listen")

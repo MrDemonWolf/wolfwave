@@ -12,6 +12,7 @@ import XCTest
 
 // MARK: - RequestAudience
 
+/// `RequestAudience.permits(...)` for every audience level; mods and the broadcaster always pass.
 @MainActor
 final class RequestAudienceTests: WolfWaveTestCase {
 
@@ -88,6 +89,8 @@ final class RequestAudienceTests: WolfWaveTestCase {
 
 // MARK: - SongRequestPreset
 
+/// `SongRequestPreset.apply` writes the expected keys, and `current` reads them back (inferring
+/// Custom when settings were edited by hand).
 @MainActor
 final class SongRequestPresetTests: WolfWaveTestCase {
 
@@ -185,6 +188,8 @@ final class SongRequestPresetTests: WolfWaveTestCase {
 
 // MARK: - SongRequestLimits
 
+/// Per-user queue limits by Sub/VIP tier in Highest vs Stacked mode, including overflow saturation
+/// and fallback of non-positive stored values.
 @MainActor
 final class SongRequestLimitsTests: WolfWaveTestCase {
 
@@ -202,6 +207,7 @@ final class SongRequestLimitsTests: WolfWaveTestCase {
         try await super.tearDown()
     }
 
+    /// Writes the per-tier per-user request limits to the suite's defaults.
     private func setLimits(everyone: Int, sub: Int, vip: Int, mod: Int) {
         defaults.set(everyone, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
         defaults.set(sub, forKey: AppConstants.UserDefaults.songRequestLimitSubscriber)
@@ -303,6 +309,7 @@ final class SongRequestLimitsTests: WolfWaveTestCase {
 
 // MARK: - RedemptionStatus
 
+/// `RedemptionStatus`: which statuses show the settings re-auth banner, and raw-value round-trip.
 @MainActor
 final class RedemptionStatusTests: WolfWaveTestCase {
 

@@ -18,52 +18,74 @@ import SwiftUI
 ///   3. **Playlist**: show the source playlist, display style, name privacy.
 ///   4. **Behavior**: what the profile shows when stopped or paused.
 ///   5. **Preview**: mock Discord activity card driven by current settings.
+///
+/// The enable toggle posts `discordPresenceChanged`; every other setting change
+/// is debounced into one `discordPresenceSettingsChanged` so `DiscordRPCService`
+/// re-sends the presence with the new options. The preview reuses
+/// `DiscordPresenceBuilder` so it can't disagree with the real payload.
 struct DiscordSettingsView: View {
     // MARK: - User Settings
 
+    /// Master Rich Presence switch.
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var presenceEnabled = false
 
+    /// Master switch for both profile buttons.
     @AppStorage(AppConstants.UserDefaults.discordButtonsEnabled)
     private var buttonsEnabled = true
 
+    /// "Listen on Apple Music" button.
     @AppStorage(AppConstants.UserDefaults.discordButton1Enabled)
     private var button1Enabled = true
 
+    /// Cross-service song.link button.
     @AppStorage(AppConstants.UserDefaults.discordButton2Enabled)
     private var button2Enabled = true
 
+    /// Include the source playlist in the presence.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistEnabled)
     private var playlistEnabled = false
 
+    /// Show the real playlist name; off substitutes a generic label.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistShowName)
     private var playlistShowName = true
 
+    /// Where the playlist appears: on the state line or in the icon tooltip.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistStyle)
     private var playlistStyle: DiscordPlaylistStyle = .default
 
+    /// Keep an idle "Listening to WolfWave" activity instead of clearing.
     @AppStorage(AppConstants.UserDefaults.discordShowIdleStatus)
     private var showIdleStatus = true
 
+    /// Clear the track (rather than show it paused) while playback is paused.
     @AppStorage(AppConstants.UserDefaults.discordClearWhilePaused)
     private var clearWhilePaused = false
 
     // MARK: - State
 
+    /// Section and status transitions collapse under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Last known IPC state, from `discordStateChanged` plus a 10-second poll
+    /// of the service (see `.task` in `body`).
     @State private var connectionState: DiscordRPCService.ConnectionState = .disconnected
 
     /// Why the last connect attempt failed. Drives the status chip wording and
     /// the error banner, so a rejected handshake stops reading as "not running".
     @State private var connectionFailure: DiscordRPCService.ConnectionFailure = .none
+    /// Whether this build has a Discord client ID. Without one, presence can't
+    /// be enabled and only the "Not configured" banner shows.
     @State private var hasClientID = false
+    /// Latest track for the preview and button URLs. Starts as `.sample`, which
+    /// is never rendered as a track because `playbackMode` starts empty.
     @State private var nowPlaying: NowPlayingSnapshot = .sample
     /// What the preview card represents, driven by live playback notifications.
     /// Seeded from Apple Music's running state on appear, then kept in sync by
     /// `.nowPlayingChanged` (track present / paused / nil) and the Discord
     /// connection state.
     @State private var playbackMode: DiscordPreviewCard.Mode = .stopped
+    /// Pending debounced settings re-send; replaced on each change.
     @State private var settingsChangedTask: Task<Void, Never>?
 
     // MARK: - Body
@@ -145,6 +167,8 @@ struct DiscordSettingsView: View {
 
     // MARK: - Sections
 
+    /// Header + status chip, the enable toggle, and either the "Not
+    /// configured" banner or the current connection error.
     private var connectionSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             SectionHeaderWithStatus(
@@ -231,6 +255,8 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Profile buttons: the master toggle and, when on, one row per button
+    /// with its resolved URL.
     private var buttonsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             cardTitle("Profile Buttons", "Up to two buttons appear under your song on Discord.")
@@ -270,6 +296,7 @@ struct DiscordSettingsView: View {
         .transition(.opacity)
     }
 
+    /// Playlist toggle, display-style picker, and name-privacy toggle.
     private var playlistSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             cardTitle("Playlist", "Show the Apple Music playlist you're listening from.")
@@ -323,6 +350,7 @@ struct DiscordSettingsView: View {
         .transition(.opacity)
     }
 
+    /// Idle-status and clear-while-paused toggles.
     private var behaviorSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             cardTitle("When not playing", "Control what your profile shows when music stops or pauses.")
@@ -353,6 +381,8 @@ struct DiscordSettingsView: View {
         .transition(.opacity)
     }
 
+    /// Live mock of the profile card, plus a hint when the playlist is only
+    /// visible as the icon tooltip.
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
@@ -418,6 +448,7 @@ struct DiscordSettingsView: View {
         return whenMusicClosed ? .musicClosed : .stopped
     }
 
+    /// Preview header chip label for `previewMode`.
     private var previewStatusText: String {
         switch previewMode {
         case .playing:        return "Live"
@@ -429,6 +460,7 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Preview header chip tint for `previewMode`.
     private var previewStatusColor: Color {
         switch previewMode {
         case .playing:        return DSColor.success
@@ -490,6 +522,8 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Pane header chip label. While enabled but disconnected it names the
+    /// actual failure; with no failure recorded yet it reads "Connecting".
     private var statusChipText: String {
         switch connectionState {
         case .connected:    return "Connected"
@@ -508,6 +542,7 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Pane header chip tint, matching `statusChipText`.
     private var statusChipColor: Color {
         switch connectionState {
         case .connected:    return DSColor.success
@@ -516,6 +551,11 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Builds a preview pill through the same `resolveButton` the live presence
+    /// uses, so label overrides and URL validation (e.g. a `javascript:` URL
+    /// is dropped) match exactly. Static for tests.
+    ///
+    /// - Returns: `nil` when the button is disabled or its URL is unusable.
     static func previewButton(
         index: Int,
         url: String?,
@@ -526,6 +566,8 @@ struct DiscordSettingsView: View {
         return .init(label: label, url: url)
     }
 
+    /// Reads the service's actor-isolated state on a task. With no service
+    /// (presence never started) the state is `.disconnected`.
     private func refreshConnectionState() {
         guard let service = AppDelegate.shared?.discordService else {
             connectionState = .disconnected
@@ -536,6 +578,9 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Maps a `nowPlayingChanged` payload to the preview: a track updates
+    /// `nowPlaying` (links come from the artwork cache only, never a fetch) and
+    /// sets playing / paused; no track sets stopped or Music closed.
     private func updateNowPlaying(from notification: Notification) {
         let payload = notification.nowPlaying
         guard let track = payload.track, let artist = payload.artist else {
@@ -572,6 +617,8 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Posts `discordPresenceChanged` so the app delegate connects or
+    /// disconnects Rich Presence.
     private func notifyPresenceSettingChanged(enabled: Bool) {
         NotificationCenter.default.postEnabled(.discordPresenceChanged, enabled: enabled)
     }
@@ -598,11 +645,16 @@ private struct NowPlayingSnapshot {
     let artist: String
     let album: String
     let playlist: String
+    /// Cached links for the track (`ArtworkService.cachedTrackLinks`); each is
+    /// `nil` until that lookup has completed for this track.
     let artworkURL: String?
     let appleMusicURL: String?
     let songLinkURL: String?
+    /// `true` for a snapshot built from a real notification. Currently not
+    /// read anywhere.
     let isLive: Bool
 
+    /// Placeholder used before the first track arrives.
     static let sample = NowPlayingSnapshot(
         track: "Smooth Operator",
         artist: "Sade",

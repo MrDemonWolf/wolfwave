@@ -13,28 +13,41 @@ import SwiftUI
 ///
 /// Shows the currently playing request (if any) and the upcoming queue.
 /// Provides skip, hold/resume, and clear-queue actions for the streamer.
-/// Rows are not reorderable; ordering follows request arrival (with bit-cheer
-/// boosts handled upstream in `SongRequestQueue`).
+/// Rows are not reorderable; the order is whatever `SongRequestQueue` decides
+/// (fair-share rounds, Sub/VIP priority, bit-cheer boosts).
+///
+/// The view keeps `@State` snapshots of the live queue and refreshes them on
+/// `songRequestQueueChanged` / `songRequestHoldChanged`, after each action,
+/// and on Music.app launch / quit.
 struct SongRequestQueueView: View {
     // MARK: - Properties
 
+    /// The running app delegate (`nil` in previews).
     private var appDelegate: AppDelegate? {
         AppDelegate.shared
     }
 
+    /// Live queue owned by the song-request service.
     private var queue: SongRequestQueue? {
         appDelegate?.songRequestService?.queue
     }
 
+    /// The service that runs skip, hold, approve, and clear.
     private var service: SongRequestService? {
         appDelegate?.songRequestService
     }
 
+    /// Upcoming requests, in play order.
     @State private var items: [SongRequestItem] = []
+    /// Requests waiting for approval (approval mode only).
     @State private var pending: [SongRequestItem] = []
+    /// The request currently playing, if any.
     @State private var nowPlaying: SongRequestItem?
+    /// Presents the clear-queue confirmation.
     @State private var showingClearConfirm = false
+    /// Music.app isn't running; requests buffer until it opens.
     @State private var isMusicAppClosed = false
+    /// Hold mode: requests queue but nothing plays.
     @State private var isHeld = false
 
     /// Nothing playing, queued, or waiting for approval.
@@ -236,6 +249,7 @@ struct SongRequestQueueView: View {
 
     // MARK: - Queue List
 
+    /// Numbered upcoming requests, each with a remove button.
     private var queueList: some View {
         VStack(spacing: DSSpace.s1) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -297,6 +311,7 @@ struct SongRequestQueueView: View {
 
     // MARK: - Empty State
 
+    /// Shown when nothing is playing, queued, or pending; explains a hold if on.
     private var emptyState: some View {
         VStack(spacing: DSSpace.s2) {
             Image(systemName: isHeld ? "pause.circle" : "music.note.list")
@@ -322,6 +337,8 @@ struct SongRequestQueueView: View {
 
     // MARK: - Action Buttons
 
+    /// Skip (needs a now-playing request), Hold / Resume, and Clear Queue
+    /// (confirmed).
     private var actionButtons: some View {
         HStack(spacing: DSSpace.s2) {
             AsyncActionButton(
@@ -373,6 +390,7 @@ struct SongRequestQueueView: View {
 
     // MARK: - Artwork Placeholders
 
+    /// Large note tile for the now-playing row. Requests carry no artwork here.
     private var artworkPlaceholder: some View {
         RoundedRectangle(cornerRadius: DSRadius.sm)
             .fill(.quaternary)
@@ -385,6 +403,7 @@ struct SongRequestQueueView: View {
             .accessibilityHidden(true)
     }
 
+    /// Small note tile for pending and queued rows.
     private var smallArtworkPlaceholder: some View {
         RoundedRectangle(cornerRadius: DSRadius.xs)
             .fill(.quaternary)
@@ -400,6 +419,7 @@ struct SongRequestQueueView: View {
     // MARK: - Actions
 
     /// Removes one queued request and rebuilds Music's player queue to match.
+    /// The rebuild runs on a task and its errors are ignored.
     private func remove(_ item: SongRequestItem) {
         queue?.remove(id: item.id)
         let remainingSongs = queue?.items.map(\.song) ?? []
@@ -414,8 +434,10 @@ struct SongRequestQueueView: View {
     /// Snapshots the live queue + now-playing into the view's `@State`.
     private func refreshState() {
         // Only mutate @State when the value actually changes. Assigning the same
-        // value still invalidates the view, so a 2-second tick would force a full
-        // ForEach diff every cycle even when nothing changed.
+        // value still invalidates the view, so a burst of change notifications
+        // would force a full ForEach diff each time even when nothing changed.
+        // Comparison is by id, so an edit to an existing item's fields doesn't
+        // count as a change.
         let newItems = queue?.items ?? []
         if newItems.map(\.id) != items.map(\.id) {
             items = newItems

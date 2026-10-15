@@ -1,6 +1,7 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getAssetPath } from "@/lib/utils";
 
+/** Shared Fumadocs nav, links, and theme options for the docs layout (and any layout reusing it). */
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {

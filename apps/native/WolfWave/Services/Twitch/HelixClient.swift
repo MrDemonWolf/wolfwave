@@ -21,6 +21,10 @@ nonisolated struct HelixClient: Sendable {
     // MARK: - Types
 
     /// Credentials needed for a Helix call.
+    ///
+    /// `token` is the user OAuth access token (sent as `Bearer`), `clientID`
+    /// the app's Twitch client ID (sent as `Client-Id`). Helix rejects a
+    /// token minted for a different client ID, so the two must match.
     struct Credentials: Sendable {
         let token: String
         let clientID: String
@@ -49,6 +53,9 @@ nonisolated struct HelixClient: Sendable {
         /// The underlying transport (`URLSession`) failed.
         case transport(message: String)
 
+        /// User-presentable text. Response bodies are clipped to 200
+        /// characters so a large HTML error page can't flood a log line or
+        /// an alert.
         var errorDescription: String? {
             switch self {
             case let .http(status, body):
@@ -76,6 +83,8 @@ nonisolated struct HelixClient: Sendable {
 
     // MARK: - Init
 
+    /// - Parameter http: Transport to send through. Tests inject a client
+    ///   backed by a stubbed `URLSession`; production uses `.shared`.
     init(http: HTTPClient = .shared) {
         self.http = http
     }
@@ -101,6 +110,13 @@ nonisolated struct HelixClient: Sendable {
     }
 
     /// Performs a POST request with a JSON body and decodes the response.
+    ///
+    /// - Parameters:
+    ///   - url: Helix endpoint URL.
+    ///   - credentials: Caller credentials.
+    ///   - body: JSON object serialized with `JSONSerialization`.
+    /// - Returns: A value of type `T` decoded (snake_case keys) from the response body.
+    /// - Throws: `HelixError` on encoding, transport, status, or decoding failure.
     func post<T: Decodable>(
         url: URL,
         credentials: Credentials,
@@ -115,9 +131,18 @@ nonisolated struct HelixClient: Sendable {
 
     // MARK: - Untyped (JSON Object) Requests
 
-    /// Performs a request and returns the parsed JSON object dictionary, or
-    /// `nil` for an empty 204 body. Use when the response shape is dynamic and
-    /// strict `Decodable` typing isn't worth the boilerplate.
+    /// Performs a request and returns the parsed JSON object dictionary.
+    /// Use when the response shape is dynamic and strict `Decodable` typing
+    /// isn't worth the boilerplate.
+    ///
+    /// - Parameters:
+    ///   - requestTimeout: Overrides the request's timeout in seconds; `nil`
+    ///     keeps the `URLRequest` default.
+    /// - Returns: The top-level JSON object, or `nil` when the body is empty
+    ///   (e.g. a 204) **or** when a 2xx body isn't a JSON object. Parse
+    ///   failures are swallowed on purpose, so callers that need the payload
+    ///   must treat `nil` as "no usable body", not only "no content".
+    /// - Throws: `HelixError` on encoding, transport, or non-2xx status.
     @discardableResult
     func sendJSON(
         url: URL,
@@ -140,6 +165,10 @@ nonisolated struct HelixClient: Sendable {
     /// Performs a request without status validation while retaining all HTTP
     /// response headers. Retry workers use this for server-directed backoff
     /// (`Retry-After`) without rebuilding Helix authentication requests.
+    ///
+    /// - Returns: The raw body and response, whatever the status code.
+    /// - Throws: `HelixError` only for encoding or transport failures; any
+    ///   status, including 401 and 429, is returned for the caller to branch on.
     func sendRawResponse(
         url: URL,
         method: String,
@@ -151,7 +180,7 @@ nonisolated struct HelixClient: Sendable {
         return try await send(request)
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Request Construction
 
     /// Standard Helix headers: auth + client id + JSON content type + the
     /// shared default `User-Agent` (honest app identification).
@@ -192,6 +221,9 @@ nonisolated struct HelixClient: Sendable {
         return request
     }
 
+    // MARK: - Private Helpers
+
+    /// Instance shim over ``buildRequest(url:method:credentials:body:)``.
     private func makeRequest(
         url: URL,
         method: String,
@@ -201,6 +233,8 @@ nonisolated struct HelixClient: Sendable {
         try Self.buildRequest(url: url, method: method, credentials: credentials, body: body)
     }
 
+    /// Sends through `HTTPClient` and translates its errors into `HelixError`
+    /// so callers only ever see one error type. Status is not validated here.
     private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
             return try await http.send(request)
@@ -220,6 +254,7 @@ nonisolated struct HelixClient: Sendable {
         }
     }
 
+    /// Throws the mapped `HelixError` for any non-2xx status.
     private func validate(http: HTTPURLResponse, data: Data) throws {
         let status = http.statusCode
         guard (200..<300).contains(status) else {
@@ -227,6 +262,9 @@ nonisolated struct HelixClient: Sendable {
         }
     }
 
+    /// Maps a status to its Helix error: 401 and 429 get dedicated cases
+    /// because callers react to them (re-auth, back off); everything else
+    /// is a generic `.http`.
     private func mappedStatus(_ status: Int, body: String) -> HelixError {
         switch status {
         case 401: return .unauthorized(body: body)
@@ -235,6 +273,7 @@ nonisolated struct HelixClient: Sendable {
         }
     }
 
+    /// Decodes with the shared snake_case decoder (Helix keys are snake_case).
     private func decode<T: Decodable>(data: Data) throws -> T {
         do {
             return try JSONCoders.snakeCase.decode(T.self, from: data)

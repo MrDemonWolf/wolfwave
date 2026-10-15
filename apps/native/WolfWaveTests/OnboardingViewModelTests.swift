@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `OnboardingViewModel` step order and navigation, and its persistence in `DefaultsStore.store`.
+/// The step count and order are pinned here, so adding a step means updating these tests.
 @MainActor
 final class OnboardingViewModelTests: WolfWaveTestCase {
     var viewModel: OnboardingViewModel!

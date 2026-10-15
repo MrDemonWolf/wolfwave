@@ -22,6 +22,8 @@ nonisolated enum CommandPermission: String, Codable, CaseIterable, Sendable, Ide
     case moderator
     case broadcaster
 
+    /// Identifiable conformance for the settings picker. The raw value is
+    /// also the persisted form, so renaming a case breaks stored commands.
     var id: String { rawValue }
 
     /// Short label for the settings picker.
@@ -35,7 +37,8 @@ nonisolated enum CommandPermission: String, Codable, CaseIterable, Sendable, Ide
         }
     }
 
-    /// Whether `context` clears this permission bar.
+    /// Whether `context` clears this permission bar. `.moderator` admits the
+    /// broadcaster too (via `isPrivileged`).
     func allows(_ context: BotCommandContext) -> Bool {
         switch self {
         case .everyone:
@@ -66,6 +69,7 @@ nonisolated enum ReplyDelivery: String, Codable, CaseIterable, Sendable, Identif
     /// Twitch refuses, WolfWave falls back to a reply.
     case announce
 
+    /// Identifiable conformance for the settings picker; also the persisted form.
     var id: String { rawValue }
 
     /// Short label for the settings picker.
@@ -104,6 +108,9 @@ nonisolated enum AnnounceStatus: String, Sendable {
     case failed
 
     /// Maps a Helix `/chat/announcements` HTTP status to a status.
+    ///
+    /// 401 is read as a missing scope (the token predates the announcements
+    /// scope), 403 as "not a moderator"; anything else non-2xx is `.failed`.
     static func from(statusCode: Int) -> AnnounceStatus {
         switch statusCode {
         case 200..<300: return .ok
@@ -141,8 +148,13 @@ nonisolated enum AnnounceStatus: String, Sendable {
 nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
 
     /// Bounds shared by persisted-command validation and the settings controls.
+    /// Seconds. A stored value outside the range, or off the `cooldownStep`
+    /// grid, fails import/load validation.
     static let globalCooldownRange: ClosedRange<Double> = 0...30
+    /// Per-user cooldown bounds, in seconds. See ``globalCooldownRange``.
     static let userCooldownRange: ClosedRange<Double> = 0...60
+    /// Slider step, in seconds. Valid cooldowns are multiples of it from the
+    /// range's lower bound.
     static let cooldownStep: Double = 5
 
     /// Stable identity across edits (also the SwiftUI list id).
@@ -155,7 +167,8 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     var response: String
 
     /// Comma-separated extra triggers, same syntax as the built-in command alias
-    /// fields (`hug2, embrace`).
+    /// fields (`hug2, embrace`). Normalized storage keeps them without the
+    /// leading `!`, joined with `", "`.
     var aliases: String
 
     /// Who may run the command.
@@ -173,6 +186,8 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     /// How the response is sent. Absent in pre-2.1.1 storage, decoded as `.reply`.
     var delivery: ReplyDelivery
 
+    /// Memberwise init. Defaults describe a blank draft for the editor: no
+    /// trigger, everyone allowed, enabled, 15 s cooldowns, threaded reply.
     init(
         id: UUID = UUID(),
         trigger: String = "",
@@ -218,6 +233,10 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     }
 
     /// Normalizes a raw trigger string to the stored/matched form.
+    ///
+    /// Trims outer spaces, lowercases, strips every leading `!`, then adds
+    /// exactly one back. Inner whitespace is kept (see ``containsWhitespace(_:)``).
+    /// Returns `""` when nothing is left.
     static func normalizeTrigger(_ raw: String) -> String {
         let stripped = raw.trimmingCharacters(in: .whitespaces)
             .lowercased()
@@ -239,6 +258,9 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     /// ambiguous identities that the editor prevents: empty, overlapping, or
     /// space-containing triggers, duplicate UUIDs, and cooldowns the sliders
     /// cannot represent.
+    ///
+    /// - Returns: The canonical commands, or `nil` to refuse the whole import
+    ///   on any violation.
     static func normalizedForImport(_ commands: [CustomCommand]) -> [CustomCommand]? {
         normalized(commands, repairingLegacyStorage: false)
     }
@@ -251,10 +273,23 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
     /// every command): the spaces are removed and the command is turned off so
     /// the streamer can check it. When the repaired trigger is empty or taken,
     /// only that one command is dropped.
+    ///
+    /// - Returns: The repaired commands, or `nil` when a problem can't be
+    ///   repaired (empty trigger, duplicate UUID or primary trigger, invalid
+    ///   cooldown).
     static func normalizedForExistingStorage(_ commands: [CustomCommand]) -> [CustomCommand]? {
         normalized(commands, repairingLegacyStorage: true)
     }
 
+    /// Shared implementation of the import and load paths.
+    ///
+    /// Three passes: claim every clean primary trigger, then repair legacy
+    /// spaced triggers into whatever names remain, then normalize aliases.
+    /// An alias that collides with any primary trigger (including one
+    /// declared later in the array) or with an earlier alias is a conflict.
+    ///
+    /// - Parameter repairingLegacyStorage: `true` drops or repairs fixable
+    ///   problems; `false` (import) rejects the whole collection instead.
     private static func normalized(
         _ commands: [CustomCommand],
         repairingLegacyStorage: Bool
@@ -335,6 +370,8 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
         return result
     }
 
+    /// Whether `value` is finite, inside `range`, and on the ``cooldownStep``
+    /// grid (with a small tolerance for floating-point error).
     private static func isValidCooldown(
         _ value: Double,
         in range: ClosedRange<Double>
@@ -352,9 +389,12 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
 /// Live values the renderer can substitute that come from app state rather than
 /// the chat message. Fetched fresh per invocation.
 nonisolated struct CustomCommandVariables: Sendable {
+    /// Substituted for `$song`. Empty when nothing is playing.
     var currentSong: String
+    /// Substituted for `$lastsong`. Empty when there is no previous track.
     var lastSong: String
 
+    /// Both values empty. The dispatcher's default before a provider is wired.
     static let empty = CustomCommandVariables(currentSong: "", lastSong: "")
 }
 
@@ -378,6 +418,21 @@ nonisolated enum CustomCommandRenderer {
     }
 
     /// Interpolates `template` and truncates to Twitch's 500-char limit.
+    ///
+    /// Single left-to-right scan, so a substituted value is never re-scanned:
+    /// a chatter typing `$song` as an argument gets the literal text back.
+    /// Unknown `$` sequences pass through unchanged.
+    ///
+    /// Chat-injection guard: if the output starts with a value the chatter
+    /// controls (name or argument) and that value begins with `!`, `/`, or
+    /// `.`, an invisible separator (U+2063) is prepended so Twitch and other
+    /// bots don't treat the bot's reply as a command.
+    ///
+    /// - Parameters:
+    ///   - template: The stored response with `$` tokens.
+    ///   - sender: Display name used for `$user` / `$sender` (and `$touser` with no args).
+    ///   - args: Output of ``arguments(from:)``.
+    ///   - vars: Live song values.
     static func render(
         template: String,
         sender: String,
@@ -389,6 +444,9 @@ nonisolated enum CustomCommandRenderer {
             return first.hasPrefix("@") ? String(first.dropFirst()) : first
         }()
 
+        // (token, value, isChatterControlled). Sorted longest-first below so a
+        // future token that extends another (say `$user` vs a longer `$username`)
+        // matches the longer one. No current token is a prefix of another.
         let named: [(String, String, Bool)] = [
             ("$lastsong", vars.lastSong, false),
             ("$sender", sender, true),
@@ -425,6 +483,9 @@ nonisolated enum CustomCommandRenderer {
             output.append(template[index])
             index = template.index(after: index)
         }
+        // Only the first non-empty emitted piece decides: a command prefix
+        // later in the line is harmless, and literal template text is the
+        // streamer's own choice.
         if startsWithUserValue, let first = output.first, "!/.".contains(first) {
             output.insert("\u{2063}", at: output.startIndex)
         }

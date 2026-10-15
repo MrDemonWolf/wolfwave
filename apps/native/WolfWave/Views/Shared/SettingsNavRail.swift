@@ -30,9 +30,13 @@ protocol SettingsRailSection: Hashable, RawRepresentable where RawValue == Strin
 /// `nil` title; grouped rails (e.g. the Debug tab) pass several titled groups,
 /// each introduced by a `.sectionEyebrow()` header in the rail.
 struct SettingsRailGroup<Section: SettingsRailSection>: Identifiable {
+    /// Eyebrow shown above the group's rows; `nil` draws no header.
     let title: String?
+    /// The group's rows, in display order. A section belongs to one group only;
+    /// `id` relies on that.
     let sections: [Section]
 
+    /// Creates a group. Omit `title` for a flat, headerless rail.
     init(title: String? = nil, sections: [Section]) {
         self.title = title
         self.sections = sections
@@ -57,8 +61,10 @@ private let settingsRailSpace = "settingsRailScroll"
 /// highlight can follow manual scrolling, not just taps. Later values win on
 /// merge, so the freshest geometry read for a given section is the one that lands.
 struct SectionOffsetPreferenceKey<Section: Hashable>: PreferenceKey {
+    /// No sections reported yet.
     static var defaultValue: [Section: CGFloat] { [:] }
 
+    /// Merges sibling reports; on a key collision the later value wins.
     static func reduce(
         value: inout [Section: CGFloat],
         nextValue: () -> [Section: CGFloat]
@@ -100,14 +106,21 @@ extension View {
 /// ``SwiftUICore/View/railSection(_:)`` to wire up the scroll anchor + highlight.
 struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
 
+    /// The highlighted rail row. Written both by taps and by scroll-sync, so
+    /// the owner sees where the user is reading, not just what they tapped.
     @Binding var selection: Section
+    /// Rail rows, grouped. The first section of the first group is the
+    /// fallback selection when nothing has scrolled past the activation line.
     let groups: [SettingsRailGroup<Section>]
     /// Prefix for each row's accessibility identifier, e.g. `"generalNav"` →
     /// `"generalNav.music"`.
     let accessibilityIDPrefix: String
+    /// The stacked section views. Each should carry `.railSection(_:)`.
     @ViewBuilder let content: () -> Content
 
+    /// Turns the tap-to-jump scroll into an instant jump under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Picks the light- or dark-appearance glyph tint for the selected row.
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -150,6 +163,8 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
 
     // MARK: - Nav Rail
 
+    /// The fixed-width left column: optional group eyebrows over their rows.
+    /// Scrolls on its own so a long rail (Debug) never pushes the window taller.
     private func navRail(proxy: ScrollViewProxy) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -174,6 +189,10 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
+    /// One rail row. Tapping selects it immediately, then scrolls the content
+    /// column so the section sits at the top. The scroll-sync pass that follows
+    /// normally agrees; near the bottom of a short pane it can pick a later
+    /// section, because the tapped one cannot reach the top.
     private func navRow(_ section: Section, proxy: ScrollViewProxy) -> some View {
         let isSelected = selection == section
         return Button {
@@ -216,6 +235,8 @@ struct SettingsNavRail<Section: SettingsRailSection, Content: View>: View {
     /// top. When nothing has crossed it yet (scrolled to the very top), the first
     /// section stays selected.
     private func syncSelection(from offsets: [Section: CGFloat]) {
+        // A little below the content's top inset, so a section counts as
+        // active once its header has scrolled up to roughly the top edge.
         let activationLine = AppConstants.SettingsUI.contentPaddingV + DSSpace.s8
         let fallback = groups.first?.sections.first
         let next = offsets

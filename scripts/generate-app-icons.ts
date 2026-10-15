@@ -30,18 +30,25 @@
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+/** Repo root (this script lives in `scripts/`). */
 const ROOT = resolve(import.meta.dir, "..");
+/** Directory holding both Icon Composer bundles. */
 const RESOURCES = join(ROOT, "apps/native/WolfWave/Resources");
+/** The hand-authored Release icon; the single source of truth. */
 const SOURCE = join(RESOURCES, "AppIcon.icon");
+/** The generated Debug icon. Never hand-edit; rerun `make icons`. */
 const DEST = join(RESOURCES, "AppIcon-Dev.icon");
 
 /** Icon Composer canvas, in points. */
 const CANVAS = 1024;
 
+/** Lettering drawn on the badge. Each character needs a glyph in `GLYPHS`. */
 const BADGE_TEXT = "DEV";
 /** `semantic.error` from design-system/tokens.json. Reads as "not the real app". */
 const BADGE_FILL = "#FF453A";
+/** Lettering color on the red pill. */
 const BADGE_TEXT_FILL = "#FFFFFF";
+/** Asset and layer name for the badge; the SVG is written as `<name>.svg`. */
 const BADGE_NAME = "iconwolf-development-badge";
 
 /**

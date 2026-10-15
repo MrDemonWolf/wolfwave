@@ -39,8 +39,13 @@ nonisolated struct SettingsBackupCoder {
     struct ImportChoices: Equatable {
         /// Restore the Twitch channel and prompt a re-sign-in on import.
         var reconnectTwitch: Bool
+        /// Restore the keys in `localSharingKeys` (server switches, ports,
+        /// update channel, diagnostics sharing). Off in the import sheet by
+        /// default, so a backup from another Mac does not open network ports or
+        /// change update and sharing choices on this one unless asked.
         var includeLocalSharingSettings: Bool
 
+        /// Defaults restore every portable preference and skip Twitch.
         init(reconnectTwitch: Bool = false, includeLocalSharingSettings: Bool = true) {
             self.reconnectTwitch = reconnectTwitch
             self.includeLocalSharingSettings = includeLocalSharingSettings
@@ -63,6 +68,8 @@ nonisolated struct SettingsBackupCoder {
 
     // MARK: - Encode / Decode
 
+    /// Pretty-printed with sorted keys so a backup is readable and diffs
+    /// cleanly; ISO-8601 dates match the shared decoder.
     private var encoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -127,6 +134,8 @@ nonisolated struct SettingsBackupCoder {
     }
 
     /// Serializes a backup to pretty-printed JSON `Data`.
+    ///
+    /// - Throws: `EncodingError` from `JSONEncoder` (not expected for this shape).
     func encode(_ backup: SettingsBackup) throws -> Data {
         try encoder.encode(backup)
     }
@@ -136,6 +145,15 @@ nonisolated struct SettingsBackupCoder {
     /// Order of checks: readable JSON object -> WolfWave `format` -> supported
     /// schema -> full decode. This lets callers show a precise message
     /// ("not a WolfWave file" vs "made by a newer version" vs "unreadable").
+    ///
+    /// The Twitch channel name is re-normalized on the way in; a hand-edited
+    /// name that fails normalization drops the Twitch marker rather than
+    /// failing the whole import. Setting values are not validated here; that
+    /// happens in ``makeApplyPlan(backup:choices:exportablePreferences:)``.
+    ///
+    /// - Throws: ``BackupError`` (`notReadable`, `notWolfWaveFile`,
+    ///   `unsupportedOlderSchema`, `unsupportedNewerSchema`). Every full-decode
+    ///   failure is reported as `notReadable`.
     func decode(_ data: Data) throws -> SettingsBackup {
         // Cheap header probe first so format/version errors beat a generic
         // decode failure when optional fields are missing or reordered.
@@ -174,6 +192,18 @@ nonisolated struct SettingsBackupCoder {
     /// This is the sole validator used for export, import preview, and apply.
     /// Hand-edited backups therefore cannot exploit type bridging in
     /// `UserDefaults` or install unknown raw values for a picker-backed enum.
+    ///
+    /// - Parameters:
+    ///   - value: The tagged value from the snapshot or backup file.
+    ///   - rule: The key's validation rule. A value of the wrong type for the
+    ///     rule is rejected, never coerced.
+    ///   - normalizingLegacyStorage: `true` on export, where the input is this
+    ///     install's own storage: custom commands go through
+    ///     `CustomCommand.normalizedForExistingStorage` (repairs legacy triggers,
+    ///     as a load would). `false` on import, which uses the stricter
+    ///     `normalizedForImport` and rejects the whole value instead.
+    /// - Returns: The value to store (re-encoded for `data` rules), or `nil` to
+    ///   skip the key.
     private func normalizedValue(
         _ value: BackupValue,
         by rule: AppConstants.UserDefaults.ExportedValueRule,
@@ -193,6 +223,8 @@ nonisolated struct SettingsBackupCoder {
             guard number.isFinite, domain.range.contains(number), domain.step > 0 else {
                 return nil
             }
+            // Must land on a slider step (within floating-point noise), so a
+            // hand-edited value can't sit between the control's tick marks.
             let stepCount = (number - domain.range.lowerBound) / domain.step
             return abs(stepCount - stepCount.rounded()) < 1e-9 ? value : nil
         case (.string(let allowedValues, let maxLength), .string(let string)):
@@ -214,6 +246,8 @@ nonisolated struct SettingsBackupCoder {
         case (.data(let format), .data(let data)):
             switch format {
             case .customCommands:
+                // Size caps bound the work a hostile file can cause before the
+                // per-command validation runs.
                 guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
                       decoded.count <= 100,
                       decoded.allSatisfy({
@@ -289,6 +323,10 @@ nonisolated struct SettingsBackupCoder {
         )
     }
 
+    /// Keys that open network listeners or change what leaves this Mac
+    /// (update feed, diagnostics). Skipped unless
+    /// ``ImportChoices/includeLocalSharingSettings`` is on, and counted in
+    /// `ignoredKeyCount` when skipped.
     private static let localSharingKeys: Set<String> = [
         AppConstants.UserDefaults.shareDiagnosticsEnabled,
         AppConstants.UserDefaults.updateChannel,
@@ -303,6 +341,9 @@ nonisolated struct SettingsBackupCoder {
     /// How many portable preferences a backup would restore (for the import
     /// review summary). Uses the same validation as apply so the preview can
     /// never promise a preference that import will reject.
+    ///
+    /// Counts with default ``ImportChoices``, so local-sharing keys are
+    /// included even if the user later leaves that option off.
     func restorableCount(
         backup: SettingsBackup,
         exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]

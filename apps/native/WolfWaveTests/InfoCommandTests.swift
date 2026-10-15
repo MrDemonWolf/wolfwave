@@ -36,6 +36,7 @@ final class InfoCommandTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// A `!wolfwave` command with this suite's enable and alias keys and the given reply text.
     private func makeCommand(
         message: @escaping () -> String = { "Hello from WolfWave" }
     ) -> InfoCommand {
@@ -48,6 +49,7 @@ final class InfoCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// Turns the command on (it is off by default).
     private func enable() { DefaultsStore.store.set(true, forKey: enabledKey) }
 
     // MARK: - Enable gating

@@ -12,10 +12,15 @@ import SwiftUI
 /// optional accessibility id. Bundled so ``CooldownSliderPair`` can lay two of
 /// them out without a long parameter list.
 struct CooldownSliderField {
+    /// Visible slider label, for example "Everyone".
     let label: String
+    /// Cooldown in seconds.
     let value: Binding<Double>
+    /// Slider bounds, in seconds.
     var range: ClosedRange<Double> = 0...60
+    /// Slider increment, in seconds.
     var step: Double = 5
+    /// Optional UI-test identifier, passed through to ``LabeledSlider``.
     var accessibilityIdentifier: String? = nil
 }
 
@@ -28,7 +33,9 @@ struct CooldownSliderPair: View {
 
     // MARK: - Properties
 
+    /// Channel-wide cooldown (left).
     let everyone: CooldownSliderField
+    /// Per-viewer cooldown (right).
     let perPerson: CooldownSliderField
 
     // MARK: - Body
@@ -44,6 +51,7 @@ struct CooldownSliderPair: View {
 
     // MARK: - Private Views
 
+    /// One `LabeledSlider` for `field`, with its value shown as whole seconds.
     @ViewBuilder
     private func slider(_ field: CooldownSliderField) -> some View {
         LabeledSlider(

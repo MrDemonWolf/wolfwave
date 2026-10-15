@@ -22,11 +22,16 @@ struct CardEyebrowHeader: View {
 
     // MARK: - Properties
 
+    /// Sentence-case label.
     let title: String
+    /// SF Symbol name drawn before the label.
     let systemImage: String
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - title: Sentence-case label.
+    ///   - systemImage: SF Symbol name drawn before the label.
     init(_ title: String, systemImage: String) {
         self.title = title
         self.systemImage = systemImage

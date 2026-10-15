@@ -7,6 +7,11 @@ import { Card, Cards } from 'fumadocs-ui/components/card';
 import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import type { MDXComponents } from 'mdx/types';
 
+/**
+ * Component map for MDX pages: Fumadocs defaults plus the extra components
+ * docs content uses (tabs, steps, accordions, callouts, cards, file trees).
+ * Per-call `components` override the defaults.
+ */
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
     ...defaultMdxComponents,

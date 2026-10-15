@@ -18,6 +18,7 @@ import Foundation
 /// race on it.
 enum ByteFormatting {
 
+    /// File-style formatter, KB and MB only.
     private static let formatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file

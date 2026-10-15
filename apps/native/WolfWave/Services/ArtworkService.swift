@@ -73,11 +73,24 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// "already looked up recently", so callers within `AppConstants.API.artworkLookupTTL`
     /// short-circuit to the (possibly empty) cached value instead of re-querying.
     private var resolvedAt: [CacheKey: Date] = [:]
+
+    /// Back-off state for a lookup that failed for a retryable reason
+    /// (transport error, non-2xx, malformed JSON).
     private struct TransientMiss {
+        /// Consecutive failures for the key, capped at 7.
         let failures: Int
+        /// Earliest time a new network attempt is allowed; until then callers
+        /// get the (empty) cached value.
         let retryAt: Date
     }
+
+    /// Retryable failures, kept in memory only (never persisted) so a restart
+    /// always gets a fresh attempt. Bounded to `cacheMaxEntries`.
     private var transientMisses: [CacheKey: TransientMiss] = [:]
+
+    /// Clock for the transient-miss back-off. Injectable so tests can step time.
+    ///
+    /// Note: the TTL checks on `resolvedAt` use `Date()` directly, not this clock.
     private let now: @Sendable () -> Date
 
     /// Insertion-ordered keys. Used to evict the oldest entry when caches are full.
@@ -125,6 +138,10 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - persistenceURL: File backing the links cache. Defaults to the app's
     ///     Application Support directory. Pass nil to disable disk persistence
     ///     (used by tests).
+    ///   - now: Clock for transient-failure back-off. Defaults to `Date()`.
+    ///
+    /// Loads the persisted cache synchronously, so the first lookup after launch
+    /// can be served from disk without a network call.
     init(
         session: URLSession = .shared,
         persistenceURL: URL? = ArtworkService.defaultPersistenceURL(),
@@ -185,6 +202,14 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Returns cached results immediately if available. On cache miss, queries the
     /// iTunes Search API and caches all fields for future calls.
     ///
+    /// A cached value is returned without a request when any of these hold:
+    /// artwork is cached; a transient failure is still backing off; or a lookup
+    /// (hit or real miss) finished within `AppConstants.API.artworkLookupTTL`.
+    /// Concurrent misses for the same track share one request (single-flight).
+    ///
+    /// Only a result whose normalized title and artist both match is accepted;
+    /// iTunes' first hit for a fuzzy term is often a cover or a different song.
+    ///
     /// - Parameters:
     ///   - track: Song title.
     ///   - artist: Artist name.
@@ -240,6 +265,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             )
             return
         }
+        // `urlQueryAllowed` keeps `+&=?#`, which would split or corrupt the
+        // `term` value (a `+` decodes as a space, `&` starts a new item), so the
+        // term is encoded by hand and assigned via `percentEncodedQueryItems`.
         let queryCharacters = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "+&=?#"))
         components.percentEncodedQueryItems = [
             URLQueryItem(name: "media", value: "music"),
@@ -307,6 +335,8 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                 return
             }
 
+            // iTunes only returns a 100px URL, but the CDN path encodes the
+            // size, so swapping it yields the 512px rendition.
             let artworkURL = (first["artworkUrl100"] as? String)
                 .map { $0.replacingOccurrences(of: "100x100", with: "512x512") }
             let trackViewURL = first["trackViewUrl"] as? String
@@ -349,6 +379,16 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Transient failures stay in memory, with bounded exponential retry delays.
+    ///
+    /// The delay is 60 s doubled per consecutive failure (failures capped at 7),
+    /// clamped to one hour, and never shorter than a server `Retry-After`
+    /// (itself capped by ``RetryAfter``). Ignored when `clearCache()` ran after
+    /// the request started. Takes `cacheQueue` itself; do not call it while
+    /// holding the queue.
+    ///
+    /// - Parameters:
+    ///   - key: The request that failed, including its cache generation.
+    ///   - retryAfter: Raw `Retry-After` header value, if the server sent one.
     private func recordTransientMiss(_ key: InFlightKey, retryAfter: String? = nil) {
         cacheQueue.sync {
             guard cacheGeneration == key.generation else { return }
@@ -424,6 +464,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Returns the current cache entry count and on-disk size.
+    ///
+    /// The count includes resolved misses (tracks iTunes had no match for), not
+    /// only tracks with artwork. Reads the file size synchronously.
     func cacheStats() -> CacheStats {
         let count = cacheQueue.sync { cacheKeyOrder.count }
         var bytes: Int64 = 0
@@ -436,6 +479,10 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     }
 
     /// Clears all cached artwork links from memory and deletes the on-disk file.
+    ///
+    /// Bumps the cache generation so responses already in flight cannot
+    /// repopulate the cleared cache, then awaits the file deletion. The deletion
+    /// is ordered after any pending save, so a queued write cannot recreate it.
     func clearCache() async {
         let deletion: Task<Void, Never>? = cacheQueue.sync {
             // Responses already on the wire may still finish their callers, but

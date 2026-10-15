@@ -26,6 +26,12 @@ private final class FakeSyncStore: SettingsSyncStore {
     func synchronize() -> Bool { synchronizeResult }
 }
 
+/// `SettingsSyncService`, the opt-in iCloud KVS mirror of the settings backup.
+/// Runs against `FakeSyncStore` (in-memory `SettingsSyncStore`), a throwaway
+/// `UserDefaults` suite, and a private `NotificationCenter`, so it never touches
+/// real iCloud or the live defaults domain. Covers push/pull ordering
+/// (last-write-wins by `exportedAt`), no-echo of its own push, retry after a failed
+/// synchronize, delayed startup payloads, and `flush()` only when a change is pending.
 @MainActor
 final class SettingsSyncServiceTests: WolfWaveTestCase {
 
@@ -61,6 +67,9 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
         try await super.tearDown()
     }
 
+    /// A service wired to this test's fake store, backup service, defaults, and center. Defaults to
+    /// zero debounce and a 60 s start-up re-check delay (the production default
+    /// is 10 s), so the delayed re-check does not fire during a test.
     private func makeService(
         debounce: Duration = .zero,
         initialSyncDelay: Duration = .seconds(60)
@@ -74,6 +83,7 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
             initialSyncDelay: initialSyncDelay)
     }
 
+    /// Encoded backup as the cloud copy would hold it: one Discord setting, stamped `exportedAt`.
     private func cloudPayload(exportedAt: Date, discordEnabled: Bool) throws -> Data {
         let payload = SettingsBackup(
             format: SettingsBackup.currentFormat,

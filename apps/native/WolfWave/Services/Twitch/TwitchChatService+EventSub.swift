@@ -8,11 +8,19 @@
 
 import Foundation
 
+/// EventSub frame handling: validation and dedup of inbound frames, session
+/// welcome / reconnect / revocation, chat-command dispatch, vote-skip polls,
+/// stream online/offline state, and the subscription POSTs that follow a
+/// fresh welcome.
 extension TwitchChatService {
 
     #if DEBUG
     /// Debug-only role override for exercising viewer permissions and cooldowns
     /// with real chat messages. Never compiled into release builds.
+    ///
+    /// - Returns: `true` when the "treat all chatters as viewers" toggle is on,
+    ///   or the chatter's login (display name if no login) is in the
+    ///   comma-separated debug viewer list, compared case-insensitively.
     static func shouldTreatAsViewer(
         event: [String: Any],
         defaults: UserDefaults = DefaultsStore.store
@@ -36,6 +44,14 @@ extension TwitchChatService {
     // MARK: - Message Parsing
 
     /// Parses and handles an incoming message from EventSub.
+    ///
+    /// - Parameter json: The notification `payload` of a `channel.chat.message`
+    ///   frame (the object holding `event`).
+    ///
+    /// A message needs an ID, sender name, sender ID, and non-empty text, or it
+    /// is dropped. `!`-prefixed text is deduplicated by message ID and handed
+    /// to a tracked command task. Every accepted message, command or not, is
+    /// yielded to `chatMessages`.
     func handleEventSubMessage(_ json: [String: Any]) async {
         Log.debug(
             "TwitchChatService: handleEventSubMessage enter (isProcessingDisconnect=\(isProcessingDisconnect))",
@@ -119,6 +135,8 @@ extension TwitchChatService {
                 #else
                 let treatAsViewer = false
                 #endif
+                // Mods and the broadcaster skip cooldowns. The dispatcher's
+                // `isModerator` flag means exactly that, so it gets this value.
                 let bypassCooldown = !treatAsViewer && (roles.isModerator || roles.isBroadcaster)
 
                 let context = BotCommandContext(
@@ -172,6 +190,10 @@ extension TwitchChatService {
         }
     }
 
+    /// Runs one command through the MainActor dispatcher and delivers its
+    /// reply the way the command asks: a plain message, a threaded reply, or
+    /// an announcement that falls back to a reply when the announce fails.
+    /// Every step is skipped once the originating session is superseded.
     private func runCommandDispatch(
         text: String,
         userID: String,
@@ -221,6 +243,7 @@ extension TwitchChatService {
         }
     }
 
+    /// Drops a finished command task from `commandTasks`.
     private func clearCommandTask(_ id: UUID) {
         commandTasks[id] = nil
     }
@@ -237,6 +260,11 @@ extension TwitchChatService {
     /// Production receive entry point carrying ownership of the socket that
     /// produced the frame. The nil-context wrapper above remains a parsing seam
     /// for focused unit tests.
+    ///
+    /// Every frame resets the keepalive watchdog. A frame is then dropped when
+    /// it is not a JSON object, lacks metadata, has an unparseable timestamp,
+    /// is older than 10 minutes or more than 30 s in the future, or repeats a
+    /// seen `message_id`. Survivors are routed by `message_type`.
     func handleWebSocketMessage(
         _ text: String,
         receiveContext: EventSubReceiveContext?
@@ -441,6 +469,10 @@ extension TwitchChatService {
         }
     }
 
+    /// Terminal stop for a revocation that retrying can't fix: cancels any
+    /// pending reconnect, then disconnects with `error` shown to the user.
+    /// Reconnect credentials are not cleared, so a later wake or network
+    /// recovery event can still schedule a reconnect.
     private func stopEventSubWithoutReconnect(error: String) {
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -471,6 +503,13 @@ extension TwitchChatService {
     }
 
     /// Handles the session_welcome message from EventSub.
+    ///
+    /// Records the session ID and arms the keepalive watchdog. When completing
+    /// a `session_reconnect` migration it retires the source socket and
+    /// reports connected without re-subscribing. On a fresh connection it
+    /// subscribes to chat first (failure leaves the session not connected),
+    /// then reports connected and adds polls, stream state, and redemptions,
+    /// with short gaps between POSTs.
     private func handleSessionWelcome(
         _ json: [String: Any],
         receiveContext: EventSubReceiveContext?
@@ -575,6 +614,12 @@ extension TwitchChatService {
     }
 
     /// Handles notification messages containing EventSub events.
+    ///
+    /// Routes on `subscription.type`. Unknown types fall through to the stream
+    /// online/offline handler, which ignores anything else.
+    ///
+    /// - Parameter messageID: The frame's `metadata.message_id`; Bits events
+    ///   use it as their durable dedup key.
     private func handleNotification(
         _ json: [String: Any],
         messageID: String,
@@ -651,6 +696,11 @@ extension TwitchChatService {
     /// A definitive rejection permits chat fallback; an ambiguous transport,
     /// server, rate-limit, or malformed-success result stays latched so WolfWave
     /// cannot accidentally run two voting mechanisms.
+    ///
+    /// - Parameters:
+    ///   - title: Poll title; cut to Twitch's 60-character limit.
+    ///   - durationSeconds: Clamped to Twitch's 15...1800 second range.
+    /// - Returns: How the create request ended; see `skipPollCreationOutcome`.
     func createSkipPoll(
         title: String,
         durationSeconds: Int
@@ -730,6 +780,10 @@ extension TwitchChatService {
 
     /// Classifies create-poll results without conflating "rejected" with
     /// "Twitch may have accepted it." A missing status models transport failure.
+    ///
+    /// 2xx with a poll ID is created; 400 is "already active" or a definitive
+    /// failure depending on the message; 401/403/404/422 are definitive;
+    /// everything else (429, 5xx, 2xx without an ID) is indeterminate.
     nonisolated static func skipPollCreationOutcome(
         statusCode: Int?,
         responseData: Data?
@@ -784,6 +838,11 @@ extension TwitchChatService {
     }
 
     /// Subscribes to `channel.poll.end` so finished vote-skip polls can be tallied.
+    ///
+    /// Only when vote-skip and Polls mode are both on. At most one POST per
+    /// session: `pollSubscriptionAttemptSessionID` blocks a concurrent second
+    /// attempt and `pollSubscriptionSessionID` records success. A result that
+    /// lands after the session changed is discarded.
     private func subscribeToPollEvents(
         receiveContext: EventSubReceiveContext? = nil
     ) async {
@@ -863,6 +922,7 @@ extension TwitchChatService {
         pollSubscriptionAttemptSessionID = nil
     }
 
+    /// Test seam: the session the poll subscription is recorded against.
     func pollSubscriptionSessionForTesting() -> String? {
         pollSubscriptionSessionID
     }
@@ -912,6 +972,13 @@ extension TwitchChatService {
     }
 
     /// Subscribes to the channel.chat.message EventSub event.
+    ///
+    /// This subscription is what makes a session usable. On failure the socket
+    /// is always torn down. A 401 first tries one token refresh; a definitive
+    /// invalid token asks for re-auth, otherwise a reconnect is scheduled if
+    /// the stored grant still belongs to the same user.
+    ///
+    /// - Returns: `true` when Twitch accepted the subscription.
     @discardableResult
     private func subscribeToChannelChatMessage(
         receiveContext: EventSubReceiveContext? = nil
@@ -998,6 +1065,7 @@ extension TwitchChatService {
     }
 
     #if DEBUG
+    /// Test seam for the private chat subscription path.
     func subscribeToChannelChatMessageForTesting(
         receiveContext: EventSubReceiveContext
     ) async -> Bool {
@@ -1030,6 +1098,9 @@ extension TwitchChatService {
     }
 
     /// Seeds `streamLive` with a single Helix "Get Streams" call.
+    ///
+    /// Twitch returns an empty list when the channel is offline. On a request
+    /// failure the current state is left as is.
     private func seedStreamLiveState(
         receiveContext: EventSubReceiveContext? = nil
     ) async {
@@ -1071,14 +1142,19 @@ extension TwitchChatService {
     /// Posts an EventSub subscription request. Logs success/failure and updates
     /// redemption status on 403 (scope) / non-2xx (subscribeFailed).
     ///
-    /// - Parameters:
-    ///   - onSuccess: Side effect run once on a 2xx response. Defaults to a
-    ///     no-op; `subscribeToChannelChatMessage` uses it to send the connection
-    ///     confirmation message.
     /// A 409 is not success for WebSocket transport: the existing subscription
     /// may belong to the superseded socket. Twitch includes that subscription's
     /// exact ID in the error body, so delete it and retry the POST once.
     ///
+    /// - Parameters:
+    ///   - label: Name used in logs. The exact labels `"channel-point
+    ///     redemptions"` and `"bit usage"` also drive the redemption status
+    ///     banner, so keep them in sync with the callers.
+    ///   - onSuccess: Side effect run once on a 2xx response. Defaults to a
+    ///     no-op; `subscribeToChannelChatMessage` uses it to send the connection
+    ///     confirmation message.
+    ///   - onFailureStatus: Receives the HTTP status of a rejected POST, or of
+    ///     a failed conflict DELETE. Not called for transport errors.
     /// - Returns: `true` only after Twitch accepts the subscription POST.
     @discardableResult
     func postEventSubSubscription(
@@ -1167,6 +1243,9 @@ extension TwitchChatService {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// Deletes the subscription named in a 409 so the POST can be retried.
+    ///
+    /// - Returns: `true` on 204, or 404 (already gone).
     private func deleteConflictingEventSubSubscription(
         id: String,
         token: String,

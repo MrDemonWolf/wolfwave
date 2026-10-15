@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// Smoke test that `ActionGrid` lays out to a non-empty size when hosted in an `NSHostingView`.
 @MainActor
 final class ActionGridTests: XCTestCase {
 

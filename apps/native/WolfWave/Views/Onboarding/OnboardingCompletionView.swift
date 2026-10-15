@@ -25,6 +25,7 @@ struct OnboardingCompletionView: View {
         /// The user chose Skip All. Lighter copy, same exit.
         case skipped
 
+        /// Large headline.
         var title: String {
             switch self {
             case .completed: return "Howl yeah, you're set."
@@ -32,6 +33,7 @@ struct OnboardingCompletionView: View {
             }
         }
 
+        /// Secondary line under the headline.
         var message: String {
             switch self {
             case .completed: return "WolfWave's in your menu bar. Click the wolf any time."
@@ -39,6 +41,7 @@ struct OnboardingCompletionView: View {
             }
         }
 
+        /// What VoiceOver reads for the headline + message group, replacing both.
         var accessibilitySummary: String {
             switch self {
             case .completed: return "Setup complete. WolfWave is in your menu bar."
@@ -57,16 +60,23 @@ struct OnboardingCompletionView: View {
 
     // MARK: - Animation State
 
+    /// Drives the hero mark's drop-in. Set first by the entrance `.task`.
     @State private var showHero = false
+    /// Drives the fade-in of the text, Done button, and copyright line. Set after
+    /// a short beat so the text lands once the mark has settled.
     @State private var showText = false
 
     /// Guards `onDismiss` so the auto-timer and a manual tap can't both fire it.
     @State private var didDismiss = false
 
+    /// When on, both flags flip at once with no animation, and the auto-dismiss
+    /// wait is a single shorter delay.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Layout Constants
 
+    /// Hero mark edge: the onboarding brand tile size plus `DSSpace.s10`, so the
+    /// ending reads larger than the per-step tiles.
     private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s10
 
     // MARK: - Body
@@ -137,6 +147,9 @@ struct OnboardingCompletionView: View {
         // Pointer-only convenience: keyboard and VoiceOver users have Done.
         .contentShape(Rectangle())
         .onTapGesture { dismissOnce() }
+        // Entrance sequence. Delays are in milliseconds. The `.task` is cancelled
+        // if the view goes away, and each sleep is followed by a cancellation
+        // check so a closed window never fires `onDismiss` late.
         .task {
             let autoDismiss = Self.shouldAutoDismiss(
                 voiceOverEnabled: NSWorkspace.shared.isVoiceOverEnabled
@@ -183,8 +196,10 @@ struct OnboardingCompletionView: View {
 
     // MARK: - Copyright
 
-    /// Hardcoded for now. When the config refactor lands a `COPYRIGHT_HOLDER`
-    /// key, swap to `AppConstants.copyrightHolder`.
+    /// Footer line with the current year. The holder is still hardcoded here even
+    /// though `AppConstants.AppInfo.copyrightHolder` (overridable through
+    /// `COPYRIGHT_HOLDER`) now exists, so a fork that sets that key will still
+    /// see "MrDemonWolf, Inc." on this screen.
     private static var copyrightLine: String {
         let year = Calendar.current.component(.year, from: Date())
         return "© \(year) MrDemonWolf, Inc."

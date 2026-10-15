@@ -15,15 +15,25 @@ import Foundation
 /// through the same providers the built-in `!song` command uses. Permission is
 /// enforced by the dispatcher via ``isAllowed(context:)`` before the cooldown is
 /// recorded, so a denied viewer can't burn the shared cooldown.
+///
+/// Instances are throwaway: the dispatcher builds a fresh one per message from
+/// ``CustomCommandStore/enabledCommands``. Cooldowns come straight from the
+/// definition (no `UserDefaults` override keys) and are keyed on the primary
+/// trigger, so a custom command that shadows a built-in trigger shares that
+/// built-in's cooldown slot.
 final class CustomBotCommand: AsyncBotCommand {
 
     // MARK: - Properties
 
+    /// The stored command this adapter runs.
     let definition: CustomCommand
 
     /// Fetches live substitution values (current/last song) at send time.
     private let variables: @Sendable () async -> CustomCommandVariables
 
+    /// - Parameters:
+    ///   - definition: The stored command.
+    ///   - variables: Provider for `$song` / `$lastsong`, awaited on each run.
     init(
         definition: CustomCommand,
         variables: @escaping @Sendable () async -> CustomCommandVariables
@@ -34,7 +44,9 @@ final class CustomBotCommand: AsyncBotCommand {
 
     // MARK: - BotCommand
 
+    /// Just the primary trigger, so it is the canonical cooldown key.
     var triggers: [String] { [definition.normalizedTrigger] }
+    /// The streamer's chosen delivery (reply, message, or announcement).
     var delivery: ReplyDelivery { definition.delivery }
 
     var description: String { "Custom command \(definition.normalizedTrigger)" }
@@ -55,6 +67,9 @@ final class CustomBotCommand: AsyncBotCommand {
 
     // MARK: - AsyncBotCommand
 
+    /// Renders the template for this message. Returns `nil` when the rendered
+    /// text is empty (e.g. a reply that is only `$1` with no argument), so the
+    /// bot stays silent rather than sending a blank line.
     func execute(message: String, context: BotCommandContext) async -> String? {
         let vars = await variables()
         let text = CustomCommandRenderer.render(

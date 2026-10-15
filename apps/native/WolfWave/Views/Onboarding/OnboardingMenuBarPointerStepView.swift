@@ -11,13 +11,22 @@ import SwiftUI
 /// Final orientation step. Points the user up at the menu bar so they know where
 /// WolfWave lives after the wizard closes. Animated arrow + sample menu-bar strip
 /// with the canonical wolf mark highlighted.
+///
+/// Does not use `OnboardingStepScaffold`: the mock menu bar sits above the title
+/// so the arrow can point up from the wolf mark. The strip is a drawing, not a
+/// capture of the real menu bar, so the mark's position in it is illustrative.
+/// VoiceOver reads the whole step as one sentence.
 struct OnboardingMenuBarPointerStepView: View {
 
     // MARK: - Animation State
 
+    /// Toggled once on appear inside a repeating animation; the arrow's offset
+    /// follows it up and down forever while the step is visible.
     @State private var arrowBobbing = false
+    /// Same pattern as `arrowBobbing`, driving the mark's highlight and glow.
     @State private var iconPulsing = false
 
+    /// When on, neither loop starts and the arrow and mark stay still.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
@@ -47,6 +56,9 @@ struct OnboardingMenuBarPointerStepView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DSSpace.s8)
+        // The arrow is drawn in an overlay at the mark's x position, read through
+        // `IconCenterAnchorKey`, so it lines up with the mark however wide the
+        // strip lays out. `arrowSlot` keeps room for it in the stack.
         .overlayPreferenceValue(IconCenterAnchorKey.self) { anchor in
             GeometryReader { proxy in
                 if let anchor {
@@ -79,6 +91,8 @@ struct OnboardingMenuBarPointerStepView: View {
 
     // MARK: - Menu Bar Preview
 
+    /// Mock menu bar strip: placeholder status icons around the WolfWave mark,
+    /// then a clock. The mark publishes its center through `IconCenterAnchorKey`.
     private var menuBarPreview: some View {
         HStack(spacing: 8) {
             Spacer()
@@ -141,6 +155,7 @@ struct OnboardingMenuBarPointerStepView: View {
             .frame(height: 30)
     }
 
+    /// Up arrow under the mark. Decorative, hidden from VoiceOver.
     private var arrow: some View {
         Image(systemName: "arrow.up")
             .font(.system(size: DSFont.Size.x2xl, weight: .bold))
@@ -154,12 +169,16 @@ struct OnboardingMenuBarPointerStepView: View {
 
     // MARK: - Helpers
 
+    /// Clock format for the mock strip, for example "Tue 9:41 AM". A fixed
+    /// 12-hour pattern, so it does not follow a 24-hour system setting.
     private static let menuBarClockFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE h:mm a"
         return formatter
     }()
 
+    /// The time at render. It does not tick; it only changes if the view
+    /// re-renders for another reason.
     private var currentTime: String {
         Self.menuBarClockFormatter.string(from: Date())
     }
@@ -167,6 +186,8 @@ struct OnboardingMenuBarPointerStepView: View {
 
 // MARK: - Preference Key
 
+/// Carries the center anchor of the mock menu-bar mark up to the step's
+/// overlay, which positions the arrow under it. Keeps the first value reported.
 private struct IconCenterAnchorKey: PreferenceKey {
     static let defaultValue: Anchor<CGPoint>? = nil
     static func reduce(value: inout Anchor<CGPoint>?, nextValue: () -> Anchor<CGPoint>?) {

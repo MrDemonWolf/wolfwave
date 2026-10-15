@@ -17,6 +17,7 @@ final class QueueCommandTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// A queue holding `itemCount` requests from distinct users.
     private func makeQueue(itemCount: Int) -> SongRequestQueue {
         let queue = SongRequestQueue()
         for i in 0..<itemCount {

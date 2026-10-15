@@ -16,6 +16,8 @@ struct AppearanceSettingsView: View {
 
     // MARK: - User Settings
 
+    /// Persisted mode string (`AppConstants.Appearance.system` / `.light` /
+    /// `.dark`). `AppearanceController` re-applies it at launch.
     @AppStorage(AppConstants.UserDefaults.appearancePreference)
     private var appearance = AppConstants.Appearance.default
 
@@ -107,14 +109,21 @@ private enum AppearanceOption: CaseIterable {
 /// color alone, per HIG) so it reads under color-blindness and Increase Contrast.
 private struct AppearanceTile: View {
 
+    /// The choice this tile represents.
     let option: AppearanceOption
+    /// Draws the accent ring, bold label, and filled checkmark.
     let isSelected: Bool
+    /// Selects this option (persist + apply).
     let action: () -> Void
 
+    /// Drives the small hover scale-up on unselected tiles.
     @State private var isHovering = false
+    /// Hover and selection animations collapse to instant under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Read to thicken the selection ring under Increase Contrast.
     @Environment(\.colorSchemeContrast) private var contrast
 
+    /// Selection ring width, thicker under Increase Contrast.
     private var ringWidth: CGFloat {
         contrast == .increased ? ThumbMetrics.ringWidthHighContrast : ThumbMetrics.ringWidth
     }
@@ -176,6 +185,7 @@ private enum ThumbStyle {
 /// same regardless of the app's current appearance (the Light tile always looks light,
 /// the Dark tile always looks dark).
 private struct AppearancePreviewThumbnail: View {
+    /// Which palette(s) to paint.
     let style: ThumbStyle
 
     var body: some View {
@@ -201,6 +211,7 @@ private struct AppearancePreviewThumbnail: View {
 
 /// Wallpaper gradient with a small centred window.
 private struct DesktopMock: View {
+    /// Fixed colors for this mock, independent of the running appearance.
     let palette: ThumbPalette
 
     var body: some View {
@@ -220,6 +231,7 @@ private struct DesktopMock: View {
 
 /// A tiny window: title bar with three traffic-light dots, a sidebar, and content rows.
 private struct WindowMock: View {
+    /// Fixed colors for this mock, independent of the running appearance.
     let palette: ThumbPalette
 
     var body: some View {
@@ -277,6 +289,7 @@ private struct ThumbPalette {
     let line: Color
     let windowStroke: Color
 
+    /// Light-scheme mock colors.
     static let light = ThumbPalette(
         wallpaperTop: Color(red: 0.90, green: 0.93, blue: 0.98),
         wallpaperBottom: Color(red: 0.78, green: 0.84, blue: 0.93),
@@ -287,6 +300,7 @@ private struct ThumbPalette {
         windowStroke: Color.black.opacity(0.10)
     )
 
+    /// Dark-scheme mock colors.
     static let dark = ThumbPalette(
         wallpaperTop: Color(red: 0.16, green: 0.17, blue: 0.21),
         wallpaperBottom: Color(red: 0.08, green: 0.09, blue: 0.12),
@@ -297,6 +311,7 @@ private struct ThumbPalette {
         windowStroke: Color.white.opacity(0.12)
     )
 
+    /// Traffic-light dot colors; identical in both schemes, as on macOS.
     static let trafficRed = Color(red: 0.99, green: 0.37, blue: 0.34)
     static let trafficYellow = Color(red: 0.99, green: 0.74, blue: 0.18)
     static let trafficGreen = Color(red: 0.20, green: 0.78, blue: 0.35)
@@ -330,6 +345,8 @@ private struct DiagonalSeam: Shape {
 // MARK: - Metrics
 
 /// Bespoke layout sizes for the mock (frame/line dimensions, not spacing/padding).
+/// All values are in points. They sit outside the `DSSpace` / `DSDimension`
+/// scales on purpose: the mock is a scaled-down drawing, not app layout.
 private enum ThumbMetrics {
     static let thumbHeight: CGFloat = 78
     static let titleBarHeight: CGFloat = 14
@@ -338,6 +355,8 @@ private enum ThumbMetrics {
     static let sidebarWidth: CGFloat = 26
     static let contentLine: CGFloat = 4
     static let contentGap: CGFloat = 4
+    /// Selection ring stroke; the high-contrast variant applies under
+    /// Increase Contrast.
     static let ringWidth: CGFloat = 2.5
     static let ringWidthHighContrast: CGFloat = 3.5
 }

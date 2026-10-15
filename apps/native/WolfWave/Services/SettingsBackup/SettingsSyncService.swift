@@ -16,13 +16,18 @@ import Foundation
 /// write to the developer's real iCloud, the same rule `KeychainService`
 /// follows. The only production conformer is `NSUbiquitousKeyValueStore`.
 protocol SettingsSyncStore: AnyObject {
+    /// The stored blob for `key`, or `nil` when absent.
     func data(forKey key: String) -> Data?
+    /// Writes (or with `nil`, removes) the blob for `key` locally.
     func set(_ data: Data?, forKey key: String)
+    /// Flushes local writes and fetches remote ones. `false` means the store
+    /// is unavailable (for example, no iCloud key-value entitlement).
     @discardableResult func synchronize() -> Bool
     /// Posted (with `object == self`) when another device changed the store.
     var externalChangeNotificationName: Notification.Name { get }
 }
 
+/// The production store. The other requirements are already methods on it.
 extension NSUbiquitousKeyValueStore: SettingsSyncStore {
     var externalChangeNotificationName: Notification.Name {
         NSUbiquitousKeyValueStore.didChangeExternallyNotification
@@ -40,7 +45,15 @@ extension NSUbiquitousKeyValueStore: SettingsSyncStore {
 /// never leave the Mac. Twitch is never auto-reconnected on a pull.
 ///
 /// Conflict rule: last write wins on the whole blob, ordered by
-/// `SettingsBackup.exportedAt`.
+/// `SettingsBackup.exportedAt`. The newest timestamp this Mac pushed or applied
+/// is kept in `iCloudSettingsSyncLastAppliedAt` (seconds since 1970); a cloud
+/// payload at or below it is never applied.
+///
+/// A pull applies with default import choices apart from Twitch, so local
+/// sharing settings (server switches, ports, update channel) do sync.
+///
+/// Main-actor isolated: notification observers run on the main queue and hop
+/// in with `MainActor.assumeIsolated`.
 @MainActor
 final class SettingsSyncService {
 
@@ -53,21 +66,43 @@ final class SettingsSyncService {
     private let backup: SettingsBackupService
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
+    /// Quiet period after the last local defaults change before pushing.
     private let debounce: Duration
+    /// How long after `start()` to re-check the store when the first pull
+    /// found nothing newer, giving iCloud time to deliver the remote copy.
     private let initialSyncDelay: Duration
+    /// Notification tokens registered in `start()`, removed in `stop()`.
     private var observers: [NSObjectProtocol] = []
+    /// The settings this Mac last pushed or applied. `push()` skips the write
+    /// when the current settings equal it, so unrelated defaults churn (window
+    /// frames, runtime state) doesn't upload anything. Reset to `nil` to force
+    /// the next push.
     private var lastPushedSettings: [String: BackupValue]?
     /// Set while a pull is writing defaults so the local-change observer
     /// doesn't echo a cloud payload straight back up.
     private var isApplying = false
 
+    /// Whether mirroring is running (observers installed).
     private(set) var isEnabled = false
     /// The debounced push in flight, if any. Tests await it.
     private(set) var pendingPush: Task<Void, Never>?
+    /// The current pull, from start-up or an external-change notification. A
+    /// newer notification cancels the older one. Tests await it.
     private(set) var pullTask: Task<Void, Never>?
 
     // MARK: Init
 
+    /// Creates a stopped service. Call ``setEnabled(_:)`` to start mirroring.
+    ///
+    /// - Parameters:
+    ///   - store: Key-value store. Defaults to the real iCloud store; tests pass
+    ///     an in-memory one.
+    ///   - backup: Payload builder and applier shared with Export / Import.
+    ///   - defaults: Store observed for local changes and holding the
+    ///     last-applied timestamp.
+    ///   - center: Where store and defaults notifications are observed.
+    ///   - debounce: Push delay after a local change.
+    ///   - initialSyncDelay: Delay before the start-up re-check.
     init(
         store: SettingsSyncStore = NSUbiquitousKeyValueStore.default,
         backup: SettingsBackupService = SettingsBackupService(),
@@ -97,6 +132,10 @@ final class SettingsSyncService {
 
     /// Applies the cloud payload if it is newer than what this Mac last
     /// applied or pushed. Returns `true` when settings changed.
+    ///
+    /// Does not check ``isEnabled``; callers gate it. An unreadable payload
+    /// (corrupt, foreign, or from a newer schema) is ignored. Twitch is never
+    /// reconnected from a pull.
     @discardableResult
     func pull() async -> Bool {
         guard !Task.isCancelled else { return false }
@@ -124,6 +163,13 @@ final class SettingsSyncService {
 
     /// Uploads the current exportable preferences now, skipping the write when
     /// nothing exportable changed since the last push.
+    ///
+    /// The payload is stamped strictly after the last applied timestamp, so a
+    /// push always outranks the copy it was built on even when the clocks of
+    /// two Macs disagree. Nothing is recorded when `synchronize()` fails, so the
+    /// next change retries.
+    ///
+    /// - Parameter now: Clock for the `exportedAt` stamp (injectable for tests).
     func push(now: Date = Date()) {
         guard isEnabled else { return }
         let lastApplied = defaults.double(
@@ -139,6 +185,7 @@ final class SettingsSyncService {
         store.set(data, forKey: Self.payloadKey)
         guard store.synchronize() else { return }
         lastPushedSettings = payload.settings
+        // `markApplied` writes defaults, which would schedule another push.
         isApplying = true
         markApplied(payload.exportedAt)
         isApplying = false
@@ -163,6 +210,9 @@ final class SettingsSyncService {
 
     // MARK: Private Helpers
 
+    /// Installs the iCloud and defaults observers, then pulls. If the first
+    /// pull applied nothing, it re-checks once after `initialSyncDelay`, which
+    /// may push this Mac's copy when the cloud is empty or older.
     private func start() {
         guard !isEnabled else { return }
         isEnabled = true
@@ -197,6 +247,8 @@ final class SettingsSyncService {
         }
     }
 
+    /// Removes observers and cancels any pending push or pull. The cloud copy
+    /// and the last-applied timestamp are left as they are.
     private func stop() {
         guard isEnabled else { return }
         isEnabled = false
@@ -208,6 +260,8 @@ final class SettingsSyncService {
         pullTask = nil
     }
 
+    /// Restarts the debounce timer for a push. Ignored while a pull is writing
+    /// defaults, so an applied cloud payload isn't echoed back.
     private func schedulePush() {
         guard isEnabled, !isApplying else { return }
         pendingPush?.cancel()
@@ -218,6 +272,11 @@ final class SettingsSyncService {
         }
     }
 
+    /// Reconciles after iCloud reports a remote change (and once at start-up).
+    ///
+    /// - Cloud missing or unreadable: push this Mac's copy to repair it.
+    /// - Cloud newer than last applied: pull it.
+    /// - Otherwise: push only if the local settings differ from the cloud copy.
     private func handleExternalChange() async {
         guard isEnabled, !Task.isCancelled else { return }
         guard let data = store.data(forKey: Self.payloadKey),
@@ -240,6 +299,7 @@ final class SettingsSyncService {
         push()
     }
 
+    /// Records `date` as the newest payload this Mac has pushed or applied.
     private func markApplied(_ date: Date) {
         defaults.set(
             date.timeIntervalSince1970,

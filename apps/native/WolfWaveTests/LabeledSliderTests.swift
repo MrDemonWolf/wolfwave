@@ -11,6 +11,8 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `LabeledSlider` rendering, formatter, binding propagation, and displayed-value clamping
+/// (non-finite values must not trap).
 @MainActor
 final class LabeledSliderTests: XCTestCase {
 

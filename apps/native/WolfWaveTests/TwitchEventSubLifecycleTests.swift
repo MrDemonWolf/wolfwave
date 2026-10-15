@@ -18,6 +18,8 @@ struct TwitchEventSubLifecycleTests {
 
     // MARK: - reconnectURL
 
+    /// A `session_reconnect` payload; `reconnect_url` is included only when `url` is non-nil.
+    /// Callers pass valid, padded, blank, and non-wss values.
     private func reconnectMessage(url: Any?) -> [String: Any] {
         var session: [String: Any] = ["id": "abc"]
         if let url { session["reconnect_url"] = url }
@@ -75,6 +77,9 @@ struct TwitchEventSubLifecycleTests {
 
     // MARK: - keepaliveTimeoutSeconds
 
+    /// A `session_welcome` payload; `keepalive_timeout_seconds` is included only when `keepalive`
+    /// is non-nil.
+    /// Callers pass numbers and numeric strings, among other values.
     private func welcome(keepalive: Any?) -> [String: Any] {
         var session: [String: Any] = ["id": "abc"]
         if let keepalive { session["keepalive_timeout_seconds"] = keepalive }
@@ -434,6 +439,8 @@ struct TwitchEventSubLifecycleTests {
         await service.disconnectFromEventSub()
     }
 
+    /// Wraps `payload` in an EventSub metadata envelope with the given type and id, and an optional
+    /// explicit timestamp, as a JSON string.
     private func eventSubEnvelope(
         type: String,
         id: String,
@@ -454,6 +461,7 @@ struct TwitchEventSubLifecycleTests {
     }
 }
 
+/// Thrown when `nextChatMessage` gives up waiting.
 private nonisolated enum EventSubLifecycleTestError: Error, Sendable {
     case timedOutWaitingForChatMessage
 }
@@ -481,6 +489,7 @@ private nonisolated func nextChatMessage(
     }
 }
 
+/// Migration state of the chat service, read through `eventSubMigrationSnapshotForTesting`.
 private nonisolated struct EventSubMigrationSnapshot: Sendable {
     let isMigrating: Bool
     let sourceRetained: Bool
@@ -491,7 +500,11 @@ private nonisolated struct EventSubMigrationSnapshot: Sendable {
     let sessionID: String?
 }
 
+/// Test-only seams that install a fake EventSub source socket and read back transport state without
+/// a network.
 private extension TwitchChatService {
+    /// Installs `source` as the live, welcomed socket with a parked receive task, so a test can
+    /// start a session migration away from it.
     func installEventSubSourceForTesting(
         _ source: URLSessionWebSocketTask
     ) -> EventSubReceiveContext {
@@ -508,6 +521,7 @@ private extension TwitchChatService {
         )
     }
 
+    /// A receive context for `task` at the current connection generation.
     func eventSubContextForTesting(
         _ task: URLSessionWebSocketTask
     ) -> EventSubReceiveContext {
@@ -517,6 +531,7 @@ private extension TwitchChatService {
         )
     }
 
+    /// Reads which socket is the migration source or target, and the connection flags.
     func eventSubMigrationSnapshotForTesting(
         source: URLSessionWebSocketTask,
         target: URLSessionWebSocketTask
@@ -532,6 +547,7 @@ private extension TwitchChatService {
         )
     }
 
+    /// Number of message ids currently held by the EventSub de-duplicator.
     func eventSubDedupCountForTesting() -> Int {
         messageDeduplicator.entryCount
     }

@@ -11,6 +11,8 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `AsyncActionButton` renders (title, icon, destructive role, disabled), never runs its action at
+/// construction, and pins its width via `stableWidth`.
 @MainActor
 final class AsyncActionButtonTests: XCTestCase {
 

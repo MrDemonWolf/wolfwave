@@ -17,6 +17,7 @@ import XCTest
 /// network error. Every other `HTTPError` collapses to `.networkError(...)`.
 final class MapHelixErrorTests: XCTestCase {
 
+    /// An arbitrary error, used both as a wrapped decoding error and as a bare unknown error.
     private struct DummyError: Error {}
 
     /// Convenience: classify a mapped `ConnectionError` into a comparable token so
@@ -27,6 +28,7 @@ final class MapHelixErrorTests: XCTestCase {
         case other
     }
 
+    /// Reduces an error to a comparable `Kind`, keeping the message only for network errors.
     private func kind(_ error: TwitchChatService.ConnectionError) -> Kind {
         switch error {
         case .authenticationFailed: return .authenticationFailed

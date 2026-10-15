@@ -32,7 +32,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
+/** Only SwiftUI views are linted; the lint is line-based and does not skip comments, so keep literals out of comments here. */
 const SCAN_ROOT = resolve(ROOT, "apps/native/WolfWave/Views");
+/** Intentionally empty exceptions file; fix the source instead of adding entries. */
 const ALLOWLIST_PATH = resolve(ROOT, "design-system/lint-allowlist.txt");
 
 interface Violation {

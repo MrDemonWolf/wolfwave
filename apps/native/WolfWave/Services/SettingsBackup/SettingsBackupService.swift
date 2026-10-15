@@ -15,8 +15,12 @@ import Foundation
 ///
 /// File dialogs (`NSSavePanel` / `NSOpenPanel`) stay in the view layer, mirroring
 /// how `AdvancedSettingsView.exportLogs()` already presents panels. This type
-/// performs no UI and no file I/O of its own. System-backed preferences are
-/// applied through the injectable `SideEffects` adapter.
+/// performs no UI. Its only file I/O is reading a user-picked backup in
+/// ``decode(fileURL:)``; writing the export is the caller's job. System-backed
+/// preferences are applied through the injectable `SideEffects` adapter.
+///
+/// Also the payload source for `SettingsSyncService`, which reuses
+/// ``makeBackupData(exportedAt:)``, ``decode(_:)``, and ``apply(_:choices:)``.
 @MainActor
 struct SettingsBackupService {
     /// Outcome of an import, surfaced to the user in the completion message.
@@ -40,17 +44,24 @@ struct SettingsBackupService {
         }
     }
 
+    /// Sparkle settings restored from a backup. A `nil` field was not in the
+    /// plan and must be left unchanged.
     struct UpdatePreferences: Equatable {
         var automaticCheckEnabled: Bool?
         var channel: UpdateChannel?
     }
 
+    /// Preferences whose stored value alone does nothing: each needs a system
+    /// or app call to take effect. Injectable so tests never register a real
+    /// login item, change the app appearance, or touch Sparkle.
     struct SideEffects {
         var isLaunchAtLoginEnabled: @MainActor () -> Bool
         var setLaunchAtLogin: @MainActor (Bool) -> LaunchAtLoginService.RegistrationOutcome
         var applyAppearance: @MainActor (String) -> Void
         var applyUpdatePreferences: @MainActor (UpdatePreferences) -> Void
 
+        /// Production wiring. Automatic update checks are left alone in DEBUG,
+        /// where Sparkle runs without background checks by design.
         static let live = SideEffects(
             isLaunchAtLoginEnabled: { LaunchAtLoginService.isEnabled },
             setLaunchAtLogin: { LaunchAtLoginService.setEnabled($0) },
@@ -70,6 +81,8 @@ struct SettingsBackupService {
         )
     }
 
+    /// Outcome of ``applySideEffects(for:)``. `failedKeys` are subtracted from
+    /// the restored count; `warnings` are shown to the user.
     private struct SideEffectResult {
         var failedKeys: Set<String> = []
         var warnings: [String] = []
@@ -79,6 +92,8 @@ struct SettingsBackupService {
     /// Preview and apply share it so their restored counts cannot disagree.
     private struct ResolvedImportPlan {
         var plan: SettingsBackupCoder.ApplyPlan
+        /// Write `songRequestEnabled = false` even though the key was removed
+        /// from the plan, so a previously-on value on this Mac is turned off too.
         var forceSongRequestsOff = false
         var warnings: [String] = []
     }
@@ -93,6 +108,20 @@ struct SettingsBackupService {
     private let sideEffects: SideEffects
     private let coder = SettingsBackupCoder()
 
+    /// Creates the adapter. Every dependency defaults to the live app; tests
+    /// inject fakes.
+    ///
+    /// - Parameters:
+    ///   - defaults: Store to snapshot and write. Defaults to `DefaultsStore.store`
+    ///     (an isolated suite under test).
+    ///   - center: Where the post-import service notifications go.
+    ///   - twitchChannelProvider: Reads the configured channel from the Twitch
+    ///     Keychain grant for export. Throws when the Keychain read fails, which
+    ///     fails the export rather than silently dropping the channel.
+    ///   - replaceCustomCommands: Commits imported custom commands through their
+    ///     live store. Returns `false` if the store rejected the data.
+    ///   - replaceSongRequestBlocklist: Same for the song-request blocklist.
+    ///   - sideEffects: System-backed preference adapter.
     init(
         defaults: Foundation.UserDefaults = DefaultsStore.store,
         center: NotificationCenter = .default,
@@ -124,6 +153,8 @@ struct SettingsBackupService {
     // MARK: - Export
 
     /// Builds a backup of the current portable preferences.
+    ///
+    /// - Throws: Whatever `twitchChannelProvider` throws (a Keychain read failure).
     func makeBackup(exportedAt: Date = Date()) throws -> SettingsBackup {
         coder.makeBackup(
             snapshot: snapshot(),
@@ -158,6 +189,14 @@ struct SettingsBackupService {
         try coder.decode(data)
     }
 
+    /// Reads and decodes a backup file off the main actor.
+    ///
+    /// Files over 1 MiB are refused before and after the read (the size
+    /// attribute can be missing or stale), so a huge or hostile pick can't
+    /// stall the app.
+    ///
+    /// - Throws: `SettingsBackupCoder.BackupError.tooLarge`, a file-system
+    ///   error from the read, or the other `BackupError` cases from decoding.
     func decode(fileURL: URL) async throws -> SettingsBackup {
         try await Task.detached(priority: .userInitiated) {
             let maximumSize = 1_048_576
@@ -174,6 +213,9 @@ struct SettingsBackupService {
     }
 
     /// How many preferences a backup would restore (for the review summary).
+    ///
+    /// Uses default ``SettingsBackupCoder/ImportChoices`` (local-sharing keys
+    /// included), so it can exceed what an import with that option off writes.
     func restorableCount(_ backup: SettingsBackup) -> Int {
         resolvedImportPlan(
             backup: backup,
@@ -186,6 +228,14 @@ struct SettingsBackupService {
     /// Writes portable preferences, optionally restores the Twitch channel and
     /// flags re-auth, then broadcasts the service toggles so background
     /// components pick up the new state without a relaunch.
+    ///
+    /// Never removes a key. The restored Twitch channel is stored only as a
+    /// pending hint and the live channel name is cleared; no token is written,
+    /// so the user must sign in again before the channel becomes authoritative.
+    ///
+    /// - Returns: Counts for the confirmation message. A collection its store
+    ///   rejected, or a system setting that could not be applied, moves from
+    ///   restored to ignored.
     @discardableResult
     func apply(
         _ backup: SettingsBackup,
@@ -259,6 +309,11 @@ struct SettingsBackupService {
         )
     }
 
+    /// Builds the coder's plan, then applies rules that depend on this Mac.
+    ///
+    /// Today that is one rule: a backup cannot turn Song Requests on when this
+    /// Mac hasn't finished Song Requests setup (the setup gate would otherwise
+    /// be bypassed). The key is dropped, counted as ignored, and forced off.
     private func resolvedImportPlan(
         backup: SettingsBackup,
         choices: SettingsBackupCoder.ImportChoices
@@ -287,6 +342,12 @@ struct SettingsBackupService {
         )
     }
 
+    /// Applies the plan's system-backed preferences: Launch at Login,
+    /// appearance, and Sparkle's automatic checks and channel.
+    ///
+    /// Launch at Login is only touched when it differs from the live state. If
+    /// registration fails, the stored value is corrected to the real state so
+    /// the toggle doesn't lie.
     private func applySideEffects(for plan: SettingsBackupCoder.ApplyPlan) -> SideEffectResult {
         let keys = AppConstants.UserDefaults.self
         var result = SideEffectResult()

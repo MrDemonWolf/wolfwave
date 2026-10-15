@@ -11,6 +11,9 @@ import Foundation
 // MARK: - CommandReply
 
 /// A command's rendered response plus how it should reach chat.
+///
+/// `TwitchChatService+EventSub` routes on `delivery`: `.announce` goes through
+/// the Helix announcements endpoint, the rest through Send Chat Message.
 nonisolated struct CommandReply: Sendable, Equatable {
     let text: String
     let delivery: ReplyDelivery
@@ -44,8 +47,19 @@ protocol PreflightCheckedCommand: BotCommand {
 /// `registerDefaultCommands`). Includes cooldown enforcement with moderator bypass.
 /// MainActor-isolated (project default isolation); the `NSLock` is retained as a
 /// defense-in-depth guard around the command table.
+///
+/// Matching: the first whitespace-delimited token of a message must equal a
+/// trigger exactly (case-insensitive). Commands are tried in table order
+/// (custom commands, then built-ins in registration order), and the first
+/// enabled, permitted match that replies wins.
 final class BotCommandDispatcher {
+
+    // MARK: - Properties
+
+    /// Guards `commands`, `globalGate`, `customCommandVariables`, and the
+    /// closures wired into the built-in commands.
     private let lock = NSLock()
+    /// Registered built-in commands, in match order.
     private var commands: [BotCommand] = []
 
     /// Global pre-flight gate evaluated before any command runs. Returns `true`
@@ -58,6 +72,7 @@ final class BotCommandDispatcher {
     /// `$lastsong`). Wired by `TwitchChatService`; defaults to empty strings so a
     /// bare dispatcher still renders custom commands (just without live values).
     private var customCommandVariables: @Sendable () async -> CustomCommandVariables = { .empty }
+    /// `!song` / `!currentsong` / `!nowplaying`.
     private let songCommand = TrackInfoCommand(
         triggers: ["!song", "!currentsong", "!nowplaying"],
         description: "Displays the currently playing track",
@@ -66,6 +81,7 @@ final class BotCommandDispatcher {
         userCooldownKey: AppConstants.UserDefaults.songCommandUserCooldown,
         aliasesKey: AppConstants.UserDefaults.songCommandAliases
     )
+    /// `!last` / `!lastsong` / `!prevsong`.
     private let lastSongCommand = TrackInfoCommand(
         triggers: ["!last", "!lastsong", "!prevsong"],
         description: "Displays the last played track",
@@ -74,6 +90,8 @@ final class BotCommandDispatcher {
         userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown,
         aliasesKey: AppConstants.UserDefaults.lastSongCommandAliases
     )
+    /// `!stats` / `!musicstats`. Live-gating lives in the enabled callback
+    /// wired by `setStatsCommandEnabled(callback:)`.
     private let statsCommand = TrackInfoCommand(
         triggers: ["!stats", "!musicstats"],
         description: "Displays today's listening stats (live streams only)",
@@ -82,6 +100,7 @@ final class BotCommandDispatcher {
         userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown,
         aliasesKey: AppConstants.UserDefaults.statsCommandAliases
     )
+    /// `!wolfwave`: static info reply in the user's chosen style.
     private let wolfwaveCommand = InfoCommand(
         triggers: ["!wolfwave"],
         description: "Shows what WolfWave is and where to get it",
@@ -91,9 +110,11 @@ final class BotCommandDispatcher {
         aliasesKey: AppConstants.UserDefaults.wolfwaveCommandAliases,
         messageProvider: { WolfWaveReplyStyle.current().message }
     )
+    /// Shared cooldown ledger for every command, plus the `#denied` refusal keys.
     private let cooldownManager = CooldownManager()
 
-    // Song request commands
+    // Song request commands. Their late-bound services are wired via the
+    // setters below.
     let srCommand = SongRequestCommand()
     let queueCommand = QueueCommand()
     let myQueueCommand = MyQueueCommand()
@@ -102,6 +123,8 @@ final class BotCommandDispatcher {
     let holdCommand = HoldCommand()
     let voteSkipCommand = VoteSkipCommand()
     let songListCommand = SongListCommand()
+
+    // MARK: - Lifecycle
 
     /// Creates a dispatcher pre-loaded with every built-in command.
     init() {
@@ -126,10 +149,14 @@ final class BotCommandDispatcher {
         register(songListCommand)
     }
 
+    // MARK: - Registration & Wiring
+
     /// Adds a `BotCommand` to the dispatch table. Thread-safe.
     ///
-    /// - Parameter command: Command instance. Duplicate triggers are not
-    ///   detected. Last-registered wins.
+    /// - Parameter command: Command instance, appended to the end of the
+    ///   table. Duplicate triggers are not detected; matching walks the table
+    ///   in order, so the earlier-registered command wins unless it is
+    ///   disabled, denies the caller, or returns no reply.
     func register(_ command: BotCommand) {
         lock.withLock {
             commands.append(command)
@@ -260,6 +287,8 @@ final class BotCommandDispatcher {
         return custom + builtins
     }
 
+    // MARK: - Dispatch
+
     /// `processMessageReplyAsync` without the delivery mode. Test convenience:
     /// production calls `processMessageReplyAsync` directly, so this exercises the
     /// exact path chat messages take.
@@ -282,8 +311,19 @@ final class BotCommandDispatcher {
     /// before any `await`. The dispatcher is MainActor-isolated, so each await
     /// is a reentrancy point: checking first and recording only after the await
     /// let a burst of concurrent `!song` messages all pass the check and all
-    /// reply. A claimed slot is released again when the command produces no
-    /// reply, so a silent command never warms the cooldown.
+    /// reply. A claimed slot is released again when a sync or track-info
+    /// command produces no reply, so a silent command never warms the
+    /// cooldown. Async commands keep the slot (see the inline note).
+    ///
+    /// - Parameters:
+    ///   - message: The raw chat line. Lines that are empty after trimming or
+    ///     longer than `AppConstants.Twitch.maxMessageLength` are ignored.
+    ///   - userID: Sender ID used for the per-user cooldown key.
+    ///   - isModerator: Whether the sender bypasses cooldowns. Passed
+    ///     separately from `context` so context-less callers can still set it.
+    ///   - context: Sender details. `nil` skips permission and preflight
+    ///     checks and makes async commands unreachable.
+    /// - Returns: The reply and its delivery mode, or `nil` to stay silent.
     func processMessageReplyAsync(
         _ message: String,
         userID: String = "",
@@ -310,11 +350,12 @@ final class BotCommandDispatcher {
         }
 
         let lowered = trimmedMessage.lowercased()
-        // First-token equality (see processMessage), avoids alias/prefix collisions.
+        // First-token equality, not `hasPrefix`, so `!songs` can't fire `!song`
+        // and an alias can't collide with a longer trigger.
         let commandToken = lowered.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? lowered
 
-        // See processMessage: triggers are all "!"-prefixed, so skip the snapshot
-        // copy + alias reads for non-command lines (the vast majority of chat).
+        // Triggers are all "!"-prefixed, so skip the snapshot copy + alias
+        // reads for non-command lines (the vast majority of chat).
         guard commandToken.hasPrefix("!") else { return nil }
 
         let snapshot = commandSnapshot()
@@ -341,6 +382,8 @@ final class BotCommandDispatcher {
                         break
                     }
 
+                    // Cooldowns key on the first base trigger, so `!song` and
+                    // `!nowplaying` share one cooldown.
                     let canonical = command.triggers.first ?? trigger
                     let (globalCD, userCD) = cooldownValues(for: command)
 
@@ -383,6 +426,8 @@ final class BotCommandDispatcher {
                         return nil
                     }
 
+                    // Without a context an async command falls to the sync
+                    // shim below, which returns nil (slot released, try next match).
                     if let asyncCommand = command as? AsyncBotCommand, let ctx = context {
                         guard !Task.isCancelled else {
                             cooldownManager.release(claim)
@@ -431,6 +476,8 @@ final class BotCommandDispatcher {
                             category: .twitchChat)
                         return CommandReply(text: response, delivery: command.delivery)
                     }
+                    // Silent sync command: give the slot back and let a later
+                    // command with the same trigger have a go.
                     cooldownManager.release(claim)
                     break
                 }
@@ -456,6 +503,12 @@ final class BotCommandDispatcher {
     private static let minimumDenialGlobalInterval: TimeInterval = 5
 
     /// Turns a preflight denial into the reply to send, if any.
+    ///
+    /// The throttle windows are the command's own cooldowns floored at
+    /// ``minimumDenialGlobalInterval`` / ``minimumDenialReplyInterval``.
+    /// Moderators bypass the throttle like any cooldown.
+    ///
+    /// - Returns: The refusal reply, or `nil` for `.silent` or while throttled.
     ///
     /// The reply is throttled per user and globally on its own key (`<trigger>#denied`), never
     /// on the command's cooldown, so the refusal neither starts nor extends the

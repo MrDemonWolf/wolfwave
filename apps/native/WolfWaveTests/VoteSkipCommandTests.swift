@@ -10,6 +10,8 @@ import XCTest
 
 @testable import WolfWave
 
+/// `VoteSkipCommand`: metadata, enable switch, alias handling, reply formatting per vote outcome,
+/// and the reply when a vote passes.
 @MainActor
 final class VoteSkipCommandTests: WolfWaveTestCase {
 

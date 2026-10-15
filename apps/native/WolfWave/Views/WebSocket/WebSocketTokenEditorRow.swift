@@ -13,56 +13,97 @@ import SwiftUI
 /// Shared editor for the two role-specific credentials. Keeping one row
 /// implementation prevents overlay and Stream Deck validation or masking
 /// behavior from drifting while preserving the existing settings-card design.
+///
+/// Rendered by `WebSocketCustomOverlayCard` (overlay role) and
+/// `StreamDeckSettingsView` (control role). Saving or regenerating writes the
+/// Keychain, pushes the new token to the running `WebSocketServerService`, and,
+/// for the overlay role, posts `websocketAuthTokenChanged` so the widget URLs
+/// refresh.
 struct WebSocketTokenEditorRow: View {
+    // MARK: - Properties
+
+    /// Which credential this row edits. Picks the copy, identifiers, and the
+    /// server update call.
     let role: WebSocketAuthToken.Role
+    /// Row title, e.g. "Overlay Token".
     let title: String
+    /// One-line note under the title about what the token can do.
     let subtitle: String
+    /// The persisted token, owned by the parent. Updated here after a
+    /// successful save or regenerate.
     @Binding var currentToken: String
+    /// Streamer Mode: forces the field hidden and disables reveal, copy,
+    /// editing, and regenerate.
     let streamerMode: Bool
+    /// The other role's token as the parent last loaded it. Only a fallback for
+    /// the "must be different" check; `persistTokenEdit` re-reads the live
+    /// value first.
     let otherToken: String
 
+    /// Text in the field. Mirrors `currentToken` until the user edits it.
     @State private var tokenDraft = ""
+    /// Shows the plain `TextField` instead of the `SecureField`.
     @State private var isTokenRevealed = false
+    /// Inline validation or save error under the field.
     @State private var tokenError: String?
+    /// Presents the regenerate confirmation dialog.
     @State private var showingRegenerateConfirm = false
+    /// True while a save is in flight; disables the field and Save, and makes
+    /// a second submit a no-op.
     @State private var isSavingToken = false
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
+    /// Convenience for the many overlay-vs-control branches.
     private var isOverlay: Bool { role == .overlay }
 
+    /// True when the draft differs from the saved token (ignoring surrounding
+    /// whitespace) and isn't empty. Shows Save / Cancel.
     private var hasTokenEdits: Bool {
         let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmed.isEmpty && trimmed != currentToken
     }
 
+    // Role-specific accessibility identifiers. The overlay ones keep their
+    // original names so existing UI tests keep matching.
+
+    /// Identifier for the revealed (plain) field.
     private var visibleFieldIdentifier: String {
         isOverlay ? "websocketTokenFieldVisible" : "websocketControlTokenFieldVisible"
     }
 
+    /// Identifier for the masked field.
     private var hiddenFieldIdentifier: String {
         isOverlay ? "websocketTokenFieldHidden" : "websocketControlTokenFieldHidden"
     }
 
+    /// Identifier for the eye button.
     private var revealButtonIdentifier: String {
         isOverlay ? "websocketTokenRevealButton" : "websocketControlTokenRevealButton"
     }
 
+    /// Identifier for the Copy button.
     private var copyButtonIdentifier: String {
         isOverlay ? "copyWebsocketTokenButton" : "copyWebsocketControlTokenButton"
     }
 
+    /// Identifier for the inline error line.
     private var errorIdentifier: String {
         isOverlay ? "websocketTokenError" : "websocketControlTokenError"
     }
 
+    /// Identifier for Regenerate.
     private var regenerateButtonIdentifier: String {
         isOverlay ? "regenerateWebsocketTokenButton" : "regenerateWebsocketControlTokenButton"
     }
 
+    /// Identifier for Save.
     private var saveButtonIdentifier: String {
         isOverlay ? "saveWebsocketTokenButton" : "saveWebsocketControlTokenButton"
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
@@ -192,6 +233,9 @@ struct WebSocketTokenEditorRow: View {
         }
     }
 
+    // MARK: - Private Helpers
+
+    /// Tooltip for Regenerate, explaining the Streamer Mode lock when relevant.
     private var regenerateHelp: String {
         if streamerMode { return "Turn off Streamer Mode to regenerate this token." }
         return isOverlay
@@ -199,10 +243,18 @@ struct WebSocketTokenEditorRow: View {
             : "Generate a new control token. Stream Deck will disconnect until updated."
     }
 
+    /// Fire-and-forget entry for Return and the Save button.
     private func saveTokenEdit() {
         Task { await persistTokenEdit() }
     }
 
+    /// Validates and saves the draft.
+    ///
+    /// Order: ignore empty / unchanged drafts (reset the field), require
+    /// exactly 64 hex characters, refuse a value equal to the live counterpart
+    /// token (constant-time compare), then persist off the main actor and push
+    /// it to the server. Every failure leaves the saved token untouched and
+    /// sets `tokenError`.
     private func persistTokenEdit() async {
         guard !isSavingToken else { return }
         isSavingToken = true
@@ -256,6 +308,9 @@ struct WebSocketTokenEditorRow: View {
         }
     }
 
+    /// Generates and saves a fresh random token for this role, then applies it.
+    /// Runs the Keychain write synchronously on the main actor; on failure the
+    /// old token stays active.
     private func regenerateToken() {
         do {
             let fresh = try WebSocketAuthToken.rotate(role)
@@ -273,6 +328,10 @@ struct WebSocketTokenEditorRow: View {
         }
     }
 
+    /// Hands the new token to the running server (which restarts an active
+    /// listener so every client re-authenticates) and, for the overlay role,
+    /// posts `websocketAuthTokenChanged`. With no server instance the server
+    /// call is skipped.
     private func applyTokenToServer(_ token: String) {
         let server = AppDelegate.shared?.websocketServer
         Task {

@@ -15,11 +15,13 @@ struct OnboardingWelcomeStepView: View {
 
     // MARK: - Animation State
 
+    // One flag per element so the entrance `.task` can reveal them in sequence.
     @State private var heroVisible = false
     @State private var titleVisible = false
     @State private var taglineVisible = false
     @State private var privacyVisible = false
 
+    /// When on, every flag flips at once with no animation.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Vertical offset applied to text rows before they slide into place.
@@ -75,7 +77,9 @@ struct OnboardingWelcomeStepView: View {
             }
             // Staggered entrance: hero springs in, then title, tagline, and
             // privacy line rise + fade in sequence so the screen reads as a
-            // guided reveal rather than a single pop.
+            // guided reveal rather than a single pop. Gaps are in milliseconds.
+            // No cancellation checks between sleeps: if the step is left early
+            // the remaining flags just flip on a view that is going away.
             withAnimation(DSMotion.Spring.bouncy) {
                 heroVisible = true
             }

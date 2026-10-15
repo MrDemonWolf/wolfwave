@@ -26,9 +26,15 @@ struct DestructiveButton: View {
 
     // MARK: - Properties
 
+    /// Visible label and VoiceOver label.
     let title: String
+    /// Optional leading SF Symbol; `nil` shows the title alone.
     var systemImage: String? = nil
+    /// UI-test identifier. Defaults to `destructiveButton.<title>`, so changing
+    /// the title also changes the default identifier.
     var accessibilityIdentifier: String? = nil
+    /// Runs on click. This button does not confirm; the action should present
+    /// the confirmation dialog itself.
     let action: () -> Void
 
     // MARK: - Body
@@ -47,6 +53,7 @@ struct DestructiveButton: View {
         .accessibilityIdentifier(accessibilityIdentifier ?? "destructiveButton.\(title)")
     }
 
+    /// `Label` with the icon when one is set, otherwise plain `Text`.
     @ViewBuilder
     private var label: some View {
         if let systemImage {

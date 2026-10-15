@@ -39,10 +39,13 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// A service whose HTTP goes through `handlerStore`.
     private func makeService() -> TwitchChannelPointsService {
         TwitchChannelPointsService(session: MockURLProtocol.makeSession(handlerStore: handlerStore))
     }
 
+    /// Records `rewardID` as the managed reward owned by `broadcasterID` (default "12345", matching
+    /// `creds`).
     private func storeManagedReward(
         _ rewardID: String,
         broadcasterID: String = "12345"
@@ -56,6 +59,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
                 replacing: expected))
     }
 
+    /// The request's JSON body as a dictionary, read from `httpBodyStream`.
     private static func bodyJSON(_ request: URLRequest) -> [String: Any] {
         // URLProtocol exposes the body via `httpBodyStream`, not `httpBody`.
         guard let stream = request.httpBodyStream else { return [:] }
@@ -72,6 +76,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
+    /// Serializes a fixture object; a failure here is a test bug, so it traps.
     private static func encodeJSON(_ object: Any) -> Data {
         // swiftlint:disable:next force_try
         try! JSONSerialization.data(withJSONObject: object)
@@ -79,6 +84,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     // MARK: - Request Construction
 
+    /// With no stored reward, `ensureReward` POSTs a new one with the right auth headers and
+    /// body (title, cost, user input required, created disabled), then stores its id and owner.
     func testEnsureRewardCreatesRewardWhenNoStoredID() async throws {
         let captured = ThreadSafeBox<URLRequest?>(nil)
         handlerStore.handler = { request in
@@ -120,6 +127,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         XCTAssertNotNil(payload["prompt"] as? String)
     }
 
+    /// Listing unfulfilled redemptions asks for oldest-first pages of 50 for this reward,
+    /// follows the pagination cursor, and returns each id once even if it repeats across pages.
     func testUnfulfilledRedemptionsPaginatesOldestFirstAndDeduplicates() async throws {
         storeManagedReward("reward_abc")
         let captured = ThreadSafeBox<[URLRequest]>([])
@@ -218,6 +227,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         }
     }
 
+    /// `isRedemptionUnfulfilled` is true only while Helix reports `UNFULFILLED`.
     func testRedemptionStatusLookupDistinguishesUnfulfilledAndResolved() async throws {
         storeManagedReward("reward_abc")
         let status = ThreadSafeBox("UNFULFILLED")
@@ -296,6 +306,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         XCTAssertEqual(payload["cost"] as? Int, 1000)
     }
 
+    /// Resolving as `.fulfilled` PATCHes the redemption (by broadcaster, reward, and id) with
+    /// status `FULFILLED`.
     func testResolveRedemptionFulfilledSendsFULFILLED() async throws {
         storeManagedReward("reward_abc")
         let captured = ThreadSafeBox<URLRequest?>(nil)
@@ -346,6 +358,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
 
     // MARK: - Reconcile Diff
 
+    /// A stored reward id is verified with one GET (manageable rewards only) and reused; no POST is
+    /// made.
     func testEnsureRewardReturnsStoredIDWhenHelixConfirmsExistence() async throws {
         DefaultsStore.store.set("existing_id", forKey: storageKey)
 
@@ -385,6 +399,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         XCTAssertEqual(items["id"], "existing_id")
     }
 
+    /// A reward id from before owner tracking (a "legacy" id) that returns 404 is never
+    /// replaced, because ownership cannot be proven: `.ownershipUnverified`, one GET, id kept.
     func testLegacyReward404StaysOwnerlessAndIsNotReplaced() async {
         DefaultsStore.store.set("stale_id", forKey: storageKey)
         let methods = ThreadSafeBox<[String]>([])
@@ -417,6 +433,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
             "stale_id")
     }
 
+    /// For a reward with a recorded owner, a 404 means it was deleted, so a new one is
+    /// created (GET then POST) and stored.
     func testEnsureRewardTreatsOwned404AsMissingAndRecreates() async throws {
         storeManagedReward("gone_id")
         let methods = ThreadSafeBox<[String]>([])
@@ -448,6 +466,8 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
                     broadcasterID: "12345")))
     }
 
+    /// Credentials for a different broadcaster cannot ensure, update, or remove the stored
+    /// reward (`.ownershipUnverified`, no network requests), and ownership stays with account A.
     func testCrossAccountCannotInspectMutateOrClearManagedReward() async {
         storeManagedReward("reward_a", broadcasterID: "account_a")
         let requestCount = ThreadSafeBox(0)

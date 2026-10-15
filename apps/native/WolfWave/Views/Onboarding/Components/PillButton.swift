@@ -15,13 +15,24 @@ struct PillButton<Label: View>: View {
 
     // MARK: - Properties
 
+    /// Runs on click. Never called while `disabled`.
     let action: () -> Void
+    /// Fill, usually a brand color or gradient wrapped in `AnyShapeStyle`.
     let background: AnyShapeStyle
+    /// Button content, rendered white and semibold.
     let label: Label
+    /// Dims the pill and disables the button.
     var disabled: Bool = false
 
     // MARK: - Init
 
+    /// Creates a pill button.
+    ///
+    /// - Parameters:
+    ///   - background: Fill style for the pill.
+    ///   - disabled: When `true`, the pill dims and ignores clicks.
+    ///   - action: Called on click.
+    ///   - label: Content, styled white and semibold by the button.
     init(
         background: AnyShapeStyle,
         disabled: Bool = false,
@@ -46,6 +57,8 @@ struct PillButton<Label: View>: View {
                 .background(
                     RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous).fill(background)
                 )
+                // Hairline top-edge highlight that fades out downward. The "inner
+                // light highlight" in the type doc; drawn as a stroke, not a fill.
                 .overlay(
                     RoundedRectangle(cornerRadius: AppConstants.OnboardingUI.primaryButtonRadius, style: .continuous)
                         .stroke(

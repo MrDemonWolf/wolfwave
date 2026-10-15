@@ -20,6 +20,10 @@ import Foundation
 /// // After
 /// NotificationCenter.default.publisher(for: .nowPlayingChanged)
 /// ```
+///
+/// Each name wraps the string constant of the same name in
+/// ``AppConstants/Notifications``, where its posting contract and payload
+/// are documented. Typed payload helpers live in `NotificationPayloads.swift`.
 extension NSNotification.Name {
     nonisolated static let trackingSettingChanged = NSNotification.Name(AppConstants.Notifications.trackingSettingChanged)
     nonisolated static let dockVisibilityChanged = NSNotification.Name(AppConstants.Notifications.dockVisibilityChanged)
@@ -65,23 +69,29 @@ extension AppConstants {
         /// Posted when the user toggles Discord Rich Presence setting. UserInfo contains "enabled" Bool.
         static let discordPresenceChanged = "DiscordPresenceChanged"
 
-        /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String.
+        /// Posted when the Discord RPC connection state changes. UserInfo contains "state" String
+        /// and, after a failed attempt, "error" String with the failure reason.
         static let discordStateChanged = "DiscordStateChanged"
 
         /// Posted when Discord Rich Presence display settings change (button labels, toggles, state format).
         /// Triggers an immediate re-send of the cached presence so changes appear without waiting for the next track.
         static let discordPresenceSettingsChanged = "DiscordPresenceSettingsChanged"
 
-        /// Posted when now-playing track information changes. UserInfo contains track, artist, album.
+        /// Posted when now-playing track information changes. UserInfo contains "isPaused" Bool
+        /// plus optional "track", "artist", "album", and "playlist" Strings (absent when nil).
         static let nowPlayingChanged = "NowPlayingChanged"
 
-        /// Posted when Sparkle finds or completes an update check. UserInfo contains "isUpdateAvailable" Bool, "latestVersion" String.
+        /// Posted when Sparkle finds or completes an update check. UserInfo contains "isUpdateAvailable" Bool,
+        /// "latestVersion" String, and optionally "releaseURL" String.
         static let updateStateChanged = "UpdateStateChanged"
 
-        /// Posted when the user toggles the WebSocket server or changes its port.
+        /// Posted when the user toggles the WebSocket server or changes its port. UserInfo carries
+        /// only the supplied subset of "enabled", "widgetHTTPEnabled", "port", and "widgetPort"
+        /// (ports as `UInt16`), or is nil for a bare signal.
         static let websocketServerChanged = "WebSocketServerChanged"
 
-        /// Posted when the WebSocket server connection state changes.
+        /// Posted when the WebSocket server connection state changes. UserInfo contains "state"
+        /// String (lifecycle raw value) and "clients" Int.
         static let websocketServerStateChanged = "WebSocketServerStateChanged"
 
         /// Posted after the overlay auth token is saved or regenerated, so every
@@ -92,9 +102,11 @@ extension AppConstants {
         static let widgetHTTPServerChanged = "WidgetHTTPServerChanged"
 
         /// Posted when system power state changes (Low Power Mode or thermal pressure).
+        /// UserInfo contains "isReducedMode" Bool.
         static let powerStateChanged = "PowerStateChanged"
 
-        /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool.
+        /// Posted when Twitch chat connection state changes. UserInfo contains "isConnected" Bool
+        /// and optionally "error" String.
         static let twitchConnectionStateChanged = "TwitchChatConnectionStateChanged"
 
         /// Posted when song request enabled state changes. UserInfo contains "enabled" Bool.
@@ -116,7 +128,8 @@ extension AppConstants {
         /// Posted when the user toggles Listening History. UserInfo contains "enabled" Bool.
         static let listeningHistorySettingChanged = "ListeningHistorySettingChanged"
 
-        /// Posted when the user toggles Streamer Mode from the tray menu. UserInfo contains "enabled" Bool.
+        /// Posted when Streamer Mode changes from the tray menu or a settings import.
+        /// UserInfo contains "enabled" Bool.
         static let streamerModeChanged = "StreamerModeChanged"
 
         /// Posted when the user toggles iCloud settings sync. UserInfo contains "enabled" Bool.

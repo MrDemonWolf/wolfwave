@@ -203,6 +203,8 @@ struct DiscordIPCFramingTests {
 
 // MARK: - Service seams
 
+/// Test seams that let the framing tests drive the handshake over a `socketpair(2)`
+/// instead of a real `discord-ipc-N` socket.
 private extension DiscordRPCService {
     /// Adopts `descriptor` as a handshaking connection without opening a real socket.
     func installFramingTestSocket(_ descriptor: Int32) {
@@ -256,6 +258,7 @@ private nonisolated struct FramingSocketPair: Sendable {
     }
 }
 
+/// Failures from the raw socket helpers in this file (errno carried where relevant).
 private nonisolated enum FramingTestError: Error, Sendable {
     case socket(Int32)
     case readFailed(Int32)
@@ -263,6 +266,8 @@ private nonisolated enum FramingTestError: Error, Sendable {
     case invalidPayload
 }
 
+/// One frame as read off the wire: opcode, the length the header declared, and the payload bytes
+/// actually read.
 private nonisolated struct FramingRawFrame: Sendable {
     let opcode: UInt32
     let declaredLength: UInt32
@@ -280,6 +285,7 @@ private nonisolated func framingConfigureSocket(_ descriptor: Int32) -> Bool {
         && setsockopt(descriptor, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeoutSize) == 0
 }
 
+/// The 8-byte IPC header: opcode then payload length, both little-endian UInt32.
 private nonisolated func framingHeader(opcode: UInt32, length: UInt32) -> Data {
     var header = Data(count: 8)
     header.withUnsafeMutableBytes { bytes in
@@ -289,6 +295,7 @@ private nonisolated func framingHeader(opcode: UInt32, length: UInt32) -> Data {
     return header
 }
 
+/// A complete frame (header plus JSON body) for `json`.
 private nonisolated func framingFrame(
     opcode: DiscordRPCService.Opcode,
     json: [String: Any]
@@ -300,6 +307,7 @@ private nonisolated func framingFrame(
     return framingHeader(opcode: opcode.rawValue, length: length) + body
 }
 
+/// Reads one header and its declared payload from `descriptor`; throws on timeout or short read.
 private nonisolated func framingReadFrame(from descriptor: Int32) throws -> FramingRawFrame {
     let header = try framingReadExactly(8, from: descriptor)
     let opcode = header.withUnsafeBytes { bytes in
@@ -314,6 +322,7 @@ private nonisolated func framingReadFrame(from descriptor: Int32) throws -> Fram
         payload: try framingReadExactly(Int(length), from: descriptor))
 }
 
+/// Reads exactly `count` bytes, looping over short reads.
 private nonisolated func framingReadExactly(_ count: Int, from descriptor: Int32) throws -> Data {
     var data = Data(count: count)
     var offset = 0
@@ -333,6 +342,7 @@ private nonisolated func framingReadExactly(_ count: Int, from descriptor: Int32
     return data
 }
 
+/// Writes all of `data`, looping over short writes.
 private nonisolated func framingWrite(_ data: Data, to descriptor: Int32) throws {
     try data.withUnsafeBytes { bytes in
         guard let baseAddress = bytes.baseAddress else {

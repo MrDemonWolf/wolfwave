@@ -9,6 +9,9 @@
 import XCTest
 @testable import WolfWave
 
+/// Sparkle feed resolution (DEBUG dev appcast vs Stable/Nightly channel) and the
+/// persisted `UpdateChannel` preference. Subclasses `WolfWaveTestCase` because the
+/// channel is stored in `DefaultsStore.store`.
 @MainActor
 final class SparkleUpdaterServiceTests: WolfWaveTestCase {
 

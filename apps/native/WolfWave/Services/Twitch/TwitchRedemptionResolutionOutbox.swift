@@ -16,23 +16,48 @@ import Foundation
 /// exact EventSub tombstone afterward. Exact channel-point business tombstones
 /// and Bits message tombstones close late-redelivery, reconnect, and relaunch
 /// windows without relying on the bounded transport dedup cache.
+///
+/// Thread safety: all mutable state is guarded by ``lock``, which is why the
+/// class is `@unchecked Sendable`. Every mutation writes the full replacement
+/// state to disk first and only then swaps it into memory, so a failed write
+/// leaves memory matching the last durable file.
+///
+/// Failure modes: an unreadable file is quarantined (renamed aside) on init; if
+/// even that fails, ``existingStoreIsUnreadable`` makes every mutation throw
+/// rather than overwrite bytes that may hold paid work. Any failed write sets a
+/// sticky flag cleared only by ``verifyIntakeStorage()``.
 nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
+    // MARK: - Types
+
+    /// One channel-point redemption awaiting a terminal Helix PATCH. Identified
+    /// for business purposes by (broadcaster, reward, redemption); `id` is a
+    /// local handle only.
     struct Item: Codable, Equatable, Identifiable, Sendable {
+        /// Sentinel stored in `resolutionRawValue` while the outcome is still
+        /// unknown. Not a Twitch status, so it never reaches Helix.
         static let intakeRawValue = "WOLFWAVE_INTAKE"
 
         let id: UUID
         let broadcasterID: String
         let rewardID: String
         let redemptionID: String
+        /// Either ``intakeRawValue`` or a `Resolution` raw value
+        /// (`FULFILLED` / `CANCELED`).
         let resolutionRawValue: String
         let createdAt: Date
 
+        /// Optional so files written before dead-lettering existed still decode.
+        /// Read through ``deadLetter``.
         var isDeadLetter: Bool? = nil
+        /// Optional for the same reason. Read through ``attemptCount``.
         var failureAttempts: Int? = nil
 
+        /// True once the retry worker gave up. Excluded from ``pendingItems()``.
         var deadLetter: Bool { isDeadLetter == true }
+        /// Recorded conflict failures, clamped to non-negative.
         var attemptCount: Int { max(0, failureAttempts ?? 0) }
 
+        /// The final outcome, or `nil` while still in the intake phase.
         var resolution: TwitchChannelPointsService.Resolution? {
             TwitchChannelPointsService.Resolution(rawValue: resolutionRawValue)
         }
@@ -42,6 +67,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         /// request outcome cannot be reconstructed safely.
         var isIntake: Bool { resolutionRawValue == Self.intakeRawValue }
 
+        /// All IDs non-empty and the raw value is intake or a known resolution.
+        /// Invalid items found on load trigger the copy-then-salvage path.
         var isValid: Bool {
             !broadcasterID.isEmpty
                 && !rewardID.isEmpty
@@ -50,6 +77,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// A complete Bits cheer action (request and/or boost), persisted before the
+    /// request queue is touched so it can be replayed after a relaunch. Keyed
+    /// by the EventSub `messageID` plus broadcaster.
     struct BitsItem: Codable, Equatable, Identifiable, Sendable {
         let id: UUID
         let messageID: String
@@ -57,10 +87,13 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         let userName: String
         let bits: Int
         let boostEnabled: Bool
+        /// The song query parsed from the cheer message. May be empty.
         let query: String
         let createdAt: Date
+        /// Optional so older files decode; newer intake records the login.
         var userLogin: String? = nil
 
+        /// Same rule ``enqueueBits`` enforces on input. `query` may be empty.
         var isValid: Bool {
             !messageID.isEmpty
                 && !broadcasterID.isEmpty
@@ -69,11 +102,16 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Which EventSub subscription a paid-event tombstone belongs to, so equal
+    /// message IDs from different event types never collide.
     enum PaidEventKind: String, Codable, Equatable, Hashable, Sendable {
         case channelPointRedemption
         case bitsUse
     }
 
+    /// Marks a paid EventSub message as fully processed. Kept for
+    /// ``paidEventTombstoneRetention`` so a redelivery inside Twitch's replay
+    /// window is dropped. Today only Bits writes these.
     struct PaidEventTombstone: Codable, Equatable, Sendable {
         let messageID: String
         let broadcasterID: String
@@ -85,6 +123,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Marks a channel-point redemption whose terminal Helix PATCH succeeded.
+    /// Keyed by business identity, not EventSub message ID, so a redelivery
+    /// under a new message ID is still recognized.
     struct AcknowledgedRedemptionTombstone: Codable, Equatable, Sendable {
         let broadcasterID: String
         let rewardID: String
@@ -102,9 +143,14 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// forward clock skew. Paid-event tombstones therefore remain durable for
     /// that complete local acceptance horizon without a count cap that busy
     /// channels could evict early.
+    /// Seconds. Applies to both tombstone kinds.
     static let paidEventTombstoneRetention: TimeInterval = 10 * 60 + 30
+    /// Cap on retained dead letters; ``moveToDeadLetter(_:)`` evicts the
+    /// earliest-inserted ones beyond this.
     static let maximumDeadLetterItems = 100
 
+    /// On-disk JSON shape. Version 0 was a bare `[Item]` array and is migrated
+    /// on load; any other version is treated as unreadable and quarantined.
     private struct PersistedState: Codable {
         static let currentVersion = 1
 
@@ -116,48 +162,88 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
             [AcknowledgedRedemptionTombstone]
     }
 
+    /// Business identity of a channel-point redemption.
     private struct RedemptionKey: Hashable {
         let broadcasterID: String
         let rewardID: String
         let redemptionID: String
     }
 
+    /// Transport identity of a paid EventSub message.
     private struct PaidEventKey: Hashable {
         let messageID: String
         let broadcasterID: String
         let kind: PaidEventKind
     }
 
+    /// Load-time structural failures. Both route to quarantine.
     private enum DecodeError: Error {
         case unsupportedVersion
         case duplicateRedemption
     }
 
+    /// Errors thrown by mutating calls.
     enum StoreError: Error {
+        /// Empty IDs, non-positive bits, or an otherwise invalid record.
         case invalidItem
+        /// No item with that local ID (already acknowledged or never stored).
         case missingItem
+        /// The file on disk could not be read or quarantined; writes are refused.
         case unreadableExistingStore
+        /// Opaque recovery cannot be cleared while work is still queued.
         case unresolvedRecoveryRisk
     }
 
+    // MARK: - Properties
+
+    /// The app-wide instance backed by `State/twitch-redemption-resolution-outbox.json`.
     static let shared = TwitchRedemptionResolutionOutbox()
 
+    /// Guards every `var` below and serializes disk writes.
     private let lock = NSLock()
     private let fileURL: URL
     private let fileManager: FileManager
+    /// Injected so tests can simulate a failed write; production uses
+    /// ``durableAtomicWrite(_:to:)``.
     private let atomicWriter: (Data, URL) throws -> Void
+    /// Moves an unreadable file aside. Injected so tests can fail quarantine.
     private let quarantineMover: (URL, URL) throws -> Void
+    /// Copies a partially valid file aside before the salvage rewrite.
     private let quarantineCopier: (URL, URL) throws -> Void
+    /// Clock for tombstone expiry and new item timestamps. Injected for tests.
     private let nowProvider: @Sendable () -> Date
     private var items: [Item]
     private var bitsItems: [BitsItem]
     private var paidEventTombstones: [PaidEventTombstone]
     private var acknowledgedRedemptionTombstones:
         [AcknowledgedRedemptionTombstone]
+    /// Set when the file could not be read AND could not be quarantined. Every
+    /// mutation then throws so the unread bytes are never overwritten.
     private var existingStoreIsUnreadable = false
+    /// Sticky after any failed ``persist``; cleared only by
+    /// ``verifyIntakeStorage()``. Reported by ``intakeStorageIsUnavailable()``.
     private var intakeStorageHasFailed = false
+    /// True while quarantine files exist beside the store. Re-derived from the
+    /// directory on init, so it survives relaunch.
     private var opaqueRecoveryRisk = false
 
+    // MARK: - Lifecycle
+
+    /// Loads, validates, and if needed migrates or salvages the store.
+    ///
+    /// Outcomes, in order:
+    /// - No file: empty state.
+    /// - Unreadable, unsupported version, or duplicate keys: the file is
+    ///   renamed to a `.corrupt-<UUID>` sibling and state starts empty.
+    /// - Some invalid records: the original is copied aside, then the valid
+    ///   subset is rewritten.
+    /// - Version-0 format or expired/clamped tombstones: rewritten in place.
+    ///
+    /// Does synchronous file I/O; ``shared`` is created lazily on first use.
+    ///
+    /// - Parameters:
+    ///   - quarantineMover: `nil` uses `FileManager.moveItem`.
+    ///   - quarantineCopier: `nil` uses `FileManager.copyItem`.
     init(
         fileURL: URL = AppContainer.directory("State")
             .appending(path: "twitch-redemption-resolution-outbox.json"),
@@ -183,6 +269,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         self.bitsItems = []
         self.paidEventTombstones = []
         self.acknowledgedRedemptionTombstones = []
+        // Quarantine files left by an earlier launch still count as risk.
         let quarantinePrefix = fileURL.lastPathComponent + ".corrupt-"
         self.opaqueRecoveryRisk = (
             try? fileManager.contentsOfDirectory(
@@ -221,6 +308,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
                 needsFormatMigration = true
             }
 
+            // Duplicate keys mean the file cannot be trusted to say which copy
+            // is current, so they fail the whole load rather than one record.
             var itemIDs = Set<Item.ID>()
             var businessKeys = Set<RedemptionKey>()
             for item in decodedItems {
@@ -342,7 +431,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
-    /// Returns a stable oldest-first snapshot for replay.
+    // MARK: - Channel-Point Queue
+
+    /// Returns a stable oldest-first snapshot for replay. Excludes dead letters.
     func pendingItems() -> [Item] {
         lock.withLock {
             items.filter { !$0.deadLetter }.sorted { $0.createdAt < $1.createdAt }
@@ -356,6 +447,13 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         lock.withLock { items.filter(\.deadLetter).sorted { $0.createdAt < $1.createdAt } }
     }
 
+    /// Durably increments the item's failure count. The retry worker calls this
+    /// after a conflict it could not resolve and dead-letters the item once the
+    /// returned count reaches its limit.
+    ///
+    /// - Returns: The new count, or the unchanged count for a dead letter.
+    /// - Throws: `StoreError.missingItem`, `.unreadableExistingStore`, or the
+    ///   write error (memory is left unchanged).
     @discardableResult
     func recordFailureAttempt(_ id: Item.ID) throws -> Int {
         try lock.withLock {
@@ -388,6 +486,12 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Parks an item so replay stops retrying it. The item keeps its business
+    /// key, so a redelivery of the same redemption finds it via ``enqueueIntake``
+    /// and is not re-processed. Beyond ``maximumDeadLetterItems`` the earliest
+    /// dead letters in array (insertion) order are dropped.
+    ///
+    /// No-op for an item already dead-lettered.
     func moveToDeadLetter(_ id: Item.ID) throws {
         try lock.withLock {
             guard !existingStoreIsUnreadable else {
@@ -421,6 +525,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    // MARK: - Bits Queue
+
     /// Returns stable oldest-first replayable Bits events, optionally scoped to
     /// one broadcaster during account teardown.
     func pendingBitsItems(
@@ -439,6 +545,15 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// Persists the complete Bits action before touching the volatile request
     /// queue. A terminal tombstone suppresses only work already acknowledged;
     /// a pending duplicate resumes the same durable item.
+    ///
+    /// Expired tombstones are pruned in memory as a side effect; that prune is
+    /// only written to disk when a new item is inserted.
+    ///
+    /// - Returns: `(nil, false)` when a tombstone says the message was already
+    ///   handled; `(existing, false)` for a pending duplicate; `(new, true)`
+    ///   after a successful durable insert.
+    /// - Throws: `StoreError.invalidItem`, `.unreadableExistingStore`, or the
+    ///   write error.
     func enqueueBits(
         messageID: String,
         broadcasterID: String,
@@ -519,6 +634,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
 
     /// Commits completion by atomically replacing replayable Bits intake with a
     /// TTL-bound transport tombstone. A missing item is already complete.
+    ///
+    /// - Parameter date: Tombstone timestamp; `nil` uses the injected clock.
     func acknowledgeBits(
         _ id: BitsItem.ID,
         at date: Date? = nil
@@ -574,6 +691,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// True only for the exact business transaction that already reached a
     /// terminal Helix acknowledgement. This remains separate from transport
     /// message IDs so another account or reward is never suppressed.
+    ///
+    /// Prunes expired tombstones in memory (not on disk) as a side effect.
     func hasAcknowledgedRedemption(
         broadcasterID: String,
         rewardID: String,
@@ -603,6 +722,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    // MARK: - Storage Health
+
     /// Sticky circuit-breaker state. A failed mutation remains unavailable
     /// until `verifyIntakeStorage()` proves an atomic commit works again.
     func intakeStorageIsUnavailable() -> Bool {
@@ -620,6 +741,12 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// Clears quarantined opaque bytes only after held Helix recovery has
     /// enumerated and resolved every remote redemption and the live queue is
     /// empty. Normal logout never calls this discard boundary.
+    ///
+    /// Deletes every `<store>.corrupt-*` file in the store's directory.
+    ///
+    /// - Throws: `StoreError.unresolvedRecoveryRisk` while any channel-point or
+    ///   Bits item (dead letters included) remains, or the file is unreadable;
+    ///   otherwise a `FileManager` error, in which case the flag stays set.
     func clearOpaqueRecoveryRiskAfterReconciliation() throws {
         try lock.withLock {
             guard !existingStoreIsUnreadable,
@@ -648,6 +775,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// Call this before making the managed reward redeemable: a successful
     /// no-op rewrite proves intake can be persisted before any viewer spends
     /// points, while an unquarantined corrupt store remains protected.
+    ///
+    /// The only call that clears the sticky failure flag. Also persists any
+    /// tombstone expiry pruned since the last write.
     func verifyIntakeStorage() throws {
         try lock.withLock {
             guard !existingStoreIsUnreadable else {
@@ -670,8 +800,13 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    // MARK: - Channel-Point Intake and Resolution
+
     /// Persists an idempotent work item before any network request begins.
-    /// Duplicate EventSub deliveries reuse the existing item.
+    /// Duplicate EventSub deliveries reuse the existing item, including a
+    /// dead-lettered one.
+    ///
+    /// - Returns: The stored item and whether this call inserted it.
     func enqueueIntake(
         broadcasterID: String,
         rewardID: String,
@@ -709,6 +844,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// Atomically replaces an intake phase with its final Twitch resolution.
     /// Persistence happens before in-memory state changes, so a failed write
     /// deliberately leaves intake on disk and restart will refund it.
+    ///
+    /// - Returns: The updated item, or the current item unchanged when it
+    ///   already has a resolution (same or different).
     func updateResolution(
         _ id: Item.ID,
         to resolution: TwitchChannelPointsService.Resolution
@@ -748,6 +886,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Shared insert for intake and direct-resolution items. Lookup is by
+    /// business key, so a duplicate returns the existing item untouched.
     private func enqueue(
         broadcasterID: String,
         rewardID: String,
@@ -797,6 +937,11 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
     /// Atomically removes a completed work item and records its exact business
     /// identity as terminal. A crash can therefore leave either replayable work
     /// or a tombstone, never an unprotected post-PATCH gap.
+    ///
+    /// No-op when the item is already gone. Works on dead letters too.
+    ///
+    /// - Parameter date: Tombstone timestamp; `nil` uses the injected clock.
+    ///   Expiry pruning always uses the injected clock.
     func acknowledge(
         _ id: Item.ID,
         at date: Date? = nil
@@ -872,6 +1017,11 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    // MARK: - Private Helpers
+
+    /// Drops invalid and expired tombstones, clamps future-dated ones to `now`,
+    /// keeps the newest per key, and sorts deterministically so an unchanged
+    /// set compares equal (which is how init decides whether to rewrite).
     private static func normalizedPaidEventTombstones(
         _ tombstones: [PaidEventTombstone],
         now: Date
@@ -916,6 +1066,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Same normalization as ``normalizedPaidEventTombstones(_:now:)`` for
+    /// acknowledged-redemption tombstones.
     private static func normalizedAcknowledgedRedemptionTombstones(
         _ tombstones: [AcknowledgedRedemptionTombstone],
         now: Date
@@ -959,6 +1111,10 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         }
     }
 
+    /// Encodes and durably writes the complete state. Caller must hold ``lock``
+    /// and must assign the new values to memory only after this returns.
+    ///
+    /// Any failure sets ``intakeStorageHasFailed`` before rethrowing.
     private func persist(
         _ replacement: [Item],
         bitsItems: [BitsItem],
@@ -1056,6 +1212,8 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         return quarantineURL
     }
 
+    /// `<store>.corrupt-<UUID>` in the same directory. The prefix is what init
+    /// and ``clearOpaqueRecoveryRiskAfterReconciliation()`` scan for.
     private func makeQuarantineURL() -> URL {
         fileURL.appendingPathExtension("corrupt-\(UUID().uuidString)")
     }

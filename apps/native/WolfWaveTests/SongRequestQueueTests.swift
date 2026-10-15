@@ -11,6 +11,8 @@ import XCTest
 
 @testable import WolfWave
 
+/// `SongRequestQueue` ordering and limits: capacity, per-user limit, duplicate rejection,
+/// fair-share rounds vs FIFO, and Sub/VIP priority within a round.
 @MainActor
 final class SongRequestQueueTests: WolfWaveTestCase {
     var queue: SongRequestQueue!

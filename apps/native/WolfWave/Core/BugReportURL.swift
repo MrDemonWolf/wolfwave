@@ -39,6 +39,9 @@ enum BugReportURL {
         make(base: base, environment: snapshot.markdownBullets)
     }
 
+    /// Assembles the issue-form query (`template`, `labels`, `title`, `body`)
+    /// around a pre-rendered Markdown environment block. `URLComponents`
+    /// percent-encodes the body.
     private static func make(base: String, environment: String) -> URL? {
         guard var components = URLComponents(string: base) else { return nil }
 
@@ -105,7 +108,8 @@ enum BugReportURL {
 
     // MARK: - Helpers
 
-    /// Returns the current process's CPU architecture identifier.
+    /// Returns the current process's CPU architecture identifier, decided at
+    /// compile time (an x86_64 build under Rosetta reports `x86_64`).
     static func currentArch() -> String {
         #if arch(arm64)
         return "arm64"

@@ -24,6 +24,7 @@ nonisolated enum HistoryStoreSupport {
     }
 
     /// Creates the containing directory of `fileURL` if it does not already exist.
+    /// Errors are swallowed; the caller's subsequent write surfaces any failure.
     static func ensureDirectory(for fileURL: URL) {
         let dir = fileURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -38,12 +39,20 @@ nonisolated final class HistoryClearMarkerStore: @unchecked Sendable {
     /// URL of the versioned clear-pending tombstone.
     let fileURL: URL
 
+    /// Serializes every marker read and write so `begin`/`complete` cannot interleave.
     private let ioQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.history-clear", qos: .utility
     )
+    /// Test seam: returning `false` simulates a failed marker write.
     private let beginOverride: (@Sendable () -> Bool)?
+    /// Test seam: returning `false` simulates a failed marker removal.
     private let completeOverride: (@Sendable () -> Bool)?
 
+    /// - Parameters:
+    ///   - directory: Where the marker lives. `nil` uses the shared history
+    ///     directory, so it sits beside the two data files it guards.
+    ///   - beginOverride: Test-only failure injection for `begin()`.
+    ///   - completeOverride: Test-only failure injection for `complete()`.
     init(
         directory: URL? = nil,
         beginOverride: (@Sendable () -> Bool)? = nil,
@@ -63,6 +72,12 @@ nonisolated final class HistoryClearMarkerStore: @unchecked Sendable {
     }
 
     /// Durably records clear intent before either history data store changes.
+    ///
+    /// Idempotent: an existing marker (a previous clear that never finished)
+    /// counts as success. Written atomically so a crash cannot leave a torn file.
+    ///
+    /// - Returns: `false` when the marker could not be written; the caller
+    ///   must not start deleting data in that case.
     @discardableResult
     func begin() -> Bool {
         ioQueue.sync {
@@ -86,6 +101,9 @@ nonisolated final class HistoryClearMarkerStore: @unchecked Sendable {
     }
 
     /// Removes the marker only after both data stores are known empty.
+    ///
+    /// - Returns: `true` when the marker is gone (including when it never
+    ///   existed); `false` leaves it in place so the clear is replayed on next launch.
     @discardableResult
     func complete() -> Bool {
         ioQueue.sync {

@@ -16,15 +16,22 @@ struct DSIconButton: View {
 
     // MARK: - Properties
 
+    /// SF Symbol name for the glyph.
     let systemImage: String
+    /// Runs on click.
     let action: () -> Void
+    /// Disables the button.
     var isDisabled: Bool = false
+    /// Required: an icon-only button has no visible text for VoiceOver to read.
     var accessibilityLabel: String
+    /// Optional UI-test identifier; applied only when non-nil.
     var accessibilityIdentifier: String?
 
     // MARK: - Body
 
     var body: some View {
+        // The min frame is what keeps an icon-only button from collapsing
+        // narrower than its text-label neighbours.
         let button = Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: DSFont.Size.sm))

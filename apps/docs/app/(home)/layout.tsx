@@ -10,6 +10,7 @@ import { repoUrl } from "@/lib/site";
  */
 const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA ?? process.env.GITHUB_SHA;
 
+/** Landing/download shell: Fumadocs home nav plus the shared footer (copyright, optional build commit link, site links). */
 export default function Layout({ children }: LayoutProps<"/">) {
   const currentYear = new Date().getFullYear();
   return (

@@ -21,9 +21,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
+/** The token source file being validated. */
 const TOKENS_PATH = resolve(ROOT, "design-system/tokens.json");
+/** JSON Schema that `tokens.json` must satisfy. */
 const SCHEMA_PATH = resolve(ROOT, "design-system/tokens.schema.json");
 
+/** Reads and parses a JSON file, exiting with a labelled message on failure. */
 function readJSON(path: string, label: string): unknown {
   let raw: string;
   try {

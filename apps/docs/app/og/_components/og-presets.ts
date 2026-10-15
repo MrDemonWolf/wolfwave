@@ -1,8 +1,10 @@
+/** Pill label and chip row shown on a docs OG card. */
 export interface OgPreset {
   eyebrow: string;
   chips: string[];
 }
 
+/** Keyed by the first docs slug segment; "" is the homepage/default. Per-page frontmatter overrides these. */
 const PRESETS: Record<string, OgPreset> = {
   "": { eyebrow: "Free for macOS 26+", chips: ["Apple Music", "Twitch", "Discord", "OBS"] },
   features: { eyebrow: "All-in-one", chips: ["!song bot", "Discord RPC", "OBS Overlay", "Song Requests"] },

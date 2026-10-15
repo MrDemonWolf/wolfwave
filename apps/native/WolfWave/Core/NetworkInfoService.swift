@@ -15,14 +15,18 @@ import os
 ///
 /// `getifaddrs` walks every network interface. The result is cached behind a lock so SwiftUI
 /// views can read the last-known IP synchronously (no `await`) on first render, eliminating the
-/// "pop-in" lag previously seen when opening the Now-Playing Server settings.
+/// "pop-in" lag previously seen when opening the Stream Widgets settings pane.
 ///
 /// Refreshes still serialize through the actor; reads hit the lock-protected static cache.
 actor NetworkInfoService {
+    /// Process-wide instance. Refreshed once at launch and again by the Stream
+    /// Widgets pane on appear and on every network path change.
     static let shared = NetworkInfoService()
 
     // MARK: - Cache
 
+    /// Last resolved IPv4 address (`nil` = never resolved or no LAN address).
+    /// A static lock, not actor state, so `cachedIPv4` reads need no `await`.
     private static let cacheLock = OSAllocatedUnfairLock<String?>(initialState: nil)
 
     // MARK: - Shared path monitor
@@ -36,8 +40,13 @@ actor NetworkInfoService {
         return monitor
     }()
 
+    /// Live `pathUpdates()` subscribers, keyed by a per-stream id so each can
+    /// remove itself on termination.
     private static let pathContinuationsLock = OSAllocatedUnfairLock<[UUID: AsyncStream<NWPath>.Continuation]>(initialState: [:])
 
+    /// Lazily installs the monitor's fan-out handler exactly once (Swift
+    /// static initializers are run-once and thread-safe). The handler snapshots
+    /// the subscriber map under the lock, then yields outside it.
     private static let pathHandlerInstalled: Bool = {
         pathMonitor.pathUpdateHandler = { path in
             let continuations = pathContinuationsLock.withLock { $0 }
@@ -67,6 +76,7 @@ actor NetworkInfoService {
     // MARK: - Public API
 
     /// Forces a fresh `getifaddrs` walk and updates the cache. Returns the new value.
+    /// A `nil` result overwrites the cache, so a disconnect clears the stale address.
     @discardableResult
     func refreshIPv4() -> String? {
         let value = Self.computePrimaryIPv4()
@@ -77,6 +87,10 @@ actor NetworkInfoService {
     // MARK: - Private
 
     /// Returns the first non-loopback, up, running IPv4 address, or `nil` if not connected.
+    ///
+    /// "First" is `getifaddrs` order, not a routing decision, so with several
+    /// active interfaces (Wi-Fi plus Ethernet, a VPN) this is not guaranteed
+    /// to be the default-route address.
     private static func computePrimaryIPv4() -> String? {
         var ifaddr: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&ifaddr) == 0 else { return nil }

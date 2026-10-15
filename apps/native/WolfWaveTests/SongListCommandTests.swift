@@ -22,6 +22,7 @@ final class SongListCommandTests: WolfWaveTestCase {
 
     private let command = SongListCommand()
 
+    /// Removes this command's enable, alias, and URL settings.
     private func clearKeys() {
         let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songListCommandEnabled)

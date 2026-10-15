@@ -3,6 +3,8 @@ import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { z } from 'zod';
 
+// Adds the SEO / Open Graph fields read by `app/og/docs/[...slug]/route.tsx`
+// and page metadata; all optional so existing pages stay valid.
 const extendedFrontmatter = pageSchema.extend({
   keywords: z.array(z.string()).optional(),
   section: z.string().optional(),
@@ -19,6 +21,7 @@ export const docs = defineDocs({
   docs: {
     schema: extendedFrontmatter,
     postprocess: {
+      // Keeps processed markdown so `getLLMText` (llms-full.txt) can read it.
       includeProcessedMarkdown: true,
     },
   },

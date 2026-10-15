@@ -40,6 +40,8 @@ nonisolated enum WolfWaveReplyStyle: String, CaseIterable, Identifiable, Sendabl
 
     // MARK: - Identifiable
 
+    /// The raw value, which is also what's persisted. Renaming a case resets
+    /// streamers who picked it to ``default``.
     var id: String { rawValue }
 
     // MARK: - Settings Picker
@@ -60,7 +62,7 @@ nonisolated enum WolfWaveReplyStyle: String, CaseIterable, Identifiable, Sendabl
     ///
     /// Links to `AppConstants.URLs.docs` (the WolfWave site) so the URL stays in
     /// sync with the rest of the app. Kept well under Twitch's 500-character
-    /// limit; the dispatcher truncates as a final guard.
+    /// limit; `InfoCommand` (and the chat send path) truncate as a final guard.
     var message: String {
         let site = AppConstants.URLs.docs
         switch self {

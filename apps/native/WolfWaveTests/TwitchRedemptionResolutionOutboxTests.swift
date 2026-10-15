@@ -11,7 +11,14 @@ import XCTest
 
 @testable import WolfWave
 
+/// `TwitchRedemptionResolutionOutbox` durability: intake survives relaunch and dedupes, failed
+/// writes leave replayable items, corrupt stores are quarantined, a failed acknowledgement trips
+/// the circuit breaker, and Bits actions replay until acknowledged. Uses injected writers and temp
+/// storage, never the live Application Support directory.
 final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
+    /// An intake record is written before its outcome is known and survives a relaunch as
+    /// one unknown item (startup can then refund it). A duplicate delivery is not inserted
+    /// again, and once an outcome is recorded a later conflicting one cannot reverse it.
     func testIntakePersistsAndDeduplicatesAcrossRelaunchUntilOutcomeKnown() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -50,6 +57,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertEqual(knownRelaunch.pendingItems(), [fulfilled])
     }
 
+    /// If recording the outcome fails to write, the earlier intake stays on disk and in memory,
+    /// and intake storage is flagged unavailable until `verifyIntakeStorage()` succeeds again.
     func testFailedOutcomeWriteLeavesDurableIntakeForStartupRefund() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -88,6 +97,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         )
     }
 
+    /// Five recorded failures persist the attempt count; moving the item to the dead-letter
+    /// list removes it from `pendingItems()` (what teardown checks) and keeps it across relaunch.
     func testDeadLetterDoesNotBlockCredentialTeardown() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -115,6 +126,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
             [item.id])
     }
 
+    /// `verifyIntakeStorage()` goes through the injected atomic writer: a failed probe marks
+    /// storage unavailable, and a later successful probe clears the flag and creates the file.
     func testStorageProbeUsesInjectedAtomicWriterAndCanRecover() throws {
         enum InjectedFailure: Error {
             case write
@@ -145,6 +158,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.file.path))
     }
 
+    /// A failed write while removing an acknowledged item keeps the item and marks storage
+    /// unavailable, which a later successful probe clears.
     func testFailedAcknowledgementWriteTripsCircuitBreakerAndKeepsItem() throws {
         enum InjectedFailure: Error {
             case write
@@ -176,6 +191,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertFalse(store.intakeStorageIsUnavailable())
     }
 
+    /// Enqueueing the same redemption twice returns the original item (first resolution wins).
+    /// The item survives a relaunch and is gone after removal.
     func testPersistsDeduplicatesAndAcknowledgesAcrossInstances() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -206,6 +223,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertTrue(drained.pendingItems().isEmpty)
     }
 
+    /// An unparseable store file is moved aside to `<name>.corrupt-*` with its bytes preserved,
+    /// a fresh queue works, and the "opaque recovery risk" flag survives relaunch until it is
+    /// cleared explicitly after reconciliation.
     func testCorruptStoreIsQuarantinedAndFreshQueueStillWorks() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -241,6 +261,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertFalse(recovered.hasOpaqueRecoveryRisk())
     }
 
+    /// If the corrupt file cannot be moved aside, nothing is overwritten: the probe and new
+    /// intake throw `unreadableExistingStore`, the risk flag stays set, and the original bytes
+    /// remain.
     func testQuarantineFailureBlocksStorageProbeAndFutureIntake() throws {
         enum InjectedFailure: Error {
             case quarantine
@@ -296,6 +319,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertEqual(store.pendingItems().count, 1)
     }
 
+    /// A store holding one valid and one invalid item (empty broadcaster, unknown resolution)
+    /// keeps the valid one live, quarantines the original, and still reports the recovery risk
+    /// after relaunch.
     func testMixedInvalidStoreRestoresValidItemsToLiveQueue() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -334,6 +360,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         })
     }
 
+    /// If rewriting the salvaged valid items fails, the original file is left untouched
+    /// and the valid item is still served from memory and after relaunch.
     func testMixedInvalidStoreKeepsOriginalLiveWhenSalvageWriteFails() throws {
         enum InjectedFailure: Error {
             case write
@@ -372,6 +400,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertEqual(relaunched.pendingItems(), [valid])
     }
 
+    /// A paid Bits message is deduplicated by message id and replays after relaunch until
+    /// acknowledged. After acknowledgement the same message for the same broadcaster is
+    /// suppressed, while the same id for a different broadcaster is accepted.
     func testBitsIntakeReplaysAcrossRelaunchThenTerminalSuppressesExactOwner()
         throws {
         let fixture = try makeFixture()
@@ -438,6 +469,7 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
                 query: "a song").item)
     }
 
+    /// A failed write while enqueueing Bits leaves no item in memory or on disk.
     func testFailedBitsEnqueuePublishesNeitherMemoryNorDiskItem() throws {
         enum InjectedFailure: Error {
             case write
@@ -464,6 +496,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
                 .pendingBitsItems().isEmpty)
     }
 
+    /// A failed acknowledgement write keeps the Bits item replayable (same item on re-enqueue,
+    /// before and after relaunch), the file bytes unchanged, and no tombstone suppressing it.
     func testFailedBitsAcknowledgementKeepsReplayableItemAndNoTombstone()
         throws {
         enum InjectedFailure: Error {
@@ -516,6 +550,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
             item)
     }
 
+    /// Paid-event tombstones are not subject to the 500-entry EventSub id cache: 500 later
+    /// completions do not evict the oldest. Once `paidEventTombstoneRetention` passes, that
+    /// id is accepted again.
     func testBitsTombstonesOutliveTransportCapacityAndPruneAfterHorizon()
         throws {
         let fixture = try makeFixture()
@@ -572,6 +609,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
             ["oldest-paid-message"])
     }
 
+    /// Acknowledging a redemption leaves a tombstone keyed on broadcaster, reward, and
+    /// redemption id (exact match only). It persists across relaunch and is pruned after the
+    /// retention horizon.
     func testAcknowledgementTombstoneIsAtomicExactAndPrunedAfterHorizon()
         throws {
         let fixture = try makeFixture()
@@ -633,6 +673,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
                     redemptionID: "redemption-a"))
     }
 
+    /// Two stored items with the same broadcaster/reward/redemption would double-resolve, so the
+    /// store is quarantined: nothing is pending and the recovery-risk flag is set.
     func testDuplicateBusinessKeyIsQuarantinedInsteadOfReplayedTwice()
         throws {
         let fixture = try makeFixture()
@@ -663,6 +705,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertTrue(store.hasOpaqueRecoveryRisk())
     }
 
+    /// Two stored items sharing one item id would collide in the resolution workers, so the
+    /// store is quarantined the same way.
     func testDuplicateItemUUIDIsQuarantinedInsteadOfCollidingWorkers()
         throws {
         let fixture = try makeFixture()
@@ -727,6 +771,9 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         }
     }
 
+    /// If the wall clock jumps back an hour, tombstones written "in the future" are clamped
+    /// to now rather than dropped, so they still suppress duplicates, and they expire on the
+    /// corrected clock.
     func testFutureDatedTombstoneClampedNotDropped() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -792,6 +839,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
                 query: "a song").inserted)
     }
 
+    /// The default `durableAtomicWrite` writer creates and overwrites the file, works through
+    /// the store, and leaves no `.tmp-` files behind.
     func testDefaultWriterRoundTrips() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -838,6 +887,8 @@ final class TwitchRedemptionResolutionOutboxTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: fixture.file), Data("live".utf8))
     }
 
+    /// Creates a unique temp directory and returns it with the `outbox.json` path inside it.
+    /// Callers remove the directory in a `defer`.
     private func makeFixture() throws -> (directory: URL, file: URL) {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "wolfwave-redemption-outbox-tests-\(UUID().uuidString)")

@@ -28,6 +28,8 @@ final class InfoCommand: BotCommand {
 
     // MARK: - BotCommand
 
+    // Stored (rather than computed) so one class serves any static-reply
+    // command; see the init for what each holds.
     let triggers: [String]
     let description: String
     let globalCooldownKey: String?

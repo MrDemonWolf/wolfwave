@@ -15,7 +15,7 @@ final class ClearQueueCommand: ServiceBoundCommand {
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!clearqueue", "!cq"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Clear all song requests (mod/broadcaster only)" }
 
     /// Channel-wide cooldown between invocations, in seconds.
@@ -38,12 +38,16 @@ final class ClearQueueCommand: ServiceBoundCommand {
 
     // MARK: - AsyncBotCommand
 
-    /// Clears every entry in the song request queue.
+    /// Clears every entry in the song request queue (and Music.app's queue,
+    /// via `SongRequestService.clearQueue`).
+    ///
+    /// Non-privileged callers are already refused by `isAllowed(context:)`
+    /// before the cooldown is claimed; the guard here is defense in depth.
     ///
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context; must be mod or broadcaster.
-    ///   - Returns: The queue result, or nil when unauthorized.
+    /// - Returns: The queue result, or nil when unauthorized.
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard !Task.isCancelled else { return nil }
         guard let service = requirePrivilegedService(context: context) else { return nil }

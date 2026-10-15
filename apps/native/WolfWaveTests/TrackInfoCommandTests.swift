@@ -9,11 +9,15 @@
 import XCTest
 @testable import WolfWave
 
+/// `TrackInfoCommand` for both trigger sets (`!song` family and `!last` family) through shared
+/// `Fixture` values, so each behavior is asserted identically for both.
 @MainActor
 final class TrackInfoCommandTests: XCTestCase {
 
     // MARK: - Fixtures
 
+    /// Trigger set and expected strings for one `TrackInfoCommand` flavor, so the `assert*` helpers
+    /// check both flavors identically.
     private struct Fixture {
         let triggers: [String]
         let description: String
@@ -41,6 +45,7 @@ final class TrackInfoCommandTests: XCTestCase {
         trackText: "Daft Punk - One More Time"
     )
 
+    /// A command built from the fixture's triggers, description, and default message.
     private func makeCommand(_ fixture: Fixture) -> TrackInfoCommand {
         TrackInfoCommand(
             triggers: fixture.triggers,

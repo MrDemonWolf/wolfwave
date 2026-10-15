@@ -10,6 +10,8 @@ import XCTest
 
 @testable import WolfWave
 
+/// `SongRequestQueue.boost(username:)` (bit-cheer boost): moves a user's earliest queued item to
+/// the front, case-insensitively.
 @MainActor
 final class SongRequestQueueBoostTests: WolfWaveTestCase {
 

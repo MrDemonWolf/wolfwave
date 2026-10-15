@@ -19,6 +19,9 @@ nonisolated enum StringFormatting {
     /// Truncates `text` to `maxLength` characters, appending an ellipsis when it
     /// was shortened. Returns the original string when it already fits.
     ///
+    /// Counts `Character`s, and the three-dot suffix is added on top of
+    /// `maxLength`. For the hard Twitch limit use `truncatedForChat()` instead.
+    ///
     /// Used for echoing a viewer's search query back into chat without letting a
     /// pasted wall of text blow past Twitch's message limit.
     static func truncatedWithEllipsis(_ text: String, maxLength: Int = 30) -> String {

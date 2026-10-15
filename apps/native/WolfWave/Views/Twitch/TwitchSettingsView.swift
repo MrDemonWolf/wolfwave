@@ -13,13 +13,21 @@ import SwiftUI
 /// Settings panel for Twitch bot auth, channel connection, and account management.
 ///
 /// Switches between sign-in, authorizing, connected, and error states
-/// driven by ``TwitchViewModel/integrationState``.
+/// driven by ``TwitchViewModel/integrationState``. Failures render once, in an
+/// ``ErrorCallout`` above the auth card, whose actions this view maps back
+/// onto the view model (reconnect, retry, report, docs).
+///
+/// Leaving the pane (`onDisappear`) cancels a pending re-auth and any OAuth
+/// flow this Settings presentation owns.
 struct TwitchSettingsView: View {
+    // MARK: - Properties
+
     /// The shared Twitch state manager driving this view.
     @Bindable var viewModel: TwitchViewModel
     /// Stable owner supplied by the containing Settings presentation.
     let oauthOwner: TwitchViewModel.OAuthPresentationOwner
     /// Tracks whether the user has copied/opened the device code at least once.
+    /// Written on every flow transition but currently not read by any view.
     @State private var hasStartedActivation = false
     /// Whether the one-time keychain + service wiring has run for this view model instance.
     @State private var didLoadCredentials = false
@@ -29,7 +37,10 @@ struct TwitchSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.commandsLiveOnly)
     private var commandsLiveOnly = false
 
+    /// Collapses card and status transitions under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -414,32 +425,59 @@ struct TwitchSettingsView: View {
 // MARK: - Sub-Views
 
 /// View displayed when the user is signed in, showing bot info and channel controls.
+///
+/// A pure presentation of values passed in by ``TwitchSettingsView``; every
+/// action is a closure back to the view model.
 private struct SignedInView: View {
+    // MARK: - Properties
+
+    /// Validation indicator animation collapses under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Masks the username and channel, and swaps the channel field for a
+    /// read-only masked label.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// Signed-in login the bot posts as; empty until resolved.
     let botUsername: String
+    /// Channel to join. Editable only while not joined and not expired; the
+    /// field lowercases and trims as the user types.
     @Binding var channelID: String
+    /// Whether the bot is currently joined to the channel.
     let isChannelConnected: Bool
+    /// A join is in flight; disables the field and the join button.
     let isConnecting: Bool
+    /// Token expired: swaps Join/Leave for "Reconnect with Twitch".
     let reauthNeeded: Bool
+    /// A grant is stored. Lets Join proceed before the username resolves.
     let credentialsSaved: Bool
+    /// Sign-out or account switch is tearing down; locks every action.
     let isAccountTeardownInProgress: Bool
+    /// Result of the live channel lookup, shown under the field.
     let channelValidationState: TwitchViewModel.ChannelValidationState
+    /// Clears the token and starts a fresh sign-in.
     var onReauth: () -> Void
+    /// Signs out (after confirmation).
     var onClearCredentials: () -> Void
+    /// Joins the typed channel.
     var onJoinChannel: () -> Void
+    /// Leaves the channel (after confirmation); stays signed in.
     var onLeaveChannel: () -> Void
+    /// Called when the normalized channel text actually changes, so the view
+    /// model can reset validation.
     var onChannelIDChanged: () -> Void
+    /// Presents the leave-channel confirmation.
     @State private var showingDisconnectConfirmation = false
+    /// Presents the sign-out confirmation.
     @State private var showingLogOutConfirmation = false
 
     /// Shared height for every button in the action row. Pinning all of them to
-    /// one value keeps Join/Leave and Log Out visually aligned.
+    /// one value keeps Join/Leave and Log Out visually aligned;
     /// without it, the taller `checkmark.circle.fill` glyph makes the connect
     /// button a hair taller than its neighbors.
     private static let actionButtonHeight: CGFloat = 22
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

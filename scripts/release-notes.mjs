@@ -31,6 +31,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 // MARK: - Args
 
 const version = process.argv[2];
+/** Where the rendered HTML is written; defaults to the DMG-matching `WolfWave-<version>.html` in the cwd. */
 const outputPath = process.argv[3] ?? `WolfWave-${version}.html`;
 
 if (!version) {
@@ -42,6 +43,7 @@ if (!version) {
 const CHANGELOG_URL = process.env.CHANGELOG_PATH
   ? process.env.CHANGELOG_PATH
   : new URL("../CHANGELOG.md", import.meta.url);
+/** Target of the footer link in the in-app notes (the `### Developer` block is stripped, so the web changelog is the full record). */
 const FULL_CHANGELOG_URL = "https://mrdemonwolf.github.io/wolfwave/docs/changelog";
 
 // MARK: - Extract the version's section

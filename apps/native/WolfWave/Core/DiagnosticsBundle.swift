@@ -32,7 +32,8 @@ nonisolated enum DiagnosticsBundle {
     ///   - crash: Crash breadcrumb from the last launch, if any. Normally read
     ///     at launch and cleared, so callers pass what they stored.
     ///   - logs: Log files, oldest first. See ``logFilesOldestFirst()``.
-    /// - Returns: The composed file contents.
+    /// - Returns: The composed file contents. A log that cannot be read as
+    ///   UTF-8 appears as `(unreadable)` rather than failing the whole export.
     static func compose(
         snapshot: DiagnosticSnapshot,
         crash: String?,
@@ -59,7 +60,11 @@ nonisolated enum DiagnosticsBundle {
     }
 
     /// Every log file that exists, oldest first, so the composed file reads in
-    /// chronological order.
+    /// chronological order: rotated backups from the deepest
+    /// (`wolfwave.log.N`) down to `.1`, then the live `wolfwave.log`.
+    ///
+    /// Synchronous: both calls hop onto `Log`'s serial file queue, and the live
+    /// file is flushed to disk before its URL is returned.
     static func logFilesOldestFirst() -> [URL] {
         var files = Log.rotatedLogFiles()
         if let live = Log.exportLogFile() { files.append(live) }
@@ -72,6 +77,7 @@ nonisolated enum DiagnosticsBundle {
         "wolfwave-diagnostics-\(SharedFormatters.exportStamp.string(from: date)).log"
     }
 
+    /// Wraps one section in the ``rule`` banner: rule, title, rule, then the body.
     private static func section(_ title: String, _ body: String) -> String {
         "\(rule)\n\(title)\n\(rule)\n\(body)"
     }

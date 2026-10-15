@@ -26,9 +26,21 @@ nonisolated enum DiscordPresenceBuilder {
     /// Pure function. No socket I/O, no instance state. Exposed `internal` so unit
     /// tests can drive it directly with isolated `UserDefaults` suites.
     ///
+    /// Text fields shorter than two characters are omitted (Discord rejects
+    /// them), and `timestamps` is left out while paused or when the duration
+    /// is unknown, so the client shows no running ticker.
+    ///
     /// - Parameters:
     ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
+    ///   - artworkURL: Album art URL; `nil` falls back to the Apple Music art asset.
+    ///   - duration: Track length in seconds; `0` means unknown (no timestamps).
+    ///   - elapsed: Playback position in seconds at `now`.
+    ///   - appleMusicURL: Target for button 1; `nil` or non-HTTPS drops the button.
+    ///   - songLinkURL: Target for button 2; same rules as `appleMusicURL`.
+    ///   - isPaused: Swaps the small badge to the pause asset and drops timestamps.
+    ///   - defaults: Store the Discord settings are read from.
     ///   - now: Injected clock for deterministic timestamps in tests.
+    /// - Returns: The `activity` dictionary for a `SET_ACTIVITY` command.
     static func buildActivity(
         track: String,
         artist: String,
@@ -108,6 +120,9 @@ nonisolated enum DiscordPresenceBuilder {
     }
 
     /// Discord text fields accept 2–128 characters; omit empty and tiny values.
+    ///
+    /// Trims whitespace, caps at `activityTextMaxLength`, and returns `nil`
+    /// when fewer than two characters remain so the caller drops the key.
     private static func activityText(_ value: String) -> String? {
         let capped = String(value.trimmingCharacters(in: .whitespacesAndNewlines)
             .prefix(AppConstants.Discord.activityTextMaxLength))
@@ -137,12 +152,18 @@ nonisolated enum DiscordPresenceBuilder {
 
     /// Resolves a button payload from settings + a candidate URL.
     ///
-    /// Returns nil when the user disabled the button, the URL is missing, or the
+    /// Returns nil when buttons are disabled globally (`discordButtonsEnabled`)
+    /// or for this index, the URL is missing or not a valid bounded HTTPS URL
+    /// (`Preferences.normalizedHTTPSURL`), the index is not 1 or 2, or the
     /// label resolves to empty after trimming. Custom labels override defaults;
     /// empty stored label means "use the default". Labels are trimmed and
     /// truncated to `buttonLabelMaxLength` defensively.
     ///
-    /// - Parameter index: 1 or 2.
+    /// - Parameters:
+    ///   - index: 1 or 2.
+    ///   - url: Candidate button target.
+    ///   - defaults: Store the button settings are read from.
+    /// - Returns: A `["label": …, "url": …]` button, or `nil` to omit it.
     static func resolveButton(
         index: Int,
         url: String?,
@@ -230,6 +251,9 @@ nonisolated enum DiscordPresenceBuilder {
     }
 
     /// Builds the activity `state` line, appending the playlist for `.artistLine` style.
+    ///
+    /// Capped at `activityTextMaxLength`. With no artist, the playlist label
+    /// stands alone (no leading separator).
     static func stateLine(
         artist: String,
         playlist: PlaylistDisplay?,
@@ -251,6 +275,8 @@ nonisolated enum DiscordPresenceBuilder {
     }
 
     /// Builds the small-icon tooltip text, describing the playlist for `.iconTooltip` style.
+    ///
+    /// Falls back to "Apple Music" for any other style or when no playlist is shown.
     static func smallText(
         playlist: PlaylistDisplay?,
         style: DiscordPlaylistStyle

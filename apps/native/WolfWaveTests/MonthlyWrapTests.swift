@@ -24,6 +24,8 @@ struct MonthlyWrapTests {
         return cal
     }
 
+    /// Noon on the given day in the suite's calendar, so time-zone shifts cannot move it across a
+    /// day boundary.
     private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
         var components = DateComponents()
         components.year = year

@@ -14,7 +14,10 @@ struct SuccessFeedbackRow: View {
 
     // MARK: - Properties
 
+    /// The success message. Changing it re-runs the checkmark bounce and
+    /// cross-fades the text.
     let text: String
+    /// Weight of the message text.
     var fontWeight: Font.Weight = .regular
 
     // MARK: - Body

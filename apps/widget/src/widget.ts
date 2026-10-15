@@ -303,6 +303,7 @@ type WSMessage =
  * ║  HELPERS                                                               ║
  * ╚════════════════════════════════════════════════════════════════════════╝ */
 
+/** Formats seconds as `m:ss`; negative or NaN input renders as `0:00`. */
 function formatTime(secs: number): string {
   // Clamp negative/NaN input (a mid-stream elapsed glitch) to 0:00. Mirrors
   // the docs site's shared `lib/format-time.ts`; this copy stays local because
@@ -392,6 +393,7 @@ function safeColor(value: string | undefined): string | null {
   return null;
 }
 
+/** Maps a configured font name to a CSS `font-family` value, stripping characters that could break out of the quoted name. Falls back to the system stack. */
 function resolveFontFamily(name: string | undefined): string {
   if (!name || name === "System Default" || name === "System") {
     return '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -421,6 +423,7 @@ function resolveFontFamily(name: string | undefined): string {
 // stale; the actual gate excludes WolfWave, so the widget excludes it too.)
 const THEMES_ALLOWING_OVERRIDE = new Set(["Default", "Glass"]);
 
+/** Merges the selected theme preset with user color overrides (only for themes in `THEMES_ALLOWING_OVERRIDE`) and escapes values for innerHTML attribute use. */
 function resolveTheme(config: WidgetConfig): ThemePreset {
   const preset = themePresets[config.theme] || themePresets["Default"];
   const resolved: ThemePreset = { ...preset };
@@ -471,10 +474,12 @@ function resolveTheme(config: WidgetConfig): ThemePreset {
  *  corrected within at most one lightweight timer interval.
  */
 
+/** True while the page is hidden or suspended (`pagehide`); timers and the socket are paused in that state. */
 function isPageInactive(): boolean {
   return pageSuspended || document.hidden;
 }
 
+/** Cancels the pending progress tick, if any. */
 function stopProgressLoop(): void {
   if (progressTimer !== null) {
     clearTimeout(progressTimer);
@@ -482,10 +487,12 @@ function stopProgressLoop(): void {
   }
 }
 
+/** True if the current layout rendered at least one element the progress loop updates. */
 function hasProgressSurface(): boolean {
   return !!(fillEl || knobEl || ringEl || elapsedTimeEl || remainingTimeEl);
 }
 
+/** The single gate for the progress timer: only runs while the overlay is live, visible, playing, has a known duration, and has something to update. */
 function shouldRunProgressLoop(): boolean {
   return (
     !isPreview() &&
@@ -500,6 +507,7 @@ function shouldRunProgressLoop(): boolean {
   );
 }
 
+/** One progress step: re-derives `elapsed` from the last server anchor, repaints, then re-arms itself if the gate still holds. */
 function progressTick(): void {
   progressTimer = null;
   if (!shouldRunProgressLoop()) return;
@@ -516,6 +524,7 @@ function progressTick(): void {
   }
 }
 
+/** Starts the loop if the gate allows it; a no-op when a tick is already pending. */
 function startProgressLoop(): void {
   if (!shouldRunProgressLoop()) {
     stopProgressLoop();
@@ -524,6 +533,7 @@ function startProgressLoop(): void {
   if (progressTimer === null) progressTick();
 }
 
+/** Starts or stops the loop to match `shouldRunProgressLoop()`. Call after any state change that feeds the gate. */
 function syncProgressLoop(): void {
   if (shouldRunProgressLoop()) startProgressLoop();
   else stopProgressLoop();
@@ -544,6 +554,7 @@ function syncProgressLoop(): void {
  *  transition into `visible`.
  */
 
+/** Cancels the autohide timer but keeps `hideDeadline`, so hidden time still counts toward it. */
 function clearHideTimer(): void {
   if (hideTimer !== null) {
     clearTimeout(hideTimer);
@@ -551,11 +562,13 @@ function clearHideTimer(): void {
   }
 }
 
+/** Cancels the autohide timer and forgets the deadline. */
 function clearAutohide(): void {
   clearHideTimer();
   hideDeadline = null;
 }
 
+/** Re-arms the autohide timer from `hideDeadline`; hides immediately if the deadline already passed. */
 function resumeAutohide(): void {
   clearHideTimer();
   if (hideDeadline === null || !visible || isPageInactive()) return;
@@ -573,6 +586,7 @@ function resumeAutohide(): void {
   }, remainingMs);
 }
 
+/** Starts a fresh autohide countdown (`?duration=` seconds); a no-op deadline of null when autohide is off. */
 function beginAutohideCountdown(): void {
   clearHideTimer();
   autohideExpired = false;
@@ -580,6 +594,7 @@ function beginAutohideCountdown(): void {
   resumeAutohide();
 }
 
+/** Puts the container in its terminal `widget-hidden` state and clears the drain classes. */
 function settleWidgetHidden(el: HTMLElement): void {
   el.classList.remove(
     "placeholder",
@@ -640,6 +655,7 @@ function enterWidget(): void {
   syncProgressLoop();
 }
 
+/** Runs the exit transition. `immediate` (or reduced motion, an inactive page, or never having been visible) skips the animation and settles hidden at once. */
 function exitWidget(immediate = false): void {
   const wasVisible = visible;
   visible = false;
@@ -729,6 +745,7 @@ function swapInner(rebuild: () => void): void {
  *  code than the entire file.
  */
 
+/** Paints the progress fill, knob, and ring from `elapsed`. The time labels are throttled to once per `TIME_UPDATE_INTERVAL_MS`. */
 function updateProgress(now = Date.now()): void {
   if (!nowPlaying) return;
   const duration = nowPlaying.duration || 0;
@@ -757,6 +774,7 @@ function updateProgress(now = Date.now()): void {
   lastTimeUpdateAt = now;
 }
 
+/** Rebuilds the card's DOM from `nowPlaying`, the theme, and the layout. Full innerHTML rebuild by design; see the RENDER notes above. */
 function buildWidget(): void {
   if (!nowPlaying) return;
   const el = document.getElementById("widget");
@@ -1064,6 +1082,7 @@ function reconnectDelay(attempt: number): number {
   return Math.min(Math.round(base * jitter), RECONNECT_MAX_MS);
 }
 
+/** Schedules the next `connect()` after a jittered exponential backoff. Does not arm the timer while the page is inactive (resume reconnects instead). */
 function scheduleReconnect(): void {
   reconnectAttempts++;
   const delay = reconnectDelay(reconnectAttempts);
@@ -1076,6 +1095,7 @@ function scheduleReconnect(): void {
   }, delay);
 }
 
+/** Cancels a pending reconnect. */
 function clearReconnectTimer(): void {
   if (reconnectTimer !== null) {
     clearTimeout(reconnectTimer);
@@ -1083,6 +1103,7 @@ function clearReconnectTimer(): void {
   }
 }
 
+/** Closes the socket on purpose (page hidden). Handlers are detached first so this never counts as a disconnect or schedules a reconnect. */
 function suspendSocket(reason: string): void {
   clearReconnectTimer();
   const socket = ws;
@@ -1098,16 +1119,19 @@ function suspendSocket(reason: string): void {
   socket.close(1000, reason);
 }
 
+/** Mirrors inactive / awaiting-server state onto body classes that CSS uses to pause animation. */
 function updateActivityClass(): void {
   document.body.classList.toggle("ww-inactive", isPageInactive());
   document.body.classList.toggle("ww-awaiting-server", awaitingAuthoritativeState);
 }
 
+/** While true, cached track state is not painted until the server confirms the current playback snapshot after a reconnect or resume. */
 function setAwaitingAuthoritativeState(awaiting: boolean): void {
   awaitingAuthoritativeState = awaiting;
   updateActivityClass();
 }
 
+/** Restores painting, autohide, and the progress loop after the page becomes active again. */
 function resumeVisibleWork(): void {
   if (isPageInactive() || awaitingAuthoritativeState) return;
 
@@ -1129,6 +1153,7 @@ function resumeVisibleWork(): void {
   }
 }
 
+/** `visibilitychange` handler: drops the socket while the tab is hidden and reconnects when it returns. */
 function handleVisibilityChange(): void {
   updateActivityClass();
   if (document.hidden) {
@@ -1143,6 +1168,7 @@ function handleVisibilityChange(): void {
   if (!ws) connect();
 }
 
+/** `pagehide` handler: marks the page suspended and drops the socket. */
 function handlePageHide(): void {
   pageSuspended = true;
   updateActivityClass();
@@ -1152,6 +1178,7 @@ function handlePageHide(): void {
   suspendSocket("page hidden");
 }
 
+/** `pageshow` handler (e.g. restored from bfcache): resumes work and reconnects. */
 function handlePageShow(): void {
   pageSuspended = false;
   updateActivityClass();
@@ -1160,6 +1187,7 @@ function handlePageShow(): void {
   connect();
 }
 
+/** Opens the overlay WebSocket, authenticating with the `wolfwave.overlay.<token>` subprotocol. No-op if a socket exists or the page is inactive. */
 function connect(): void {
   if (ws || isPageInactive()) return;
   clearReconnectTimer();
@@ -1330,11 +1358,13 @@ function parseMessage(raw: unknown): WSMessage | null {
   }
 }
 
+/** Compares by track and artist only; album and artwork changes alone do not count as a new track. */
 function isSameTrack(a: NowPlaying | null, b: { track?: string; artist?: string }): boolean {
   if (!a) return false;
   return a.track === b.track && a.artist === b.artist;
 }
 
+/** Applies one parsed server frame to widget state; see the file header for the message types. */
 function handleMessage(msg: WSMessage): void {
   switch (msg.type) {
     case "now_playing": {
@@ -1523,6 +1553,7 @@ function handleMessage(msg: WSMessage): void {
  *      old SwiftUI mock drew).
  */
 
+/** True in the in-app Settings preview (`?preview` or the native host's `__WW_PREVIEW__` flag), where no WebSocket is used. */
 function isPreview(): boolean {
   return (
     params.has("preview") ||
@@ -1530,6 +1561,7 @@ function isPreview(): boolean {
   );
 }
 
+/** Boot path for preview mode: installs `window.WWPreview` so the native host drives the real renderer without a socket. */
 function setupPreview(): void {
   document.body.classList.add("ww-preview");
 

@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `RecentTracksBuffer`: newest-first ordering, head-duplicate handling, capacity trimming and
+/// clamping.
 @MainActor
 final class RecentTracksBufferTests: XCTestCase {
 

@@ -43,7 +43,8 @@ nonisolated enum StatsWindow: String, CaseIterable, Identifiable, Sendable {
 
     // MARK: - Display
 
-    /// Short label shown in the settings picker.
+    /// Short label shown in the settings picker. Currently identical to
+    /// ``chatLabel``; kept separate so the two can diverge.
     var pickerLabel: String {
         switch self {
         case .today: return "Today"
