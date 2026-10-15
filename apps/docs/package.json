@@ -12,14 +12,14 @@
     "test": "bun test"
   },
   "dependencies": {
-    "fumadocs-core": "16.16.2",
-    "fumadocs-mdx": "15.4.6",
-    "fumadocs-ui": "16.16.2",
+    "fumadocs-core": "16.17.1",
+    "fumadocs-mdx": "15.4.7",
+    "fumadocs-ui": "16.17.1",
     "lucide-react": "^1.52.0",
     "next": "16.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
