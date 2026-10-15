@@ -596,6 +596,31 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// The import sheet opens with local sharing settings off, so its
+    /// "replaces N settings" count must leave those keys out.
+    func testRestorableCountMatchesImportSheetDefaults() {
+        let suiteName = "SettingsBackupServiceTests.restorableLocal.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("Could not create isolated UserDefaults suite")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(settings: [
+            keys.discordPresenceEnabled: .bool(true),
+            keys.websocketEnabled: .bool(true),
+            keys.updateChannel: .string("nightly"),
+        ])
+        let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
+
+        XCTAssertEqual(service.restorableCount(backup), 1)
+        XCTAssertEqual(
+            service.restorableCount(
+                backup, choices: .init(includeLocalSharingSettings: true)),
+            3)
+    }
+
     func testSongRequestsArePreviewedAndRestoredAfterSetupCompletes() async {
         let suiteName = "SettingsBackupServiceTests.songRequestReady.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
