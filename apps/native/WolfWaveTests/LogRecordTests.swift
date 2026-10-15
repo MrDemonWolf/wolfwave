@@ -205,6 +205,23 @@ struct LogRecordTests {
         #expect(LogRecord.parse(contents: contents).first?.message == "Boom\ndetail line")
     }
 
+    @Test("A continuation indented less than the frame keeps all of its text")
+    func testShortIndentContinuationKeepsText() {
+        let contents = "2026-08-14T14:03:22.481Z  ERROR  App           F.swift:1   Boom\n frame one\n\tframe two"
+
+        let records = LogRecord.parse(contents: contents)
+
+        #expect(records.first?.message == "Boom\nframe one\nframe two")
+        #expect(records.first?.raw == contents)
+    }
+
+    @Test("Indentation past the writer's frame belongs to the message")
+    func testDeepIndentContinuationKeepsInnerIndent() {
+        let framed = Log.frameContinuationsForTesting("2026-08-14T14:03:22.481Z  ERROR  App           F.swift:1   Boom\n    nested")
+
+        #expect(LogRecord.parse(contents: framed).first?.message == "Boom\n    nested")
+    }
+
     @Test("Leading noise before the first record is dropped, not guessed at")
     func testLeadingNoiseDropped() {
         // What a truncated tail read looks like: the head of the buffer lands

@@ -340,6 +340,44 @@ final class KeychainServiceTests {
         #expect(backend.rawValue(account: "twitchBotAccountOauthToken") == "STALE_ACCESS")
     }
 
+    @Test("Repeated reads of a malformed grant post the re-auth change once")
+    func testMalformedGrantPostsReauthChangeOnlyOnTransition() async throws {
+        let originalBackend = KeychainService.backend
+        let backend = InspectableKeychainBackend()
+        KeychainService.backend = backend
+        Preferences.setTwitchReauthNeeded(false)
+        defer {
+            Preferences.setTwitchReauthNeeded(false)
+            KeychainService.backend = originalBackend
+        }
+        backend.seed(account: KeychainService.twitchCredentialGrantAccount, value: "not-json")
+
+        let posts = Atomic(0)
+        // Posted from a main-actor task, so deliveries arrive on main one at a time.
+        let observer = NotificationCenter.default.addObserver(
+            forName: Notification.Name.twitchReauthNeededChanged,
+            object: nil,
+            queue: nil
+        ) { _ in posts.set(posts.value + 1) }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        for _ in 0..<3 {
+            _ = KeychainService.loadTwitchCredentialGrant()
+        }
+
+        // Poll rather than hop onto main: a hosted XCTest suite can be parked
+        // on the main thread, and awaiting MainActor here would wait on it.
+        let deadline = ContinuousClock.now + .seconds(5)
+        while posts.value == 0, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        // Give any extra (buggy) posts time to land too.
+        try await Task.sleep(for: .milliseconds(300))
+
+        #expect(Preferences.twitchReauthNeeded)
+        #expect(posts.value == 1)
+    }
+
     @Test("Malformed version-one grant stays authoritative across repeated reads")
     func testMalformedVersionOneGrantNeverExposesPerFieldFallback() {
         let originalBackend = KeychainService.backend
@@ -1060,16 +1098,16 @@ final class KeychainServiceTests {
     @Test("KeychainError has correct descriptions")
     func testKeychainErrorDescriptions() async throws {
         let saveError = KeychainService.KeychainError.saveFailed(-25300)
-        #expect(saveError.errorDescription == "Failed to save token to Keychain (status: -25300)")
+        #expect(saveError.errorDescription == "Failed to save item to Keychain (status: -25300)")
 
         let loadError = KeychainService.KeychainError.loadFailed(-25308)
-        #expect(loadError.errorDescription == "Failed to load token from Keychain (status: -25308)")
+        #expect(loadError.errorDescription == "Failed to load item from Keychain (status: -25308)")
 
         let deleteError = KeychainService.KeychainError.deleteFailed(-25308)
-        #expect(deleteError.errorDescription == "Failed to delete token from Keychain (status: -25308)")
+        #expect(deleteError.errorDescription == "Failed to delete item from Keychain (status: -25308)")
 
         let invalidError = KeychainService.KeychainError.invalidData
-        #expect(invalidError.errorDescription == "Invalid token data")
+        #expect(invalidError.errorDescription == "Invalid Keychain item data")
     }
 
     @Test("Save failed errors with different status codes are distinct")

@@ -167,4 +167,44 @@ final class DiagnosticsServiceTests: WolfWaveTestCase {
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
     }
+
+    func testConcurrentEnableRegistersWithMetricKitOnce() {
+        let manager = CountingMetricManager()
+        let concurrent = DiagnosticsService(defaults: defaults, metricManager: manager)
+
+        DispatchQueue.concurrentPerform(iterations: 32) { _ in
+            concurrent.setEnabled(true)
+        }
+
+        XCTAssertEqual(manager.addCount, 1, "Concurrent opt-ins must register the subscriber exactly once")
+
+        DispatchQueue.concurrentPerform(iterations: 32) { _ in
+            concurrent.setEnabled(false)
+        }
+
+        XCTAssertEqual(manager.removeCount, 1, "Concurrent opt-outs must remove the subscriber exactly once")
+    }
+}
+
+// MARK: - CountingMetricManager
+
+/// Counts registrations instead of touching the process-wide `MXMetricManager`.
+/// Each call sleeps briefly so a non-atomic check-then-set reliably races.
+private final class CountingMetricManager: MetricKitRegistering, @unchecked Sendable {
+    private let lock = NSLock()
+    private var adds = 0
+    private var removes = 0
+
+    var addCount: Int { lock.withLock { adds } }
+    var removeCount: Int { lock.withLock { removes } }
+
+    func add(_ subscriber: any MXMetricManagerSubscriber) {
+        Thread.sleep(forTimeInterval: 0.005)
+        lock.withLock { adds += 1 }
+    }
+
+    func remove(_ subscriber: any MXMetricManagerSubscriber) {
+        Thread.sleep(forTimeInterval: 0.005)
+        lock.withLock { removes += 1 }
+    }
 }

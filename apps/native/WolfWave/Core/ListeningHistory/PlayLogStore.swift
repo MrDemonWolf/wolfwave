@@ -94,8 +94,8 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// and orders after any appends already queued.
     ///
     /// - Parameter records: The records the log should contain afterwards.
-    /// - Returns: `false` when the atomic write failed; the old file is then
-    ///   left intact.
+    /// - Returns: `false` when a record failed to encode or the atomic write
+    ///   failed; the old file is then left intact.
     @discardableResult
     func replaceAll(with records: [PlayRecord]) -> Bool {
         ioQueue.sync {
@@ -169,17 +169,28 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     ///
     /// Closes the append handle first: the atomic write replaces the inode, so
     /// the old handle would keep writing to the unlinked file. The next append
-    /// reopens. A record that fails to encode is dropped without failing the
-    /// rewrite.
+    /// reopens. A record that fails to encode fails the whole rewrite before
+    /// anything is touched, so a compaction can never silently drop a play.
     private func replaceSync(_ records: [PlayRecord]) -> Bool {
+        var lines: [String] = []
+        lines.reserveCapacity(records.count)
+        for record in records {
+            guard let json = try? encoder.encode(record),
+                  let line = String(data: json, encoding: .utf8) else {
+                Log.error(
+                    "PlayLogStore: Rewrite aborted, a play record failed to encode; log left unchanged",
+                    category: .history
+                )
+                return false
+            }
+            lines.append(line)
+        }
+
         try? fileHandle?.close()
         fileHandle = nil
 
         ensureDirectoryExists()
-        let body = records
-            .compactMap { try? encoder.encode($0) }
-            .compactMap { String(data: $0, encoding: .utf8) }
-            .joined(separator: "\n")
+        let body = lines.joined(separator: "\n")
         let contents = records.isEmpty ? "" : body + "\n"
         do {
             guard let data = contents.data(using: .utf8) else { return false }

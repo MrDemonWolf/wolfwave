@@ -173,18 +173,19 @@ nonisolated enum KeychainService {
         /// Invalid or corrupted data read from Keychain.
         case invalidData
 
-        /// Short description for logs. Says "token" for every account, even
-        /// non-token items, for historical reasons.
+        /// Short description for logs. Says "item" because the same error is
+        /// thrown for every account: WebSocket tokens and the Twitch grant
+        /// record alike.
         var errorDescription: String? {
             switch self {
             case .saveFailed(let status):
-                return "Failed to save token to Keychain (status: \(status))"
+                return "Failed to save item to Keychain (status: \(status))"
             case .loadFailed(let status):
-                return "Failed to load token from Keychain (status: \(status))"
+                return "Failed to load item from Keychain (status: \(status))"
             case .deleteFailed(let status):
-                return "Failed to delete token from Keychain (status: \(status))"
+                return "Failed to delete item from Keychain (status: \(status))"
             case .invalidData:
-                return "Invalid token data"
+                return "Invalid Keychain item data"
             }
         }
     }
@@ -553,10 +554,13 @@ nonisolated enum KeychainService {
         }
     }
 
-    /// Sets the persisted re-auth flag synchronously, then posts
-    /// `twitchReauthNeededChanged` from a main-actor task (so observers run
-    /// later, on main, not inside the Keychain lock).
+    /// Sets the persisted re-auth flag synchronously. Only when it was not
+    /// already set does it post `twitchReauthNeededChanged`, from a main-actor
+    /// task (so observers run later, on main, not inside the Keychain lock).
+    /// A malformed record is read on every credential load; posting each time
+    /// would wake every observer over and over for the same state.
     private static func requireTwitchReauthentication() {
+        guard !Preferences.twitchReauthNeeded else { return }
         Preferences.setTwitchReauthNeeded(true)
         Task { @MainActor in
             NotificationCenter.default.post(

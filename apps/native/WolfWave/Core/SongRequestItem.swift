@@ -99,9 +99,8 @@ extension Song {
     /// branch. The catalog ID is not a real track, so actually playing one will
     /// fail at Music.app, which is the honest outcome for a fake request.
     ///
-    /// Values are interpolated into the JSON without escaping, so a title,
-    /// artist, or album containing `"` or `\` breaks the decode and traps.
-    /// Keep fixture strings plain.
+    /// The resource is built with `JSONSerialization`, so any title, artist,
+    /// or album text (quotes and backslashes included) is escaped correctly.
     static func debugPlaceholder(
         id: String,
         title: String,
@@ -109,27 +108,26 @@ extension Song {
         album: String,
         durationInMillis: Int = 180_000
     ) -> Song {
-        let json = """
-        {
-          "id": "\(id)",
-          "type": "songs",
-          "href": "/v1/catalog/us/songs/\(id)",
-          "attributes": {
-            "name": "\(title)",
-            "artistName": "\(artist)",
-            "albumName": "\(album)",
-            "durationInMillis": \(durationInMillis),
-            "genreNames": ["Rock"],
-            "trackNumber": 1,
-            "discNumber": 1,
-            "hasLyrics": false,
-            "playParams": { "id": "\(id)", "kind": "song" },
-            "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)"
-          }
-        }
-        """
+        let resource: [String: Any] = [
+            "id": id,
+            "type": "songs",
+            "href": "/v1/catalog/us/songs/\(id)",
+            "attributes": [
+                "name": title,
+                "artistName": artist,
+                "albumName": album,
+                "durationInMillis": durationInMillis,
+                "genreNames": ["Rock"],
+                "trackNumber": 1,
+                "discNumber": 1,
+                "hasLyrics": false,
+                "playParams": ["id": id, "kind": "song"],
+                "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)",
+            ] as [String: Any],
+        ]
         do {
-            return try JSONDecoder().decode(Song.self, from: Data(json.utf8))
+            let data = try JSONSerialization.data(withJSONObject: resource)
+            return try JSONDecoder().decode(Song.self, from: data)
         } catch {
             // A decode failure means MusicKit changed its resource shape. Trap
             // loudly rather than letting callers silently fall back to a state
