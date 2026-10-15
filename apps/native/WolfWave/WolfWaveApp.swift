@@ -222,6 +222,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// the paused affordances in Discord Rich Presence, the OBS widget, and
     /// `NowPlayingHeroCard` without clearing the now-playing snapshot.
     var currentIsPaused: Bool = false
+    /// `true` once the in-progress play has been written to listening history
+    /// (History toggle-off flush, a sustained playback stop, or quit). Blocks
+    /// the same play from being recorded a second time; resets when a new
+    /// track starts. Per instance (not file-scope) so each test's delegate
+    /// starts clean.
+    var currentPlayFlushedToHistory = false
     /// The previous track, for `!last`. Updated when the track changes, not
     /// cleared when playback stops.
     var lastSong: String?
@@ -429,8 +435,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// log is shut down last so every earlier step can still log.
     func applicationWillTerminate(_ notification: Notification) {
         cancelTwitchBootValidation()
-        flushCurrentPlayToHistory()
-        historyService?.shutdown()
+        finalizeHistoryForTermination()
         settingsSyncService?.flush()
         NotificationCenter.default.removeObserver(self)
         notificationObservers.forEach {
@@ -563,8 +568,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    /// Flushes the in-progress play (at most once) and then shuts the history
+    /// service down. Split out of `applicationWillTerminate` so a test can run
+    /// the quit-time history path without tearing down logging.
+    ///
+    /// Goes through the once-guard: if History was turned off mid-track (which
+    /// already flushed this play) and back on, quitting must not record the
+    /// same play a second time.
+    func finalizeHistoryForTermination() {
+        flushCurrentPlayToHistoryOnce()
+        historyService?.shutdown()
+    }
+
     /// Records the currently-playing track to history if it crossed the
-    /// scrobble threshold. Called directly at termination; every other path
+    /// scrobble threshold. Never call it directly: every path, quit included,
     /// goes through `flushCurrentPlayToHistoryOnce()` so a play is not recorded twice.
     ///
     /// `currentElapsed` holds the track's last polled playhead position, which

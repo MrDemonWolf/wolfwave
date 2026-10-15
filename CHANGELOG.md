@@ -46,6 +46,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - When Twitch permanently cuts off WolfWave's chat connection (the account was removed, a permission was lost, or WolfWave needs an update), waking your Mac or getting your network back no longer quietly reconnects it. Connect again from Settings → Twitch once you've fixed the cause.
+- **Homebrew installs no longer run Sparkle too.** A cask installed to Applications (the Homebrew default) was taken for a DMG install, so WolfWave offered its own updates alongside `brew upgrade`. It now spots the cask and leaves updates to Homebrew.
+- **Turning History off and back on mid-song no longer counts the song twice.** Quitting on that same track recorded the play a second time.
+- **The Stream Deck Approve Next key no longer fakes success when the queue is full.** The request stays pending and the key now shows an alert (`full`) instead of a checkmark.
 - Permission rechecks report the actual Automation result and close the instruction sheet after a grant. Setup and onboarding refresh permissions on return from System Settings, and Song Request setup links to Twitch settings.
 - Settings now explain aborted resets, login-item failures, and log or wrap export errors. Imports clearly identify overwritten settings; clearing logs removes rotated backups, and completed or cancelled wrap shares remove their temporary files.
 - Settings sidebar toggles no longer apply a spring to the entire detail layout or repeatedly reset the divider width. Now-playing progress redraws only when its inputs change, and the Debug motion demo pauses offscreen.

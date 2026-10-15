@@ -61,7 +61,8 @@ nonisolated struct CommandAck: Sendable, Equatable {
     let ok: Bool
     /// Short machine-readable reason when `ok` is `false`, e.g. `"protocol"`,
     /// `"unknown_action"`, `"unauthorized"`, `"disabled"`, `"unavailable"`,
-    /// `"empty"`. The plugin keys its key states off these, so treat them as
+    /// `"empty"`, `"full"` (`approve_next` with the live request queue at its
+    /// cap). The plugin keys its key states off these, so treat them as
     /// part of the wire contract. `nil` on success (and omitted from the JSON).
     let error: String?
 

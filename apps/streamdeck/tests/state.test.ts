@@ -122,6 +122,7 @@ describe("reduce", () => {
     for (const frame of [
       { kind: "ack", action: "skip", ok: true },
       { kind: "ack", action: "approve_next", ok: false, error: "empty" },
+      { kind: "ack", action: "approve_next", ok: false, error: "full" },
     ] satisfies InboundFrame[]) {
       expect(reduce(connected, frame)).toBe(connected);
     }
