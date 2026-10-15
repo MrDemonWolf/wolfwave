@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `BugReportURL` pre-filled GitHub issue URL: validity, template/label query items, environment
+/// fields in the body, and crash mention.
 @MainActor
 final class BugReportURLTests: XCTestCase {
 
@@ -45,6 +47,7 @@ final class BugReportURLTests: XCTestCase {
         }
     }
 
+    /// The issue URL carries `template` (bug_report.yml), `labels` (bug), `title`, and `body`.
     func testQueryItemsIncludeTemplateAndLabel() throws {
         let url = BugReportURL.make(
             base: base,
@@ -137,6 +140,7 @@ final class BugReportURLTests: XCTestCase {
 
     // MARK: - Fixtures
 
+    /// A `DiagnosticSnapshot` with sensible defaults; override only the field a test cares about.
     private func makeSnapshot(
         appVersion: String = "1.0",
         build: String = "1",

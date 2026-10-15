@@ -6,9 +6,12 @@ import { WolfWaveClient } from "../src/wolfwave/client.js";
 import { PROTOCOL_VERSION } from "../src/wolfwave/protocol.js";
 
 const HEX64 = "a".repeat(64);
+/** Settings that pass validation; most tests never dial this port. */
 const settings = { port: 8765, token: HEX64 };
+/** Upper bound on any awaited socket event, so a hung test fails instead of stalling the run. */
 const EVENT_TIMEOUT_MS = 2_000;
 
+/** Rejects with `label` if `promise` has not settled within `EVENT_TIMEOUT_MS`. */
 function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
@@ -29,6 +32,7 @@ function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
   });
 }
 
+/** Starts a WebSocket server on 127.0.0.1 with an OS-assigned port. */
 async function loopbackServer(): Promise<{
   port: number;
   server: WebSocketServer;
@@ -39,6 +43,7 @@ async function loopbackServer(): Promise<{
   return { port: address.port, server };
 }
 
+/** Resolves with the next client socket to connect to `server`. */
 async function nextConnection(server: WebSocketServer): Promise<WebSocket> {
   const [socket] = (await bounded(
     once(server, "connection"),
@@ -47,6 +52,7 @@ async function nextConnection(server: WebSocketServer): Promise<WebSocket> {
   return socket;
 }
 
+/** Resolves with the next message on `socket` as text. */
 async function nextMessage(socket: WebSocket): Promise<string> {
   const [raw] = (await bounded(
     once(socket, "message"),
@@ -55,6 +61,7 @@ async function nextMessage(socket: WebSocket): Promise<string> {
   return raw.toString();
 }
 
+/** Resolves with the first state snapshot whose phase is `connected`. */
 function nextConnectedState(
   client: WolfWaveClient,
 ): Promise<typeof client.currentState> {
@@ -72,6 +79,7 @@ function nextConnectedState(
   );
 }
 
+/** Waits for every peer to close, then closes the server, so no listener leaks between tests. */
 async function closeLoopbackServer(server: WebSocketServer): Promise<void> {
   const peerCloses = [...server.clients]
     .filter((socket) => socket.readyState !== WebSocket.CLOSED)
@@ -100,6 +108,7 @@ function internals(client: WolfWaveClient): ClientInternals {
   return client as unknown as ClientInternals;
 }
 
+/** Client lifecycle and ack correlation. Uses real loopback sockets or hand-planted fake sockets, never the network. */
 describe("configure / stop", () => {
   test("loopback flow keeps live settings and reconnects after stop", async () => {
     const { port, server } = await loopbackServer();
@@ -161,6 +170,7 @@ describe("configure / stop", () => {
     }
   });
 
+  // A malformed token must drop the old socket at once, not keep sending with stale credentials.
   test("invalid reconfiguration immediately revokes the old socket", () => {
     const client = new WolfWaveClient();
     const raw = internals(client);
@@ -191,6 +201,8 @@ describe("configure / stop", () => {
     client.stop();
   });
 
+  // Closing a still-connecting socket emits an error; the client must keep an error
+  // listener attached across `removeAllListeners` so that does not crash the process.
   test("retiring a connecting socket keeps an error sink before close", () => {
     const client = new WolfWaveClient();
     const raw = internals(client);
@@ -235,6 +247,7 @@ describe("configure / stop", () => {
     client.stop();
   });
 
+  // An ack arriving after its press timed out belongs to that press, not the next one.
   test("lateAckAfterTimeoutNotAttributedToNextPress", async () => {
     const client = new WolfWaveClient({ ackTimeoutMs: 20 });
     const internals = client as unknown as {

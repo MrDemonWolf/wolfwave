@@ -86,9 +86,17 @@ nonisolated func mapHelixError(_ error: Error) -> TwitchChatService.ConnectionEr
 }
 
 /// What a live token-validation request proves about the Polls OAuth scope.
+///
+/// Only ``present`` and ``missing`` are proof. ``indeterminate`` (transport
+/// error, non-401 failure status, or an unparseable body) must not be treated as
+/// a missing scope, or a Twitch hiccup would turn off Polls-mode vote-skip.
 nonisolated enum PollScopeValidation: Equatable, Sendable {
+    /// Twitch confirmed the token carries the Polls scope.
     case present
+    /// Twitch answered 401, or a 2xx scope list without the Polls scope. No
+    /// token at all also maps here.
     case missing
+    /// The check could not reach a verdict.
     case indeterminate
 }
 
@@ -127,15 +135,26 @@ actor TwitchChatService {
 
     // MARK: - Nested Types
 
+    /// One `channel.chat.message` notification, reduced to what command
+    /// dispatch and the chat stream need.
     struct ChatMessage: Sendable {
+        /// Twitch's chat message ID; used as the reply parent and dedup key.
         let messageID: String
+        /// Sender's display name (`chatter_user_name`), not the login.
         let username: String
+        /// Sender's Twitch user ID.
         let userID: String
+        /// Message text, trimmed.
         let message: String
+        /// The broadcaster's user ID (`broadcaster_user_id`), not the channel
+        /// name.
         let channel: String
         let badges: [Badge]
         let reply: Reply?
 
+        /// One chat badge. `setID` is the badge family (`moderator`,
+        /// `subscriber`, `vip`, ...) that role checks match on; `info` carries
+        /// extra data such as the subscription month count.
         struct Badge: Sendable {
             let setID: String
             let id: String
@@ -167,6 +186,8 @@ actor TwitchChatService {
             )
         }
 
+        /// The message this one replies to, when the viewer used Twitch's
+        /// reply feature.
         struct Reply: Sendable {
             let parentMessageID: String
             let parentMessageBody: String
@@ -175,10 +196,18 @@ actor TwitchChatService {
         }
     }
 
+    /// Errors thrown by connection, identity lookup, and Helix calls.
+    ///
+    /// Only ``authenticationFailed`` implicates the stored token; callers use
+    /// that distinction to decide whether to show the re-auth prompt.
     enum ConnectionError: LocalizedError {
+        /// A required ID, channel name, or token was empty.
         case invalidCredentials
+        /// No Twitch client ID was configured.
         case missingClientID
+        /// Transport, decode, or unexpected-status failure, with a short reason.
         case networkError(String)
+        /// Twitch answered 401: the token is invalid or expired.
         case authenticationFailed
         /// Twitch answered successfully and no such channel exists. Distinct
         /// from a failed lookup: the request worked, the answer was "nobody".
@@ -187,6 +216,7 @@ actor TwitchChatService {
         /// request (403, 429, 5xx). The token is fine; something else is wrong.
         case notPermitted(status: Int)
 
+        /// Short user-facing text for logs and UI.
         var errorDescription: String? {
             switch self {
             case .invalidCredentials:
@@ -234,6 +264,9 @@ actor TwitchChatService {
         case permanentHTTP(statusCode: Int)
     }
 
+    /// The account the stored token belongs to, as resolved from
+    /// `GET /helix/users`. `login` is the lowercase handle; `displayName` keeps
+    /// the user's capitalization.
     struct BotIdentity: Sendable {
         let userID: String
         let login: String
@@ -308,11 +341,18 @@ actor TwitchChatService {
 
     // MARK: - EventSub Decision Helpers (nonisolated, pure, testable)
 
+    /// Lower bound, in seconds, of the keepalive timeout Twitch documents for
+    /// `session_welcome`.
     private nonisolated static let minimumKeepaliveTimeoutSeconds: TimeInterval = 10
+    /// Upper bound, in seconds, of the documented keepalive timeout.
     private nonisolated static let maximumKeepaliveTimeoutSeconds: TimeInterval = 600
+    /// Largest watchdog deadline, in seconds: the maximum timeout plus the grace
+    /// period. Any deadline above it is treated as corrupt.
     nonisolated static let maximumKeepaliveDeadlineSeconds: TimeInterval =
         maximumKeepaliveTimeoutSeconds + AppConstants.Twitch.keepaliveGraceSeconds
 
+    /// Returns `seconds` when it is a finite whole number inside the documented
+    /// 10...600 range, otherwise `nil`.
     private nonisolated static func validatedKeepaliveTimeout(
         _ seconds: TimeInterval
     ) -> TimeInterval? {
@@ -388,6 +428,11 @@ actor TwitchChatService {
         return min(deadline, maximumKeepaliveDeadlineSeconds)
     }
 
+    /// Guards a stored watchdog deadline (in seconds) before it is used for a
+    /// sleep. A value that is non-finite or outside the minimum timeout ...
+    /// ``maximumKeepaliveDeadlineSeconds`` range is replaced with the default
+    /// timeout plus grace, so a bad value can never yield an instant or endless
+    /// sleep. Applied both when the watchdog is armed and on every sleep.
     nonisolated static func normalizedKeepaliveDeadline(
         _ seconds: TimeInterval
     ) -> TimeInterval {
@@ -486,15 +531,24 @@ actor TwitchChatService {
         private let ttl: TimeInterval
         /// Optional maximum number of remembered IDs; oldest are evicted first.
         private let maxEntries: Int?
+        /// Authoritative map of remembered ID to the time it was recorded.
         private var seen: [String: Date] = [:]
         /// Append-only insertion order with a moving head. This makes normal
         /// prune/evict operations O(1) amortized instead of filtering and sorting
         /// the complete dictionary for every busy-chat frame.
         private var insertionOrder: [Entry] = []
+        /// Index of the oldest live node in `insertionOrder`; everything before
+        /// it has been consumed and is reclaimed by
+        /// `compactInsertionOrderIfNeeded()`.
         private var insertionHead = 0
 
+        /// Number of IDs currently remembered. Exposed for tests.
         var entryCount: Int { seen.count }
 
+        /// - Parameters:
+        ///   - ttl: Seconds an ID stays remembered.
+        ///   - maxEntries: Optional size cap; `nil` means TTL-only retention.
+        ///     Values below 1 are clamped to 1.
         init(ttl: TimeInterval = 600, maxEntries: Int? = 500) {
             self.ttl = ttl
             self.maxEntries = maxEntries.map { max(1, $0) }
@@ -525,6 +579,9 @@ actor TwitchChatService {
             return false
         }
 
+        /// Drops IDs older than `ttl` from the front of the insertion queue.
+        /// Stops at the first unexpired node, which relies on `now` never moving
+        /// backwards between calls (nodes are appended in time order).
         private mutating func pruneExpired(now: Date) {
             while insertionHead < insertionOrder.count {
                 let oldest = insertionOrder[insertionHead]
@@ -549,8 +606,12 @@ actor TwitchChatService {
 
     /// Rate-limit bucket state for one Helix endpoint.
     struct RateLimitState: Sendable {
+        /// Requests left in the current window (`Ratelimit-Remaining`).
         var remaining: Int = 0
+        /// When the window refills, as Unix epoch seconds. Derived from
+        /// `Ratelimit-Reset` with the wait bounded by `RetryAfter`.
         var resetTime: TimeInterval = 0
+        /// Bucket size (`Ratelimit-Limit`).
         var limit: Int = 0
     }
 
@@ -558,11 +619,13 @@ actor TwitchChatService {
     struct PendingMessage: Sendable {
         let message: String
         let parentMessageID: String?
+        /// Send attempts made so far; capped by `maxMessageRetries`.
         var attempts: Int
     }
 
     // MARK: - Static Constants
 
+    /// Posted on `NotificationCenter.default` when the connected flag changes.
     nonisolated static let connectionStateChanged =
         Notification.Name.twitchConnectionStateChanged
 
@@ -575,20 +638,35 @@ actor TwitchChatService {
 
     // MARK: - Configuration
 
+    /// Helix root (`https://api.twitch.tv/helix`); endpoint paths are appended.
     let apiBaseURL = AppConstants.Twitch.apiBaseURL
     /// `BotCommandDispatcher` is `@MainActor` (project default). The actor
     /// holds it as `nonisolated` (it's auto-Sendable since it's MainActor) and
     /// hops to `MainActor.run` for every call into it.
     nonisolated let commandDispatcher: BotCommandDispatcher
+    /// Helix wrapper for the managed "Request a Song" reward (create,
+    /// reconcile, fulfill, cancel).
     let channelPointsService: TwitchChannelPointsService
+    /// Disk-backed record of paid-event outcomes (fulfill / refund and Bits
+    /// actions) that must be replayed until acknowledged.
     let redemptionResolutionOutbox: TwitchRedemptionResolutionOutbox
+    /// Supplies the client ID for replayed redemption work, which can run
+    /// when no channel is joined and `clientID` is `nil`.
     let redemptionClientIDProvider: @Sendable () -> String?
+    /// Test seam that builds the EventSub socket. `nil` means `urlSession`
+    /// creates it.
     let eventSubWebSocketFactory: (@Sendable (URL) -> URLSessionWebSocketTask)?
+    /// Test seam for starting an EventSub socket; production calls `resume()`.
     let eventSubWebSocketResume: @Sendable (URLSessionWebSocketTask) -> Void
+    /// Test seam for reading one EventSub frame; production calls `receive()`.
     let eventSubWebSocketReceive: @Sendable (URLSessionWebSocketTask) async throws
         -> URLSessionWebSocketTask.Message
+    /// Per-endpoint Helix bucket tracker. Its own actor, so a request waiting
+    /// for capacity does not hold this actor.
     private let rateLimiter = RateLimiter()
 
+    /// Session for the EventSub socket and actor-owned requests. Waits for
+    /// connectivity and never serves cached responses. Invalidated in `deinit`.
     let urlSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60
@@ -602,14 +680,22 @@ actor TwitchChatService {
     /// Helix request client used by chat sends and other actor-owned API calls.
     let helixHTTPClient: HTTPClient
 
+    /// Backoff attempts allowed per transport reconnect cycle.
     let maxReconnectionAttempts = AppConstants.Twitch.maxReconnectionAttempts
+    /// Network-recovery cycles allowed inside one cooldown window.
     let maxNetworkReconnectCycles = AppConstants.Twitch.maxNetworkReconnectCycles
+    /// Retries for a chat send that failed with a retryable outcome.
     let maxMessageRetries = AppConstants.Twitch.maxMessageRetries
 
     // MARK: - WebSocket / Session
 
+    /// The current EventSub socket. During a `session_reconnect` handoff this
+    /// is the replacement; the old one lives in `migrationSourceWebSocketTask`.
     var webSocketTask: URLSessionWebSocketTask?
+    /// EventSub session ID from the latest `session_welcome`. Subscriptions are
+    /// created against it.
     var sessionID: String?
+    /// Receive loop for `webSocketTask`.
     var receiveTask: Task<Void, Never>?
     /// EventSub session where channel.poll.end is known to be subscribed.
     var pollSubscriptionSessionID: String?
@@ -617,12 +703,15 @@ actor TwitchChatService {
     var pollSubscriptionAttemptSessionID: String?
     /// Narrow deterministic seams for live-toggle tests.
     var pollScopeValidationOverride: (@Sendable () async -> PollScopeValidation)?
+    /// Test seam replacing the `channel.poll.end` subscription POST. Receives
+    /// the session ID and returns whether the subscription succeeded.
     var pollSubscriptionOverride: (@Sendable (String) async -> Bool)?
 
     /// During Twitch's `session_reconnect` handoff the source socket must stay
     /// open and continue delivering events until the replacement sends welcome.
     /// These fields retain that source independently from the new current socket.
     var migrationSourceWebSocketTask: URLSessionWebSocketTask?
+    /// Receive loop that keeps draining `migrationSourceWebSocketTask`.
     var migrationSourceReceiveTask: Task<Void, Never>?
     /// Socket that most recently completed the welcome handshake. Unlike
     /// `sessionID`, object identity distinguishes the old welcomed session from
@@ -633,6 +722,8 @@ actor TwitchChatService {
     /// update ``lastKeepaliveActivity`` instead of cancelling and allocating a
     /// new sleeping task for every busy-chat message.
     var keepaliveWatchdogTask: Task<Void, Never>?
+    /// Monotonic time of the last inbound frame. The watchdog sleeps until this
+    /// plus `keepaliveDeadlineSeconds`.
     var lastKeepaliveActivity: ContinuousClock.Instant?
     /// Invalidates a watchdog that was cancelled just before it re-entered the actor.
     var keepaliveGeneration: UInt64 = 0
@@ -658,18 +749,32 @@ actor TwitchChatService {
 
     // MARK: - Credentials
 
+    // Set together by a channel join and cleared together on leave. `nil`
+    // means no channel is joined. Never persisted here; the Keychain owns them.
+
+    /// Twitch user ID of the joined channel.
     var broadcasterID: String?
+    /// Twitch user ID of the signed-in account that sends chat. Equal to
+    /// `broadcasterID` when the streamer signed in as themselves, which the
+    /// channel-points path requires.
     var botID: String?
+    /// Access token used for Helix calls and EventSub subscriptions.
     var oauthToken: String?
+    /// Twitch application client ID sent as `Client-Id`.
     var clientID: String?
+    /// Login of the signed-in account. Note: only ever reset to `nil` on join;
+    /// nothing in the service assigns it a value today.
     var botUsername: String?
 
     /// Live `SongRequestService`, used by the channel-point and bit redemption
-    /// handlers. Set once by `AppDelegate` at startup via `setSongRequestService(_:)`.
+    /// handlers. Set by `AppDelegate` via `setSongRequestServiceReference(_:)`.
     var songRequestService: SongRequestService?
 
     // MARK: - Toggles
 
+    /// Whether a successful `channel.chat.message` subscription posts the
+    /// "connected" chat message. A user-initiated join turns it on; the silent
+    /// launch auto-reconnect turns it off so chat isn't spammed on every launch.
     var shouldSendConnectionMessageOnSubscribe = true
     /// Whether chat commands are dispatched. Always `true` in production; only
     /// `setCommandsEnabledForTesting(_:)` turns it off.
@@ -677,10 +782,10 @@ actor TwitchChatService {
 
     // MARK: - Track-Info Providers (async, nonisolated)
 
-    /// Providers live in a nonisolated lock-protected registry so the sync
-    /// dispatcher bridge (`runSync`) can read them without re-entering the
-    /// actor's mailbox. Re-entering while the actor's executor is blocked on
-    /// `runSync`'s semaphore would deadlock.
+    /// Providers live in a nonisolated lock-protected registry so AppDelegate
+    /// can set them synchronously from MainActor, and the dispatcher closures
+    /// wired in `joinChannel` (which run on MainActor) can read them without
+    /// awaiting this actor.
     nonisolated private let providers = ProviderRegistry()
 
     // MARK: - UserDefaults-derived (read on demand)
@@ -705,10 +810,16 @@ actor TwitchChatService {
 
     // MARK: - Connection State
 
+    /// Actor-owned connected flag. Written only through `setConnected(_:)`;
+    /// every write is mirrored into `isConnectedSnapshot`.
     private var _connected = false {
         didSet { isConnectedSnapshot.set(_connected) }
     }
+    /// Latch so the connection chat message goes out at most once per join.
+    /// Reset on join and on disconnect.
     private var hasSentConnectionMessage = false
+    /// Whether the channel is live, from Helix on connect and then the
+    /// `stream.online` / `stream.offline` events. Gates `!stats`.
     var streamLive = false {
         didSet { streamLiveSnapshot.set(streamLive) }
     }
@@ -742,8 +853,12 @@ actor TwitchChatService {
     /// isolation (mirrors the actor-isolated `streamLiveSince`).
     nonisolated var currentStreamLiveSince: Date? { streamSinceSnapshot.value }
 
+    /// Actor-isolated connection state. Turns `true` only after the session is
+    /// welcomed and its chat subscription succeeds (or a migration completes).
     var isConnected: Bool { _connected }
 
+    /// Raw write of the connected flag. Posts nothing; transitions that the UI
+    /// must see go through `broadcastConnectionState(_:error:)`.
     func setConnected(_ value: Bool) {
         _connected = value
     }
@@ -773,11 +888,16 @@ actor TwitchChatService {
 
     // MARK: - Disconnect / Network State
 
+    /// True between a disconnect starting and the next connection attempt.
+    /// Inbound frames, reconnect attempts, and queued chat retries bail out
+    /// while it is set, so a teardown can't be raced by late work.
     var isProcessingDisconnect = false
     /// Synchronous signal observed by the receive loop after its socket is
     /// closed for credential teardown. Unlike cancelling the receive task, this
     /// lets a frame already awaiting actor admission finish paid-event intake.
     nonisolated let eventSubTeardownQuiescing = Atomic(false)
+    /// Nesting count of in-flight `leaveChannel` calls. `eventSubTeardownQuiescing`
+    /// is cleared only when the outermost one exits.
     var eventSubCredentialTeardownFenceDepth = 0
     /// Invalidates channel joins that resume after a leave or a newer connect attempt.
     var connectionGeneration: UInt64 = 0
@@ -793,6 +913,13 @@ actor TwitchChatService {
         let webSocketTask: URLSessionWebSocketTask
     }
 
+    /// Whether work started by a receive loop may still act after an await.
+    ///
+    /// - Parameter context: The loop's captured ownership, or `nil` for work
+    ///   not tied to a socket (only cancellation is checked then).
+    /// - Returns: `false` once the task is cancelled, the connection attempt is
+    ///   superseded or torn down, or the socket is neither the current one nor
+    ///   the migration source still draining during a reconnect handoff.
     func receiveContextIsCurrent(_ context: EventSubReceiveContext?) -> Bool {
         guard !Task.isCancelled else { return false }
         guard let context else { return true }
@@ -800,6 +927,8 @@ actor TwitchChatService {
             && (webSocketTask === context.webSocketTask
                 || migrationSourceWebSocketTask === context.webSocketTask)
     }
+    /// Watches network reachability so a drop disconnects and a return
+    /// reconnects. Callbacks run on `networkMonitorQueue`.
     var networkPathMonitor: NWPathMonitor?
     /// Feeds path updates from `networkMonitorQueue` into the ordered consumer.
     var networkPathContinuation: AsyncStream<Bool>.Continuation?
@@ -807,24 +936,40 @@ actor TwitchChatService {
     var networkPathTask: Task<Void, Never>?
     /// Invalidates callbacks already queued by a canceled/replaced path monitor.
     var networkMonitorGeneration: UInt64 = 0
+    /// Serial queue `NWPathMonitor` requires for its callbacks.
     let networkMonitorQueue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.networkmonitor")
+    /// Last reachability seen. While `false`, reconnects are not scheduled.
     var isNetworkReachable = true
 
     // MARK: - Reconnection State
 
+    /// Backoff attempts used in the current reconnect cycle. Reset once a
+    /// session is usable (chat subscribed or migration done), on leave or a
+    /// terminal stop, and on an accepted network-recovery cycle.
     var reconnectionAttempts = 0
+    /// The pending backoff-then-reconnect task, if one is scheduled.
     var reconnectTask: Task<Void, Never>?
+    /// Times out a socket that never sends `session_welcome`.
     var sessionWelcomeTask: Task<Void, Never>?
+    /// Pending send of the one-time "connected" chat message.
     private var connectionMessageTask: Task<Void, Never>?
 
     /// Tracks total network-triggered reconnect cycles to prevent infinite loops
     /// when the network path flaps repeatedly.
     var networkReconnectCycles = 0
+    /// Unix epoch seconds of the last accepted network-recovery cycle. The
+    /// cycle counter resets once `networkReconnectCooldown` has passed.
     var lastNetworkReconnectTime: TimeInterval = 0
 
+    // What an automatic reconnect rejoins with. Published by a channel join and
+    // cleared on leave; `nil` channel means there is nothing to reconnect.
+
+    /// Channel login the automatic reconnect rejoins.
     var reconnectChannelName: String?
+    /// Access token for the automatic reconnect.
     var reconnectToken: String?
+    /// Client ID for the automatic reconnect.
     var reconnectClientID: String?
 
     /// Single service seam for every live 401. The rejected access expectation
@@ -839,10 +984,13 @@ actor TwitchChatService {
         )
     }
 
+    /// Sleep used between redemption fulfill / refund retries. Injectable so
+    /// tests don't wait real time.
     var redemptionResolutionSleep: @Sendable (Duration) async throws -> Void = {
         try await Task.sleep(for: $0)
     }
 
+    /// Test seam: replaces the reactive 401 token refresher.
     func setReactiveTokenRefresh(
         _ operation: @escaping @Sendable (
             String,
@@ -861,6 +1009,7 @@ actor TwitchChatService {
         try await reactiveTokenRefreshOperation(clientID, expected)
     }
 
+    /// Test seam: replaces `redemptionResolutionSleep`.
     func setRedemptionResolutionSleep(
         _ operation: @escaping @Sendable (Duration) async throws -> Void
     ) {
@@ -869,7 +1018,9 @@ actor TwitchChatService {
 
     // MARK: - Pending Messages
 
+    /// Chat sends waiting for a retry, oldest first.
     var pendingMessages: [PendingMessage] = []
+    /// The task draining `pendingMessages`, if one is running.
     var pendingRetryTask: Task<Void, Never>?
     /// Invalidates a cancelled drain so its deferred cleanup cannot clear a newer task.
     var pendingRetryGeneration: UInt64 = 0
@@ -885,18 +1036,25 @@ actor TwitchChatService {
     /// generation so reconnect/leave can cancel it deterministically.
     var commandTasks: [UUID: Task<Void, Never>] = [:]
 
+    /// Number of in-flight command pipelines. Exposed for tests.
     var activeCommandTaskCount: Int { commandTasks.count }
 
     // MARK: - Redemption Pipeline Tasks
 
+    /// Identity of one Bits event in the in-memory fallback: the EventSub
+    /// message ID scoped to its channel.
     struct VolatileBitsFallbackKey: Hashable {
         let messageID: String
         let broadcasterID: String
     }
 
+    /// A Bits event held in memory because the durable outbox write failed.
     struct VolatileBitsFallback {
         let item: TwitchRedemptionResolutionOutbox.BitsItem
+        /// When the event was claimed; drives freshness-horizon pruning.
         let claimedAt: Date
+        /// Whether the request / boost has already been applied. A completed
+        /// entry stays as a duplicate guard until it ages out.
         var completed: Bool
     }
 
@@ -915,6 +1073,7 @@ actor TwitchChatService {
     /// therefore outlives EventSub socket generations; only the eventual chat
     /// reply is gated to the originating session.
     var paidRedemptionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Number of in-flight Bits pipelines. Exposed for tests.
     var activePaidRedemptionTaskCount: Int { paidRedemptionTasks.count }
     /// Fulfillment/refund HTTP work outlives its originating EventSub session so
     /// reconnect/leave can never strand already-spent viewer points.
@@ -930,7 +1089,9 @@ actor TwitchChatService {
     /// Stream of finished vote-skip poll tallies.
     nonisolated let skipPollResults: AsyncStream<SkipPollResult>
 
+    /// Write end of `chatMessages`. Finished in `deinit`.
     let chatMessagesContinuation: AsyncStream<ChatMessage>.Continuation
+    /// Write end of `skipPollResults`. Finished in `deinit`.
     let skipPollResultsContinuation: AsyncStream<SkipPollResult>.Continuation
 
     /// Fan-out registry backing `connectionStateChanges()`. One continuation
@@ -988,6 +1149,8 @@ actor TwitchChatService {
         self.eventSubWebSocketReceive = eventSubWebSocketReceive
     }
 
+    /// Cancels every owned task and socket, finishes the output streams, and
+    /// drops this service from the redemption teardown gate.
     deinit {
         // Synchronous cleanup only. Actor isolation forbids awaits in deinit.
         sessionWelcomeTask?.cancel()
@@ -1036,6 +1199,9 @@ actor TwitchChatService {
     }
 
     /// Set the live `SongRequestService` used by redemption handlers.
+    ///
+    /// Passing a non-nil service also replays Bits events that were persisted
+    /// while no service was available to apply them.
     func setSongRequestServiceReference(_ service: SongRequestService?) {
         self.songRequestService = service
         if service != nil {
@@ -1065,6 +1231,8 @@ actor TwitchChatService {
     }
 
     /// Toggle whether the connection confirmation message is sent on subscribe.
+    /// `TwitchViewModel` turns it on for a user-initiated join; the launch
+    /// auto-reconnect in `AppDelegate` turns it off. Set before connecting.
     func setShouldSendConnectionMessageOnSubscribe(_ value: Bool) {
         self.shouldSendConnectionMessageOnSubscribe = value
     }
@@ -1082,7 +1250,17 @@ actor TwitchChatService {
     ///   - botID: The bot's Twitch user ID
     ///   - token: OAuth access token with chat scopes
     ///   - clientID: Twitch application client ID
-    /// - Throws: `ConnectionError` if credentials are invalid or missing
+    ///   - attemptGeneration: Generation from an outer `connectToChannel` call
+    ///     that already began the attempt. `nil` means this is a direct join:
+    ///     it starts a new attempt and takes channel ownership.
+    ///   - credentialRevision: Keychain grant revision the join was resolved
+    ///     against. When set, the join is cancelled if the stored grant changed
+    ///     while it was suspended.
+    /// - Throws: `ConnectionError` if credentials are invalid or missing;
+    ///   `CancellationError` if a leave, a newer join, or an account change
+    ///   superseded this attempt. Publishes credentials only on success.
+    /// - Note: Does not open the EventSub socket. `connectToChannel` does that
+    ///   after publishing reconnect ownership.
     func joinChannel(
         broadcasterID: String,
         botID: String,
@@ -1210,6 +1388,24 @@ actor TwitchChatService {
     }
 
     /// Connects to a Twitch channel by name, resolving usernames to IDs.
+    ///
+    /// Resolves the signed-in account's user ID (from the stored grant, or
+    /// Helix when the grant lacks one, committing it back to the Keychain),
+    /// resolves `channelName` to a broadcaster ID, joins, records reconnect
+    /// credentials, starts network monitoring, and opens the EventSub socket.
+    /// Returns once the socket is started, not once it is connected.
+    ///
+    /// - Parameters:
+    ///   - channelName: Channel login. Must match the channel stored with the
+    ///     current Keychain grant for `token`, or the call is cancelled.
+    ///   - token: OAuth access token.
+    ///   - clientID: Twitch application client ID.
+    ///   - attemptGeneration: Generation of an attempt already begun by the
+    ///     reconnect path. `nil` for a user-initiated connect.
+    ///   - expectedCredentialRevision: Grant revision the caller observed; a
+    ///     mismatch cancels instead of connecting a different account.
+    /// - Throws: `ConnectionError` for bad input or failed lookups;
+    ///   `CancellationError` when superseded or the stored grant changed.
     func connectToChannel(
         channelName: String,
         token: String,
@@ -1365,6 +1561,8 @@ actor TwitchChatService {
         connectionAttemptIsCurrent(generation) && self.broadcasterID == broadcasterID
     }
 
+    /// Throws `CancellationError` when `generation` is no longer current or the
+    /// task was cancelled. Called after every suspension in the join path.
     private func ensureConnectionAttempt(_ generation: UInt64) throws {
         guard connectionAttemptIsCurrent(generation), !Task.isCancelled else {
             throw CancellationError()
@@ -1376,6 +1574,18 @@ actor TwitchChatService {
     /// Leaves the current channel and disconnects from EventSub. The managed
     /// reward is held while this actor still owns the only credentials that can
     /// mutate it, before account teardown is allowed to clear those credentials.
+    ///
+    /// Order: pause the managed reward, close the socket without dropping a
+    /// paid frame already queued on the actor, settle outstanding redemption
+    /// work, then clear reconnect state, network monitoring, and credentials.
+    /// Any step that finds a newer join or account aborts without clearing.
+    ///
+    /// - Parameter allowDiscardingOpaqueRedemptionRecovery: When `true`, skips
+    ///   the guard that refuses teardown while the redemption outbox can't be
+    ///   verified or holds quarantined recovery data. The user must have
+    ///   explicitly agreed to lose that data.
+    /// - Returns: `true` when the channel was left and credentials cleared;
+    ///   `false` when teardown was refused or superseded (state is kept).
     @discardableResult
     func leaveChannel(
         allowDiscardingOpaqueRedemptionRecovery: Bool = false
@@ -1549,6 +1759,8 @@ actor TwitchChatService {
         }
     }
 
+    /// Posts the connection message once per join, only while `generation` and
+    /// `broadcasterID` still describe the live session.
     func sendConnectionMessageIfNeeded(
         generation: UInt64,
         broadcasterID: String
@@ -1577,6 +1789,18 @@ actor TwitchChatService {
     ///
     /// Blocks (via `Task.sleep`) when the local rate-limit accountant says the
     /// endpoint is saturated; records returned `Ratelimit-*` headers.
+    ///
+    /// A 429 gets exactly one retry after the server's reset time.
+    ///
+    /// - Parameters:
+    ///   - endpoint: Path appended to `apiBaseURL`, e.g. `/chat/messages`. Also
+    ///     the rate-limit bucket key.
+    ///   - body: JSON body, or `nil`.
+    /// - Returns: The response body of a 2xx response.
+    /// - Throws: `ConnectionError.authenticationFailed` on 401;
+    ///   `HelixRequestError.retryableHTTP` (408, 425, 429, 5xx) or
+    ///   `.permanentHTTP` (other non-2xx); transport errors and
+    ///   `CancellationError` as thrown.
     func sendAPIRequest(
         method: String,
         endpoint: String,
@@ -1693,14 +1917,17 @@ actor TwitchChatService {
 
     /// Lock-protected registry for the three async track-info providers.
     ///
-    /// Lives outside actor isolation so the sync dispatcher bridge can read
-    /// providers without re-entering the actor. Tiny surface, single lock.
+    /// Lives outside actor isolation so MainActor code can set and read
+    /// providers without awaiting the actor. Tiny surface, single lock.
     /// Does not reintroduce the lock-sprawl the actor conversion removed.
     final class ProviderRegistry: @unchecked Sendable {
         private let lock = NSLock()
         private var _current: (@Sendable () async -> String)?
         private var _last: (@Sendable () async -> String)?
         private var _stats: (@Sendable () async -> String)?
+
+        // Setters and getters for the `!song`, `!last`, and `!stats` providers.
+        // `nil` means "not wired"; the dispatcher then replies with a default.
 
         func setCurrent(_ provider: (@Sendable () async -> String)?) {
             lock.withLock { _current = provider }

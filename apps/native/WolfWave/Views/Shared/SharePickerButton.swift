@@ -31,7 +31,9 @@ struct SharePickerButton: NSViewRepresentable {
     /// Matches SwiftUI's `.borderedProminent` so it can sit beside one.
     var isProminent: Bool = false
 
-    /// Called after cancellation, successful sharing, or a sharing failure.
+    /// Called after cancellation, successful sharing, or a sharing failure, with
+    /// the items that were offered. Use it for cleanup such as deleting a temp
+    /// file written by `makeItems`; it does not say which outcome happened.
     var onCompletion: (([Any]) -> Void)?
 
     /// Produces the items to share when the button is clicked. Runs on the main
@@ -41,6 +43,7 @@ struct SharePickerButton: NSViewRepresentable {
 
     // MARK: - NSViewRepresentable
 
+    /// Builds the `NSButton` and wires its action to the coordinator.
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton()
         button.bezelStyle = .rounded
@@ -52,6 +55,8 @@ struct SharePickerButton: NSViewRepresentable {
         return button
     }
 
+    /// Re-applies the style and hands the coordinator the latest closures, so a
+    /// click always uses the current `makeItems` rather than the first one.
     func updateNSView(_ nsView: NSButton, context: Context) {
         applyStyle(to: nsView)
         context.coordinator.makeItems = makeItems
@@ -89,25 +94,42 @@ struct SharePickerButton: NSViewRepresentable {
         }
     }
 
+    /// Creates the coordinator that owns the picker and its delegate callbacks.
     func makeCoordinator() -> Coordinator {
         Coordinator(makeItems: makeItems, onCompletion: onCompletion)
     }
 
     // MARK: - Coordinator
 
+    /// Button target plus picker and service delegate.
+    ///
+    /// One share runs at a time: `sharingLifetime` is set when a share starts and
+    /// cleared by `finishSharing()`, and a click while it is set is ignored. The
+    /// self-reference also keeps the coordinator alive if SwiftUI tears the
+    /// button down mid-share, so `onCompletion` still fires.
     final class Coordinator: NSObject, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
+        /// Latest item factory, refreshed by `updateNSView`.
         var makeItems: () -> [Any]?
+        /// Latest completion handler, refreshed by `updateNSView`.
         var onCompletion: (([Any]) -> Void)?
+        /// The pending completion for the current share, bound to its items.
+        /// Called once, then cleared.
         private var completion: (() -> Void)?
+        /// Strong reference to the visible picker for the duration of a share.
         private var picker: NSSharingServicePicker?
         // Keep the delegate alive if the SwiftUI sheet closes during sharing.
         private var sharingLifetime: Coordinator?
 
+        /// - Parameters:
+        ///   - makeItems: Produces the items to share at click time.
+        ///   - onCompletion: Called once a share ends, however it ends.
         init(makeItems: @escaping () -> [Any]?, onCompletion: (([Any]) -> Void)? = nil) {
             self.makeItems = makeItems
             self.onCompletion = onCompletion
         }
 
+        /// Button action: builds the items and shows the picker under the button.
+        /// Does nothing while a share is in flight or when there is nothing to share.
         @objc func share(_ sender: NSButton) {
             guard sharingLifetime == nil else { return }
             guard let items = makeItems(), !items.isEmpty else { return }
@@ -118,12 +140,17 @@ struct SharePickerButton: NSViewRepresentable {
             picker.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
         }
 
+        /// Captures the completion for `items` (using the handler current at
+        /// click time) and pins the coordinator alive until the share ends.
         func prepareSharing(_ items: [Any]) {
             let callback = onCompletion
             completion = { callback?(items) }
             sharingLifetime = self
         }
 
+        /// A `nil` service means the picker was dismissed without a choice, which
+        /// ends the share. A chosen service ends it later, through the
+        /// `NSSharingServiceDelegate` callbacks below.
         func sharingServicePicker(_ picker: NSSharingServicePicker, didChoose service: NSSharingService?) {
             if service == nil { finishSharing() }
         }
@@ -131,17 +158,22 @@ struct SharePickerButton: NSViewRepresentable {
         func sharingServicePicker(
             _ picker: NSSharingServicePicker, delegateFor service: NSSharingService
         ) -> (any NSSharingServiceDelegate)? {
+            // Become the service's delegate so success and failure reach us.
             self
         }
 
+        /// The chosen service finished sharing.
         func sharingService(_ service: NSSharingService, didShareItems items: [Any]) {
             finishSharing()
         }
 
+        /// The chosen service failed or was cancelled; still ends the share.
         func sharingService(_ service: NSSharingService, didFailToShareItems items: [Any], error: any Error) {
             finishSharing()
         }
 
+        /// Clears the in-flight state, then fires the completion. State is reset
+        /// first so the completion may start another share.
         private func finishSharing() {
             let callback = completion
             completion = nil

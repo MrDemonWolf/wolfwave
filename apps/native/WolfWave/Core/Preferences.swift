@@ -12,8 +12,7 @@ import Foundation
 /// `UserDefaults` (strings, ints, and "may not be set yet" objects).
 ///
 /// Sibling to ``FeatureFlags`` (which covers booleans). Centralizes the
-/// repeated `UserDefaults.standard.string(forKey:)` /
-/// `UserDefaults.standard.integer(forKey:)` pattern so default semantics and
+/// repeated `string(forKey:)` / `integer(forKey:)` pattern so default semantics and
 /// fallbacks live in one place. Adding a new pref means one property here
 /// rather than hunting for the matching read/write across `AppDelegate+*`,
 /// `WolfWaveApp`, and the settings views.
@@ -23,8 +22,11 @@ import Foundation
 ///   default.
 /// - Mutating writes are exposed as plain `static func set…(…)` so call sites
 ///   are searchable and intent is explicit.
+/// - Every read and write goes through ``DefaultsStore/store`` (never
+///   `UserDefaults.standard`), so tests hit their isolated suite.
 nonisolated enum Preferences {
 
+    /// The one `UserDefaults` every accessor reads and writes.
     private static var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     // MARK: - Defaulted Primitive Reads
@@ -66,6 +68,8 @@ nonisolated enum Preferences {
         ) ?? ""
     }
 
+    /// Drops the pending backup-restored channel, typically once OAuth has
+    /// committed a real channel to the Keychain grant.
     static func clearPendingImportedTwitchChannelName() {
         defaults.removeObject(
             forKey: AppConstants.UserDefaults.twitchPendingImportedChannelName
@@ -80,6 +84,13 @@ nonisolated enum Preferences {
     }
 
     /// Empty clears an optional link; configured links must be bounded HTTPS URLs.
+    ///
+    /// - Parameters:
+    ///   - value: Raw user input or stored value. Trimmed of whitespace.
+    ///   - maxLength: Upper bound in characters, checked before trimming.
+    /// - Returns: `""` for blank input, the normalized absolute string for a
+    ///   valid `https` URL with a host, or `nil` when the value is too long,
+    ///   not `https`, or has no host.
     static func normalizedHTTPSURL(_ value: String, maxLength: Int = 2_048) -> String? {
         guard value.count <= maxLength else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -95,6 +106,8 @@ nonisolated enum Preferences {
         defaults.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
 
+    /// Persists the re-auth flag. Callers that need observers to react also
+    /// post `.twitchReauthNeededChanged`; this setter does not.
     static func setTwitchReauthNeeded(_ value: Bool) {
         defaults.set(value, forKey: AppConstants.UserDefaults.twitchReauthNeeded)
     }
@@ -206,10 +219,14 @@ nonisolated enum Preferences {
         return resolveClamped(stored, range: domain.range, default: defaultValue)
     }
 
+    /// Writes the shared WebSocket server switch read by ``FeatureFlags/websocketEnabled``.
+    /// Does not start or stop the server; callers post the change notification.
     static func setWebSocketEnabled(_ value: Bool) {
         defaults.set(value, forKey: AppConstants.UserDefaults.websocketEnabled)
     }
 
+    /// Writes the widget HTTP server switch read by ``FeatureFlags/widgetHTTPEnabled``.
+    /// Does not start or stop the server.
     static func setWidgetHTTPEnabled(_ value: Bool) {
         defaults.set(value, forKey: AppConstants.UserDefaults.widgetHTTPEnabled)
     }
@@ -223,22 +240,30 @@ nonisolated enum Preferences {
 
     // MARK: - Onboarding / What's New
 
+    /// Whether the first-launch wizard finished (completed or skipped). Default `false`.
     static var hasCompletedOnboarding: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
     }
 
+    /// The What's New feature version (`AppConstants.AppInfo.whatsNewVersion`)
+    /// last shown; empty before the first one. Compared at launch by `checkWhatsNew()`.
     static var lastSeenWhatsNewVersion: String {
         defaults.string(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion) ?? ""
     }
 
+    /// Records that What's New for `version` has been shown.
     static func setLastSeenWhatsNewVersion(_ version: String) {
         defaults.set(version, forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
     }
 
     // MARK: - Tracking First-Launch Default
 
-    /// First-launch default for music tracking. Returns `true` when the key has
-    /// never been written; idempotent on subsequent calls.
+    /// First-launch default for music tracking: writes `true` when the key has
+    /// never been written, so later plain `bool(forKey:)` reads (the tray
+    /// toggle) see `true` rather than "unset = false".
+    ///
+    /// - Returns: `true` only on the call that seeded the value; `false` once
+    ///   any value (including an explicit `false`) is stored.
     @discardableResult
     static func seedTrackingEnabledDefaultIfNeeded() -> Bool {
         let key = AppConstants.UserDefaults.trackingEnabled

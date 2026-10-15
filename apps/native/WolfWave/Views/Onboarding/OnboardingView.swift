@@ -12,15 +12,27 @@ import SwiftUI
 ///
 /// Steps: Welcome → Discord → Twitch → OBS → Preferences → Permissions → Notifications → Menu bar pointer.
 /// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
+/// Closing that window before Finish / Skip All leaves the completed flag unset,
+/// so the wizard opens again on the next launch.
 struct OnboardingView: View {
 
     // MARK: - State
 
+    /// Wizard position and completion state.
     @State private var viewModel = OnboardingViewModel()
+    /// The app-wide Twitch view model, shared with the Settings pane so a sign-in
+    /// started here is the same one Settings shows.
     @State private var twitchViewModel = TwitchViewModel.shared
     /// Stable identity for this Onboarding presentation.
+    ///
+    /// Passed to `requestOAuthCancellation(ifOwnedBy:)` so leaving the wizard only
+    /// cancels a device-code sign-in that this window started, never one that the
+    /// Settings window owns.
     @State private var twitchOAuthOwner =
         TwitchViewModel.OAuthPresentationOwner.onboarding(UUID())
+
+    // Settings the Discord, OBS, and Preferences steps toggle, passed down as
+    // bindings. Writes persist immediately, even if the wizard is abandoned.
 
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
     private var discordPresenceEnabled = false
@@ -41,6 +53,7 @@ struct OnboardingView: View {
     /// permission grants without needing each step view to publish state up.
     @State private var musicPermissionState: MusicPermissionState = MusicPermissionChecker.currentState()
 
+    /// Swaps the step slide for a cross-fade when on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
@@ -95,6 +108,8 @@ struct OnboardingView: View {
 
     // MARK: - Progress Dots
 
+    /// One dot per step, the current one enlarged and accent-filled. Visual only:
+    /// VoiceOver reads the whole row as a single "Step N of M: name" element.
     private var progressDots: some View {
         HStack(spacing: 8) {
             ForEach(OnboardingViewModel.OnboardingStep.allCases, id: \.rawValue) { step in
@@ -123,6 +138,9 @@ struct OnboardingView: View {
 
     // MARK: - Step Content
 
+    /// The current step's view. `.id(currentStep)` gives each step a fresh
+    /// identity, so a step change is a removal plus insertion and the slide
+    /// transition runs in `navigationDirection`.
     @ViewBuilder
     private var stepContent: some View {
         Group {
@@ -160,6 +178,10 @@ struct OnboardingView: View {
 
     // MARK: - Navigation Bar
 
+    /// Back / Skip All on the left, Skip and Next / Finish on the right.
+    ///
+    /// Every exit path calls `cancelTwitchOAuthIfNeeded()` first, so a pending
+    /// device-code poll never outlives the Twitch step.
     private var navigationBar: some View {
         HStack {
             // Left: Back (≥step 2) + Skip All (when not on the last step).
@@ -241,6 +263,8 @@ struct OnboardingView: View {
                 .accessibilityIdentifier("onboarding.next")
             }
         }
+        // Keep the bar still while the step content animates; only the content
+        // area should move on a step change.
         .transaction { $0.animation = nil }
     }
 
@@ -254,6 +278,10 @@ struct OnboardingView: View {
 
     /// Returns `true` only for steps where Skip means something different from
     /// "Next with the toggle off" (i.e. OAuth and system permissions).
+    ///
+    /// Twitch: shown until a sign-in is saved. Permissions: shown until the Music
+    /// Automation grant is `.granted`, read from `musicPermissionState`, which is
+    /// refreshed on each step change rather than live.
     private var shouldShowSkip: Bool {
         switch viewModel.currentStep {
         case .twitchConnect:

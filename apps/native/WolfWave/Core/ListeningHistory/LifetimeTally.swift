@@ -108,7 +108,8 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
         }
     }
 
-    /// Folds a batch of records.
+    /// Folds a batch of records, in order. The caller is responsible for not
+    /// passing records already covered by `lastFoldedSequence`.
     mutating func fold(_ records: [PlayRecord]) {
         for record in records {
             fold(record)
@@ -117,7 +118,8 @@ nonisolated struct LifetimeTally: Codable, Equatable, Sendable {
 
     // MARK: - Private
 
-    /// Increments `dict[key]`, creating the bucket when missing.
+    /// Increments `dict[key]`, creating the bucket when missing. `name` and
+    /// `detail` are overwritten on every bump, so the newest fold's casing wins.
     private static func bump(
         _ dict: inout [String: TallyEntry],
         key: String,
@@ -155,6 +157,8 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
         label: "com.mrdemonwolf.wolfwave.lifetimetally", qos: .utility
     )
 
+    /// Strategy-free coders: `Date` fields use the default `deferredToDate`
+    /// encoding, which is the on-disk format existing tally files carry.
     private let encoder = JSONCoders.defaultEncoder
     private let decoder = JSONCoders.default
 
@@ -164,6 +168,10 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - directory: Override directory for tests; `nil` uses the shared
+    ///     history directory beside the play log.
+    ///   - clearOverride: Test-only stand-in for `clear()`'s file removal.
     init(
         directory: URL? = nil,
         clearOverride: (@Sendable () -> Bool)? = nil
@@ -245,6 +253,8 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
     }
 
     /// Removes the tally file (used by `clearHistory`).
+    ///
+    /// - Returns: `true` when the file is gone, including when it never existed.
     @discardableResult
     func clear() -> Bool {
         ioQueue.sync {
@@ -266,6 +276,7 @@ nonisolated final class LifetimeTallyStore: @unchecked Sendable {
         }
     }
 
+    /// Creates the containing directory if it does not exist. Runs on `ioQueue`.
     private func ensureDirectoryExists() {
         HistoryStoreSupport.ensureDirectory(for: fileURL)
     }

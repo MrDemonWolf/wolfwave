@@ -18,6 +18,8 @@ final class SkipCommandTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// Chat context for the broadcaster by default, or a moderator when `broadcaster` is false and
+    /// `moderator` true.
     private func privilegedContext(
         broadcaster: Bool = true,
         moderator: Bool = false
@@ -29,6 +31,7 @@ final class SkipCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// Chat context for a plain viewer (no badges).
     private func viewerContext() -> BotCommandContext {
         BotCommandContext(
             userID: "2", username: "viewer",
@@ -37,6 +40,7 @@ final class SkipCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// A service with an empty queue, an in-memory blocklist, and `MockAppleMusicController`.
     private func makeService() -> SongRequestService {
         SongRequestService(
             queue: SongRequestQueue(),

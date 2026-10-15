@@ -13,6 +13,9 @@ import XCTest
 
 // MARK: - Mock AppleMusicController
 
+/// Scriptable `AppleMusicControlling` stand-in. State flags drive what the service
+/// sees; `*Called` / `*CallCount` fields record what it asked for. Nothing here
+/// touches Music.app. Shared with other song-request suites in this target.
 final class MockAppleMusicController: AppleMusicControlling {
     var isPlaying = false
     var isPaused = false
@@ -174,6 +177,12 @@ private actor PlaybackGate {
 
 // MARK: - SongRequestServiceTests
 
+/// `SongRequestService` request pipeline: access gates (enabled, audience), skip and
+/// clear semantics, hold mode, auto-advance and fallback playlist, Music.app-closed
+/// buffering, playback-monitor lifecycle, boost, vote-skip application, and chat messages. Uses
+/// `MockAppleMusicController` and in-memory storage.
+/// Subclasses `WolfWaveTestCase` because the service reads its gates from
+/// `DefaultsStore.store`, which other suites also write.
 @MainActor
 final class SongRequestServiceTests: WolfWaveTestCase {
 
@@ -198,6 +207,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// Removes every access, queue, and playback setting these tests write, so each test starts
+    /// from defaults.
     private func clearAccessDefaults() {
         let defaults = DefaultsStore.store
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestSubscriberOnly)
@@ -211,6 +222,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist)
     }
 
+    /// A service whose queue holds one request while a streamer's own track (`streamer-track`) is
+    /// playing, for polling tests.
     private func makeServiceWithLiveRequest(
         pollInterval: Duration
     ) -> SongRequestService {
@@ -570,6 +583,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertTrue(mockController.clearCalled)
     }
 
+    /// `clearQueue()` is parked in the player-queue clear (`PlaybackGate`). A request added
+    /// meanwhile must not start until the clear finishes: `playNextInQueue()` returns nil during
+    /// the clear, then the new item starts and the controller was cleared once.
     func testRequestAddedDuringSuspendedClearStartsOnlyAfterClearCompletes() async {
         let clearGate = PlaybackGate()
         let startedIDs = ThreadSafeBox<[UUID]>([])
@@ -608,6 +624,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(mockController.clearCallCount, 1)
     }
 
+    /// Two overlapping `clearQueue()` calls share one controller clear (`clearCallCount == 1`),
+    /// each reports the one item it removed, and only the newest request is started afterward.
     func testOverlappingClearsCoalesceAndOnlyNewestGenerationReconciles() async {
         let clearGate = PlaybackGate()
         let startedIDs = ThreadSafeBox<[UUID]>([])
@@ -722,6 +740,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.items.map(\.id), [reserved.id])
     }
 
+    /// A clear that lands while a start is still suspended must win: the stale start returns nil,
+    /// the queue stays empty with no now-playing item, and Music is stopped a second time to
+    /// undo the late successful start.
     func testClearDuringSuspendedPlaybackCannotResurrectRequest() async {
         let gate = PlaybackGate()
         let reserved = makeTestRequestItem(
@@ -748,6 +769,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             "clearQueue stops once immediately and the stale successful start stops again")
     }
 
+    /// If a boost reorders the queue while the head's start is suspended, the old head is
+    /// not committed: the service retries with the new head, which becomes now-playing.
     func testReorderDuringSuspendedPlaybackRetriesNewHead() async {
         let gate = PlaybackGate()
         let first = makeTestRequestItem(
@@ -1146,6 +1169,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.nowPlaying?.title, "Next Song")
     }
 
+    /// With an empty queue the monitor owns no periodic task (zero snapshot reads); a
+    /// queue-change notification wakes polling.
     func testPlaybackMonitorSleepsCompletelyWhileQueueIsIdle() async {
         service = SongRequestService(
             queue: queue,
@@ -1220,6 +1245,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
             "Reconciliation must not resurrect an explicitly stopped monitor")
     }
 
+    /// Polling follows the auto-advance setting: off means no polling, turning it on and
+    /// calling `reconcilePlaybackMonitoring()` starts it, and turning it off cancels it at once.
     func testAutoAdvanceToggleReconcilesPlaybackPolling() async {
         service = makeServiceWithLiveRequest(pollInterval: .milliseconds(20))
         DefaultsStore.store.set(
@@ -1337,6 +1364,9 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertNil(queue.nowPlaying)
     }
 
+    /// A vote-skip bound to one track must not act if the playing track changes while it is
+    /// suspended: the controller's targeted handler refuses, the skip reports failure, and the
+    /// replacement track and queue are left alone.
     func testTargetedVoteSkipDoesNotReplaceTrackOrCommitQueueAfterTargetChanges() async {
         let gate = PlaybackGate()
         let current = makeTestRequestItem(
@@ -1377,6 +1407,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         XCTAssertEqual(queue.items.map(\.id), [queued.id])
     }
 
+    /// A successful targeted skip commits the reserved queue head even when the playback
+    /// monitor reports the track change (caused by the skip itself) before the call returns.
     func testSuccessfulTargetedVoteCommitsReservedHeadAfterOwnTrackCallback() async {
         let gate = PlaybackGate()
         let current = makeTestRequestItem(
@@ -1415,6 +1447,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
     // MARK: - NotPlayable Retry-to-Drop
 
+    /// A track that is not playable on Apple Music is retried, and on the third failed attempt
+    /// is dropped with a chat message naming it; the next request then plays.
     func testNotPlayableRetryDropsSendsChatMessage() async {
         var badSongAttempts = 0
         service = SongRequestService(
@@ -1653,6 +1687,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
 // MARK: - Vote-skip helper
 
+/// Test shorthand for the capture-then-apply pair used by vote-skip.
 @MainActor
 private extension SongRequestService {
     /// Captures the loaded track and applies a passed vote to it, the same

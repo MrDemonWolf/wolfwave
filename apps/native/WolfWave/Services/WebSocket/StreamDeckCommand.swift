@@ -14,6 +14,10 @@ import Foundation
 ///
 /// Raw values are the wire tokens the plugin sends in a command envelope, so
 /// renaming a case is a protocol change (bump `StreamDeckControl.protocolVersion`).
+///
+/// Mirrored by `ACTIONS` in `apps/streamdeck/src/wolfwave/protocol.ts`: add,
+/// rename, or remove a case on both sides in the same change. The command
+/// router that runs each action is `AppDelegate+StreamDeck.swift`.
 nonisolated enum StreamDeckAction: String, Codable, CaseIterable, Sendable {
     case playPause = "play_pause"
     case skip
@@ -32,19 +36,33 @@ nonisolated enum StreamDeckAction: String, Codable, CaseIterable, Sendable {
 // MARK: - StreamDeckCommand
 
 /// A decoded, validated inbound command ready to run.
+///
+/// Produced only by `StreamDeckControl.parse(_:)`, so `action` is always a
+/// known token and the envelope's protocol version already matched.
 nonisolated struct StreamDeckCommand: Sendable, Equatable {
     let action: StreamDeckAction
-    /// Optional string args from the envelope (unused by the v2 actions; carried
+    /// Optional string args from the envelope (unused by the v3 actions; carried
     /// so a future action can take a parameter without a protocol bump).
+    /// A missing `args`, or one holding any non-string value, decodes as empty.
     let args: [String: String]
 }
 
 // MARK: - CommandAck
 
 /// The reply sent back on the originating connection after a command is handled.
+///
+/// Decoded by `parseFrame` (`kind: "ack"`) in the plugin's `protocol.ts`, which
+/// correlates it to the pending press by `action`.
 nonisolated struct CommandAck: Sendable, Equatable {
+    /// The action token echoed back. A `String`, not `StreamDeckAction`, so a
+    /// rejection can echo an unknown or out-of-protocol token verbatim.
     let action: String
+    /// `true` when the action ran.
     let ok: Bool
+    /// Short machine-readable reason when `ok` is `false`, e.g. `"protocol"`,
+    /// `"unknown_action"`, `"unauthorized"`, `"disabled"`, `"unavailable"`,
+    /// `"empty"`. The plugin keys its key states off these, so treat them as
+    /// part of the wire contract. `nil` on success (and omitted from the JSON).
     let error: String?
 
     /// JSON object form for `WebSocketServerService.sendJSON`.
@@ -54,10 +72,16 @@ nonisolated struct CommandAck: Sendable, Equatable {
         return obj
     }
 
+    /// An `ok: true` ack for a command that ran.
     static func success(_ action: StreamDeckAction) -> CommandAck {
         CommandAck(action: action.rawValue, ok: true, error: nil)
     }
 
+    /// An `ok: false` ack.
+    ///
+    /// - Parameters:
+    ///   - action: The token to echo, raw so unparseable actions can be echoed.
+    ///   - error: The reason code (see ``error``).
     static func failure(_ action: String, _ error: String) -> CommandAck {
         CommandAck(action: action, ok: false, error: error)
     }
@@ -76,6 +100,7 @@ nonisolated enum StreamDeckControl {
     /// v3 dropped `discord_toggle`, `music_sync_toggle`, and `cycle_theme`:
     /// set-once preferences that never earned a key on a deck where slots are
     /// the scarce resource.
+    /// Must equal `PROTOCOL_VERSION` in the plugin's `protocol.ts`.
     static let protocolVersion = 3
 
     /// Outcome of decoding one inbound WebSocket text frame.
@@ -94,6 +119,9 @@ nonisolated enum StreamDeckControl {
     /// 1. `type == "command"` (anything else → `.ignore`, no ack noise)
     /// 2. `protocol == protocolVersion` (mismatch → `.reject` `"protocol"`)
     /// 3. a known `action` (unknown → `.reject` `"unknown_action"`)
+    ///
+    /// Authorization is not checked here: the caller decides whether the
+    /// connection may run commands before acting on a `.command` result.
     static func parse(_ text: String) -> InboundFrame {
         guard let data = text.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

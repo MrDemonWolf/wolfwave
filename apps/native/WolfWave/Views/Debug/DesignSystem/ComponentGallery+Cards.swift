@@ -89,6 +89,9 @@ extension DebugComponentGalleryCard {
 
     // MARK: Helpers
 
+    /// Two tinted placeholder blocks inside a `ResponsiveRow`. Rendered twice, once
+    /// at full width and once capped narrow, so the side-by-side vs stacked switch
+    /// is visible in one place.
     private var responsiveRowSample: some View {
         ResponsiveRow {
             RoundedRectangle(cornerRadius: DSRadius.lg2)

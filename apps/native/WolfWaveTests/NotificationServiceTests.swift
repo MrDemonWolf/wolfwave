@@ -541,6 +541,9 @@ struct NotificationServiceLifecycleTests {
     }
 }
 
+/// In-memory `UNUserNotificationCenter` stand-in. `operations` logs removes and adds in order;
+/// pending vs delivered subtitles let tests see replace-not-stack behavior; the add can be
+/// suspended and authorization checks counted/awaited.
 @MainActor
 private final class TestUserNotificationCenter: UserNotificationCenterProviding {
     enum Operation: Equatable {
@@ -638,6 +641,8 @@ private final class TestUserNotificationCenter: UserNotificationCenterProviding 
     }
 }
 
+/// Artwork provider whose attachment lookup parks per track until `complete(track:)` (returns nil),
+/// so tests choose the order in which artwork loads finish.
 @MainActor
 private final class ControlledArtworkProvider {
     private var requested: Set<String> = []

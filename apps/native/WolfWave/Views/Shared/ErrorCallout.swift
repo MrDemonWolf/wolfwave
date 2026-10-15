@@ -31,6 +31,7 @@ struct ErrorCallout: View {
 
     // MARK: - Properties
 
+    /// The failure to show: copy, severity, and the offered actions.
     let error: UserFacingError
 
     /// Invoked with the intent the user chose. The caller owns the behavior.
@@ -45,6 +46,10 @@ struct ErrorCallout: View {
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - error: The failure to show.
+    ///   - onAction: Handles the chosen intent. Defaults to a no-op, which suits
+    ///     previews and galleries but leaves every button inert.
     init(error: UserFacingError, onAction: @escaping (ErrorAction) -> Void = { _ in }) {
         self.error = error
         self.onAction = onAction
@@ -62,6 +67,7 @@ struct ErrorCallout: View {
         }
     }
 
+    /// Tint for the primary button, matching the banner's severity.
     private var tint: Color { style.tint }
 
     /// Resolves the primary action against the live countdown.
@@ -75,6 +81,8 @@ struct ErrorCallout: View {
         return left > 0 ? .retryAfter(seconds: left) : .retry
     }
 
+    /// The error's primary action as it should render right now (counting
+    /// down, or collapsed to `.retry` once the wait is over).
     private var primaryAction: ErrorAction? {
         Self.resolvedPrimary(error.primaryAction, remainingWait: remainingWait)
     }
@@ -96,18 +104,23 @@ struct ErrorCallout: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(error.accessibilityLabel)
         .accessibilityIdentifier(error.accessibilityIdentifier)
-        // Restarts whenever the error changes, so a new rate limit gets a fresh
-        // countdown and a non-waiting error clears the old one.
+        // Restarts whenever the error id changes, so a new rate limit gets a
+        // fresh countdown and a non-waiting error clears the old one. Keyed on
+        // the id only: a second error with the same id but a different wait
+        // keeps the running countdown.
         .task(id: error.id) { await runCountdown() }
     }
 
     /// Whole seconds left until `deadline`, rounded up so a partially elapsed
     /// second still reads as one.
     ///
-    /// Derived from an instant rather than counted down tick by tick: a
-    /// decrementing counter drifts under a busy main actor, and would restart
-    /// at the full delay every time the view reappeared. Uses `ContinuousClock`
+    /// Derived from an instant rather than counted down tick by tick, because a
+    /// decrementing counter drifts under a busy main actor. Uses `ContinuousClock`
     /// so a system clock change cannot move the expiry.
+    ///
+    /// Note: `runCountdown()` sets its deadline when the task starts, so the
+    /// countdown still restarts at the full delay if the view disappears and
+    /// reappears (the `.task` runs again).
     static func remainingSeconds(
         now: ContinuousClock.Instant,
         deadline: ContinuousClock.Instant

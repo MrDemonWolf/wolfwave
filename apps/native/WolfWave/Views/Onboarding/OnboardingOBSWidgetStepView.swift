@@ -15,22 +15,31 @@ struct OnboardingOBSWidgetStepView: View {
 
     // MARK: - Properties
 
+    /// The `websocketEnabled` preference, owned by `OnboardingView`.
     @Binding var websocketEnabled: Bool
 
+    /// When on, the URL is masked and Copy is disabled (on-camera safety).
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
+    /// Widget HTTP port as stored. Not clamped here, unlike the server's own
+    /// resolved port, so an out-of-range stored value would show a URL the
+    /// server does not actually listen on.
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
+    /// Loopback Browser Source URL for the widget. Carries no token: the widget
+    /// server injects the overlay token itself for loopback requests.
     private var overlayURL: String {
         "http://localhost:\(String(storedWidgetPort))/"
     }
 
-    /// Combined state. The step treats the two servers as one user-facing feature.
+    /// Combined state. The step treats the two servers as one user-facing feature,
+    /// so it reads as off unless both are on (for example after a user turned
+    /// only one on in Settings).
     private var overlayEnabled: Bool {
         websocketEnabled && widgetHTTPEnabled
     }
@@ -67,6 +76,7 @@ struct OnboardingOBSWidgetStepView: View {
 
     // MARK: - Toggle Card
 
+    /// The single Stream Widgets switch, wrapped in the accent-tinted shell.
     private var overlayToggleCard: some View {
         ToggleSettingRow(
             title: "Turn on Stream Widgets",
@@ -91,6 +101,8 @@ struct OnboardingOBSWidgetStepView: View {
 
     // MARK: - URL Reveal
 
+    /// Browser Source URL with Copy, shown only while the overlay is on. Slides in
+    /// from the top when it appears.
     @ViewBuilder
     private var urlReveal: some View {
         if overlayEnabled {
@@ -152,6 +164,9 @@ struct OnboardingOBSWidgetStepView: View {
 
     /// Flip both servers as one. Notifications fire in the same order
     /// `AppDelegate` listens for them.
+    ///
+    /// Both preferences are written before either notification posts, so each
+    /// server's handler already sees the final state of the other.
     private func setOverlayEnabled(_ enabled: Bool) {
         websocketEnabled = enabled
         widgetHTTPEnabled = enabled

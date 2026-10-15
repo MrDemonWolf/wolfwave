@@ -17,6 +17,7 @@ struct LifetimeTallyTests {
 
     // MARK: - Helpers
 
+    /// A play record with a default duration of 220 s.
     private func record(
         track: String, artist: String, album: String = "Album",
         played: TimeInterval = 200,

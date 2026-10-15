@@ -6,16 +6,19 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-/// Centralized configuration and constants for the WolfWave application.
-///
-/// Provides single source of truth for app identifiers, notification names, UserDefaults keys,
-/// UI dimensions, timing values, and other configuration constants used throughout the app.
-///
-/// All values are static and immutable, organized into logical enum namespaces for clarity.
 import Foundation
 import AppKit
 import SwiftUI
 
+/// Centralized configuration and constants for WolfWave.
+///
+/// The single source of truth for app identifiers, notification names, UserDefaults
+/// keys, UI dimensions, timing values, and other configuration constants.
+///
+/// All values are static and immutable, grouped into enum namespaces.
+/// Larger namespaces live in per-topic extension files (`AppConstants+Discord`,
+/// `+Twitch`, `+URLs`, `+Notifications`, `+UserDefaults`). Dimension and color
+/// values wrap the generated design tokens, so `design-system/tokens.json` owns them.
 nonisolated enum AppConstants {
     // MARK: - Info.plist Helper
 
@@ -36,6 +39,10 @@ nonisolated enum AppConstants {
     }
 
     /// Testable variant: takes injectable Info.plist and environment lookups.
+    ///
+    /// An empty or whitespace-only value at either layer falls through to the
+    /// next one, and only the Info.plist layer treats an unexpanded `$(KEY)`
+    /// as missing (that is what a key absent from `Config.xcconfig` expands to).
     static func infoPlistString(
         _ key: String,
         fallback: String,
@@ -222,10 +229,15 @@ nonisolated enum AppConstants {
 
     /// Widget overlay configuration.
     enum Widget {
-        /// `#root` reserves 16 points on every edge around the generated card.
+        /// Total extra canvas per axis: `#root` reserves 16 points on every
+        /// edge around the generated card, so width and height each grow by 32.
         static let viewportPadding = 32
 
         /// Recommended OBS canvas for a layout, including the root safe area.
+        ///
+        /// - Parameter layout: A layout name from ``layouts``. Resolution of an
+        ///   unknown name is up to `DSWidgetLayouts.size(_:)`.
+        /// - Returns: `"<width> x <height>"` in points, for display.
         static func recommendedDimensionsText(for layout: String) -> String {
             let card = DSWidgetLayouts.size(layout)
             let width = Int(card.width) + viewportPadding
@@ -247,10 +259,15 @@ nonisolated enum AppConstants {
         /// (the `widget.ts` resolver maps `""`/`"System"`/`"System Default"` to
         /// the same font stack, so overlay rendering is unaffected).
         enum Defaults {
+            /// Must be one of ``themes``.
             static let theme = "Default"
+            /// Must be one of ``layouts``.
             static let layout = "Horizontal"
+            /// Hex `#RRGGBB`.
             static let textColor = "#FFFFFF"
+            /// Hex `#RRGGBB`.
             static let backgroundColor = "#1A1A2E"
+            /// Font picker tag meaning "use the system font stack".
             static let fontFamily = "System Default"
         }
     }
@@ -396,7 +413,10 @@ nonisolated enum AppConstants {
 
     /// Menu item text labels.
     enum MenuLabels {
+        /// Shared by the tray menu and the Dock menu. Ends in a real ellipsis
+        /// character, per the macOS convention for items that open a window.
         static let settings = "Settings\u{2026}"
+        /// Tray menu quit item.
         static let quit = "Quit WolfWave"
     }
 
@@ -408,13 +428,8 @@ nonisolated enum AppConstants {
         static let maxEntries = 5
     }
 
-    // MARK: - Settings UI
+    // MARK: - Window Identifiers
 
-    /// Settings window configuration.
-    ///
-    /// Dimension values are sourced from `DSDimension.Settings` (generated from
-    /// `design-system/tokens.json`). These wrappers keep the existing call sites
-    /// stable while the design system stays the single source of truth.
     /// Stable window identifiers.
     ///
     /// Exists so the UI tests address windows by something that is not
@@ -422,9 +437,17 @@ nonisolated enum AppConstants {
     /// scene id (`WolfWaveApp.settingsWindowID`); AppKit-owned windows set theirs
     /// from here. Mirrored in `WolfWaveUITests`, which cannot import the app.
     enum WindowID {
+        /// `NSWindow.identifier` of the onboarding wizard window.
         static let onboarding = "onboarding"
     }
 
+    // MARK: - Settings UI
+
+    /// Settings window configuration.
+    ///
+    /// Dimension values are sourced from `DSDimension.Settings` (generated from
+    /// `design-system/tokens.json`). These wrappers keep the existing call sites
+    /// stable while the design system stays the single source of truth.
     enum SettingsUI {
         /// Minimum width for settings window. Sized so sidebar + detail pane fit
         /// the integration dashboard rows (icon · text · status chip · Configure)
@@ -535,24 +558,29 @@ nonisolated enum AppConstants {
 
         /// Apple Music gradient stops: pink-to-red.
         static let appleMusicGradientStart = DSColor.partnerAppleMusicStart
+        /// End stop of the Apple Music gradient.
         static let appleMusicGradientEnd = DSColor.partnerAppleMusicEnd
 
         /// Apple Music permission-denied icon gradient: softer than the main
         /// brand gradient; used for the rounded-rect Music app icon stack.
         static let appleMusicSurfaceStart = DSColor.partnerAppleMusicSurfaceStart
+        /// End stop of the permission-denied icon gradient.
         static let appleMusicSurfaceEnd = DSColor.partnerAppleMusicSurfaceEnd
 
         /// Apple Music pulse gradient: used for the bottom-strip CTA accent
         /// on the permission-denied screen.
         static let appleMusicPulseStart = DSColor.partnerAppleMusicPulseStart
+        /// End stop of the pulse gradient.
         static let appleMusicPulseEnd = DSColor.partnerAppleMusicPulseEnd
 
         /// OBS Studio gradient stops: neutral dark.
         static let obsGradientStart = DSColor.partnerObsStart
+        /// End stop of the OBS gradient.
         static let obsGradientEnd = DSColor.partnerObsEnd
 
         /// WolfWave gradient stops: navy → royal blue. Used for branded share cards (Monthly Wrap export).
         static let wolfwaveGradientStart = DSColor.partnerWolfwaveGradientStart
+        /// End stop of the WolfWave gradient.
         static let wolfwaveGradientEnd = DSColor.partnerWolfwaveGradientEnd
     }
 }

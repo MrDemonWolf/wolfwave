@@ -15,8 +15,10 @@ import {
   type AckFrame,
 } from "../src/wolfwave/protocol.js";
 
+/** A well-formed 64-character hex control token. */
 const HEX64 = "a".repeat(64);
 
+/** Reads capture group 1 from the Swift source, throwing so a moved symbol fails loudly. */
 function requiredMatch(source: string, pattern: RegExp, label: string): string {
   const value = pattern.exec(source)?.[1];
   if (value === undefined) {
@@ -25,6 +27,8 @@ function requiredMatch(source: string, pattern: RegExp, label: string): string {
   return value;
 }
 
+// The native sources the contract test reads as text. The TS side mirrors them
+// by hand, so this is what fails when only one side changes.
 const SWIFT_COMMAND_SOURCE = readFileSync(
   new URL(
     "../../native/WolfWave/Services/WebSocket/StreamDeckCommand.swift",
@@ -44,6 +48,7 @@ const SWIFT_AUTH_SOURCE = readFileSync(
   "utf8",
 );
 
+/** Pins the TS protocol mirror to the Swift definitions it copies. */
 describe("native control contract", () => {
   test("matches Swift actions, version, port, and auth prefix", () => {
     const actionBody = requiredMatch(
@@ -88,6 +93,7 @@ describe("native control contract", () => {
   });
 });
 
+/** The outbound command envelope and its JSON encoding. */
 describe("buildCommand", () => {
   test("stamps type and protocol version", () => {
     expect(buildCommand("skip")).toEqual({
@@ -113,6 +119,7 @@ describe("buildCommand", () => {
   });
 });
 
+/** The control token travels as a WebSocket subprotocol; malformed tokens yield null. */
 describe("tokenSubprotocol", () => {
   test("builds the prefixed subprotocol for a 64-hex token", () => {
     expect(tokenSubprotocol(HEX64)).toBe(`wolfwave.control.${HEX64}`);
@@ -138,6 +145,7 @@ describe("socketURL", () => {
   });
 });
 
+/** Inbound frame decoding: tolerant of missing or mistyped fields, never throws. */
 describe("parseFrame", () => {
   test("returns null for malformed input", () => {
     expect(parseFrame("not json")).toBeNull();
@@ -289,6 +297,7 @@ describe("parseFrame", () => {
   });
 });
 
+/** The ack error that means the app and plugin disagree on the protocol version. */
 describe("isProtocolMismatch", () => {
   const ack = (ok: boolean, error?: string): AckFrame =>
     error === undefined

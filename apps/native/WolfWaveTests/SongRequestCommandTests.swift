@@ -10,6 +10,9 @@ import XCTest
 
 @testable import WolfWave
 
+/// Metadata and behavior of the song-request chat commands (`!sr`, `!queue`, `!skip`,
+/// `!clearqueue`, `!myqueue`): triggers, enable switches, custom aliases, and the synchronous
+/// `execute` returning nil.
 @MainActor
 final class SongRequestCommandTests: WolfWaveTestCase {
 
@@ -369,6 +372,8 @@ final class SongRequestCommandTests: WolfWaveTestCase {
 
     // MARK: - MyQueueCommand Output
 
+    /// `!myqueue` lists only the caller's own requests, each with its overall queue position (#1
+    /// and #3 here), not other viewers'.
     func testMyQueueCommandWithItems() async {
         let command = MyQueueCommand()
         let queue = SongRequestQueue()

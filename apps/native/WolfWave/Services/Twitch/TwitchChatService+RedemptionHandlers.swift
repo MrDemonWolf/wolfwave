@@ -8,6 +8,9 @@
 
 import Foundation
 
+/// Handlers for paid EventSub events: channel-point redemptions of the managed
+/// reward, and Bits cheers. Each records its intent on disk before touching
+/// the song queue, and its work outlives socket reconnects.
 extension TwitchChatService {
 
     // MARK: - Redemption Event Handlers
@@ -16,6 +19,11 @@ extension TwitchChatService {
     /// reward other than the WolfWave-managed one, routes the viewer's input
     /// into the song-request pipeline, then fulfils the redemption on success
     /// or cancels it (refunding the points) on failure.
+    ///
+    /// Synchronous: validates and records intake, then hands the queue work to
+    /// a task tracked in `redemptionTasks`. Redemptions that are not
+    /// UNFULFILLED, already acknowledged, or already owned by a live pipeline
+    /// are skipped.
     func handleChannelPointsRedemption(_ payload: [String: Any]) {
         // Note: the enabled check happens inside the Task below (after we confirm
         // this is our reward), so a redemption that arrives while the feature is
@@ -203,6 +211,13 @@ extension TwitchChatService {
     /// Handles a `channel.bits.use` event. The complete action is durable
     /// before queue mutation, so a crash replays pending work instead of losing
     /// a paid request or relying on the bounded transport dedup cache.
+    ///
+    /// Only `cheer`-type events from the joined channel at or above the
+    /// configured minimum count. If the outbox write fails, the event runs from
+    /// an in-memory fallback instead of being dropped.
+    ///
+    /// - Parameter eventSubMessageID: The frame's `message_id`, used as the
+    ///   durable dedup key for this cheer.
     func handleBitsUse(
         _ payload: [String: Any],
         eventSubMessageID: String
@@ -277,6 +292,8 @@ extension TwitchChatService {
         }
     }
 
+    /// Drops completed fallbacks older than the paid-event tombstone window.
+    /// Incomplete ones, and any with a running task, are kept.
     private func pruneVolatileBitsFallbacks(now: Date = Date()) {
         let cutoff = now.addingTimeInterval(
             -TwitchRedemptionResolutionOutbox.paidEventTombstoneRetention)
@@ -287,6 +304,8 @@ extension TwitchChatService {
         }
     }
 
+    /// Whether this cheer is already held in the in-memory fallback, which
+    /// means it was seen while the outbox was failing and must not run again.
     private func volatileBitsFallbackIsClaimed(
         messageID: String,
         broadcasterID: String
@@ -299,6 +318,10 @@ extension TwitchChatService {
         ] != nil
     }
 
+    /// Records a cheer in the in-memory fallback.
+    ///
+    /// - Returns: The new item to run, or `nil` when this cheer was already
+    ///   claimed.
     private func claimVolatileBitsFallback(
         messageID: String,
         broadcasterID: String,
@@ -331,6 +354,8 @@ extension TwitchChatService {
         return item
     }
 
+    /// Marks a fallback as applied so it is kept only as a duplicate guard.
+    /// Ignored if the stored entry is a different item for the same key.
     private func completeVolatileBitsFallback(
         _ item: TwitchRedemptionResolutionOutbox.BitsItem
     ) {
@@ -345,6 +370,8 @@ extension TwitchChatService {
         volatileBitsFallbacks[key] = fallback
     }
 
+    /// In-memory Bits items not yet applied, oldest first, optionally limited
+    /// to one broadcaster. Teardown checks these before clearing credentials.
     func pendingVolatileBitsFallbackItems(
         broadcasterID: String? = nil
     ) -> [TwitchRedemptionResolutionOutbox.BitsItem] {
@@ -385,6 +412,12 @@ extension TwitchChatService {
         }
     }
 
+    /// Starts a task that applies one Bits item, unless one is already running
+    /// for it, there is no song request service, or it is for another channel.
+    ///
+    /// After applying, a durable item is acknowledged in the outbox (with
+    /// retries) and a fallback item is marked complete. Only then is the chat
+    /// reply sent, and only to the session given by `generation`.
     private func startBitsEvent(
         _ item: TwitchRedemptionResolutionOutbox.BitsItem,
         requiresDurableAcknowledgement: Bool,
@@ -423,6 +456,12 @@ extension TwitchChatService {
         }
     }
 
+    /// Performs the Bits action: boost the viewer's oldest queued song when
+    /// boost is on and they have one, otherwise request the cheer's text.
+    ///
+    /// - Returns: `applied` is `false` when cancelled or the request pipeline
+    ///   returned `.cancelled`, so the item stays pending. `message` is the
+    ///   chat reply, if any.
     private func applyPersistedBitsEvent(
         _ item: TwitchRedemptionResolutionOutbox.BitsItem,
         service: SongRequestService
@@ -486,10 +525,14 @@ extension TwitchChatService {
         return false
     }
 
+    /// Drops a finished Bits task from `paidRedemptionTasks`.
     private func clearPaidRedemptionTask(_ id: UUID) {
         paidRedemptionTasks[id] = nil
     }
 
+    /// Drops a finished containment task. Releases its teardown-gate entry only
+    /// when `releasingGate` is `true` (the containment settled or can never
+    /// act); an unsettled one stays registered so teardown keeps waiting.
     func clearContainmentTask(
         _ id: UUID,
         releasingGate: Bool

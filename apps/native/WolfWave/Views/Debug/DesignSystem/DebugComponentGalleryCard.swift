@@ -17,11 +17,17 @@ import SwiftUI
 /// component's API names them (`StatusChip.StateGlyph.paused`, for example).
 ///
 /// Groups live in one `extension` file each (`ComponentGallery+Buttons.swift`,
-/// …) so no single file carries all 38 components. Bindings come from `@State`
+/// …) so no single file carries every component. Bindings come from `@State`
 /// on this card, the same `Wrapper` pattern the binding previews use.
+///
+/// When a view is added to `Views/Shared/`, add a `GalleryEntry` for it to the
+/// matching group extension; nothing enforces that automatically.
 struct DebugComponentGalleryCard: View {
 
     // MARK: Binding hosts (Rows & fields)
+
+    // These are `internal` rather than `private` because the group extensions
+    // live in other files and bind to them (`$aliases`, `$songOn`, ...).
 
     @State var aliases = "np, track"
     @State var songOn = true
@@ -61,6 +67,12 @@ struct DebugComponentGalleryCard: View {
         .cardStyle()
     }
 
+    /// Wraps one component group under a section eyebrow marked as a VoiceOver
+    /// header, so the rotor can jump between groups.
+    ///
+    /// - Parameters:
+    ///   - title: The visible group name.
+    ///   - content: The group's `GalleryEntry` rows.
     private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
             Text(title)
@@ -77,9 +89,13 @@ struct DebugComponentGalleryCard: View {
 /// capped at a house preview width (it shrinks with the window, never overflows).
 struct GalleryEntry<Content: View>: View {
 
+    /// The component's Swift type name, shown verbatim so it can be searched for.
     let typeName: String
+    /// Maximum width of the demo. Defaults to the standard preview width.
     var width: CGFloat = GalleryWidth.standard
+    /// Optional caption beside the type name (for example why actions are inert).
     var note: String?
+    /// The live component sample(s).
     @ViewBuilder let content: () -> Content
 
     var body: some View {

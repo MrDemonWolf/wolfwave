@@ -16,6 +16,8 @@ import SwiftUI
 /// SwiftUI entry point. Runs as a menu bar app with a dedicated Settings `Window` scene.
 @main
 struct WolfWaveApp: App {
+    /// The AppKit delegate that owns the menu bar item, every service, and the
+    /// non-Settings windows. SwiftUI creates it; `AppDelegate.shared` points at it.
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     /// Observed, not read once. `FeatureFlags.sponsorLinksEnabled` is a plain
@@ -153,14 +155,28 @@ struct WolfWaveApp: App {
 ///
 /// Behavior is split across focused extension files:
 /// - `AppDelegate+MenuBar.swift`: status item, menu construction, toggle actions
+/// - `AppDelegate+DockMenu.swift`: the right-click Dock menu (reuses the menu bar selectors)
 /// - `AppDelegate+Windows.swift`: settings/onboarding/whatsNew/about windows, dock visibility
 /// - `AppDelegate+Services.swift`: service setup, notification observers, playback delegate
+/// - `AppDelegate+StreamDeck.swift`: Stream Deck command router and state broadcasts
+///
+/// Main-actor isolated (the module's default isolation). Every stored property
+/// below is read and written on the main thread; services that do their own
+/// work off-main (Twitch actor, Discord IPC queue) hop back before touching it.
 class AppDelegate: NSObject, NSApplicationDelegate {
+    /// The live delegate, set at the top of `applicationDidFinishLaunching`.
+    /// Lets SwiftUI views reach AppKit-side actions (for example Report a Bug).
+    /// Weak so it never extends the delegate's lifetime; set under XCTest too.
     static weak var shared: AppDelegate?
 
     // MARK: - Properties
 
+    /// The menu bar item. `nil` until `setupStatusItem()` runs.
     var statusItem: NSStatusItem?
+    // Service handles below are `nil` until their `setup…` call in
+    // `applicationDidFinishLaunching`, stay `nil` under XCTest, and the
+    // off-process ones (Music, Twitch, Discord, Sparkle, settings sync) stay
+    // `nil` under a UI test. Every reader treats `nil` as "feature unavailable".
     var appleMusicSource: AppleMusicSource?
     // Settings is a dedicated SwiftUI `Window` scene (see WolfWaveApp.body);
     // SwiftUI owns that window, so AppDelegate no longer holds an `NSWindow` for it.
@@ -174,6 +190,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var skipVoteManager: SkipVoteManager?
     var historyService: ListeningHistoryService?
     var settingsSyncService: SettingsSyncService?
+    /// Block-based observer tokens from both `NotificationCenter.default` and
+    /// the `NSWorkspace` center, removed together in `applicationWillTerminate`.
     var notificationObservers: [Any] = []
 
     /// Long-lived task consuming `discordService.stateChanges`.
@@ -185,8 +203,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var skipPollObserverTask: Task<Void, Never>?
     /// Sole app-lifetime startup + hourly Twitch validation/recovery task.
     var twitchBootValidationTask: Task<Void, Never>?
+    /// Bumped each time the boot validation task is started or cancelled. A
+    /// running task re-checks it after every `await` and stops when it no
+    /// longer matches, so a superseded task can't act on stale results.
     var twitchBootValidationGeneration: UInt64 = 0
 
+    // Now-playing snapshot, written only by the `PlaybackSourceDelegate`
+    // callbacks and cleared together on a no-track transition. Everything that
+    // shows the current track (tray, Dock, chat commands, Stream Deck) reads
+    // these instead of probing Music.app synchronously. Durations are seconds.
     var currentSong: String?
     var currentArtist: String?
     var currentAlbum: String?
@@ -197,6 +222,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// the paused affordances in Discord Rich Presence, the OBS widget, and
     /// `NowPlayingHeroCard` without clearing the now-playing snapshot.
     var currentIsPaused: Bool = false
+    /// The previous track, for `!last`. Updated when the track changes, not
+    /// cleared when playback stops.
     var lastSong: String?
     var lastArtist: String?
 
@@ -239,10 +266,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// after sign-out).
     var twitchMenuRefreshGeneration: UInt64 = 0
 
+    /// The stored Dock visibility mode (`AppConstants.DockVisibility` raw
+    /// string), falling back to the default when never set.
     var currentDockVisibilityMode: String {
         Preferences.dockVisibility ?? AppConstants.DockVisibility.default
     }
 
+    /// User-visible app name from the bundle, so the Debug build reads
+    /// "WolfWave Dev" in menus. Falls back to the hardcoded display name.
     var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String
             ?? Bundle.main.infoDictionary?["CFBundleName"] as? String
@@ -284,6 +315,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Initializes all services, registers observers, and shows onboarding or validates tokens.
+    ///
+    /// Under XCTest it only sets `shared` and returns, so the hosted test bundle
+    /// starts no windows or services. Under a UI test the off-process services
+    /// are skipped (see `offProcessOK`); the rest runs in shipping order.
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
 
@@ -388,6 +423,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Removes all stored notification observers and tears down services.
+    ///
+    /// Order matters: the in-progress play is flushed before the history
+    /// service shuts down, a pending iCloud settings change is pushed, and the
+    /// log is shut down last so every earlier step can still log.
     func applicationWillTerminate(_ notification: Notification) {
         cancelTwitchBootValidation()
         flushCurrentPlayToHistory()
@@ -403,6 +442,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Reopens the Settings window when the dock icon is clicked.
+    ///
+    /// While onboarding is on screen the click fronts the wizard instead, so
+    /// Settings can't open on top of an unfinished first run. Returns `false`
+    /// so AppKit does not run its own default reopen behavior.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if let onboarding = onboardingWindow, onboarding.isVisible {
             onboarding.makeKeyAndOrderFront(nil)
@@ -428,6 +471,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Track Display Updates
 
     /// Posts a `nowPlayingChanged` notification for settings view observers.
+    /// Pass all `nil` to signal "nothing playing". Delivered on the next
+    /// main-actor turn, not synchronously.
     func postNowPlayingUpdate(song: String?, artist: String?, album: String?, playlist: String? = nil, isPaused: Bool = false) {
         Task { @MainActor in
             NotificationCenter.default.postNowPlaying(
@@ -443,6 +488,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Song Info Provider
 
     /// Returns `true` if Apple Music is currently running.
+    ///
+    /// Reads `NSWorkspace.runningApplications`, so it never launches Music
+    /// (unlike a ScriptingBridge probe).
     ///
     /// Shared by the tray and Dock playback sections (which gate their controls
     /// on it) as well as the song-info providers.
@@ -516,7 +564,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Records the currently-playing track to history if it crossed the
-    /// scrobble threshold. Called when playback stops or the app terminates.
+    /// scrobble threshold. Called directly at termination; every other path
+    /// goes through `flushCurrentPlayToHistoryOnce()` so a play is not recorded twice.
     ///
     /// `currentElapsed` holds the track's last polled playhead position, which
     /// `ListeningHistoryService` uses as the played duration.

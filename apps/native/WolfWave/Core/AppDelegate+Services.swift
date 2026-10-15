@@ -32,6 +32,10 @@ private var currentPlayFlushedToHistory = false
 
 // MARK: - Service Initialization
 
+/// Launch-time construction and cross-wiring of every long-lived service.
+/// Each `setup…` method is called once from `applicationDidFinishLaunching`
+/// (usually through `guardedStart(_:_:)`); several depend on services an
+/// earlier setup created, so call order matters where noted.
 extension AppDelegate {
 
     /// Runs one service-setup closure, isolating a *synchronous* construction
@@ -50,7 +54,10 @@ extension AppDelegate {
         }
     }
 
-    /// Creates the Apple Music monitor and sets this as delegate.
+    /// Creates the Apple Music monitor and sets this as its delegate.
+    ///
+    /// Does not start tracking; `initializeTrackingState()` does that once
+    /// the tracking preference has been seeded.
     func setupMusicMonitor() {
         let source = AppleMusicSource()
         source.delegate = self
@@ -58,6 +65,10 @@ extension AppDelegate {
     }
 
     /// Creates the Twitch chat service and wires up song info callbacks.
+    ///
+    /// Also kicks off replay of any paid redemption outcomes (fulfill/refund)
+    /// that a previous run persisted but never delivered to Helix. A missing
+    /// Client ID is logged, not fatal: the service exists but cannot connect.
     func setupTwitchService() {
         twitchService = TwitchChatService()
         Task { [weak self] in
@@ -86,6 +97,11 @@ extension AppDelegate {
     }
 
     /// Creates the Discord RPC service, consumes its state / artwork streams, and enables if configured.
+    ///
+    /// The two consumer tasks are retained on `AppDelegate` for the app's
+    /// lifetime. State changes are re-posted as the
+    /// `discordState` notification and trigger a Stream Deck health broadcast;
+    /// artwork Discord resolves is forwarded to the overlay server.
     func setupDiscordService() {
         let service = DiscordRPCService()
         discordService = service
@@ -137,6 +153,13 @@ extension AppDelegate {
     }
 
     /// Creates the WebSocket server on the configured port and enables if configured.
+    ///
+    /// Loads (or creates) the overlay and control tokens off the main actor,
+    /// because both touch the Keychain. If the two ever come back equal, the
+    /// control token is rotated so a read-only overlay credential can never
+    /// authorize commands; a failed rotation is logged and the server still
+    /// starts with the tokens it has. The server itself is built back on the
+    /// main actor, so `websocketServer` is `nil` until this task finishes.
     func setupWebSocketServer() {
         Task { [weak self] in
             let tokens = await Task.detached(priority: .utility) {
@@ -155,6 +178,13 @@ extension AppDelegate {
         }
     }
 
+    /// Builds the server with already-resolved credentials, installs the
+    /// Stream Deck command handler, and starts consuming server state changes.
+    ///
+    /// - Parameters:
+    ///   - overlayToken: Read-only `wolfwave.overlay.<hex>` credential.
+    ///   - controlToken: Command-capable `wolfwave.control.<hex>` credential.
+    ///     Both are only ever logged in redacted form.
     private func setupWebSocketServer(overlayToken: String, controlToken: String) {
         // One off-main scan primes the LAN IP cache. Network path updates refresh
         // it again after network-path changes.
@@ -204,7 +234,8 @@ extension AppDelegate {
 
     }
 
-    /// Creates the Sparkle updater and starts automatic update checking.
+    /// Creates the Sparkle updater. Release builds start background update
+    /// checks; DEBUG builds create it without starting (manual checks only).
     func setupSparkleUpdater() {
         sparkleUpdater = SparkleUpdaterService()
         Log.info("AppDelegate: Sparkle updater initialized", category: .update)
@@ -217,6 +248,11 @@ extension AppDelegate {
     }
 
     /// Creates the song request service and wires up playback monitoring + chat replies.
+    ///
+    /// Must run after `setupTwitchService()`: the chat passthroughs and
+    /// redemption reference are only installed when `twitchService` already
+    /// exists. Runs the one-time settings migrations first, and ends by
+    /// creating the skip-vote manager.
     func setupSongRequestService() {
         SongRequestService.migrateAccessSettings()
         SongRequestService.migrateSetupState()
@@ -337,6 +373,8 @@ extension AppDelegate {
     }
 
     /// Creates the iCloud settings mirror and starts it if the user opted in.
+    /// Later toggles arrive through the `iCloudSettingsSyncSettingChanged`
+    /// observer in `setupNotificationObservers()`.
     func setupSettingsSync() {
         let service = SettingsSyncService()
         settingsSyncService = service
@@ -360,6 +398,8 @@ extension AppDelegate {
 
 // MARK: - Power State
 
+/// Slows polling and broadcast cadences while the Mac is in Low Power Mode
+/// (or otherwise reduced), and restores them when it leaves.
 extension AppDelegate {
 
     /// Initializes the power state monitor and registers for power state change notifications.
@@ -381,7 +421,12 @@ extension AppDelegate {
         applyPowerState(reduced: reduced)
     }
 
+    /// Pushes the matching intervals to the Music poll, the Discord
+    /// availability poll, and the overlay progress broadcast.
+    ///
+    /// - Parameter reduced: `true` for the slower low-power intervals.
     private func applyPowerState(reduced: Bool) {
+        // 5 s is the normal Music fallback poll interval.
         appleMusicSource?.updateCheckInterval(
             reduced ? AppConstants.PowerManagement.reducedMusicCheckInterval : 5.0
         )
@@ -402,6 +447,7 @@ extension AppDelegate {
 
 // MARK: - Overlay Toggle
 
+/// The single overlay on/off switch behind the tray menu's overlay toggle.
 extension AppDelegate {
 
     /// Applies the full overlay-service on/off state used by the tray toggle:
@@ -427,6 +473,8 @@ extension AppDelegate {
 
 // MARK: - Notification Observers
 
+/// Registration of every app-lifetime `NotificationCenter` observer. Tokens
+/// accumulate in `notificationObservers` and are removed at termination.
 extension AppDelegate {
 
     /// Registers a `NotificationCenter` observer that runs `handler` on the main
@@ -558,6 +606,8 @@ extension AppDelegate {
 
 // MARK: - Notification Handlers
 
+/// Handlers for settings and system notifications. All run on the main actor
+/// (delivered via `observeOnMain`); async service work is hopped into a `Task`.
 extension AppDelegate {
 
     /// Starts or stops the music monitor when the tracking toggle changes.
@@ -638,6 +688,13 @@ extension AppDelegate {
     }
 
     /// Toggles the WebSocket server and applies any port change from the notification.
+    ///
+    /// Ordering is deliberate: when enabling, the port changes first so the
+    /// listener binds the new port once; when disabling, the server stops
+    /// first so it never rebinds a port it is about to release. The widget
+    /// HTTP server follows the same rule, and is only touched when the
+    /// payload carries a widget flag. A missing `enabled` flag falls back to
+    /// the stored preference.
     @objc func websocketServerSettingChanged(_ notification: Notification) {
         let enabled = notification.enabledFlag ?? FeatureFlags.websocketEnabled
         let portChange = notification.portValue
@@ -665,6 +722,8 @@ extension AppDelegate {
     }
 
     /// Toggles the widget HTTP server independently from the WebSocket server.
+    /// Always re-reads the resolved widget port from preferences before
+    /// applying the enabled state.
     @objc func widgetHTTPServerSettingChanged(_ notification: Notification) {
         let enabled = notification.enabledFlag ?? FeatureFlags.widgetHTTPEnabled
         let port = Preferences.resolvedWidgetPort
@@ -738,7 +797,8 @@ extension AppDelegate {
         }
     }
 
-    /// Shows a notification if a new version is available (Sparkle handles this automatically).
+    /// Logs that Sparkle reported an available update. Only logs: Sparkle
+    /// shows its own update UI.
     @objc func handleUpdateStateChanged(_ notification: Notification) {
         guard let update = notification.updateState, update.isUpdateAvailable else { return }
         let version = update.latestVersion
@@ -749,6 +809,7 @@ extension AppDelegate {
 
 // MARK: - Tracking State
 
+/// Launch-time decision on whether the Apple Music monitor runs.
 extension AppDelegate {
 
     /// Defaults tracking to enabled on first launch, then starts or stops the monitor.
@@ -762,6 +823,7 @@ extension AppDelegate {
         }
     }
 
+    /// The persisted Music Sync toggle (seeded to `true` on first launch).
     private func isTrackingEnabled() -> Bool {
         FeatureFlags.trackingEnabled
     }
@@ -769,9 +831,12 @@ extension AppDelegate {
 
 // MARK: - Widget Artwork
 
+/// Overlay artwork lookups.
 extension AppDelegate {
 
     /// Fetches album artwork via the shared ArtworkService and forwards it to the WebSocket server.
+    /// Hits the network (iTunes Search) on a cache miss; a failed lookup
+    /// (`nil` URL) leaves the overlay's current artwork untouched.
     func fetchArtworkForWidget(track: String, artist: String) {
         ArtworkService.shared.fetchArtworkURL(track: track, artist: artist) { [weak self] url in
             guard let url else { return }
@@ -784,8 +849,14 @@ extension AppDelegate {
 
 // MARK: - Twitch Token Validation
 
+/// Owns the app-lifetime Twitch token validation schedule. Every callback
+/// re-checks a generation counter and the current stored credential, so a
+/// result for a replaced or signed-out account is dropped instead of applied.
 extension AppDelegate {
 
+    /// Writes the re-auth flag and posts `twitchReauthNeededChanged` only when
+    /// the value actually changed, so observers aren't woken on every
+    /// hourly confirmation.
     @MainActor
     private func setReauthNeeded(_ needed: Bool) {
         let changed = Preferences.twitchReauthNeeded != needed
@@ -811,6 +882,8 @@ extension AppDelegate {
         }
     }
 
+    /// Opens Settings on the Twitch pane after the token was rejected, so
+    /// the sign-in button is in front of the user.
     private func openSettingsToTwitch() {
         navigateSettings(to: SettingsDeepLink(pane: .twitchIntegration))
     }
@@ -826,6 +899,12 @@ extension AppDelegate {
     /// Credential replacement/logout notifications and app shutdown all route
     /// through this single owner, so stale network results cannot mutate the
     /// replacement account.
+    ///
+    /// With no stored credential it clears the re-auth flag and schedules
+    /// nothing. Outcomes: valid clears the flag (adopting a refreshed token
+    /// into the live service and auto-reconnecting on the first valid result
+    /// for an account); invalid sets the flag, posts the system banner, and
+    /// opens Settings; missing scopes and outages only log.
     func restartTwitchTokenValidationSchedule() {
         cancelTwitchBootValidation()
         guard Self.currentTwitchValidationCredential() != nil else {
@@ -987,9 +1066,17 @@ extension AppDelegate {
 
 // MARK: - Playback Source Delegate
 
+/// Fans each playback update from `AppleMusicSource` out to history, the
+/// tray menu, notifications, the overlay, and Discord.
 extension AppDelegate: PlaybackSourceDelegate {
 
     /// Updates track history, broadcasts to all services, and fetches artwork.
+    ///
+    /// Called on every emit, including the same track re-emitted by the 5 s
+    /// fallback poll and on pause/resume. Per-track side effects (history,
+    /// recents, banner, artwork fetch, skip-vote reset) run only when the
+    /// title + artist + album identity changes; the now-playing snapshot and
+    /// overlay / Discord updates run every time so elapsed time stays current.
     func playbackSource(
         didUpdateTrack track: String,
         artist: String,
@@ -1158,6 +1245,11 @@ extension AppDelegate: PlaybackSourceDelegate {
     }
 
     /// Clears track state and notifies services when playback stops.
+    ///
+    /// - Parameter status: One of the human-readable status strings
+    ///   `AppleMusicSource` emits (for example `"No track playing"`,
+    ///   `"Music not running"`, `"Script error"`). Matched by exact string,
+    ///   so a renamed status there silently stops clearing playback here.
     func playbackSource(didUpdateStatus status: String) {
         Log.info("AppDelegate: Playback status = \(status)", category: .music)
 

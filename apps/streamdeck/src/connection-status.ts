@@ -15,6 +15,12 @@ export type ConnectionStatus = {
   phase: "connected" | "disconnected" | "unauthorized" | "outdated" | "rejected";
 };
 
+/**
+ * Builds the message for the Property Inspector.
+ *
+ * @param handshakeRejected - WolfWave answered the handshake with a refusal.
+ *   Only reported while disconnected; a live connection always reports its phase.
+ */
 export function connectionStatus(
   state: WolfWaveState,
   handshakeRejected: boolean,

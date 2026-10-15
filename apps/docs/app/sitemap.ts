@@ -13,6 +13,7 @@ export const revalidate = false;
 
 type Freq = MetadataRoute.Sitemap[number]["changeFrequency"];
 
+/** Maps a URL path to sitemap priority and change frequency; legal pages rank lowest, home/docs/changelog highest. */
 function classify(url: string): { priority: number; changeFrequency: Freq } {
   if (url === "/") return { priority: 1.0, changeFrequency: "monthly" };
   if (url === "/docs" || url === "/docs/") return { priority: 0.9, changeFrequency: "weekly" };
@@ -44,10 +45,12 @@ function lastCommitDate(filePath: string | undefined): Date | undefined {
   }
 }
 
+/** Spreads to nothing when the date is unknown, so the entry omits `lastModified` instead of lying. */
 function withDate(date: Date | undefined): { lastModified?: Date } {
   return date ? { lastModified: date } : {};
 }
 
+/** Sitemap for the static export: home, download, and every docs page. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // The landing and download pages change meaningfully when a release ships
   // (new DMG link, new version), so they carry the release date. Fall back to

@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `LoadingRow` renders with a label and with empty text.
 @MainActor
 final class LoadingRowTests: XCTestCase {
 

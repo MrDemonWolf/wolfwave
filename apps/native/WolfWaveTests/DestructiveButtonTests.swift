@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `DestructiveButton` renders with a title and optional icon.
 @MainActor
 final class DestructiveButtonTests: XCTestCase {
 

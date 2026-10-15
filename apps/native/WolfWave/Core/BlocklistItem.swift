@@ -49,6 +49,8 @@ nonisolated struct BlocklistItem: Identifiable, Codable, Equatable, Hashable {
         }
     }
 
+    /// Creates a new entry with a fresh id, stamped now. Does not trim or
+    /// validate `value`; callers normalize before adding.
     init(value: String, type: BlockType) {
         self.id = UUID()
         self.value = value
@@ -68,6 +70,11 @@ nonisolated struct BlocklistItem: Identifiable, Codable, Equatable, Hashable {
     /// Validates and trims a decoded blocklist while preserving display case.
     /// Duplicate UUIDs or case-insensitive type/value pairs are ambiguous and
     /// reject the whole collection instead of silently changing user intent.
+    ///
+    /// - Parameter items: Entries as decoded from a backup or stored payload.
+    /// - Returns: The trimmed entries in their original order, or `nil` when
+    ///   any entry is blank after trimming or duplicates an earlier id or
+    ///   same-type value. The same value under two types (song vs artist) is allowed.
     static func normalizedForImport(_ items: [BlocklistItem]) -> [BlocklistItem]? {
         struct EntryKey: Hashable {
             let type: BlockType

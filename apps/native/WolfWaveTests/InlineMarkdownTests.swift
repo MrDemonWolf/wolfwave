@@ -9,6 +9,7 @@
 import XCTest
 @testable import WolfWave
 
+/// `InlineMarkdown` bold parsing strips the asterisks and preserves whitespace.
 @MainActor
 final class InlineMarkdownTests: XCTestCase {
 

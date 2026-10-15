@@ -11,6 +11,8 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `CalloutBanner` rendering per style, plus the token mapping for tints and the darker
+/// Light-appearance glyph tokens.
 @MainActor
 final class CalloutBannerTests: XCTestCase {
 

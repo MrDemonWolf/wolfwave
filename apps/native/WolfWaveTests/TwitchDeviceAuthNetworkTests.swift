@@ -131,6 +131,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(response.interval, 5)
     }
 
+    /// A device-code response whose `expires_in` or `interval` is `Int64.max` is rejected as
+    /// `.invalidResponse` instead of overflowing later timing math.
     func testRequestDeviceCodeRejectsUnsafeTimingMetadata() async {
         let responses = [
             #"""
@@ -247,6 +249,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(clock.delays, [.seconds(2)])
     }
 
+    /// After `slow_down`, every later poll waits 5 s more than the base interval (2 + 5 = 7 s,
+    /// and it stays at 7 s for the next poll, not 12). Sleeps go through the virtual clock.
     func testSlowDownAddsFiveSecondsForEverySubsequentPoll() async throws {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -278,6 +282,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(clock.delays, [.seconds(7), .seconds(7)])
     }
 
+    /// 429, 503, and a dropped connection are all treated as transient while polling: each is
+    /// retried after a 6 s wait (interval 1 plus 5 s) until the grant arrives.
     func testTransientHTTPAndTransportFailuresRecover() async throws {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -334,6 +340,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(clock.delays, [.seconds(4)])
     }
 
+    /// A `Retry-After: 12` on a 503 sets the next wait to 12 s only; the wait after that
+    /// returns to the normal interval.
     func testServerErrorHonorsRetryAfterForOnePollOnly() async throws {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -466,6 +474,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         }
     }
 
+    /// Near expiry the last sleep is clipped to the remaining time (2, 2, 1 s of a 5 s window),
+    /// no request is made after the deadline, and polling ends with `.expiredToken`.
     func testExpiryClipsFinalDelayAndPreventsAnotherRequest() async {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -493,6 +503,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(clock.delays, [.seconds(2), .seconds(2), .seconds(1)])
     }
 
+    /// A grant that arrives exactly at the expiry deadline is rejected as `.expiredToken`.
     func testSuccessArrivingAtExpiryDeadlineIsRejected() async {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -521,6 +532,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertTrue(clock.delays.isEmpty)
     }
 
+    /// A 400 with a non-JSON body is terminal: one request, no sleep, and `.unknown` carrying the
+    /// body text.
     func testMalformedNonTransientResponseStopsWithoutSleeping() async {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -548,6 +561,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertTrue(clock.delays.isEmpty)
     }
 
+    /// Cancelling during the poll sleep ends polling with `CancellationError` after one request.
     func testCancellationDuringPollingSleepStopsImmediately() async {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()
@@ -581,6 +595,8 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
         XCTAssertEqual(attempts.value, 1)
     }
 
+    /// With no `expiresIn`, polling uses a fallback deadline (600 polls at a 1 s interval in
+    /// virtual time) and then fails with `.expiredToken`.
     func testMissingExpiryMetadataStopsAtFallbackDeadline() async {
         let attempts = ThreadSafeBox(0)
         let clock = DeviceAuthVirtualClock()

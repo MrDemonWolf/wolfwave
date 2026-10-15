@@ -9,9 +9,9 @@
 import SwiftUI
 
 /// Standardized grid of bordered icon+label action buttons. Used by the
-/// custom About panel and the About settings tab to render a 2-column grid
-/// of secondary actions ("Check for Updates", "Release Notes", "Website",
-/// "Send Feedback", "Sponsor").
+/// About and Advanced settings panes to render a 2-column grid of secondary
+/// actions ("Check for Updates", "Release Notes", "Website", "Send Feedback",
+/// "Sponsor").
 ///
 /// Wraps `Grid` with shared design-system spacing. Callers lay out their own
 /// `GridRow` blocks (see the preview); `columns` only sets the intended width.
@@ -21,7 +21,10 @@ struct ActionGrid<Content: View>: View {
 
     // MARK: - Properties
 
+    /// Intended column count. Documentation only: the body never reads it, so
+    /// the actual columns come from the caller's `GridRow`s.
     var columns: Int = 2
+    /// The caller's `GridRow` blocks of `ActionGridButton`s.
     @ViewBuilder var content: () -> Content
 
     // MARK: - Body
@@ -42,9 +45,13 @@ struct ActionGridButton: View {
 
     // MARK: - Properties
 
+    /// Visible label and VoiceOver label.
     let title: String
+    /// SF Symbol drawn before the title.
     let systemImage: String
+    /// Runs on click.
     let action: () -> Void
+    /// UI-test identifier. Defaults to `actionGrid.<title>`.
     var accessibilityIdentifier: String?
 
     // MARK: - Body

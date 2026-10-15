@@ -17,10 +17,13 @@ struct AboutSettingsView: View {
 
     // MARK: - Environment
 
+    /// Drops the copy-confirmation animation when Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - State
 
+    /// True for about 1.5 seconds after the version pill is clicked; swaps
+    /// its glyph to a checkmark.
     @State private var versionCopied = false
 
     // MARK: - Settings
@@ -32,7 +35,9 @@ struct AboutSettingsView: View {
 
     // MARK: - Bundle Info (shared with the menu bar's standard About panel)
 
+    /// Bundle display name (see `AboutCopy.appName`).
     private var appName: String { AboutCopy.appName }
+    /// "Version X (build)" label for the pill.
     private var versionString: String { AboutCopy.versionString }
 
     // MARK: - Body
@@ -54,6 +59,7 @@ struct AboutSettingsView: View {
 
     // MARK: - Identity Card
 
+    /// Card wrapping the icon / name / version hero.
     private var identityCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -91,6 +97,8 @@ struct AboutSettingsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Bordered button showing the version; clicking copies
+    /// `AboutCopy.versionClipboardPayload` for bug reports.
     private var versionPill: some View {
         Button(action: copyVersion) {
             HStack(spacing: DSSpace.s1h) {
@@ -111,6 +119,8 @@ struct AboutSettingsView: View {
 
     // MARK: - Actions Card
 
+    /// Quick links (release notes, docs, feedback, optional sponsor) plus the
+    /// sponsor-links opt-out.
     private var actionsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -129,6 +139,8 @@ struct AboutSettingsView: View {
         .cardStyle()
     }
 
+    /// Two-column grid of quick actions. The Sponsor cell is omitted when
+    /// sponsor links are turned off, leaving Send Feedback alone in its row.
     private var actionGrid: some View {
         ActionGrid(columns: 2) {
             GridRow {
@@ -163,6 +175,7 @@ struct AboutSettingsView: View {
 
     // MARK: - Links & Legal Card
 
+    /// Privacy / Terms links above the independence, trademark, and copyright text.
     private var linksCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -184,6 +197,8 @@ struct AboutSettingsView: View {
 
     // MARK: - Legal Links
 
+    /// "Privacy · Terms" link row. A link whose URL constant fails to parse is
+    /// simply omitted.
     private var legalLinksRow: some View {
         HStack(spacing: DSSpace.s3) {
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {
@@ -203,6 +218,7 @@ struct AboutSettingsView: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// Legal text from `AboutCopy`, shared with the standard About panel.
     private var footer: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text(AboutCopy.independenceNotice)
@@ -226,6 +242,9 @@ struct AboutSettingsView: View {
 
     // MARK: - Acknowledgements Card
 
+    /// Third-party services and open-source dependencies, plus a link to the
+    /// full license notices. Keep the lists in step with what the app actually
+    /// calls and links.
     private var acknowledgementsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -268,6 +287,7 @@ struct AboutSettingsView: View {
         .cardStyle()
     }
 
+    /// A small heading followed by one bulleted line per row.
     private func acknowledgementsSection(title: String, rows: [String]) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text(title)
@@ -284,6 +304,8 @@ struct AboutSettingsView: View {
 
     // MARK: - Actions
 
+    /// Copies the version payload and shows the checkmark, then reverts it
+    /// after 1.5 seconds.
     private func copyVersion() {
         let payload = AboutCopy.versionClipboardPayload
         Pasteboard.copy(payload)
@@ -295,10 +317,12 @@ struct AboutSettingsView: View {
         }
     }
 
+    /// Opens the web changelog.
     private func openReleaseNotes() {
         ExternalLink.open(AppConstants.URLs.changelog)
     }
 
+    /// Opens the GitHub Sponsors page.
     private func openSponsor() {
         ExternalLink.open(AppConstants.URLs.githubSponsors)
     }
@@ -309,6 +333,7 @@ struct AboutSettingsView: View {
         ExternalLink.open(AppConstants.URLs.docs)
     }
 
+    /// Opens a pre-filled GitHub issue (environment details included).
     private func sendFeedback() {
         BugReportURL.openPrefilledIssue()
     }

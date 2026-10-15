@@ -17,12 +17,16 @@ struct NotificationsSettingsView: View {
 
     // MARK: - User Settings
 
+    /// Song-change banner opt-in, read by `NotificationService`.
     @AppStorage(AppConstants.UserDefaults.songChangeNotificationsEnabled)
     private var songChangeNotificationsEnabled = false
 
+    /// Skip-vote-started banner opt-in. `AppDelegate.handleVoteEvent` also
+    /// requires `voteSkipEnabled`.
     @AppStorage(AppConstants.UserDefaults.skipVoteStartedNotificationsEnabled)
     private var skipVoteStartedNotificationsEnabled = false
 
+    /// Skip-vote-passed banner opt-in, gated the same way.
     @AppStorage(AppConstants.UserDefaults.skipVotePassedNotificationsEnabled)
     private var skipVotePassedNotificationsEnabled = false
 
@@ -127,8 +131,10 @@ struct NotificationsSettingsView: View {
 
     // MARK: - Helpers
 
-    /// Requests authorization the first time the user enables the toggle, then
-    /// refreshes the cached status so the denied notice appears if needed.
+    /// Requests authorization the first time the user enables any of the
+    /// toggles (only while the status is `.notDetermined`, so the system prompt
+    /// never repeats), then refreshes the cached status so the denied notice
+    /// appears if needed.
     private func handleEnabled() {
         Task {
             if authorizationStatus == .notDetermined {

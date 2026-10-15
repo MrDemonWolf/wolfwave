@@ -9,6 +9,7 @@
 import XCTest
 @testable import WolfWave
 
+/// `PowerStateMonitor` singleton, its reduced-mode flag, and the notification payload round trip.
 @MainActor
 final class PowerStateMonitorTests: XCTestCase {
 

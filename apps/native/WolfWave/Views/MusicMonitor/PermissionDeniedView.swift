@@ -11,12 +11,18 @@ import AppKit
 
 // MARK: - Inline banner (State 1)
 
-/// Inline "Music access denied" banner shown at the top of the General tab.
-/// Hosts the primary "Open System Settings" CTA and a "Try again" recheck.
+/// Inline "Music access denied" banner shown at the top of the Music section
+/// (`MusicMonitorSettingsView`, in the General pane) while the Automation grant
+/// is denied. Hosts the primary "Open System Settings" CTA, a "Show me how"
+/// link to `PermissionInstructionSheet`, and a "Try again" recheck.
 struct PermissionDeniedBanner: View {
 
+    /// Opens System Settings at the Automation pane.
     var onOpenSystemSettings: () -> Void
+    /// Re-probes the grant and returns the new state; awaited by
+    /// `MusicPermissionRecheckButton`, which reports the actual result.
     var onTryAgain: () async -> MusicPermissionState
+    /// Presents `PermissionInstructionSheet`.
     var onShowInstructions: () -> Void
 
     var body: some View {
@@ -94,8 +100,12 @@ struct PermissionDeniedBanner: View {
 /// Reached from "Show me how" on the banner.
 struct PermissionInstructionSheet: View {
 
+    /// Closes the sheet ("Not now"). Works here because this is a real SwiftUI
+    /// `.sheet`, not an AppKit-hosted window.
     @Environment(\.dismiss) private var dismiss
+    /// Opens System Settings at the Automation pane.
     var onOpenSystemSettings: () -> Void
+    /// Re-probes the grant and returns the new state.
     var onTryAgain: () async -> MusicPermissionState
 
     var body: some View {
@@ -221,6 +231,8 @@ struct AutomationRowPreview: View {
         .cardStyleUnpadded()
     }
 
+    /// WolfWave's app icon at row size, or a blue gradient tile when the
+    /// `AppIcon` image can't be resolved by name.
     @ViewBuilder
     private var wolfMark: some View {
         if let _ = NSImage(named: "AppIcon") {
@@ -235,6 +247,8 @@ struct AutomationRowPreview: View {
         }
     }
 
+    /// Approximation of the Music app icon (brand gradient tile + note glyph).
+    /// Drawn, not the real icon, so no Apple artwork ships in the bundle.
     @ViewBuilder
     private var appleMusicMark: some View {
         RoundedRectangle(cornerRadius: DSRadius.xs)
@@ -253,7 +267,8 @@ struct AutomationRowPreview: View {
 
 // MARK: - Empty Now Playing card (State 3)
 
-/// Empty/disabled Now Playing card shown while permission is missing.
+/// Empty/disabled Now Playing card shown in place of the hero card while the
+/// Music grant is denied.
 struct PermissionPausedNowPlayingCard: View {
     var body: some View {
         HStack(spacing: DSSpace.s5) {

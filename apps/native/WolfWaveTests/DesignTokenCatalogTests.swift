@@ -23,6 +23,8 @@ struct DesignTokenCatalogTests {
 
     // MARK: - Helpers
 
+    /// Fails if a token-name list is empty or has duplicates; reports at the caller's source
+    /// location.
     private func assertUniqueNonEmpty(
         _ names: [String],
         _ family: String,

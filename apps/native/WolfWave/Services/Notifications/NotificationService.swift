@@ -11,9 +11,17 @@ import Foundation
 import UserNotifications
 
 /// Testable subset of `UNUserNotificationCenter` used by NotificationService.
+///
+/// Tests inject a fake so no hosted test ever prompts for, or posts, a real
+/// notification. Method names mirror the real center's so the production
+/// conformance is mostly free.
 @MainActor
 protocol UserNotificationCenterProviding: AnyObject {
+    /// Sets the center's delegate (a property on the real type, a method here
+    /// so the protocol stays implementable by a plain class).
     func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?)
+    /// Current authorization, read fresh each call (the user can change it in
+    /// System Settings at any time).
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func removePendingNotificationRequests(withIdentifiers identifiers: [String])
@@ -21,6 +29,8 @@ protocol UserNotificationCenterProviding: AnyObject {
     func add(_ request: UNNotificationRequest) async throws
 }
 
+/// Production conformance. Only the two members with no direct counterpart are
+/// implemented here.
 extension UNUserNotificationCenter: UserNotificationCenterProviding {
     func installDelegate(_ delegate: (any UNUserNotificationCenterDelegate)?) {
         self.delegate = delegate
@@ -44,6 +54,9 @@ extension UNUserNotificationCenter: UserNotificationCenterProviding {
 /// requires it.
 final class NotificationService: NSObject {
 
+    /// Builds an artwork attachment for a track, or `nil` for text-only.
+    /// Injected by tests to skip the network; production uses
+    /// `songChangeArtworkAttachment(track:artist:)`.
     typealias ArtworkAttachmentProvider = @MainActor @Sendable (
         _ track: String,
         _ artist: String
@@ -65,10 +78,21 @@ final class NotificationService: NSObject {
     static let shared = NotificationService(center: UNUserNotificationCenter.current())
 
     private let center: any UserNotificationCenterProviding
+    /// Overrides the built-in artwork fetch when set.
     private let artworkAttachmentProvider: ArtworkAttachmentProvider?
+    /// Newest post per lifecycle. A post whose token no longer matches was
+    /// superseded and must not deliver (checked after every suspension).
     private var latestPostToken: [PostGenerationDomain: UUID] = [:]
+    /// Last submission per lifecycle. Each new submission awaits the previous
+    /// one, so `center.add` calls in a domain never overlap.
     private var submissionTail: [PostGenerationDomain: Task<Bool, Never>] = [:]
 
+    /// Creates a service around a notification center.
+    ///
+    /// - Parameters:
+    ///   - center: The real `UNUserNotificationCenter` in production, a fake in tests.
+    ///   - artworkAttachmentProvider: Optional replacement for the artwork
+    ///     download. `nil` uses `ArtworkService` plus `HTTPClient`.
     init(
         center: any UserNotificationCenterProviding,
         artworkAttachmentProvider: ArtworkAttachmentProvider? = nil
@@ -358,6 +382,13 @@ final class NotificationService: NSObject {
     /// - Parameters:
     ///   - content: The notification content to deliver.
     ///   - identifier: Stable request identifier used for replacement.
+    ///   - token: From ``beginPost(generationDomain:)``. The post is dropped as
+    ///     soon as a newer token exists for its domain.
+    ///   - generationDomain: Lifecycle this post supersedes within.
+    ///   - replacingDeliveredIdentifiers: Other identifiers to retract with this
+    ///     one (the opposite skip-vote banner).
+    /// - Returns: `true` only when the request was added and is still the
+    ///   latest for its domain.
     @discardableResult
     private func post(
         content: UNNotificationContent,
@@ -437,6 +468,11 @@ final class NotificationService: NSObject {
 
     /// Fetches optional artwork, then posts only if no newer notification in
     /// the same lifecycle started while the lookup was suspended.
+    ///
+    /// A temp artwork file this service wrote is deleted when the post is
+    /// superseded or not delivered. On success the system owns it.
+    ///
+    /// - Parameter generationDomain: Defaults to the identifier's own domain.
     private func postWithArtwork(
         content: UNMutableNotificationContent,
         identifier: String,
@@ -479,6 +515,7 @@ final class NotificationService: NSObject {
         return token
     }
 
+    /// Whether `token` is still the newest post for `generationDomain`.
     private func isLatestPost(_ token: UUID, generationDomain: PostGenerationDomain) -> Bool {
         latestPostToken[generationDomain] == token
     }
@@ -494,8 +531,12 @@ final class NotificationService: NSObject {
     /// Fetches album artwork and writes it to a temporary file for use as a
     /// notification attachment.
     ///
-    /// - Returns: An attachment, or `nil` when artwork is unavailable or the
-    ///   download fails (the caller then posts a text-only notification).
+    /// The file is written to the temp directory with the `wolfwave-artwork-`
+    /// prefix that ``removeTemporaryAttachment(_:)`` keys on.
+    ///
+    /// - Returns: An attachment, or `nil` when artwork is unavailable, the
+    ///   download fails, or notifications aren't authorized (the caller then
+    ///   posts a text-only notification, or nothing).
     private func songChangeArtworkAttachment(
         track: String,
         artist: String

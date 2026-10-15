@@ -68,6 +68,7 @@ struct TwitchChatServiceTests {
         clearManagedRewardIdentity()
     }
 
+    /// Stores reward `reward` owned by broadcaster `broadcaster`, replacing any previous identity.
     private func installManagedRewardIdentity() {
         clearManagedRewardIdentity()
         #expect(
@@ -78,6 +79,7 @@ struct TwitchChatServiceTests {
                 replacing: .none))
     }
 
+    /// Removes the stored reward id and its owner identity.
     private func clearManagedRewardIdentity() {
         DefaultsStore.store.removeObject(
             forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID)
@@ -1090,6 +1092,9 @@ struct TwitchChatServiceTests {
             activeBroadcasterID: "replacement-broadcaster")
     }
 
+    /// Shared body for two cases. An abandoned (owner-less or foreign) canceled item whose
+    /// acknowledgement write fails must end containment: no backoff, no request, no live paid task,
+    /// no containment left. The item stays on disk for a later owning session.
     private func assertContainmentEndsWithoutRetrying(
         installingManagedRewardIdentity: Bool,
         activeBroadcasterID: String
@@ -1165,6 +1170,9 @@ struct TwitchChatServiceTests {
     }
     #endif
 
+    /// Shared body for outbox write failures on live redemption intake. The first redemption pauses
+    /// the reward and is refunded, the status becomes `.storageUnavailable`, and a second
+    /// redemption is refunded without another outbox write.
     private func assertRedemptionStorageFailureFailsClosed(
         outbox: TwitchRedemptionResolutionOutbox,
         intakeWrites: ThreadSafeBox<Int>,
@@ -1239,6 +1247,8 @@ struct TwitchChatServiceTests {
         })
     }
 
+    /// A `channel.bits.use` event: 100 bits from "Viewer" in channel `channel`, message "Cheer100 a
+    /// song".
     nonisolated private static func bitsPayload() -> [String: Any] {
         [
             "event": [
@@ -1251,6 +1261,8 @@ struct TwitchChatServiceTests {
         ]
     }
 
+    /// A channel-point redemption event for reward `reward` on broadcaster `broadcaster`, with song
+    /// text "A song".
     nonisolated private static func redemptionPayload(id: String) -> [String: Any] {
         [
             "event": [
@@ -1263,6 +1275,8 @@ struct TwitchChatServiceTests {
         ]
     }
 
+    /// Wraps `payload` in an EventSub metadata envelope (message type and id, stamped now) and
+    /// returns it as a JSON string.
     private static func eventSubEnvelope(
         messageType: String,
         messageID: String,
@@ -1396,6 +1410,8 @@ struct TwitchChatServiceTests {
         #expect(missingResult == .temporarilyUnavailable)
     }
 
+    /// Runs token validation against a canned Helix response (`status`, `body`), then clears the
+    /// handler.
     private func validateToken(
         status: Int,
         body: Data,
@@ -2228,6 +2244,7 @@ struct TwitchChatServiceTests {
         #expect(await service.activeCommandTaskCount == 0)
     }
 
+    /// A `channel.chat.message` event from "Viewer" with the given id, text, and broadcaster.
     nonisolated private static func chatEvent(
         id: String,
         text: String,
@@ -2288,11 +2305,15 @@ struct TwitchChatServiceTests {
 
 }
 
+/// Test-only seams that install fake EventSub transport state (sockets, sessions,
+/// reconnect tasks) on the actor so migration and teardown paths run without a network.
 private extension TwitchChatService {
     var hasEventSubTransportForTesting: Bool {
         webSocketTask != nil || migrationSourceWebSocketTask != nil
     }
 
+    /// Installs `source` as the live socket and welcomed session, with a parked receive task, so a
+    /// test can migrate away from it.
     func installPollMigrationSourceForTesting(
         _ source: URLSessionWebSocketTask
     ) -> EventSubReceiveContext {
@@ -2309,6 +2330,7 @@ private extension TwitchChatService {
         )
     }
 
+    /// A receive context for `task` at the current connection generation.
     func pollMigrationContextForTesting(
         _ task: URLSessionWebSocketTask
     ) -> EventSubReceiveContext {
@@ -2322,6 +2344,8 @@ private extension TwitchChatService {
         redemptionTasks.count
     }
 
+    /// Registers `operation` as the in-flight pipeline task for `item`, removed again when it
+    /// finishes.
     func installRedemptionPipelineForTesting(
         item: TwitchRedemptionResolutionOutbox.Item,
         operation: @escaping @Sendable () async -> Void
@@ -2336,6 +2360,8 @@ private extension TwitchChatService {
         redemptionTasks[id] = nil
     }
 
+    /// Starts a connection attempt and fills in the identity, token, and reconnect fields chat
+    /// sending needs. Returns the connection generation.
     func configureChatSendForTesting(broadcasterID: String) -> UInt64 {
         let generation = beginConnectionAttempt()
         self.broadcasterID = broadcasterID
@@ -2348,6 +2374,7 @@ private extension TwitchChatService {
         return generation
     }
 
+    /// Sets up a session where the broadcaster is also the bot, with a fixed token and client id.
     func configureBroadcasterRedemptionCredentialsForTesting(
         broadcasterID: String
     ) {
@@ -2358,6 +2385,8 @@ private extension TwitchChatService {
         clientID = "client"
     }
 
+    /// Waits for every task in `paidRedemptionTasks`: the paid-event pipelines, which outlive a
+    /// socket session.
     func awaitPaidRedemptionTasksForTesting() async {
         let tasks = Array(paidRedemptionTasks.values)
         for task in tasks {
@@ -2365,6 +2394,7 @@ private extension TwitchChatService {
         }
     }
 
+    /// Waits for every registered redemption pipeline task.
     func awaitRedemptionPipelinesForTesting() async {
         let tasks = Array(redemptionTasks.values)
         for task in tasks {
@@ -2372,20 +2402,25 @@ private extension TwitchChatService {
         }
     }
 
+    /// Changes the broadcaster (and reconnect channel) mid-session to model an account switch.
     func switchBroadcasterForTesting(to broadcasterID: String) {
         self.broadcasterID = broadcasterID
         reconnectChannelName = broadcasterID
     }
 
+    /// Sets the reconnect attempt count and the session-migration flag.
     func configureReconnectStateForTesting(attempts: Int, migrating: Bool) {
         reconnectionAttempts = attempts
         isMigratingSession = migrating
     }
 
+    /// Gives the service a reconnect channel so retry paths have one to use.
     func configureRetryChannelForTesting() {
         reconnectChannelName = "test-channel"
     }
 
+    /// Starts a connection attempt for `broadcasterID` for command dispatch tests. Returns the
+    /// connection generation.
     func configureCommandSessionForTesting(broadcasterID: String) -> UInt64 {
         let generation = beginConnectionAttempt()
         self.broadcasterID = broadcasterID
@@ -2393,12 +2428,14 @@ private extension TwitchChatService {
         return generation
     }
 
+    /// Fills the reconnect channel, token, and client id.
     func configureReconnectCredentialsForTesting() {
         reconnectChannelName = "test-channel"
         reconnectToken = "test-token"
         reconnectClientID = "test-client"
     }
 
+    /// Puts the service at its maximum reconnection attempts with the network reachable.
     func configureExhaustedReconnectForTesting() {
         isNetworkReachable = true
         reconnectionAttempts = maxReconnectionAttempts
@@ -2408,6 +2445,8 @@ private extension TwitchChatService {
         reconnectTask != nil
     }
 
+    /// Models a network outage: unreachable, `attempts` already used, no recovery cycles, last
+    /// reconnect stamped now.
     func configureNetworkRecoveryForTesting(attempts: Int) {
         reconnectionAttempts = attempts
         networkReconnectCycles = 0
@@ -2416,6 +2455,8 @@ private extension TwitchChatService {
     }
 }
 
+/// Parks a command in `waitForCancellation()` until its task is cancelled; `wasCancelled`
+/// records that cancellation (not completion) ended it.
 private actor SuspendedCommandGate {
     private(set) var started = false
     private(set) var wasCancelled = false
@@ -2430,6 +2471,8 @@ private actor SuspendedCommandGate {
     }
 }
 
+/// Parks the caller in `suspend()` until `resume()`, giving tests a fixed ordering
+/// point inside an async path. `suspended` flips true once the caller has parked.
 private actor DeterministicAsyncGate {
     private(set) var suspended = false
     private var released = false
@@ -2450,6 +2493,8 @@ private actor DeterministicAsyncGate {
     }
 }
 
+/// Async command that blocks on a `SuspendedCommandGate`. If its session is torn down
+/// the cancelled command must not deliver its "stale reply".
 @MainActor
 private final class SuspendedTestCommand: @MainActor AsyncBotCommand {
     let triggers = ["!suspend"]

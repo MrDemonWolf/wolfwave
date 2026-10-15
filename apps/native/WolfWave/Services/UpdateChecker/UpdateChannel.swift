@@ -24,6 +24,7 @@ nonisolated enum UpdateChannel: String, CaseIterable, Identifiable, Sendable {
     case stable
     case nightly
 
+    /// The raw value, so `ForEach` identity matches the persisted value.
     var id: String { rawValue }
 
     /// Short label for the settings picker.

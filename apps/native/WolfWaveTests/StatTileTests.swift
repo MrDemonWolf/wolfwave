@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `StatTile` renders with a value and caption, with and without a secondary line.
 @MainActor
 final class StatTileTests: XCTestCase {
 

@@ -22,10 +22,13 @@ import os
 /// ## Token injection
 ///
 /// The bundled `widget.html` contains a `__WOLFWAVE_TOKEN__` sentinel. The
-/// substitution runs **only when the requesting peer is loopback** so a LAN
-/// fetch cannot lift the WebSocket credential out of the served HTML. Remote
-/// peers receive the raw template; the JS falls back to the `?token=` URL
-/// query string for the WebSocket handshake.
+/// substitution runs **only when the requesting peer is loopback and the
+/// `Host` header is a literal local address** (see `shouldInjectToken`) so a LAN
+/// fetch, or a DNS-rebound origin, cannot lift the WebSocket credential out of
+/// the served HTML. Other requests receive the raw template; the JS then uses
+/// the `?token=` URL query string for the WebSocket handshake (a `?token=`
+/// query also takes precedence over an injected token). Only the read-only
+/// overlay token is ever injected, never the control token.
 ///
 /// - `GET /` or `GET /?...` → `200 OK` with `widget.html` body
 /// - `GET /widget-tokens.generated.js` → `200 OK` with generated design tokens JS
@@ -38,9 +41,18 @@ import os
 /// `maxConcurrentConnections` are served at once (extra accepts are cancelled
 /// immediately), a connection that never delivers complete request headers is
 /// cancelled after `headerTimeout`, and `stop()` cancels every tracked
-/// connection along with the listener. Without this, a half-open LAN peer
+/// connection along with the listener. Despite the name, `headerTimeout`
+/// bounds the whole tracked lifetime (headers plus response write): any
+/// connection still tracked when it fires is cancelled. Without this, a half-open LAN peer
 /// (an OBS box losing power mid-connect) would pin an `NWConnection` and its
 /// file descriptor for the app lifetime via the pending receive callback.
+///
+/// ## Threading
+///
+/// `@unchecked Sendable`: all mutable state is guarded by `readyLock`,
+/// `listenerLock`, or `connectionsLock`, and every Network.framework callback
+/// runs on the private serial `queue`. `generation` is bumped on every
+/// `start()` / `stop()` so callbacks from an older listener become no-ops.
 nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Errors
@@ -58,6 +70,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     // MARK: - Properties
 
+    /// Configured port; `0` asks the kernel for an ephemeral port (tests).
     private let port: UInt16
     /// Token baked into the served `widget.html` so OBS browser sources hit the
     /// WebSocket with a valid `wolfwave.overlay.<hex>` subprotocol without the user
@@ -66,20 +79,22 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// Guards all reads and writes of `listener` so the state-callback queue and
     /// `stop()` callers cannot race on the reference.
     private let listenerLock = NSLock()
+    /// Backing storage for `listener`; touch only through the accessor.
     private var _listener: NWListener?
     /// Thread-safe accessor for the underlying `NWListener`.
     private var listener: NWListener? {
         get { listenerLock.withLock { _listener } }
         set { listenerLock.withLock { _listener = newValue } }
     }
+    /// Serial queue for the listener, every connection, header timeouts, and
+    /// bind retries.
     private let queue = DispatchQueue(
         label: "com.mrdemonwolf.wolfwave.widget-http",
         qos: .utility
     )
 
-    /// Book-keeping for one accepted connection: the connection itself plus
-    /// whether its request headers have finished arriving, which disarms the
-    /// header timeout.
+    /// Book-keeping for one accepted connection. Currently just the connection;
+    /// the header timeout keys off whether the entry is still present.
     private struct TrackedConnection {
         let connection: NWConnection
     }
@@ -98,8 +113,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// descriptors.
     private let maxConcurrentConnections: Int
 
-    /// How long an accepted connection may take to deliver its complete
-    /// request headers before it is cancelled.
+    /// Seconds an accepted connection may stay tracked before it is cancelled.
+    /// Named for the slow-headers case, but it also bounds the response write,
+    /// since a connection is only untracked once it is cancelled or fails.
     private let headerTimeout: TimeInterval
 
     /// Number of connections currently tracked. Exposed so tests can await
@@ -116,23 +132,40 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         listener?.port?.rawValue
     }
 
-    /// Readiness latch, fulfilled once on the first `NWListener.State.ready`.
-    /// Lets callers (notably tests) await the listener actually binding the
-    /// port instead of sleeping a fixed interval. Guarded by `readyLock` so the
-    /// `networkQueue` state callback and an awaiting caller can race safely.
+    /// Guards the start/ready/retry state below (`isReady` through
+    /// `readyWaiters`). The readiness latch lets callers (notably tests) await
+    /// the listener actually binding the port instead of sleeping a fixed
+    /// interval; the lock lets the `queue` state callback and an awaiting
+    /// caller race safely.
     private let readyLock = NSLock()
+    /// `true` once the current generation's listener reached `.ready`.
     private var isReady = false
+    /// Why `ready()` should throw right now, if anything. Set to
+    /// `.listenerFailed` on a bind failure (even while a retry is pending) and
+    /// `.stopped` by `stop()`; cleared when a new listener is installed.
     private var terminalError: ReadyError?
+    /// `true` between `start()` and `stop()`.
     private var isStarted = false
+    /// Incremented on every `start()` / `stop()`. Callbacks capture the value
+    /// they were created under and bail when it no longer matches.
     private var generation: UInt64 = 0
+    /// Bind retries made so far this generation; capped at 5, reset on `.ready`.
     private var retryAttempt = 0
+    /// The pending retry, cancelled by `stop()` or a newer retry.
     private var retryWork: DispatchWorkItem?
+    /// First retry delay in seconds; doubles per attempt up to 30 s.
     private let retryBaseDelay: TimeInterval
+    /// Listener factory; injectable so tests can force a bind failure.
     private let makeListener: @Sendable (NWParameters, NWEndpoint.Port) throws -> NWListener
+    /// Callers suspended in `ready()`.
     private var readyWaiters: [CheckedContinuation<Void, Error>] = []
+    /// Process-wide favicon PNG, encoded at most once (even when the icon is
+    /// missing, so a `nil` result is cached too). `count` tallies encodes.
     private static let faviconCache = OSAllocatedUnfairLock<(body: Data?, loaded: Bool, count: Int)>(
         initialState: (nil, false, 0)
     )
+    /// How many times the favicon has been encoded. Test hook proving the
+    /// cache holds (it should never exceed 1).
     static var faviconEncodingCount: Int { faviconCache.withLock { $0.count } }
 
     /// Sentinel string in the bundled `widget.html` that we replace with the
@@ -156,6 +189,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     ///   - maxConcurrentConnections: Upper bound on concurrently tracked
     ///     connections; extra accepts are cancelled immediately. Defaults to
     ///     32; override only in tests.
+    ///   - retryBaseDelay: First bind-retry delay in seconds (floored at
+    ///     0.01). Doubles per attempt, capped at 30 s, at most 5 retries.
+    ///   - makeListener: Builds the `NWListener`. Tests inject a throwing
+    ///     factory to exercise the retry and `ready()` failure paths.
     init(
         port: UInt16,
         overlayToken: String? = nil,
@@ -174,6 +211,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         self.makeListener = makeListener
     }
 
+    /// Tears down the listener and any open connections.
     deinit {
         stop()
     }
@@ -197,6 +235,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         startListener(generation: current)
     }
 
+    /// Creates and starts one `NWListener` for generation `current`. Also the
+    /// retry entry point. A create or bind failure fails pending `ready()`
+    /// waiters and schedules a retry; an invalid port fails without retrying.
     private func startListener(generation current: UInt64) {
         guard readyLock.withLock({ isStarted && generation == current }) else { return }
 
@@ -261,6 +302,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         newListener.start(queue: queue)
     }
 
+    /// Schedules `startListener` again with exponential backoff
+    /// (`retryBaseDelay * 2^attempt`, capped at 30 s), up to 5 attempts.
+    /// After the fifth the service stays down until the next `start()`.
     private func scheduleRetry(generation current: UInt64) {
         let delay = readyLock.withLock { () -> TimeInterval? in
             guard isStarted, generation == current, retryAttempt < 5 else { return nil }
@@ -294,6 +338,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return (current, waiters)
         }
         stoppedListener?.cancel()
+        // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
+        // leave them suspended forever.
         for waiter in waiters { waiter.resume(throwing: ReadyError.stopped) }
         let openConnections: [NWConnection] = connectionsLock.withLock {
             let open = activeConnections.values.map(\.connection)
@@ -303,8 +349,6 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         for connection in openConnections {
             connection.cancel()
         }
-        // Wake any caller still awaiting `ready()` so a stop-before-bind doesn't
-        // leave them suspended forever.
         Log.info("WidgetHTTPService: Server stopped", category: .websocket)
     }
 
@@ -316,7 +360,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// - Throws: `ReadyError.listenerFailed` if the bind fails, or
     ///   `ReadyError.stopped` if `stop()` runs before the listener binds. This
     ///   guarantees the call always resolves instead of hanging on a listener
-    ///   that will never reach `.ready`.
+    ///   that will never reach `.ready`. A bind failure throws even while a
+    ///   retry is scheduled; call again after the retry to wait it out.
     func ready() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let result: Result<Void, ReadyError>? = readyLock.withLock {
@@ -329,8 +374,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
     }
 
-    /// Latches readiness and resumes any callers awaiting `ready()`. Invoked
-    /// once on the first `.ready` listener transition (on `queue`).
+    /// Latches readiness and resumes any callers awaiting `ready()`. Invoked on
+    /// each `.ready` listener transition (on `queue`); only the first per
+    /// generation has an effect.
     private func markReady(generation current: UInt64) {
         let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
             guard isStarted, generation == current, !isReady else { return [] }
@@ -346,9 +392,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         }
     }
 
-    /// Resumes any pending `ready()` waiters with the given failure, then clears
-    /// the queue. Invoked when the listener fails to bind or when `stop()` tears
-    /// the service down before it ever reaches `.ready`.
+    /// Resumes any pending `ready()` waiters with the given failure, records it
+    /// as `terminalError`, and clears the queue. Invoked when the listener
+    /// cannot be created or fails to bind. (`stop()` resumes waiters itself.)
+    /// A no-op for a stale generation or a stopped service.
     private func failReadyWaiters(with error: ReadyError, generation current: UInt64) {
         let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
             guard generation == current, isStarted else { return [] }
@@ -375,7 +422,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     /// Accepts an inbound TCP connection, tracks it for lifecycle teardown,
     /// arms the header timeout, and begins reading the request headers.
-    /// Connections beyond `maxConcurrentConnections` are cancelled immediately.
+    /// Connections refused by `shouldAcceptConnection` (global cap, per-peer
+    /// cap, or the slots reserved for loopback) are cancelled immediately.
     private func handleConnection(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
         let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
@@ -423,6 +471,13 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         readRequestHeaders(from: connection, accumulated: Data())
     }
 
+    /// Admission policy for a new connection. Pure, so it is unit-testable.
+    ///
+    /// Loopback peers may use every slot up to `maximumCount`. LAN peers are
+    /// held back from the last `min(4, max(1, maximumCount / 4))` slots, so a
+    /// noisy LAN host can never lock out the local OBS, and are capped at 4
+    /// concurrent connections per host (see `WebSocketAuthToken.peerKey`).
+    /// Negative counts or a non-positive maximum refuse.
     nonisolated static func shouldAcceptConnection(
         activeCount: Int,
         maximumCount: Int,
@@ -439,11 +494,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             && peerConnectionCount < 4
     }
 
-    /// Bounds headers and response writes together; completed sends cancel the peer.
+    /// Arms the lifetime timeout for `connection`. Bounds headers and response
+    /// writes together: completed sends cancel (and so untrack) the peer, so
+    /// anything still tracked after `headerTimeout` seconds is cancelled.
     private func scheduleHeaderTimeout(for connection: NWConnection) {
         let id = ObjectIdentifier(connection)
         queue.asyncAfter(deadline: .now() + headerTimeout) { [weak self, weak connection] in
             guard let self, let connection else { return }
+            // Identity check guards against a recycled `ObjectIdentifier`.
             let stillAwaitingHeaders: Bool = self.connectionsLock.withLock {
                 guard let tracked = self.activeConnections[id],
                       tracked.connection === connection else { return false }
@@ -606,6 +664,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             extraHeaders: ["Cache-Control: public, max-age=86400"])
     }
 
+    /// Returns the app icon as PNG, encoding it on first use and caching the
+    /// result (including `nil` when `AppIcon` is missing) for the process.
     static func faviconData() -> Data? {
         faviconCache.withLock { state in
             guard !state.loaded else { return state.body }
@@ -619,6 +679,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     // MARK: - Peer Inspection
 
     /// Extracts a case-insensitive HTTP header from a completed request block.
+    ///
+    /// Skips the request line, stops at the blank line, and returns the first
+    /// match trimmed of whitespace, or `nil` when the header is absent.
     static func headerValue(named name: String, in request: String) -> String? {
         let prefix = name.lowercased() + ":"
         let headerEnd = request.range(of: "\r\n\r\n")?.lowerBound ?? request.endIndex
@@ -633,6 +696,10 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     }
 
     /// Pure policy seam used by integration tests and `serveWidget`.
+    ///
+    /// Both conditions are required: a loopback TCP peer (so a LAN host can't
+    /// read the token) and a literal local `Host` header (so a browser page on
+    /// an attacker origin rebound to 127.0.0.1 can't either).
     nonisolated static func shouldInjectToken(loopbackPeer: Bool, hostHeader: String?) -> Bool {
         loopbackPeer && isLiteralLocalHost(hostHeader)
     }

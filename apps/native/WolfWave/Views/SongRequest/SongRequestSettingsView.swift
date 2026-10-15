@@ -13,11 +13,20 @@ import SwiftUI
 ///
 /// Decomposed into per-card subviews so each `@AppStorage` change only re-renders one card
 /// instead of the whole screen.
+///
+/// Owns its own centered scroll column (bypassing the shell's `standardDetailScroll`).
+/// Until the guided setup has been completed, the master toggle is replaced by a setup
+/// call to action; the configuration cards appear only once setup is done and the
+/// feature is on. Vote-skip is always visible because it also works without a queue.
 struct SongRequestSettingsView: View {
+    // MARK: - Properties
+
+    /// Jumps the settings shell to the Twitch pane. Wired by `SettingsView`.
     var openTwitchSettings: () -> Void = {}
     /// Starts the Twitch reconnect from the expired-sign-in notice. Wired by
     /// `SettingsView`; `nil` (previews) leaves the notice as a plain note.
     var reconnectTwitch: (@MainActor () -> Void)?
+    /// Master switch; gates the configuration cards.
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
@@ -30,6 +39,7 @@ struct SongRequestSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.songRequestPlaylistStatus)
     private var playlistStatus: PlaylistSetupStatus = .ok
 
+    /// Live Twitch connection, from the service and `twitchConnectionStateChanged`.
     @State private var isTwitchConnected = false
     /// Mirrors the Twitch pane's reauth flag so this pane can surface the same
     /// "sign-in expired" warning instead of the calmer "connect" info note.
@@ -39,8 +49,10 @@ struct SongRequestSettingsView: View {
     /// Drives the guided setup sheet. `setupStartStep` lets the broken-playlist
     /// banner jump straight to the right step (re-share vs full redo).
     @State private var showSetupSheet = false
+    /// Step the sheet opens on.
     @State private var setupStartStep: SongRequestSetupViewModel.Step = .intro
 
+    /// The running app delegate (`nil` in previews).
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     // MARK: - Body
@@ -207,7 +219,9 @@ struct SongRequestSettingsView: View {
 /// `PlaylistSetupStatus` message with a primary action button (CalloutBanner is
 /// text-only), so the streamer can jump straight to the fix.
 fileprivate struct SongRequestHealthBanner: View {
+    /// Current playlist health; the parent only shows this for non-`.ok`.
     let status: PlaylistSetupStatus
+    /// Runs the fix for `status` (see `handleHealthAction`).
     let onAction: () -> Void
 
     var body: some View {
@@ -229,6 +243,7 @@ fileprivate struct SongRequestHealthBanner: View {
 
 // MARK: - Header
 
+/// Pane title plus the "How it works" explainer.
 fileprivate struct SongRequestHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
@@ -256,7 +271,11 @@ fileprivate struct SongRequestHeader: View {
 
 // MARK: - Master Toggle
 
+/// The enable switch (or, before setup, the setup call to action) plus the
+/// "Reply When Off" option. Both the switch and the setup button are disabled
+/// until Twitch is connected.
 fileprivate struct SongRequestMasterToggleCard: View {
+    /// Master switch. Changes post `songRequestSettingChanged`.
     @AppStorage(AppConstants.UserDefaults.songRequestEnabled)
     private var songRequestEnabled = false
 
@@ -265,6 +284,7 @@ fileprivate struct SongRequestMasterToggleCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestDisabledReplyEnabled)
     private var disabledReplyEnabled = false
 
+    /// Disables enabling (or starting setup) while Twitch is offline.
     let isTwitchConnected: Bool
     /// When false, the enable toggle is replaced by a "Set up" call to action.
     let setupComplete: Bool
@@ -353,31 +373,45 @@ fileprivate struct SongRequestMasterToggleCard: View {
 
 // MARK: - Chat Vote-Skip
 
+/// Chat vote-to-skip settings: chat tally (window + cooldown) or Twitch Polls
+/// (duration), minimum votes, subscriber-only voting, and the `!voteskip`
+/// command. Every picker reads through `snapped(to:fallback:)` / `clamped`.
 fileprivate struct VoteSkipCard: View {
+    /// Master switch. Turning it off resets any running vote; turning it on
+    /// with Polls selected re-requests the poll subscription.
     @AppStorage(AppConstants.UserDefaults.voteSkipEnabled)
     private var voteSkipEnabled = false
 
+    /// Votes needed to pass.
     @AppStorage(AppConstants.UserDefaults.voteSkipMinVotes)
     private var minVotes = AppConstants.UserDefaults.Defaults.voteSkipMinVotes
 
+    /// Chat-tally vote window, in seconds.
     @AppStorage(AppConstants.UserDefaults.voteSkipWindowSeconds)
     private var windowSeconds = AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds
 
+    /// Cooldown between chat-tally votes, in seconds.
     @AppStorage(AppConstants.UserDefaults.voteSkipSessionCooldown)
     private var sessionCooldown = AppConstants.UserDefaults.Defaults.voteSkipSessionCooldown
 
+    /// Only subscribers' votes count.
     @AppStorage(AppConstants.UserDefaults.voteSkipSubscriberOnly)
     private var subscriberOnly = false
 
+    /// Use a native Twitch Poll instead of a chat tally (Affiliate/Partner).
+    /// Changes post `voteSkipPollsSettingChanged`.
     @AppStorage(AppConstants.UserDefaults.voteSkipUsePolls)
     private var usePolls = false
 
+    /// Poll length, in seconds.
     @AppStorage(AppConstants.UserDefaults.voteSkipPollDuration)
     private var pollDuration = AppConstants.UserDefaults.Defaults.voteSkipPollDuration
 
+    /// `!voteskip` / `!vs` switch.
     @AppStorage(AppConstants.UserDefaults.voteSkipCommandEnabled)
     private var commandEnabled = true
 
+    /// Comma-separated extra triggers for `!voteskip`.
     @AppStorage(AppConstants.UserDefaults.voteSkipCommandAliases)
     private var commandAliases = ""
 
@@ -387,6 +421,8 @@ fileprivate struct VoteSkipCard: View {
     private static let pollDurationOptions = [30, 60, 90, 120, 180, 300]
     private static let windowOptions = [30, 60, 90, 120]
     private static let cooldownRange: ClosedRange<Double> = 0...120
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -432,6 +468,7 @@ fileprivate struct VoteSkipCard: View {
         }
     }
 
+    /// Section header for the card.
     private var voteSkipHeader: some View {
         SectionHeaderWithStatus(
             title: "Chat Vote-Skip",
@@ -440,6 +477,8 @@ fileprivate struct VoteSkipCard: View {
         )
     }
 
+    /// The settings card; everything below the master switch shows only
+    /// while it is on.
     private var voteSkipCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             ToggleSettingRow(
@@ -560,7 +599,10 @@ fileprivate struct VoteSkipCard: View {
 
 // MARK: - Queue Config
 
+/// Ordering (fair share, Sub/VIP priority), max queue size, and per-role
+/// request limits with how they combine for multi-role viewers.
 fileprivate struct SongRequestQueueConfigCard: View {
+    /// Total queue capacity.
     @AppStorage(AppConstants.UserDefaults.songRequestMaxQueueSize)
     private var maxQueueSize = AppConstants.UserDefaults.Defaults.songRequestMaxQueueSize
 
@@ -575,16 +617,21 @@ fileprivate struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestLimitModerator)
     private var modLimit = 2
 
+    /// How limits combine when a viewer holds several roles.
     @AppStorage(AppConstants.UserDefaults.songRequestLimitStackMode)
     private var stackMode: QueueLimitMode = .highest
 
+    /// Round-robin by requester instead of plain FIFO.
     @AppStorage(AppConstants.UserDefaults.songRequestFairShare)
     private var fairShare = AppConstants.UserDefaults.Defaults.songRequestFairShare
 
+    /// Sub/VIP priority perk.
     @AppStorage(AppConstants.UserDefaults.songRequestPriorityMode)
     private var priorityMode: SongRequestPriorityMode = .off
 
+    /// Allowed per-role limits (picker tags and snap set).
     private let limitOptions = [1, 2, 3, 5, 10, 15, 20]
+    /// Allowed max queue sizes (picker tags and snap set).
     fileprivate static let maxQueueSizeOptions = [5, 10, 15, 20, 25, 50]
 
     /// One labelled per-role limit stepper row.
@@ -716,7 +763,11 @@ fileprivate struct SongRequestQueueConfigCard: View {
 
 // MARK: - Access (Who Can Request)
 
+/// Request policy presets (Open, Sub Only, Channel Point Only, Custom), the
+/// approval-screening switch, the custom `!sr` audience, and a read-only
+/// summary of the paid request paths.
 fileprivate struct SongRequestAccessCard: View {
+    /// `!sr` audience; editable only under the Custom preset.
     @AppStorage(AppConstants.UserDefaults.songRequestChatAudience)
     private var audience: RequestAudience = .everyone
 
@@ -736,6 +787,7 @@ fileprivate struct SongRequestAccessCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestApprovalRequired)
     private var approvalRequired = false
 
+    /// The preset matching the stored settings.
     private var activePreset: SongRequestPreset { SongRequestPreset.current() }
 
     /// Applies a preset and re-evaluates redemption subscriptions (presets flip
@@ -786,6 +838,8 @@ fileprivate struct SongRequestAccessCard: View {
         .accessibilityIdentifier("songRequests.preset.\(preset.rawValue)")
         .accessibilityAddTraits(isActive ? [.isSelected] : [])
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -881,44 +935,66 @@ fileprivate struct SongRequestAccessCard: View {
 
 // MARK: - Redemptions (Channel Points & Bits)
 
+/// The one place channel-point and Bits requests are switched on: reward cost,
+/// reward repair, minimum Bits, and the boost option. Every change asks the
+/// Twitch service to reconcile the managed reward and EventSub subscriptions.
 fileprivate struct SongRequestRedemptionsCard: View {
+    /// Health of the redemption integration (missing scope, wrong account,
+    /// stuck resolution, …) as last reported by the Twitch side; drives the banner.
     @AppStorage(AppConstants.UserDefaults.songRequestRedemptionStatus)
     private var redemptionStatus: RedemptionStatus = .ok
 
+    /// Channel-point requests switch (WolfWave manages the reward).
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsEnabled)
     private var channelPointsEnabled = false
+    /// Reward cost in channel points.
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsCost)
     private var channelPointsCost = AppConstants.UserDefaults.Defaults.songRequestChannelPointsCost
+    /// Display mirror of the managed reward's ID. Shown only; the canonical
+    /// owner record lives in the Twitch service.
     @AppStorage(AppConstants.UserDefaults.songRequestChannelPointsRewardID)
     private var rewardID = ""
 
+    /// Bits requests switch.
     @AppStorage(AppConstants.UserDefaults.songRequestBitsEnabled)
     private var bitsEnabled = false
+    /// Minimum cheer that counts as a request.
     @AppStorage(AppConstants.UserDefaults.songRequestBitsMinimum)
     private var bitsMinimum = AppConstants.UserDefaults.Defaults.songRequestBitsMinimum
 
+    /// Allowed reward costs (picker tags and snap set).
     fileprivate static let channelPointsCostOptions = [100, 250, 500, 1000, 2500, 5000]
+    /// Allowed Bits minimums (picker tags and snap set).
     fileprivate static let bitsMinimumOptions = [1, 50, 100, 200, 500, 1000]
+    /// A cheer boosts the cheerer's queued song instead of adding a new one.
     @AppStorage(AppConstants.UserDefaults.songRequestBitsBoostEnabled)
     private var bitsBoostEnabled = false
 
+    /// Masks the reward ID on camera.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// Presents the Repair Reward confirmation.
     @State private var showRecreateAlert = false
 
+    /// Asks the Twitch service to reconcile the reward and subscriptions with
+    /// the current settings. No-op without a service.
     private func refresh() {
         if let service = AppDelegate.shared?.twitchService {
             Task { await service.refreshRedemptionSubscriptions() }
         }
     }
 
+    /// Repair is a reconcile: the service verifies the reward and recreates it
+    /// only if Twitch no longer has it.
     private func repairReward() {
         // Reconciliation proves the stored broadcaster/reward pair before it
         // pauses, replaces, or forgets anything. Never delete the legacy UI
         // mirror directly; the canonical owner record remains authoritative.
         refresh()
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -1053,16 +1129,23 @@ fileprivate struct SongRequestRedemptionsCard: View {
 
 // MARK: - Playback
 
+/// Hold, auto-advance, autoplay-when-empty, and the fallback playlist.
 fileprivate struct SongRequestPlaybackCard: View {
+    /// Play the next request when a song ends. Changes ask the service to
+    /// start or stop its playback monitor.
     @AppStorage(AppConstants.UserDefaults.songRequestAutoAdvance)
     private var autoAdvance = true
 
+    /// Hand back to Apple Music autoplay when the queue runs dry.
     @AppStorage(AppConstants.UserDefaults.songRequestAutoplayWhenEmpty)
     private var autoplayWhenEmpty = true
 
+    /// Exact Music playlist name to play when the queue is empty; blank = silence.
     @AppStorage(AppConstants.UserDefaults.songRequestFallbackPlaylist)
     private var fallbackPlaylist = ""
 
+    /// Hold mode. Mirrors the queue view's Hold / Resume; changes go through
+    /// `SongRequestService.setHold(_:)`.
     @AppStorage(AppConstants.UserDefaults.songRequestHoldEnabled)
     private var holdEnabled = false
 
@@ -1127,22 +1210,28 @@ fileprivate struct SongRequestPlaybackCard: View {
 
 // MARK: - Commands
 
+/// Per-command switches and aliases for the song-request chat commands, the
+/// `!sr` cooldowns, and the `!playlist` link status.
 fileprivate struct SongRequestCommandsCard: View {
+    // Command switches (all default on except `!playlist`).
     @AppStorage(AppConstants.UserDefaults.srCommandEnabled) private var srCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.queueCommandEnabled) private var queueCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.myQueueCommandEnabled) private var myQueueCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.skipCommandEnabled) private var skipCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.clearQueueCommandEnabled) private var clearQueueCommandEnabled = true
 
+    // Comma-separated extra triggers per command.
     @AppStorage(AppConstants.UserDefaults.srCommandAliases) private var srAliases = ""
     @AppStorage(AppConstants.UserDefaults.queueCommandAliases) private var queueAliases = ""
     @AppStorage(AppConstants.UserDefaults.myQueueCommandAliases) private var myQueueAliases = ""
     @AppStorage(AppConstants.UserDefaults.skipCommandAliases) private var skipAliases = ""
     @AppStorage(AppConstants.UserDefaults.clearQueueCommandAliases) private var clearQueueAliases = ""
 
+    // `!sr` cooldowns, in seconds: channel-wide and per viewer.
     @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
     @AppStorage(AppConstants.UserDefaults.songRequestUserCooldown) private var userCooldown: Double = 30.0
 
+    // `!playlist` switch, aliases, and the public link it shares.
     @AppStorage(AppConstants.UserDefaults.songListCommandEnabled) private var songListCommandEnabled = false
     @AppStorage(AppConstants.UserDefaults.songListCommandAliases) private var songListAliases = ""
     @AppStorage(AppConstants.UserDefaults.songRequestSongListURL) private var songListURL = ""
@@ -1150,6 +1239,8 @@ fileprivate struct SongRequestCommandsCard: View {
     /// Opens the setup sheet's share step so the streamer can (re)configure the
     /// public !playlist link without leaving the pane.
     let onManageLink: () -> Void
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -1263,14 +1354,24 @@ fileprivate struct SongRequestCommandsCard: View {
 
 // MARK: - Blocklist
 
+/// Add / remove / clear blocklist entries (song, artist, or requester).
+/// The list is an `@State` copy of the actor-owned `SongBlocklist`, re-read
+/// after every mutation.
 fileprivate struct SongRequestBlocklistCard: View {
+    /// Resolves the live blocklist on each use, so a service restarted under
+    /// the pane is picked up. `nil` (no service) makes every action a no-op.
     let blocklistProvider: () -> SongBlocklist?
 
+    /// Text being typed for a new entry.
     @State private var blocklistText = ""
+    /// Kind of entry the next Add creates.
     @State private var blocklistType: BlocklistItem.BlockType = .song
+    /// Snapshot of the blocklist for display.
     @State private var blocklist: [BlocklistItem] = []
+    /// Presents the Clear All confirmation.
     @State private var showClearAllAlert = false
 
+    /// Field placeholder for the selected entry type.
     private var blocklistPlaceholder: String {
         switch blocklistType {
         case .song: "Song title..."
@@ -1279,6 +1380,7 @@ fileprivate struct SongRequestBlocklistCard: View {
         }
     }
 
+    /// Row glyph for an entry type.
     private static func blocklistSymbol(for type: BlocklistItem.BlockType) -> String {
         switch type {
         case .song: "music.note"
@@ -1298,6 +1400,8 @@ fileprivate struct SongRequestBlocklistCard: View {
         await provider?.add(item)
         blocklist = await provider?.allEntries ?? []
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {

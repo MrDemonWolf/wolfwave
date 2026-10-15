@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `HintRow` renders with default and custom symbols and multiline text.
 @MainActor
 final class HintRowTests: XCTestCase {
 

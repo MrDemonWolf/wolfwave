@@ -21,41 +21,61 @@ struct SongRequestSetupView: View {
 
     // MARK: - State
 
+    /// Closes the sheet (Cancel, Finish, or "Open Twitch settings").
     @Environment(\.dismiss) private var dismiss
 
+    /// Step state and the Next gate. Created once per sheet presentation.
     @State private var viewModel: SongRequestSetupViewModel
+    /// Jumps the settings shell to the Twitch pane; called after dismissing.
     var openTwitchSettings: () -> Void
 
+    /// MusicKit authorization, mirrored into `viewModel.musicAuthorized`.
+    /// Re-read on appear and whenever the app becomes active.
     @State private var musicAuthStatus: MusicAuthorization.Status = MusicAuthorization.currentStatus
+    /// True while the MusicKit permission prompt is up.
     @State private var isRequestingMusicAuth = false
 
+    /// Creates the requests playlist and resolves its share link (MusicKit).
     @State private var libraryService = AppleMusicLibraryService()
+    /// Talks to Music.app (AppleScript) to check local visibility and reveal
+    /// the playlist.
     @State private var musicController = AppleMusicController()
 
+    /// True while `ensurePlaylist()` runs.
     @State private var ensuringPlaylist = false
+    /// Shown with a Try Again button when playlist creation failed.
     @State private var playlistError: String?
     /// Whether Music.app can actually see the playlist WolfWave just created in
     /// the cloud library. Surfaced here because the cloud create succeeding is
     /// not the same thing as playback being able to find it.
     @State private var playlistLocalVisibility: PlaylistLocalVisibility = .unknown
 
+    /// Result line under the share steps after "Fetch link".
     @State private var fetchStatus: String?
 
+    /// Edge the next step slides in from: trailing for Next, leading for Back.
     @State private var navigationDirection: Edge = .trailing
 
+    /// Public playlist link for `!playlist`. Bound straight to the field, so it
+    /// persists as typed; the Next button blocks an invalid value.
     @AppStorage(AppConstants.UserDefaults.songRequestSongListURL)
     private var songListURL = ""
+    /// `!playlist` switch, turned on when a link is fetched.
     @AppStorage(AppConstants.UserDefaults.songListCommandEnabled)
     private var songListCommandEnabled = false
 
+    /// Step transitions become a plain fade under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The running app delegate (`nil` in previews); source of the Twitch service.
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     // MARK: - Init
 
-    /// - Parameter startAt: Step to open on. `.intro` for a fresh setup, or
-    ///   `.shareLink` when launched from the "Re-share Playlist" banner.
+    /// - Parameters:
+    ///   - startAt: Step to open on. `.intro` for a fresh setup, or
+    ///     `.shareLink` when launched from the "Re-share Playlist" banner.
+    ///   - openTwitchSettings: Navigates to the Twitch pane.
     init(startAt: SongRequestSetupViewModel.Step = .intro, openTwitchSettings: @escaping () -> Void = {}) {
         _viewModel = State(initialValue: SongRequestSetupViewModel(startAt: startAt))
         self.openTwitchSettings = openTwitchSettings
@@ -109,6 +129,8 @@ struct SongRequestSetupView: View {
 
     // MARK: - Progress Dots
 
+    /// One dot per step (current one enlarged) plus "Step N of M · title".
+    /// Read by VoiceOver as a single "Setup progress" element.
     private var progressDots: some View {
         VStack(spacing: DSSpace.s2) {
             HStack(spacing: DSSpace.s2) {
@@ -137,6 +159,8 @@ struct SongRequestSetupView: View {
 
     // MARK: - Step Content
 
+    /// The current step's view, re-identified per step so it slides in the
+    /// direction of travel.
     @ViewBuilder
     private var stepContent: some View {
         Group {
@@ -160,6 +184,7 @@ struct SongRequestSetupView: View {
 
     // MARK: Step 1 - Intro
 
+    /// Explains the feature; offers a jump to Twitch settings until connected.
     private var introStep: some View {
         OnboardingStepScaffold(
             title: "Set up Song Requests",
@@ -197,6 +222,8 @@ struct SongRequestSetupView: View {
 
     // MARK: Step 2 - Apple Music access
 
+    /// MusicKit authorization: grant button, or the matching granted /
+    /// denied / restricted message.
     private var appleMusicStep: some View {
         OnboardingStepScaffold(
             title: "Allow Apple Music access",
@@ -246,6 +273,8 @@ struct SongRequestSetupView: View {
 
     // MARK: Step 3 - Requests playlist
 
+    /// Creates the playlist on entry (see `.task(id:)` in `body`) and reports
+    /// progress, success, a local-visibility warning, or a retryable error.
     private var playlistStep: some View {
         OnboardingStepScaffold(
             title: "Create your requests playlist",
@@ -292,6 +321,8 @@ struct SongRequestSetupView: View {
 
     // MARK: Step 4 - Optional share link
 
+    /// Three-step guide to making the playlist public, a fetch button, and a
+    /// paste-your-own field. Blank skips; an invalid link blocks Next.
     private var shareLinkStep: some View {
         OnboardingStepScaffold(
             title: "Share your playlist",
@@ -352,6 +383,7 @@ struct SongRequestSetupView: View {
 
     // MARK: Step 5 - Done
 
+    /// Recap of each step's outcome before the finish button.
     private var doneStep: some View {
         OnboardingStepScaffold(
             title: "You're all set",
@@ -412,6 +444,8 @@ struct SongRequestSetupView: View {
 
     // MARK: - Navigation Bar
 
+    /// Cancel, Back (hidden on the first step), and Next / Skip or the final
+    /// "Turn On Song Requests", which calls `viewModel.complete()`.
     private var navigationBar: some View {
         HStack(spacing: DSSpace.s2) {
             Button("Cancel") { dismiss() }
@@ -470,6 +504,7 @@ struct SongRequestSetupView: View {
 
     // MARK: - Shared bits
 
+    /// Apple Music gradient tile used by the access and playlist steps.
     private var appleMusicTile: some View {
         BrandTile(
             background: AnyShapeStyle(
@@ -508,15 +543,20 @@ struct SongRequestSetupView: View {
 
     // MARK: - Actions
 
+    /// Seeds the Twitch gate from the live service (notifications keep it
+    /// current afterwards).
     private func refreshTwitchState() {
         viewModel.isTwitchConnected = appDelegate?.twitchService?.currentlyConnected ?? false
     }
 
+    /// Records a MusicKit status and updates the step gate.
     private func syncAuth(_ status: MusicAuthorization.Status) {
         musicAuthStatus = status
         viewModel.musicAuthorized = status == .authorized
     }
 
+    /// Shows the MusicKit prompt, then re-reads the status (the prompt's own
+    /// return value is ignored in favor of `currentStatus`).
     private func requestMusicAuth() {
         isRequestingMusicAuth = true
         Task {

@@ -44,15 +44,30 @@ actor WebSocketServerService {
     /// 16 KiB leaves generous protocol headroom without permitting an
     /// authenticated peer to force an unbounded fragmented-message allocation.
     nonisolated static let maximumInboundMessageSize = 16 * 1024
+    /// Cap on accepted-but-unauthenticated connections from all peers.
     nonisolated static let maximumPendingConnectionCount = 16
+    /// Cap on pending connections from non-loopback peers. Lower than the
+    /// overall cap so the LAN can never fill every handshake slot.
     nonisolated static let maximumRemotePendingConnectionCount = 12
+    /// Pending connections allowed per LAN host (`WebSocketAuthToken.peerKey`).
     nonisolated static let maximumPendingConnectionsPerRemotePeer = 2
+    /// Cap on active plus pending connections.
     nonisolated static let maximumConnectionCount = 64
+    /// Active-connection cap for non-loopback peers. The 4 slots held back are
+    /// reserved for same-Mac clients (OBS, Stream Deck).
     nonisolated static let maximumRemoteConnectionCount = maximumConnectionCount - 4
+    /// How long an accepted TCP peer has to finish the authenticated WebSocket
+    /// handshake (reach `.ready`) before it is cancelled.
     private static let handshakeTimeout: Duration = .seconds(10)
 
     // MARK: - Types
 
+    /// Listener lifecycle. Raw values are posted in the server-state
+    /// notification (`postWebSocketServerState`).
+    ///
+    /// `.error` means the listener could not be created or failed; a retry is
+    /// scheduled after `AppConstants.WebSocketServer.retryDelay` while enabled
+    /// (an invalid port goes to `.error` without a retry).
     enum ServerState: String, Sendable {
         case stopped, starting, listening, error
     }
@@ -69,9 +84,14 @@ actor WebSocketServerService {
     // MARK: - Nonisolated Snapshot
 
     /// Protects the snapshot variables read from outside the actor.
+    /// Writes happen only from the actor (`write*Snapshot`); reads may come
+    /// from any thread through the `nonisolated` accessors below.
     private nonisolated let snapshotLock = NSLock()
+    /// Mirror of the actor's lifecycle state; guarded by `snapshotLock`.
     nonisolated(unsafe) private var _stateSnapshot: ServerState = .stopped
+    /// Mirror of `connections.count`; guarded by `snapshotLock`.
     nonisolated(unsafe) private var _connectionCountSnapshot: Int = 0
+    /// Mirror of `isOverlayVisible`; guarded by `snapshotLock`.
     nonisolated(unsafe) private var _overlayVisibleSnapshot = true
 
     /// Latest server state, safe to read synchronously from any thread.
@@ -90,14 +110,18 @@ actor WebSocketServerService {
         snapshotLock.withLock { _overlayVisibleSnapshot }
     }
 
+    /// Publishes `newState` to the snapshot. Prefer `transition(to:)`, which
+    /// also notifies observers.
     private func writeStateSnapshot(_ newState: ServerState) {
         snapshotLock.withLock { _stateSnapshot = newState }
     }
 
+    /// Publishes the authenticated client count to the snapshot.
     private func writeConnectionCountSnapshot(_ count: Int) {
         snapshotLock.withLock { _connectionCountSnapshot = count }
     }
 
+    /// Publishes overlay-card visibility to the snapshot.
     private func writeOverlayVisibleSnapshot(_ visible: Bool) {
         snapshotLock.withLock { _overlayVisibleSnapshot = visible }
     }
@@ -106,11 +130,16 @@ actor WebSocketServerService {
 
     /// Replaces the legacy `onStateChange` callback. Consumers iterate
     /// `for await (state, clientCount) in service.stateChanges`.
+    ///
+    /// Single-consumer (an `AsyncStream` delivers each element to one
+    /// iterator). Buffers the newest 64 events and finishes in `deinit`.
     nonisolated let stateChanges: AsyncStream<(ServerState, Int)>
+    /// Producer side of `stateChanges`; yielded to by `notifyStateChange()`.
     private nonisolated let stateContinuation: AsyncStream<(ServerState, Int)>.Continuation
 
-    /// Number of currently-connected overlay clients. Safe to call from any
-    /// thread. Used by the tray menu's "Stream Widgets" status subtitle.
+    /// Number of currently-connected authenticated clients (overlay and
+    /// control alike). Safe to call from any thread. Used by the tray menu's
+    /// "Stream Widgets" status subtitle.
     nonisolated var connectedClientCount: Int { connectionCount }
 
     /// The port the listener actually bound, or `nil` before it binds. Differs
@@ -123,6 +152,7 @@ actor WebSocketServerService {
 
     // MARK: - Properties
 
+    /// WebSocket port. `0` asks the kernel for an ephemeral port (tests).
     private var port: UInt16
     /// Read-only credential used by OBS widgets and other state consumers.
     /// `nil` only in lifecycle tests that construct the legacy initializer.
@@ -130,7 +160,10 @@ actor WebSocketServerService {
     /// Privileged credential used by same-Mac Stream Deck clients.
     /// `nil` only in lifecycle tests that construct the legacy initializer.
     private var controlToken: String?
+    /// The active listener, or `nil` while stopped or between retries.
     private var listener: NWListener?
+    /// Authenticated clients that reached `.ready` and passed the role checks.
+    /// Every broadcast fans out over this list (or a role-filtered subset).
     private var connections: [NWConnection] = []
     /// The authenticated role of each entry in ``connections``.
     ///
@@ -142,16 +175,29 @@ actor WebSocketServerService {
     /// Accepted TCP peers that have not completed the authenticated WebSocket
     /// handshake. They are capped, timed out, and owned across listener stop.
     private var pendingConnections: [NWConnection] = []
+    /// One `handshakeTimeout` task per pending connection, cancelled when the
+    /// connection is promoted or removed.
     private var handshakeTimeoutTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    /// Bumped on every start, stop, and listener failure. Network.framework
+    /// callbacks capture the value they were wired under and are ignored (or
+    /// cancel their connection) once it no longer matches, so a late event
+    /// from a torn-down listener can't touch the current one.
     private var listenerGeneration: UInt64 = 0
     /// Dispatch queue used only for Network.framework callbacks. All state is actor-confined.
     private nonisolated let networkQueue = DispatchQueue(
         label: AppConstants.DispatchQueues.websocketServer,
         qos: .utility
     )
+    /// The user's on/off intent from `setEnabled(_:)`. Gates retries and the
+    /// progress timer independently of whether a listener is currently up.
     private var isEnabled = false
+    /// The companion HTTP server for `widget.html`, owned by this actor. It is
+    /// started and stopped with the listener and rebuilt on every start, so a
+    /// rotated overlay token reaches the served HTML.
     private var widgetHTTP: WidgetHTTPService?
+    /// Port `widgetHTTP` was started on, or `nil` when it is not running.
     private var widgetHTTPPort: UInt16?
+    /// Pending listener restart after a failure; cancelled by `stopServer()`.
     private var retryTask: Task<Void, Never>?
 
     /// Handler invoked for each inbound Stream Deck command, returning the ack to
@@ -162,16 +208,27 @@ actor WebSocketServerService {
 
     // MARK: - Playback State
 
+    // Last-known track, replayed to new clients. `nil` track fields mean
+    // nothing is loaded (initial state, or after `clearNowPlaying()`).
     private var currentTrack: String?
     private var currentArtist: String?
     private var currentAlbum: String?
+    /// Track length in seconds; `0` when unknown or cleared.
     private var currentDuration: TimeInterval = 0
+    /// Elapsed seconds as of `lastElapsedUpdate`; see `estimatedElapsed()`.
     private var currentElapsed: TimeInterval = 0
+    /// `false` while paused or stopped.
     private var isPlaying = false
+    /// Whether overlay clients may render the playback card. Toggled by the
+    /// Stream Deck `overlay_toggle` key; it never stops the transport.
     private var isOverlayVisible = true
+    /// Artwork for the current track; `nil` until its async lookup lands.
     private var currentArtworkURL: String?
+    /// Wall-clock time `currentElapsed` was last set, for interpolation.
     private var lastElapsedUpdate: Date?
+    /// The running progress loop, or `nil` when `shouldRunProgressTimer` is false.
     private var progressTask: Task<Void, Never>?
+    /// Seconds between `progress` frames.
     private var currentProgressInterval: TimeInterval = AppConstants.WebSocketServer.progressBroadcastInterval
 
     /// Last-broadcast upcoming-queue snapshot, replayed to freshly-connected
@@ -183,6 +240,9 @@ actor WebSocketServerService {
 
     // MARK: - Init
 
+    /// Legacy credential-less initializer for lifecycle tests. With no tokens,
+    /// every handshake is accepted as the read-only overlay role and no client
+    /// can run commands.
     init(port: UInt16 = AppConstants.WebSocketServer.defaultPort) {
         self.port = port
         self.overlayToken = nil
@@ -195,6 +255,10 @@ actor WebSocketServerService {
     }
 
     /// Production initializer. Enforces role-specific credentials on every handshake.
+    ///
+    /// The service starts stopped; call `setEnabled(true)` to bind. Callers are
+    /// expected to pass two different tokens (AppDelegate rotates the control
+    /// token if they collide); equal tokens only ever authenticate as overlay.
     init(port: UInt16, overlayToken: String, controlToken: String) {
         self.port = port
         self.overlayToken = overlayToken
@@ -209,7 +273,7 @@ actor WebSocketServerService {
     deinit {
         // Cancel the NWListener and all open NWConnections before the actor is
         // deallocated. Not calling these would leave the OS-level socket open
-        // until the next GC pass, and active NWConnections would retain their
+        // until Network.framework released it, and active NWConnections would retain their
         // send/receive closures (keeping the object graph alive longer than
         // expected). `stateContinuation.finish()` must come last so any
         // consumer still iterating `stateChanges` sees the stream end.
@@ -232,6 +296,9 @@ actor WebSocketServerService {
     // MARK: - Public API
 
     /// Starts or stops the server based on the given flag.
+    ///
+    /// Enabling is idempotent while a listener exists. Disabling also cancels
+    /// any pending retry and drops every client.
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         if enabled {
@@ -248,6 +315,10 @@ actor WebSocketServerService {
     }
 
     /// Starts or stops the widget HTTP server independently.
+    ///
+    /// Enabling is a no-op unless the WebSocket listener is `.listening`; in
+    /// that case `startServer()` picks up `FeatureFlags.widgetHTTPEnabled` on
+    /// the next start instead.
     func setWidgetHTTPEnabled(_ enabled: Bool) {
         if enabled {
             // Only start if WebSocket server is listening and HTTP isn't already running
@@ -267,6 +338,8 @@ actor WebSocketServerService {
 
     /// Restarts only the widget HTTP listener when its configured port changes.
     /// The WebSocket listener and connected OBS/Stream Deck clients stay intact.
+    /// Out-of-range ports are ignored. If the widget server wasn't running, or
+    /// the WebSocket server isn't `.listening`, it stays down.
     func updateWidgetPort(_ newPort: UInt16) {
         guard newPort >= AppConstants.WebSocketServer.minPort,
               newPort <= AppConstants.WebSocketServer.maxPort else { return }
@@ -303,6 +376,9 @@ actor WebSocketServerService {
         restartIfListening()
     }
 
+    /// Stops and restarts the listener (if one exists) so new credentials take
+    /// effect and every client re-authenticates. `startServer()` also rebuilds
+    /// `widgetHTTP`, so the served HTML picks up the new overlay token.
     private func restartIfListening() {
         guard listener != nil else { return }
         stopServer()
@@ -311,7 +387,9 @@ actor WebSocketServerService {
 
     /// Changes the listening port. Restarts the server if it was already running
     /// or still starting (a port change during `.starting` would otherwise bind
-    /// the old port and silently ignore the new value).
+    /// the old port and silently ignore the new value). Out-of-range ports are
+    /// ignored. Note a server in `.error` awaiting retry has no listener, so it
+    /// just picks up the new port on the retry.
     func updatePort(_ newPort: UInt16) {
         guard newPort >= AppConstants.WebSocketServer.minPort,
               newPort <= AppConstants.WebSocketServer.maxPort else { return }
@@ -403,12 +481,17 @@ actor WebSocketServerService {
 
     /// Toggles only playback-card visibility while leaving the authenticated
     /// WebSocket transport alive for Stream Deck commands and acknowledgements.
+    ///
+    /// - Returns: The new visibility.
     @discardableResult
     func toggleOverlayVisibility() -> Bool {
         setOverlayVisibility(!isOverlayVisible)
         return isOverlayVisible
     }
 
+    /// Sets playback-card visibility and broadcasts an `overlay_visibility`
+    /// frame. On show, it replays the current state to every client so the
+    /// card repaints immediately instead of waiting for the next track event.
     func setOverlayVisibility(_ visible: Bool) {
         guard visible != isOverlayVisible else { return }
         isOverlayVisible = visible
@@ -487,11 +570,14 @@ actor WebSocketServerService {
         broadcastJSON(queueUpcomingPayload())
     }
 
+    /// Replays the cached `queue_upcoming` snapshot to one new client.
     private func sendQueueUpcoming(to connection: NWConnection) {
         Self.sendJSON(queueUpcomingPayload(), to: connection)
     }
 
     /// Broadcasts aggregate connection health for a Stream Deck status key.
+    /// Not cached or replayed on connect; the caller re-broadcasts on change.
+    /// Shape is mirrored by `HealthData` in the plugin's `protocol.ts`.
     func broadcastHealth(
         music: Bool, twitch: Bool, discord: Bool, discordState: String, overlay: Bool
     ) {
@@ -517,7 +603,8 @@ actor WebSocketServerService {
 
     /// Updates the progress broadcast interval and restarts the timer if currently broadcasting.
     ///
-    /// - Parameter interval: New broadcast interval in seconds.
+    /// - Parameter interval: New broadcast interval in seconds. Not validated;
+    ///   the caller supplies a sane positive value.
     func updateProgressInterval(_ interval: TimeInterval) {
         currentProgressInterval = interval
         if progressTask != nil {
@@ -548,6 +635,9 @@ actor WebSocketServerService {
 
     // MARK: - Server Lifecycle
 
+    /// TCP parameters with keepalive (30 s idle, then 3 probes 10 s apart) so a
+    /// peer that vanished without a FIN (sleeping laptop, unplugged OBS box)
+    /// is detected in about a minute instead of lingering as a client.
     nonisolated static func makeTCPParameters() -> NWParameters {
         let tcp = NWProtocolTCP.Options()
         tcp.enableKeepalive = true
@@ -557,6 +647,11 @@ actor WebSocketServerService {
         return NWParameters(tls: nil, tcp: tcp)
     }
 
+    /// Runs an authorized command through the installed handler.
+    ///
+    /// Authorization (control role, loopback peer) is checked by
+    /// `receiveMessage` before this is reached; this only dispatches.
+    /// - Returns: The handler's ack, or `"unavailable"` when none is installed.
     func executeCommand(_ command: StreamDeckCommand) async -> CommandAck {
         guard let onCommand else { return .failure(command.action.rawValue, "unavailable") }
         return await onCommand(command)
@@ -580,6 +675,9 @@ actor WebSocketServerService {
 
         // Resolve an explicit role during the handshake. The selected
         // subprotocol is validated again when the connection becomes ready.
+        // The tokens are captured by value: this handler runs on `networkQueue`
+        // and cannot read actor state, and a token change restarts the
+        // listener anyway.
         let expectedOverlayToken = overlayToken
         let expectedControlToken = controlToken
         wsOptions.setClientRequestHandler(networkQueue) { subprotocols, _ in
@@ -589,6 +687,8 @@ actor WebSocketServerService {
                 offeredSubprotocols: subprotocols
             )
             if let role {
+                // Echo back the exact credential that matched. The `?? first`
+                // branch is only reachable with no tokens (legacy test init).
                 let token = role == .overlay ? expectedOverlayToken : expectedControlToken
                 let selected = token.map {
                     WebSocketAuthToken.expectedSubprotocol(for: $0, role: role)
@@ -646,6 +746,8 @@ actor WebSocketServerService {
 
         listener?.start(queue: networkQueue)
 
+        // The widget server starts alongside the listener, before it reports
+        // `.listening`; it has its own bind and retry handling.
         if FeatureFlags.widgetHTTPEnabled {
             let resolvedPort = Preferences.resolvedWidgetPort
             widgetHTTPPort = resolvedPort
@@ -655,6 +757,9 @@ actor WebSocketServerService {
     }
 
     /// Handles `NWListener.stateUpdateHandler` transitions inside the actor.
+    ///
+    /// On `.failed` this tears down like `stopServer()` (widget server, progress
+    /// timer, every client) but ends in `.error` and schedules a retry.
     private func handleListenerState(
         _ newState: NWListener.State,
         generation: UInt64
@@ -730,6 +835,8 @@ actor WebSocketServerService {
         }
     }
 
+    /// Retry body: restarts only if still enabled and nothing else already
+    /// brought a listener up in the meantime.
     private func attemptRetry() {
         guard isEnabled, listener == nil else { return }
         startServer()
@@ -737,9 +844,10 @@ actor WebSocketServerService {
 
     // MARK: - Connection Handling
 
-    /// Wires the per-connection state callback. On `.ready`, records the
-    /// connection and sends a welcome + current state + widget config snapshot.
-    /// On failure or cancellation, removes the connection from the active set.
+    /// Admits a freshly accepted TCP peer as *pending*: checks the admission
+    /// limits (`shouldAcceptNewConnection`), arms the handshake timeout, and
+    /// wires the state callback that `handleConnectionState` acts on.
+    /// Refused or stale-generation peers are cancelled immediately.
     private func handleNewConnection(
         _ connection: NWConnection,
         listenerGeneration generation: UInt64
@@ -792,6 +900,14 @@ actor WebSocketServerService {
         connection.start(queue: networkQueue)
     }
 
+    /// Drives one connection through its lifecycle.
+    ///
+    /// On `.ready` the gates run in order: still pending (not already promoted
+    /// or expired), selected subprotocol re-validated to a role, control role
+    /// only from loopback, server still `.listening`. A connection that passes
+    /// joins `connections` and gets the connect snapshot: `welcome`,
+    /// `widget_config`, `overlay_visibility`, `queue_upcoming`, then the current
+    /// playback state. On failure or cancellation it is removed.
     private func handleConnectionState(
         _ connection: NWConnection,
         state: NWConnection.State,
@@ -876,7 +992,10 @@ actor WebSocketServerService {
         }
     }
 
-    /// Drops `connection` from the active set and broadcasts the new count.
+    /// Drops `connection` from the pending and active sets, cancels its
+    /// handshake timeout, and detaches its state handler. Notifies observers
+    /// and reconciles the progress timer only when the active count changed.
+    /// Does not cancel the connection; callers do that when needed.
     private func removeConnection(_ connection: NWConnection) {
         let previousActiveCount = connections.count
         handshakeTimeoutTasks.removeValue(forKey: ObjectIdentifier(connection))?.cancel()
@@ -893,6 +1012,10 @@ actor WebSocketServerService {
         reconcileProgressTimer()
     }
 
+    /// Cancels every active and pending connection and clears all per-connection
+    /// bookkeeping. Handlers are detached first so the resulting `.cancelled`
+    /// events don't re-enter the actor. Does not notify observers; callers
+    /// follow with `transition(to:)`.
     private func cancelOwnedConnections() {
         let ownedConnections = connections + pendingConnections
         let timeoutTasks = Array(handshakeTimeoutTasks.values)
@@ -909,6 +1032,10 @@ actor WebSocketServerService {
         }
     }
 
+    /// Moves `connection` out of the pending set and cancels its handshake
+    /// timeout.
+    /// - Returns: `false` if it was not pending (already expired or removed),
+    ///   in which case the caller must drop it.
     private func promotePendingConnection(_ connection: NWConnection) -> Bool {
         guard let index = pendingConnections.firstIndex(where: { $0 === connection }) else {
             return false
@@ -918,6 +1045,8 @@ actor WebSocketServerService {
         return true
     }
 
+    /// Handshake-timeout body: cancels `connection` if it is still pending in
+    /// the same listener generation.
     private func expirePendingConnection(
         _ connection: NWConnection,
         listenerGeneration generation: UInt64
@@ -928,6 +1057,13 @@ actor WebSocketServerService {
         connection.cancel()
     }
 
+    /// Admission policy for a new TCP peer. Pure, so tests can pin it.
+    ///
+    /// Every peer is bounded by the global pending cap and by
+    /// `maximumConnectionCount` across active plus pending. Non-loopback peers
+    /// also face the remote pending cap, the per-host pending cap, and the
+    /// remote active cap, which together keep a few slots free for same-Mac
+    /// clients. Negative inputs refuse.
     nonisolated static func shouldAcceptNewConnection(
         activeCount: Int,
         pendingCount: Int,
@@ -949,6 +1085,9 @@ actor WebSocketServerService {
     }
 
     /// Pure authorization seams shared by the ready-state gate and tests.
+    ///
+    /// Overlay clients may connect from anywhere; control clients only from a
+    /// literal loopback IP.
     nonisolated static func allowsConnection(
         role: WebSocketAuthToken.Role,
         isLoopback: Bool
@@ -956,6 +1095,9 @@ actor WebSocketServerService {
         role == .overlay || isLoopback
     }
 
+    /// Whether a connection may run Stream Deck commands: control role from a
+    /// loopback peer only. Rechecked per frame even though `allowsConnection`
+    /// already refused non-loopback control peers, as defense in depth.
     nonisolated static func allowsCommands(role: WebSocketAuthToken.Role, isLoopback: Bool) -> Bool {
         role == .control && isLoopback
     }
@@ -1036,14 +1178,17 @@ actor WebSocketServerService {
         Self.sendJSON(widgetConfigPayload(), to: connection)
     }
 
+    /// Builds the `overlay_visibility` frame (`data.visible`).
     private func overlayVisibilityPayload() -> [String: Any] {
         ["type": "overlay_visibility", "data": ["visible": isOverlayVisible]]
     }
 
+    /// Sends the current overlay visibility to one new client.
     private func sendOverlayVisibility(to connection: NWConnection) {
         Self.sendJSON(overlayVisibilityPayload(), to: connection)
     }
 
+    /// Broadcasts the current overlay visibility to every client.
     private func broadcastOverlayVisibility() {
         broadcastJSON(overlayVisibilityPayload())
     }
@@ -1124,8 +1269,11 @@ actor WebSocketServerService {
         connections.count { connectionRoles[ObjectIdentifier($0)] != .control }
     }
 
-    /// Sends a lightweight `playback_state` (play/pause) update to every
-    /// connected client. Used when only the playing flag changes.
+    /// Sends a lightweight `playback_state` update to every connected client.
+    /// Used by `clearNowPlaying()` (empty track, `isPlaying: false`) and when
+    /// the overlay is re-shown with no track loaded. Pause/resume of a loaded
+    /// track goes out as `now_playing` instead. Not narrowed by overlay
+    /// visibility.
     private func broadcastPlaybackState() {
         broadcastJSON([
             "type": "playback_state",
@@ -1160,7 +1308,9 @@ actor WebSocketServerService {
         ])
     }
 
-    /// Interpolates elapsed time using the wall clock.
+    /// Interpolates elapsed time using the wall clock: `currentElapsed` plus
+    /// time since `lastElapsedUpdate` while playing, clamped to the duration.
+    /// Returns `currentElapsed` unchanged when paused.
     private func estimatedElapsed() -> TimeInterval {
         guard let lastUpdate = lastElapsedUpdate, isPlaying else { return currentElapsed }
         return min(currentElapsed + Date().timeIntervalSince(lastUpdate), currentDuration)
@@ -1169,6 +1319,10 @@ actor WebSocketServerService {
     // MARK: - Progress Timer
 
     /// Pure policy shared by every progress-loop entry point and regression tests.
+    ///
+    /// The timer runs only while enabled, visible, playing a track with a
+    /// finite positive duration, and serving at least one client.
+    /// `connectionCount` should count overlay clients only.
     nonisolated static func shouldRunProgressTimer(
         isEnabled: Bool,
         isOverlayVisible: Bool,
@@ -1296,6 +1450,8 @@ actor WebSocketServerService {
         notifyStateChange()
     }
 
+    /// Yields the current snapshot (state, client count) onto `stateChanges`
+    /// and posts the server-state notification on the main actor.
     private func notifyStateChange() {
         let currentState = state
         let count = connectionCount

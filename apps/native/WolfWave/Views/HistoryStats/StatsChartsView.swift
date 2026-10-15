@@ -16,6 +16,7 @@ import Charts
 /// by-hour chart in a `ResponsiveRow` (two columns when wide, stacked when not).
 struct WeekChartCard: View {
 
+    /// Source of `last7Days` (oldest first, one entry per calendar day).
     let snapshot: StatsSnapshot
 
     var body: some View {
@@ -63,9 +64,12 @@ struct WeekChartCard: View {
 
 // MARK: - Hour Chart Card
 
-/// A standalone card showing the listening-by-hour breakdown.
+/// A standalone card showing the listening-by-hour breakdown: one bar per
+/// local hour, 0 through 23. The X domain is padded by half an hour on each
+/// side so the first and last bars aren't clipped.
 struct HourChartCard: View {
 
+    /// Source of `playsByHour` (expected 24 entries, index = local hour).
     let snapshot: StatsSnapshot
 
     var body: some View {
@@ -142,9 +146,10 @@ struct HourChartCard: View {
 ///
 /// The History & Stats pane now places `WeekChartCard` and `HourChartCard`
 /// side by side via `ResponsiveRow`; this combined view is retained for
-/// previews and any single-column caller.
+/// previews and any single-column caller. (No production caller today.)
 struct StatsChartsView: View {
 
+    /// Rollup passed through to both cards.
     let snapshot: StatsSnapshot
 
     var body: some View {

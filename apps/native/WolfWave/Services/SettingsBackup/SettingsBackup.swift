@@ -68,6 +68,9 @@ nonisolated struct SettingsBackup: Codable, Equatable {
 /// can decode as `Int`). Tagging the type keeps an export → import round trip
 /// lossless. `BackupValue.make(from:)` does the one tricky job, telling a
 /// boolean `NSNumber` apart from a numeric one.
+///
+/// Wire shape: `{"type": "bool" | "int" | "double" | "string" | "data", "value": …}`.
+/// `data` values are base64 strings (the default `JSONEncoder` data strategy).
 nonisolated enum BackupValue: Codable, Equatable {
     case bool(Bool)
     case int(Int)
@@ -75,11 +78,13 @@ nonisolated enum BackupValue: Codable, Equatable {
     case string(String)
     case data(Data)
 
+    /// JSON keys of the tagged object.
     private enum CodingKeys: String, CodingKey {
         case type
         case value
     }
 
+    /// The `type` tag. Raw values are part of the file format; do not rename.
     private enum ValueType: String, Codable {
         case bool, int, double, string, data
     }
@@ -125,6 +130,10 @@ nonisolated enum BackupValue: Codable, Equatable {
 
     // MARK: Codable
 
+    /// Decodes a tagged value, reading `value` as the type `type` names.
+    ///
+    /// - Throws: `DecodingError` for an unknown tag or a `value` that does not
+    ///   match it (for example `"type": "int"` with `"value": "abc"`).
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(ValueType.self, forKey: .type)
@@ -137,6 +146,7 @@ nonisolated enum BackupValue: Codable, Equatable {
         }
     }
 
+    /// Encodes the value as a `{type, value}` object.
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {

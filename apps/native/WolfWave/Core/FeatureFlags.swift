@@ -10,18 +10,28 @@ import Foundation
 
 /// Typed accessors for the boolean feature toggles persisted in `UserDefaults`.
 ///
-/// Centralizes the repeated `UserDefaults.standard.bool(forKey: AppConstants.UserDefaults.…)`
-/// pattern so default semantics are defined once. Adding a new toggle means adding
+/// Centralizes the repeated `bool(forKey: AppConstants.UserDefaults.…)` pattern
+/// so default semantics are defined once. Adding a new toggle means adding
 /// one computed property here rather than hunting for every read site.
+///
+/// Every read goes through ``DefaultsStore/store``, never `UserDefaults.standard`,
+/// so a hosted test or UI-test launch reads its isolated suite. Plain
+/// `defaults.bool` reads report `false` for a key that was never written; a flag
+/// whose default is `true` must go through `Preferences.bool(_:default:)` instead.
+/// `@AppStorage` bindings in the views write the same keys directly.
 nonisolated enum FeatureFlags {
+    /// The one `UserDefaults` every flag reads.
     private static var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     // MARK: Integrations
 
+    /// Discord Rich Presence preference. Default `false`. This is the stored
+    /// setting, not whether the IPC socket is actually connected.
     static var discordEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
     }
 
+    /// The shared overlay / Stream Deck WebSocket server switch. Default `false`.
     static var websocketEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.websocketEnabled)
     }
@@ -59,8 +69,9 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.discordClearWhilePaused)
     }
 
-    /// Reads as `Bool?` first to distinguish "never set" from "explicitly false",
-    /// matching the original mixed-cast behavior in `AppDelegate+Services`.
+    /// The static widget HTTP server (serves `widget.html`). Default `false`.
+    /// Read through `Preferences.bool` for consistency with the other
+    /// defaulted flags; with a `false` default it behaves like `defaults.bool`.
     static var widgetHTTPEnabled: Bool {
         Preferences.bool(AppConstants.UserDefaults.widgetHTTPEnabled, default: false)
     }
@@ -83,12 +94,15 @@ nonisolated enum FeatureFlags {
         Preferences.bool(AppConstants.UserDefaults.trackingEnabled, default: true)
     }
 
+    /// Opt-in on-device listening history (play log + History & Stats). Default `false`.
     static var listeningHistoryEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.listeningHistoryEnabled)
     }
 
     // MARK: Song request
 
+    /// Master switch for song requests from chat, channel points, and Bits.
+    /// Default `false`.
     static var songRequestEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.songRequestEnabled)
     }
@@ -99,10 +113,12 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
     }
 
+    /// Whether `!song` / `!last` replies append a song.link URL. Default `false`.
     static var songCommandSongLinkEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled)
     }
 
+    /// Opt-in macOS banner on every track change. Default `false`.
     static var songChangeNotificationsEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.songChangeNotificationsEnabled)
     }
@@ -112,16 +128,20 @@ nonisolated enum FeatureFlags {
         defaults.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled)
     }
 
+    /// Banner when a chat skip vote starts. Only honored while ``voteSkipEnabled`` is on.
     static var skipVoteStartedNotificationsEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.skipVoteStartedNotificationsEnabled)
     }
 
+    /// Banner when a chat skip vote passes. Only honored while ``voteSkipEnabled`` is on.
     static var skipVotePassedNotificationsEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.skipVotePassedNotificationsEnabled)
     }
 
     // MARK: UI
 
+    /// Streamer Mode: masks sensitive values on screen. UI-only; never changes
+    /// what services send. Default `false`.
     static var streamerModeEnabled: Bool {
         defaults.bool(forKey: AppConstants.UserDefaults.streamerModeEnabled)
     }

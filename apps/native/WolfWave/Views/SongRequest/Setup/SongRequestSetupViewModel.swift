@@ -25,11 +25,17 @@ final class SongRequestSetupViewModel {
     // MARK: - Step Definition
 
     /// Ordered setup steps. `shareLink` is optional and always skippable.
+    /// Raw values are the order; navigation steps by `rawValue ± 1`.
     enum Step: Int, CaseIterable {
+        /// Explains the feature; gates on a live Twitch connection.
         case intro = 0
+        /// Gates on the MusicKit / Automation grant.
         case appleMusic = 1
+        /// Gates on the WolfWave Requests playlist existing.
         case playlist = 2
+        /// Optional public link for `!playlist`.
         case shareLink = 3
+        /// Summary and Finish.
         case done = 4
 
         /// Short spoken name for the progress indicator's accessibility value.
@@ -57,12 +63,16 @@ final class SongRequestSetupViewModel {
 
     // MARK: - Observable State
 
+    /// The step on screen.
     var currentStep: Step
 
     /// Live inputs the step views update so the Next gate lives in one place and
     /// is unit-testable without rendering.
+    /// Gates `.intro`.
     var isTwitchConnected = false
+    /// Gates `.appleMusic`.
     var musicAuthorized = false
+    /// Gates `.playlist`.
     var playlistReady = false
 
     // MARK: - Init
@@ -76,8 +86,11 @@ final class SongRequestSetupViewModel {
 
     // MARK: - Navigation
 
+    /// Hides Back on the first step.
     var isFirstStep: Bool { currentStep == Step.allCases.first }
+    /// Swaps Next for Finish on the last step.
     var isLastStep: Bool { currentStep == Step.allCases.last }
+    /// Step count for the progress indicator.
     var totalSteps: Int { Step.allCases.count }
 
     /// Whether the wizard may advance from the current step. The optional
@@ -92,11 +105,14 @@ final class SongRequestSetupViewModel {
         }
     }
 
+    /// Moves forward one step; no-op on the last. Does not check `canAdvance`;
+    /// the Next button is disabled by the view instead.
     func goToNextStep() {
         guard let next = Step(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = next
     }
 
+    /// Moves back one step; no-op on the first.
     func goToPreviousStep() {
         guard let prev = Step(rawValue: currentStep.rawValue - 1) else { return }
         currentStep = prev
@@ -109,6 +125,10 @@ final class SongRequestSetupViewModel {
     /// flips on; the streamer can turn it off in the pane afterward. The pane
     /// re-runs the playlist health check on dismiss to confirm the optimistic
     /// `.ok` status.
+    ///
+    /// Posts `songRequestSettingChanged` (enabled) so the service starts.
+    ///
+    /// - Parameter defaults: Store to write to; injectable for tests.
     func complete(defaults: Foundation.UserDefaults = DefaultsStore.store) {
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
         defaults.set(PlaylistSetupStatus.ok.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)

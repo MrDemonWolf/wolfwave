@@ -47,16 +47,20 @@ struct FieldValidationRow: View {
 
     // MARK: - Properties
 
+    /// What to show. `.idle` collapses the row to nothing.
     let state: State
 
     // MARK: - Init
 
+    /// - Parameter state: The field's current validation state.
     init(state: State) {
         self.state = state
     }
 
     // MARK: - Private Helpers
 
+    /// Text and glyph color. A failure takes its color from the error's
+    /// severity, so a rate limit can read as a warning rather than an error.
     private var tint: Color {
         switch state {
         case .idle, .validating: return .secondary
@@ -81,6 +85,8 @@ struct FieldValidationRow: View {
         }
     }
 
+    /// Visible and spoken text. A failure uses the error's composed
+    /// `accessibilityLabel` (title, cause, fix), so the full reason is inline.
     private var text: String {
         switch state {
         case .idle: return ""
@@ -91,6 +97,8 @@ struct FieldValidationRow: View {
         }
     }
 
+    /// UI-test identifier. A failure is keyed by the error id, so a test can
+    /// tell which failure is showing, not just that one is.
     private var identifier: String {
         switch state {
         case .idle: return "fieldValidation.idle"
@@ -122,6 +130,8 @@ struct FieldValidationRow: View {
         }
     }
 
+    /// Spinner while validating, otherwise the state's symbol (none for idle).
+    /// Hidden from VoiceOver; the text carries the meaning.
     @ViewBuilder
     private var glyph: some View {
         if case .validating = state {

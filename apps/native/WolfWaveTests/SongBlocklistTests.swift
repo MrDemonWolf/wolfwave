@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `SongBlocklist` matching (songs, artists, collaborations, separators, diacritics), persistence
+/// and reload, factory reset, and in-memory storage semantics.
 @MainActor
 final class SongBlocklistTests: WolfWaveTestCase {
 
@@ -178,6 +180,9 @@ final class SongBlocklistTests: WolfWaveTestCase {
         XCTAssertTrue(entries.isEmpty)
     }
 
+    /// `prepareForFactoryReset()` waits for a write already in flight (parked in storage), then
+    /// leaves the stored list empty. Later `add` calls are refused: neither storage nor the live
+    /// list changes.
     func testFactoryResetDrainsQueuedMutationAndRejectsLaterWrites() async throws {
         let storage = SuspendingFirstWriteBlocklistStorage()
         let list = SongBlocklist(storage: storage)
@@ -297,6 +302,8 @@ final class SongBlocklistTests: WolfWaveTestCase {
     }
 }
 
+/// Storage whose first `write` blocks until `releaseFirstWrite()`, to test mutations queued behind
+/// an in-flight write. Lock-guarded, hence `@unchecked Sendable`.
 private final class SuspendingFirstWriteBlocklistStorage: BlocklistStorage, @unchecked Sendable {
     let firstWriteStarted = DispatchSemaphore(value: 0)
 

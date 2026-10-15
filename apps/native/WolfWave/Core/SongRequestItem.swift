@@ -49,6 +49,8 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
 
     // MARK: - Initializers
 
+    /// Creates a queue entry from a resolved MusicKit song, stamped now with a
+    /// fresh id. A song without an album title gets "Unknown Album".
     init(song: Song, requesterUsername: String, isPriority: Bool = false) {
         self.id = UUID()
         self.title = song.title
@@ -76,6 +78,8 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
 
     // MARK: - Equatable
 
+    /// Identity equality: two entries are equal only when they share an `id`.
+    /// Use `isSameRequest(as:)` for content duplicates.
     static func == (lhs: SongRequestItem, rhs: SongRequestItem) -> Bool {
         lhs.id == rhs.id
     }
@@ -94,6 +98,10 @@ extension Song {
     /// The result is a genuine `Song`, so nothing downstream needs a "no song"
     /// branch. The catalog ID is not a real track, so actually playing one will
     /// fail at Music.app, which is the honest outcome for a fake request.
+    ///
+    /// Values are interpolated into the JSON without escaping, so a title,
+    /// artist, or album containing `"` or `\` breaks the decode and traps.
+    /// Keep fixture strings plain.
     static func debugPlaceholder(
         id: String,
         title: String,

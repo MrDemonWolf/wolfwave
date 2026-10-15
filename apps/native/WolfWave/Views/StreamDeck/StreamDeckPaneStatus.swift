@@ -24,8 +24,11 @@ nonisolated enum StreamDeckPaneStatus {
     /// One chip's worth of state: label, tint, and the glyph that carries the
     /// same meaning through shape (WCAG 1.4.1).
     struct Resolved: Equatable {
+        /// Short chip label, e.g. "Server off".
         let text: String
+        /// Semantic `DSColor` tint for the chip.
         let color: Color
+        /// SF Symbol name from `StatusChip.StateGlyph`.
         let symbol: String
     }
 

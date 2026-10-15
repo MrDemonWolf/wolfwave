@@ -11,9 +11,21 @@ import Observation
 
 /// Orchestrates the opt-in Listening History & Stats feature.
 ///
-/// Owns the append-only `PlayLogStore`, keeps an in-memory copy of every
-/// recorded play, applies the scrobble threshold, and exposes a derived
-/// `StatsSnapshot` for the UI and the `!stats` Twitch command.
+/// Owns the append-only `PlayLogStore`, keeps an in-memory copy of the
+/// retained plays (capped at `AppConstants.History.maxRetainedRecords`; older
+/// plays fold into a `LifetimeTally` when retention is Forever), applies the
+/// scrobble threshold, and exposes a derived `StatsSnapshot` for the UI and
+/// the `!stats` Twitch command.
+///
+/// Durability rules this type keeps:
+/// - A user clear writes a tombstone (`HistoryClearMarkerStore`) before
+///   touching either store, and nothing is appended until both stores are
+///   empty and the tombstone is gone, so a crash mid-clear finishes the clear
+///   on next launch instead of resurrecting plays.
+/// - Every record gets a monotonically increasing `sequence`. The tally keeps
+///   the highest folded sequence, so a crash between saving the tally and
+///   compacting the log never folds the same play twice.
+/// - The tally is saved before the log is compacted, never the other way.
 ///
 /// Recording only happens while `isEnabled` is `true`. Stats are derived in
 /// memory, so they cost zero disk writes.
@@ -26,8 +38,8 @@ final class ListeningHistoryService {
     /// Whether plays are currently being recorded to disk.
     private(set) var isEnabled: Bool
 
-    /// Every recorded play, oldest first. Loaded from disk on `start()` and
-    /// appended to live as tracks change.
+    /// Retained plays, oldest first, at most `maxRetainedRecords`. Loaded from
+    /// disk on `start()` and appended to live as tracks change.
     private(set) var records: [PlayRecord] = []
 
     /// Derived statistics, recomputed whenever `records` changes.
@@ -38,8 +50,11 @@ final class ListeningHistoryService {
 
     // MARK: - Private
 
+    /// Append-only NDJSON play log.
     private let store: PlayLogStore
+    /// Sidecar holding counts for plays trimmed out of `records`.
     private let tallyStore: LifetimeTallyStore
+    /// Durable "clear in progress" tombstone shared by both stores.
     private let clearMarkerStore: HistoryClearMarkerStore
 
     /// While true, the durable clear tombstone remains and no new record may be
@@ -77,6 +92,8 @@ final class ListeningHistoryService {
     /// single running load instead of starting a second one that would interleave
     /// the shared stores and re-fold overflow.
     private var loadTask: Task<Void, Never>?
+    /// Daily `prune()` loop, started with the first load and cancelled in
+    /// `shutdown()`. Keeps a finite retention window honest in a long session.
     private var retentionTask: Task<Void, Never>?
     /// Invalidates disk-load results captured before a user clear. The detached
     /// reader is side-effect free; only a matching generation may publish.
@@ -135,6 +152,8 @@ final class ListeningHistoryService {
     /// callers (a rapid disable→enable toggle, or `start()` racing `enable()`)
     /// share one load. Two concurrent loads could interleave the shared play-log
     /// and tally stores and re-fold overflow or drop a deferred play.
+    ///
+    /// Also starts the daily retention loop if it isn't running.
     private func scheduleLoad() {
         guard loadTask == nil else { return }
         if retentionTask == nil {
@@ -158,7 +177,8 @@ final class ListeningHistoryService {
         }
     }
 
-    /// Stops recording. Existing history on disk is left intact.
+    /// Stops recording. Existing history on disk is left intact, and the
+    /// in-memory records and snapshot stay visible.
     func disable() {
         guard isEnabled else { return }
         isEnabled = false
@@ -225,6 +245,10 @@ final class ListeningHistoryService {
 
     /// Records a finished play if the feature is enabled and the track crossed
     /// the scrobble threshold.
+    ///
+    /// Non-finite or negative durations are clamped before the threshold check.
+    /// A blank title is ignored. The play is dropped (and logged) while an
+    /// earlier clear can't be completed, and buffered while a disk load runs.
     ///
     /// - Parameters:
     ///   - track: Track title.
@@ -312,6 +336,14 @@ final class ListeningHistoryService {
     }
 
     /// Counts plays a finite retention window would remove, without mutating it.
+    ///
+    /// Drives the confirmation before shortening retention.
+    ///
+    /// - Parameters:
+    ///   - retentionDays: Candidate window in days; `0` or less (Forever) returns 0.
+    ///   - now: Reference time for the cutoff.
+    /// - Returns: In-memory plays older than the cutoff. The lifetime tally is
+    ///   also discarded under finite retention but is not counted here.
     func expiredRecordCount(retentionDays: Int, now: Date = Date()) -> Int {
         guard retentionDays > 0 else { return 0 }
         let cutoff = now.addingTimeInterval(-Double(retentionDays) * 86_400)
@@ -319,12 +351,20 @@ final class ListeningHistoryService {
     }
 
     /// Applies a new retention window immediately after user confirmation.
+    ///
+    /// Writes `historyRetentionDays` to `DefaultsStore`, then prunes. Moving to
+    /// a finite window also deletes the lifetime tally (see ``prune(now:)``).
     func setRetentionDays(_ days: Int) {
         DefaultsStore.store.set(days, forKey: AppConstants.UserDefaults.historyRetentionDays)
         prune()
     }
 
     /// Removes expired plays without adding them to lifetime statistics.
+    ///
+    /// No-op until the first load finishes, while a load is running, while a
+    /// clear is pending, or under Forever retention. Under finite retention
+    /// it also deletes the lifetime tally, which has no dates to filter by.
+    /// The log is rewritten only after the tally deletion is durable.
     func prune(now: Date = Date()) {
         guard isLoaded, !isLoading, !clearIsPending, !clearMarkerStore.isPending else { return }
         let days = DefaultsStore.store.integer(forKey: AppConstants.UserDefaults.historyRetentionDays)
@@ -405,6 +445,9 @@ final class ListeningHistoryService {
     // MARK: - Derived Data
 
     /// Builds the wrap for the calendar month containing `month`.
+    ///
+    /// Uses in-memory records only, so a month whose plays were folded into
+    /// the lifetime tally reads as empty.
     func monthlyWrap(for month: Date = Date()) -> MonthlyWrapData {
         MonthlyWrap.data(from: records, month: month)
     }
@@ -508,6 +551,10 @@ final class ListeningHistoryService {
         )
         let cap = AppConstants.History.maxRetainedRecords
 
+        /// Everything the detached reader decided, applied on the main actor
+        /// only if no clear happened meanwhile. `should…` flags are deferred
+        /// writes; the reader itself only reads, except for finishing a
+        /// pending clear.
         struct LoadResult: Sendable {
             let records: [PlayRecord]
             let tally: LifetimeTally

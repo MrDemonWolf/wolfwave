@@ -7,11 +7,13 @@ import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { siteUrl } from '@/lib/site';
 import { presetForSlug } from '@/app/og/_components/og-presets';
 
+/** Breadcrumb label for a docs slug (the OG preset eyebrow); null for the docs root. */
 function sectionLabel(slug: string[] | undefined): string | null {
   if (!slug || slug.length === 0) return null;
   return presetForSlug(slug).eyebrow;
 }
 
+/** Renders one MDX docs page with TechArticle and BreadcrumbList JSON-LD (plus HowTo where applicable). */
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
   const page = source.getPage(params.slug);
@@ -200,10 +202,12 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   );
 }
 
+/** Static export: one param set per docs page. */
 export async function generateStaticParams() {
   return source.generateParams();
 }
 
+/** Keywords merged into every page's own `keywords` frontmatter. */
 const GLOBAL_KEYWORDS = [
   'WolfWave',
   'Apple Music',
@@ -217,6 +221,7 @@ const GLOBAL_KEYWORDS = [
   'open source',
 ];
 
+/** Per-page metadata: canonical, OpenGraph/Twitter cards (image from `getPageImage`), merged keywords. */
 export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);

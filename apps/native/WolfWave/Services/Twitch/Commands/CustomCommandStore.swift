@@ -28,9 +28,13 @@ final class CustomCommandStore {
         commands.filter { $0.enabled && !$0.normalizedTrigger.isEmpty }
     }
 
+    /// Backing store. Never `UserDefaults.standard` in tests (see the init).
     private let defaults: UserDefaults
+    /// Defaults key holding the JSON-encoded `[CustomCommand]`.
     private let key = AppConstants.UserDefaults.customCommands
 
+    /// Loads (and, if needed, repairs) the stored commands synchronously.
+    ///
     /// - Parameter defaults: Injection seam for tests; defaults to
     ///   ``DefaultsStore/store``.
     init(defaults: UserDefaults = DefaultsStore.store) {
@@ -41,6 +45,11 @@ final class CustomCommandStore {
     // MARK: - Mutation
 
     /// Appends a new command and persists.
+    ///
+    /// Validation here is the import rules (trigger/alias identity and
+    /// cooldown bounds), not the reply checks; the editor gates the reply via
+    /// ``validationIssue(for:)`` before calling this. A valid draft is stored
+    /// in normalized form, so the saved trigger may differ from what was typed.
     ///
     /// - Returns: `false` when the combined set would be invalid, in which case
     ///   nothing changes.
@@ -69,7 +78,8 @@ final class CustomCommandStore {
         return true
     }
 
-    /// Removes the command with `id` and persists.
+    /// Removes the command with `id` and persists. No-op (apart from the
+    /// re-save) when the id is unknown.
     func delete(id: UUID) {
         commands.removeAll { $0.id == id }
         save()
@@ -130,6 +140,11 @@ final class CustomCommandStore {
 
     // MARK: - Persistence
 
+    /// Reads, decodes, and repairs the stored list.
+    ///
+    /// Undecodable or unrepairable bytes leave the list empty in memory but
+    /// are not overwritten here, so the original JSON survives until the next
+    /// mutation saves. A successful repair is written back immediately.
     private func load() {
         guard let data = defaults.data(forKey: key) else {
             commands = []
@@ -146,6 +161,9 @@ final class CustomCommandStore {
 
     /// Atomically replaces the live and persisted command snapshot during
     /// settings import. Invalid bytes leave the current commands untouched.
+    ///
+    /// - Parameter data: JSON-encoded `[CustomCommand]` from a backup.
+    /// - Returns: `false` when the data doesn't decode or fails import validation.
     @discardableResult
     func replaceFromImportedData(_ data: Data) -> Bool {
         guard let decoded = try? JSONCoders.default.decode(
@@ -160,6 +178,8 @@ final class CustomCommandStore {
         return true
     }
 
+    /// Encodes and writes the current list. An encoding failure is dropped
+    /// silently and leaves the previous bytes in place.
     private func save() {
         guard let data = try? JSONCoders.defaultEncoder.encode(commands) else { return }
         defaults.set(data, forKey: key)
@@ -170,6 +190,9 @@ final class CustomCommandStore {
 
 nonisolated extension CustomCommand {
     /// The normalized primary trigger plus every normalized alias.
+    ///
+    /// Empty entries are dropped. Matched against the first token of a chat
+    /// line, so this is the command's full trigger set.
     var allTriggerTokens: [String] {
         var tokens = [normalizedTrigger]
         tokens += aliases.split(separator: ",")

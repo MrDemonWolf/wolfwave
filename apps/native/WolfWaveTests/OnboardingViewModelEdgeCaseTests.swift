@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `OnboardingViewModel` boundaries: completion and Skip All flags, rapid navigation clamping at
+/// both ends, and contiguous step raw values.
 @MainActor
 final class OnboardingViewModelEdgeCaseTests: WolfWaveTestCase {
     var viewModel: OnboardingViewModel?

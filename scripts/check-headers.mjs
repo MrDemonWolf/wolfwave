@@ -29,11 +29,17 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
+/** Swift source trees whose files must carry the Xcode header (test target included). */
 const ROOTS = ["apps/native/WolfWave", "apps/native/WolfWaveTests"];
+/** Line 3 of the header names the project, not the target, so test files say this too. */
 const PROJECT_NAME = "WolfWave";
+/** Only `Created by` lines naming this author are accepted. */
 const AUTHOR = "Nathanial Henniges";
+/** Exact shape of the copyright line; any year is accepted. */
 const COPYRIGHT = /^\/\/ {2}Copyright © \d{4} MrDemonWolf, Inc\. All rights reserved\.$/;
+/** Shape of the `Created by <author> on <ISO date>.` line; capture 1 is the author, 2 the date. */
 const CREATED = /^\/\/ {2}Created by (.+) on (\d{4}-\d{2}-\d{2})\.$/;
+/** True under GitHub Actions, where failures are emitted as `::error` annotations. */
 const isCI = Boolean(process.env.GITHUB_ACTIONS);
 
 /** Collects every non-generated `.swift` file under `dir`, recursively. */
@@ -72,6 +78,7 @@ function fail(file, line, message) {
 }
 
 const skipDates = isShallow();
+/** Every file to check, in directory-walk order. */
 const files = ROOTS.flatMap((root) => collect(root));
 
 for (const file of files) {

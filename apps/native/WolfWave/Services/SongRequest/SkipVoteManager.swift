@@ -9,6 +9,9 @@
 import Foundation
 
 /// What WolfWave can prove after asking Twitch to create a skip poll.
+///
+/// Anything short of `.definitiveFailure` keeps the poll latch held until
+/// poll.end or the timeout, so a chat tally and a native poll never run at once.
 nonisolated enum SkipPollCreationOutcome: Equatable, Sendable {
     /// Twitch confirmed creation and returned the poll's Helix identity.
     case created(id: String)
@@ -32,6 +35,13 @@ nonisolated enum SkipPollCreationOutcome: Equatable, Sendable {
 /// State is observed via `.voteSkipStateChanged`, so this type does not adopt
 /// `@Observable`. Implemented as an `actor` so mutation safety
 /// is enforced by the compiler. Replaces the prior `final class + NSLock`.
+///
+/// Every vote binds to an exact `PlaybackTarget` captured from Music.app when
+/// the session or poll opens, and the skip only fires against that target.
+/// Because the actor suspends while reading Music.app and calling Helix, each
+/// await is followed by generation checks (`trackGeneration`,
+/// `lifecycleGeneration`, `pollGeneration`) so a track change, reset, or newer
+/// poll that happened meanwhile turns the old request into a no-op.
 actor SkipVoteManager {
 
     // MARK: - Types
@@ -154,13 +164,23 @@ actor SkipVoteManager {
 
     // MARK: - State
 
+    /// Twitch user IDs that voted in the open chat tally. IDs, not logins, so
+    /// a renamed viewer can't vote twice.
     private var voters: Set<String> = []
+    /// When the open chat tally started; `nil` means no tally is running.
     private var sessionStart: Date?
     /// Exact Music track captured when the active chat tally opened.
     private var activeChatTarget: PlaybackTarget?
+    /// Expiry timer for the open chat tally.
     private var windowTask: Task<Void, Never>?
+    /// When the last tally ended (passed or expired). Drives the inter-session
+    /// cooldown; `nil` means no cooldown applies.
     private var lastSessionEnd: Date?
+    /// Latched from just before the Helix create call until poll.end, a
+    /// definitive creation failure, the timeout, or `reset()`. Blocks new
+    /// chat tallies and second polls, even if the Polls toggle changes.
     private var pollActive = false
+    /// Fallback timer that clears `pollActive` if poll.end never arrives.
     private var pollTimeoutTask: Task<Void, Never>?
     /// Helix ID of the active native poll. Poll-end events must match exactly.
     private var activePollID: String?
@@ -198,6 +218,8 @@ actor SkipVoteManager {
 
     // MARK: - Configuration
 
+    /// Preference store, read fresh on every access so settings changes apply
+    /// to the next vote without reconfiguring the actor.
     private nonisolated var defaults: Foundation.UserDefaults { DefaultsStore.store }
 
     /// Whether the vote-skip feature is enabled.
@@ -205,7 +227,8 @@ actor SkipVoteManager {
         defaults.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled)
     }
 
-    /// Minimum unique voters required to skip. Clamped to at least 1.
+    /// Minimum unique voters required to skip. A stored value of 0 or less reads
+    /// as the default (via `Preferences.int`), so it is always at least 1.
     ///
     /// Deliberately *not* snapped to the settings picker's allowlist. Both this
     /// and ``windowSeconds`` are used as plain integers, so neither can trap the
@@ -218,7 +241,8 @@ actor SkipVoteManager {
         Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
     }
 
-    /// How long a chat-tally session stays open, in seconds.
+    /// How long a chat-tally session stays open, in seconds. Non-positive
+    /// stored values fall back to the default.
     nonisolated var windowSeconds: Int {
         Preferences.int(AppConstants.UserDefaults.voteSkipWindowSeconds, default: AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds)
     }
@@ -252,6 +276,14 @@ actor SkipVoteManager {
     // MARK: - Public API
 
     /// Records a `!voteskip` from `context` and returns the outcome.
+    ///
+    /// Routing: an active poll latch always wins (`.pollInProgress`); an open
+    /// chat tally keeps counting even in Polls mode (it is the fallback for a
+    /// failed poll create); otherwise the `voteSkipUsePolls` preference picks
+    /// the mode. May suspend to read Music.app and to call Helix.
+    ///
+    /// - Parameter context: The chat sender. `userID` is the vote identity.
+    /// - Returns: What happened, for `VoteSkipCommand` to phrase.
     func recordVote(context: BotCommandContext) async -> VoteOutcome {
         guard !Task.isCancelled else { return .cancelled }
         guard isEnabled else { return .disabled }
@@ -289,7 +321,13 @@ actor SkipVoteManager {
 
     /// Handles a finished Twitch poll (from the `channel.poll.end` EventSub event).
     ///
+    /// Ignored unless `pollID` matches the latched poll. The latch is always
+    /// released for a matching poll; the skip then needs the poll to still
+    /// target the current track, vote-skip to be on, and `skipVotes` to beat
+    /// `keepVotes` and reach `minVotes`. Posts the result to chat.
+    ///
     /// - Parameters:
+    ///   - pollID: Helix poll ID from the event.
     ///   - skipVotes: Vote count for the "Skip" choice.
     ///   - keepVotes: Vote count for the "Keep playing" choice.
     func handlePollEnded(pollID: String, skipVotes: Int, keepVotes: Int) async {
@@ -363,6 +401,10 @@ actor SkipVoteManager {
     }
 
     /// Clears all session state (e.g. on Twitch disconnect).
+    ///
+    /// Also drops the inter-session cooldown, and bumps the lifecycle and poll
+    /// generations so any vote or poll create still suspended returns without
+    /// effect. A poll that exists on Twitch is forgotten locally.
     func reset() {
         windowTask?.cancel()
         windowTask = nil
@@ -377,6 +419,17 @@ actor SkipVoteManager {
 
     // MARK: - Chat-tally Voting
 
+    /// Counts one chat vote, opening a tally (and capturing its target) when
+    /// none is running.
+    ///
+    /// The Music.app read happens before any state changes; if the track,
+    /// lifecycle, enabled state, or mode changed during it, the vote is dropped.
+    /// Everything after that runs without suspending until the skip itself.
+    ///
+    /// - Parameters:
+    ///   - context: The voter.
+    ///   - fallbackTarget: Target already captured by a poll request whose
+    ///     create failed definitively; skips the second Music.app read.
     private func recordChatVote(
         context: BotCommandContext,
         fallbackTarget: PlaybackTarget? = nil
@@ -473,6 +526,10 @@ actor SkipVoteManager {
             return outcome
         case .pass(let count, let target):
             var skipped = false
+            // `finishSession()` already started the cooldown. If the skip didn't
+            // happen, restore the previous cooldown so a failed skip doesn't
+            // lock chat out; skip the write entirely if a track change or reset
+            // already moved on.
             defer {
                 if trackGeneration == endingTrackGeneration,
                    lifecycleGeneration == endingLifecycleGeneration {
@@ -493,6 +550,13 @@ actor SkipVoteManager {
 
     // MARK: - Polls Voting
 
+    /// Opens a native Twitch poll for a moderator or the broadcaster.
+    ///
+    /// The latch (`pollActive`) is taken before the Helix call so a second
+    /// moderator can't race a duplicate create. After the call, the outcome is
+    /// handled by what it proves: a created or possibly-created poll keeps the
+    /// latch until poll.end or timeout, while a definitive failure releases it
+    /// and falls back to a chat tally on the same target.
     private func handlePollVote(context: BotCommandContext) async -> VoteOutcome {
         guard !Task.isCancelled else { return .cancelled }
         guard context.isPrivileged else { return .pollNotAllowed }
@@ -690,6 +754,9 @@ actor SkipVoteManager {
     }
 
     /// Posts `.voteSkipStateChanged` with the current session progress (if any).
+    ///
+    /// Snapshots the state on the actor, then posts on the main actor in an
+    /// unstructured task, so observers may see it slightly after the change.
     private func postState() {
         let state: (count: Int, needed: Int)? = sessionStart != nil
             ? (voters.count, minVotes)

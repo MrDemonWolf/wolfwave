@@ -9,6 +9,7 @@
 import XCTest
 @testable import WolfWave
 
+/// `CooldownManager` global and per-user cooldowns, including the moderator bypass and reset.
 @MainActor
 final class CooldownManagerTests: XCTestCase {
     var manager: CooldownManager!

@@ -20,21 +20,26 @@ nonisolated struct SettingsDeepLink: Equatable, Sendable {
     /// The only host this parser understands.
     static let host = "settings"
 
+    /// Destination pane. Matched by `SettingsSection.slug`, never its
+    /// visible title.
     var pane: SettingsView.SettingsSection
     /// Kebab-case anchor declared at a `.deepLinkSection(_:)` call site.
     var section: String?
 
+    /// Builds a destination directly (menu items, banners) without a URL.
     init(pane: SettingsView.SettingsSection, section: String? = nil) {
         self.pane = pane
         self.section = section
     }
 
+    /// The fallback destination for any link `parse` cannot resolve.
     static let general = SettingsDeepLink(pane: .general)
 
     // MARK: - Parse
 
     /// Resolves a URL to a destination. Falls back to `.general` on any
-    /// scheme, host, or pane mismatch.
+    /// scheme, host, or pane mismatch, an empty path, or more than two path
+    /// components. Scheme, host, and section are matched case-insensitively.
     static func parse(_ url: URL) -> SettingsDeepLink {
         guard url.scheme?.lowercased() == scheme,
               url.host()?.lowercased() == host

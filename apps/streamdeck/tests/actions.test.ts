@@ -11,6 +11,9 @@ import { WolfWaveClient } from "../src/wolfwave/client.js";
 import { AUDIENCES } from "../src/wolfwave/protocol.js";
 import { initialState, type WolfWaveState } from "../src/wolfwave/state.js";
 
+// Per-action command selection and hold-to-confirm. No socket is opened: the
+// client is either never connected or has `sendAwaitingAck` replaced.
+
 /** Reaches the protected command selector without exercising a real key. */
 function commandFor(
   instance: object,

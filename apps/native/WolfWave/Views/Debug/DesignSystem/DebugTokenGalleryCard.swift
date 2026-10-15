@@ -17,6 +17,7 @@ import SwiftUI
 /// it gained. Nothing here is hand-listed.
 struct DebugTokenGalleryCard: View {
 
+    /// System Reduce Motion. When on, the motion rows get a `nil` animation and jump.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -50,6 +51,7 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Colors
 
+    /// Every color group from `DSColor.groups` as an adaptive grid of swatches.
     private var colorsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Colors", symbol: "DSColor.groups")
@@ -71,6 +73,10 @@ struct DebugTokenGalleryCard: View {
         }
     }
 
+    /// One color swatch: a stroked fill (so near-background colors stay visible),
+    /// the token name, and its hex. Read by VoiceOver as one "name, hex" element.
+    ///
+    /// - Parameter token: A `(name, hex, color)` entry from a `DSColor.groups` group.
     private func swatch(_ token: (name: String, hex: String, color: Color)) -> some View {
         VStack(alignment: .leading, spacing: DSSpace.s1) {
             RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous)
@@ -94,6 +100,9 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Typography
 
+    /// Each `DSFont.Size` rendered at its size, then each `DSFont.Weight` at one size.
+    /// Large sizes may shrink to fit a narrow window (minimum scale factor), so read
+    /// exact sizes from the label column, not the sample.
     private var typographySection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Typography", symbol: "DSFont.Size.all · DSFont.Weight.all")
@@ -124,6 +133,7 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Spacing
 
+    /// Each `DSSpace` step as a bar whose width equals the token value.
     private var spacingSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Spacing", symbol: "DSSpace.all")
@@ -142,6 +152,7 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Radius
 
+    /// Each `DSRadius` applied to a fixed-size square.
     private var radiusSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Radius", symbol: "DSRadius.all")
@@ -169,6 +180,7 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Opacity
 
+    /// Each `DSOpacity` applied to the accent color over a stroked square.
     private var opacitySection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Opacity", symbol: "DSOpacity.all")
@@ -196,6 +208,8 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Motion
 
+    /// One `MotionTrackRow` per duration token (as an ease-in-out curve) and per
+    /// spring token, so timing and overshoot can be compared by pressing Play.
     private var motionSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Motion", symbol: "DSMotion.Duration.all · DSMotion.Spring.all")
@@ -222,6 +236,7 @@ struct DebugTokenGalleryCard: View {
         }
     }
 
+    /// Hosts `MotionGallerySection`, the component-level motion demos.
     private var motionGallerySection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Motion gallery", symbol: "contentTransition · symbolEffect · ProgressView · AsyncImage")
@@ -231,6 +246,8 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Dimensions
 
+    /// Every `DSDimension` group as a name / value table. These are sizes, not
+    /// spacing, so they are listed rather than drawn.
     private var dimensionsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             family("Dimensions", symbol: "DSDimension.groups")
@@ -256,6 +273,12 @@ struct DebugTokenGalleryCard: View {
 
     // MARK: - Helpers
 
+    /// Section heading: the family name plus the generated symbol it iterates,
+    /// marked as a VoiceOver header.
+    ///
+    /// - Parameters:
+    ///   - title: Visible family name.
+    ///   - symbol: The generated list(s) the section reads, shown in monospace.
     private func family(_ title: String, symbol: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
             Text(title)
@@ -267,6 +290,7 @@ struct DebugTokenGalleryCard: View {
         .accessibilityAddTraits(.isHeader)
     }
 
+    /// Fixed-width name + value label column, so samples line up across rows.
     private func tokenLabel(_ name: String, _ value: String) -> some View {
         HStack(spacing: DSSpace.s1) {
             Text(name)
@@ -278,10 +302,12 @@ struct DebugTokenGalleryCard: View {
         .frame(width: Metrics.labelColumn, alignment: .leading)
     }
 
+    /// Formats a point value for display, for example "12pt" or "1.5pt".
     private func points(_ value: CGFloat) -> String {
         "\(formatted(Double(value)))pt"
     }
 
+    /// Drops the trailing ".0" from whole numbers; leaves fractions as `String(value)` prints them.
     private func formatted(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(value)
     }
@@ -301,11 +327,15 @@ struct DebugTokenGalleryCard: View {
 /// the token's animation, so overshoot and timing are comparable side by side.
 private struct MotionTrackRow: View {
 
+    /// Token name, shown in monospace.
     let name: String
+    /// Value summary (duration, or response and damping).
     let detail: String
     /// `nil` when Reduce Motion is on; the dot then jumps.
     let animation: Animation?
 
+    /// Which end of the track the dot sits at. Play toggles it, so each press
+    /// runs the animation in the opposite direction.
     @State private var atEnd = false
 
     var body: some View {
@@ -340,6 +370,7 @@ private struct MotionTrackRow: View {
         }
     }
 
+    /// Row layout sizes. Gallery-only, not design tokens.
     private enum Metrics {
         static let labelColumn: CGFloat = 200
         static let track: CGFloat = 200

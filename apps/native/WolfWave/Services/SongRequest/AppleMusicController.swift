@@ -39,8 +39,11 @@ struct PlaybackSnapshot: Equatable {
     /// Coarse player state. `fast forwarding` / `rewinding` collapse to
     /// `.playing`: a track is loaded and advancing in both.
     enum State {
+        /// Playing, fast forwarding, or rewinding.
         case playing
+        /// A track is loaded but paused.
         case paused
+        /// Stopped, or any player state the script did not recognize.
         case stopped
     }
 
@@ -62,7 +65,11 @@ struct PlaybackSnapshot: Equatable {
 /// `revision` is a cheap in-process guard that rejects work as soon as the music
 /// monitor has observed a replacement, without relying on actor task ordering.
 struct PlaybackTarget: Equatable, Sendable {
+    /// Name + tab + artist of the track the vote was opened against
+    /// (same shape as `PlaybackSnapshot.trackKey`).
     let trackKey: String
+    /// `SongRequestService`'s playback revision when the target was captured;
+    /// any later track change bumps it and invalidates the target.
     let revision: UInt64
 }
 
@@ -71,9 +78,13 @@ struct PlaybackTarget: Equatable, Sendable {
 /// `SongRequestService` decides queue policy; `AppleMusicController` executes
 /// the selected action only if Music.app still has the exact target loaded.
 enum TargetedPlaybackAction: Sendable {
+    /// Skip to Music.app's next track (no request queued, no fallback set).
     case nextTrack
+    /// Replace the current track with the next queued request.
     case request(SongRequestItem)
+    /// Start the configured fallback playlist.
     case fallbackPlaylist(name: String)
+    /// Stop playback.
     case stop
 }
 
@@ -104,9 +115,16 @@ protocol AppleMusicControlling {
     func search(query: String) async -> AppleMusicController.SearchResult
 
     /// Candidate catalog matches for validated link metadata.
+    ///
+    /// Used by `SongSearchResolver` to score Spotify / YouTube oEmbed titles
+    /// against several results instead of trusting the top hit.
+    ///
+    /// - Returns: Up to `limit` songs, or an empty list plus a user-facing error message.
     func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?)
 
-    /// Resolves an Apple Music / Spotify / YouTube URL into a catalog track.
+    /// Resolves an Apple Music song link (or album link with `?i=`) into a
+    /// catalog track. Spotify / YouTube links never reach this; they go through
+    /// oEmbed + ``searchCandidates(query:limit:)`` instead.
     func resolve(url: URL) async -> AppleMusicController.SearchResult
 
     /// Replaces the current track and starts playback immediately.
@@ -149,7 +167,10 @@ protocol AppleMusicControlling {
     func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility
 }
 
+/// Defaults so test stubs only implement what they exercise.
 extension AppleMusicControlling {
+    /// Falls back to the single best ``search(query:)`` hit, ignoring `limit`.
+    /// Only the live controller asks MusicKit for multiple candidates.
     func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
         switch await search(query: query) {
         case .found(let song): return ([song], nil)
@@ -194,6 +215,9 @@ final class AppleMusicController: AppleMusicControlling {
     // MARK: - Types
 
     /// Authorization status for MusicKit.
+    ///
+    /// Mirrors `MusicAuthorization.Status` so the protocol and tests don't depend
+    /// on MusicKit's type; unknown future cases map to `.notDetermined`.
     enum AuthStatus {
         case notDetermined
         case authorized
@@ -203,8 +227,11 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Result of a song search.
     enum SearchResult {
+        /// The first catalog match.
         case found(Song)
+        /// The catalog returned no songs.
         case notFound
+        /// Authorization missing or MusicKit request failed; message is user-facing.
         case error(String)
     }
 
@@ -267,10 +294,16 @@ final class AppleMusicController: AppleMusicControlling {
     /// Maximum number of compiled scripts retained before the small cache clears.
     private static let compiledScriptsCap = 32
 
+    /// Test override for ``authStatus``; `nil` reads `MusicAuthorization.currentStatus`.
     private var authorizationStatusProvider: (() -> AuthStatus)?
+    /// Test override for ``requestAuthorization()``; `nil` shows the real MusicKit prompt.
     private var authorizationRequester: (() async -> Bool)?
 
+    // MARK: - Init
+
     /// Injectable MusicKit authorization boundary for deterministic tests.
+    ///
+    /// Production passes neither closure and talks to MusicKit directly.
     init(
         authorizationStatusProvider: (() -> AuthStatus)? = nil,
         authorizationRequester: (() async -> Bool)? = nil
@@ -367,6 +400,11 @@ final class AppleMusicController: AppleMusicControlling {
     // MARK: - Authorization
 
     /// Request MusicKit authorization from the user.
+    ///
+    /// Shows the system prompt only while the status is `.notDetermined`;
+    /// afterwards MusicKit returns the stored decision without UI.
+    ///
+    /// - Returns: `true` when access is authorized.
     @discardableResult
     func requestAuthorization() async -> Bool {
         if let authorizationRequester { return await authorizationRequester() }
@@ -374,6 +412,8 @@ final class AppleMusicController: AppleMusicControlling {
         return status == .authorized
     }
 
+    /// Prompts once if the user has never been asked, then reports whether
+    /// catalog calls may proceed. A denied or restricted status never re-prompts.
     private func ensureAuthorized() async -> Bool {
         if authStatus == .notDetermined, !(await requestAuthorization()) { return false }
         return isAuthorized
@@ -393,6 +433,15 @@ final class AppleMusicController: AppleMusicControlling {
         return .notFound
     }
 
+    /// Catalog search returning several matches for link-metadata scoring.
+    ///
+    /// Auto-requests authorization if not yet determined.
+    ///
+    /// - Parameters:
+    ///   - query: Search term.
+    ///   - limit: Requested result count, clamped to 1...10.
+    /// - Returns: The songs in MusicKit's relevance order, or an empty list and a
+    ///   user-facing error string when unauthorized or the request throws.
     func searchCandidates(query: String, limit: Int) async -> (songs: [Song], error: String?) {
         guard await ensureAuthorized() else {
             return ([], "Apple Music access not authorized. Enable it in Settings → Song Requests.")
@@ -411,7 +460,12 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Resolve an Apple Music URL to a Song object.
     ///
-    /// Used after oEmbed returns an Apple Music URL from a Spotify/YouTube link.
+    /// Called for links `LinkResolverService` classified as Apple Music. Tries an
+    /// exact catalog-ID lookup first; if that throws or finds nothing, a link
+    /// with a slug falls back to a text search on the slug words.
+    ///
+    /// - Returns: `.notFound` when neither the ID nor a slug search yields a song
+    ///   (slug-less and album links have no slug to fall back on).
     func resolve(url: URL) async -> SearchResult {
         guard await ensureAuthorized() else {
             return .error("Apple Music access not authorized. Enable it in Settings → Song Requests.")
@@ -443,6 +497,13 @@ final class AppleMusicController: AppleMusicControlling {
         return .notFound
     }
 
+    /// Extracts the numeric catalog ID from an Apple Music share link.
+    ///
+    /// Handles `/<storefront>/song/<slug>/<id>`, slug-less `/<storefront>/song/<id>`,
+    /// and `/<storefront>/album/<slug>/<id>?i=<trackID>` (the `i` item is the track;
+    /// the path ID is the album and is ignored).
+    ///
+    /// - Returns: The song's catalog ID, or `nil` for any other shape.
     static func appleMusicCatalogID(for url: URL) -> String? {
         let path = url.path.split(separator: "/").map(String.init)
         guard path.count >= 3 else { return nil }
@@ -530,9 +591,13 @@ final class AppleMusicController: AppleMusicControlling {
         }
     }
 
+    /// Outcome of ``playFromRequestsPlaylist(song:replacing:)``.
     private enum RequestPlaybackResult: Equatable {
+        /// Music.app started the requested track.
         case played
+        /// The vote target guard found a different track loaded; nothing changed.
         case staleTarget
+        /// The track never appeared in the requests playlist within the retry window.
         case unavailable
     }
 
@@ -543,8 +608,16 @@ final class AppleMusicController: AppleMusicControlling {
     /// Requires title + artist. A title-only fallback can select an unrelated
     /// song when two artists use the same title, so a mismatch remains queued.
     ///
+    /// - Parameters:
+    ///   - song: The request to play.
+    ///   - targetTrackKey: When set (vote-skip replacement), the target guard is
+    ///     prepended so the play happens only if that exact track is still loaded.
     /// - Returns: Whether playback started, the vote target changed, or the
     ///   requested track never appeared within the retry window.
+    /// - Throws: `PlaybackError.musicAppNotRunning` if Music quits mid-retry;
+    ///   `PlaybackError.commandFailed` if the final attempt was a script error
+    ///   (a "miss" after an earlier error still returns `.unavailable`);
+    ///   `CancellationError` if the task is cancelled between attempts.
     private func playFromRequestsPlaylist(
         song: Song,
         replacing targetTrackKey: String? = nil
@@ -563,6 +636,8 @@ final class AppleMusicController: AppleMusicControlling {
         return "miss"
         """, seconds: ScriptTimeout.command)
 
+        // 5 attempts, 700 ms apart: about 2.8 s of sleep to let a fresh library
+        // add sync down before giving up.
         var lastFailure: ScriptFailure?
         for attempt in 0..<5 {
             guard let pid = MusicProcess.pid else {
@@ -575,6 +650,8 @@ final class AppleMusicController: AppleMusicControlling {
                 if output == "ok" { return .played }
                 if output == "stale" { return .staleTarget }
             case .failure(let failure):
+                // -600 procNotFound (also raised by the in-script running guard),
+                // -609 connectionInvalid (Music quit while the event was in flight).
                 if failure.number == -600 || failure.number == -609 {
                     throw PlaybackError.musicAppNotRunning
                 }
@@ -609,6 +686,19 @@ final class AppleMusicController: AppleMusicControlling {
         try requireCommandSuccess(result, command: "next track")
     }
 
+    /// Runs a vote-skip mutation guarded by ``targetGuardSource(for:)`` in the
+    /// same script, so it can't replace a song that changed after the vote passed.
+    ///
+    /// `.request` reuses the request-playlist path (library add + retry); the
+    /// other actions are one guarded command. Only the fallback playlist uses the
+    /// focus-preserving runner, since starting a playlist is what tends to pull
+    /// Music forward.
+    ///
+    /// - Returns: `true` when the mutation ran; `false` when the guard reported a
+    ///   different track loaded.
+    /// - Throws: `PlaybackError` for a closed Music, a failed script, or (for
+    ///   `.request`) a song that never became playable; that path also clears the
+    ///   added-song and playlist caches so a retry re-adds it.
     func performTargetedPlayback(
         _ action: TargetedPlaybackAction,
         ifCurrentTrackKeyEquals targetTrackKey: String
@@ -853,6 +943,11 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// AppleScript source that rejects a playback mutation unless the loaded
     /// track still has the exact name-and-artist key captured for the vote.
+    ///
+    /// The key is split on its tab and rebuilt as `"name" & tab & "artist"` so
+    /// each half is sanitized on its own and the tab survives as a real
+    /// AppleScript `tab`. On mismatch the script returns `"stale"` before the
+    /// caller's mutation runs. Must be placed inside `musicTargetedScript`'s `tell`.
     func targetGuardSource(for trackKey: String) -> String {
         let expected = trackKey
             .components(separatedBy: "\t")
@@ -914,6 +1009,9 @@ final class AppleMusicController: AppleMusicControlling {
     /// Runs an AppleScript while preserving the user's focus when Music brings
     /// itself forward. Focus is restored only if Music is still frontmost after
     /// the short settling delay; a deliberate user switch is never overridden.
+    ///
+    /// The 150 ms sleep gives Music time to finish activating. If the task is
+    /// cancelled during it, the script result is returned without touching focus.
     @discardableResult
     private func runAppleScriptPreservingFocus(
         _ source: String,
@@ -941,6 +1039,9 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Pure focus-restoration policy, internal so races are covered without
     /// activating real applications in tests.
+    ///
+    /// - Returns: `true` only when Music was not already frontmost before the
+    ///   script and is frontmost now, i.e. the script (not the user) moved focus.
     static func shouldRestoreFocus(
         previousPID: pid_t?,
         currentPID: pid_t?,
@@ -1016,6 +1117,11 @@ final class AppleMusicController: AppleMusicControlling {
     }
 
     /// Throws the public playback error corresponding to a failed command.
+    ///
+    /// `-600` / `-609` (Music gone or quit mid-event) become
+    /// `.musicAppNotRunning` so callers buffer instead of reporting an error;
+    /// everything else is `.commandFailed`. Success, including a `"stale"`
+    /// output, does not throw.
     private func requireCommandSuccess(
         _ result: ScriptExecutionResult,
         command: String
@@ -1029,6 +1135,9 @@ final class AppleMusicController: AppleMusicControlling {
 
     /// Launches Music only for the explicit Reveal action, then waits briefly for
     /// its process identifier to become observable before dispatching the event.
+    ///
+    /// Polls up to 20 times at 100 ms (about 2 s). Returns silently on timeout or
+    /// if Music.app isn't installed; the caller re-checks `MusicProcess.pid`.
     private func ensureMusicRunningForReveal() async {
         guard MusicProcess.pid == nil else { return }
         guard let applicationURL = NSWorkspace.shared.urlForApplication(

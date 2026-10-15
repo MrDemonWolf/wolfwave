@@ -15,14 +15,16 @@ extension AppDelegate {
 
     /// Opens or brings the Settings window to the front.
     ///
-    /// Settings is a SwiftUI `Settings` scene (`WolfWaveApp.body`), so SwiftUI
+    /// Settings is a SwiftUI `Window(_:id:)` scene (`WolfWaveApp.body`), so SwiftUI
     /// creates, reuses (single-instance), and tears down the window. Rather than
     /// construct an `NSWindow` ourselves (which would steal the `NSToolbar` and
     /// reintroduce the sidebar `>>` flash), we hand off to the hidden
     /// `SettingsSceneBridge` by posting `.openSettingsRequested`. The bridge runs
-    /// the public `openSettings` environment action, which avoids the private
-    /// `showSettingsWindow:` selector and its "Please use SettingsLink for opening
-    /// the Settings scene" warning on macOS 14+.
+    /// the public `openWindow(id: WolfWaveApp.settingsWindowID)` environment
+    /// action, which avoids the private `showSettingsWindow:` selector.
+    ///
+    /// The single entry point for every Settings open: tray, Dock, Cmd-comma,
+    /// Dock reopen, deep links, and the Twitch re-auth path.
     ///
     /// When switching from menu-only mode, the activation policy change is
     /// asynchronous, so the hand-off is deferred to the next run-loop tick. That
@@ -40,8 +42,8 @@ extension AppDelegate {
             MainActor.assumeIsolated {
                 // Hand off to the live SwiftUI scene tree: `SettingsSceneBridge`
                 // (hosted in the hidden helper window) reads
-                // `@Environment(\.openSettings)`, activates the app, opens the
-                // `Settings` scene via the public action, and fronts the window.
+                // `@Environment(\.openWindow)`, activates the app, and opens the
+                // Settings `Window` scene by id via the public action.
                 NotificationCenter.default.postOpenSettingsRequested()
             }
         }
@@ -90,7 +92,8 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    /// Applies the stored dock visibility mode on launch.
+    /// Applies the stored dock visibility mode on launch. Runs after the
+    /// status item exists, so menu-only can show it and dock-only can hide it.
     func applyInitialDockVisibility() {
         applyDockVisibility(currentDockVisibilityMode)
     }
@@ -106,6 +109,12 @@ extension AppDelegate {
     }
 
     /// Sets activation policy and status item visibility based on the given mode.
+    ///
+    /// Menu-only keeps the app `.regular` while a normal window is on screen
+    /// (so Settings stays reachable in Cmd-Tab and owns a main menu) and drops
+    /// to `.accessory` otherwise. An unrecognised mode behaves like `both`.
+    ///
+    /// - Parameter mode: An `AppConstants.DockVisibility` raw string.
     func applyDockVisibility(_ mode: String) {
         switch mode {
         case AppConstants.DockVisibility.menuOnly:
@@ -149,6 +158,10 @@ extension AppDelegate {
     /// Auto-shows the What's New sheet once per *feature* release for returning
     /// users. Gated on `whatsNewVersion` (bumped only when there are new
     /// features), so patch/bug-fix updates never trigger it.
+    ///
+    /// A first install is skipped without being marked seen; the version is
+    /// recorded only when the window actually shows. The one-second delay lets
+    /// launch windows settle before this one appears.
     func checkWhatsNew() {
         let featureVersion = AppConstants.AppInfo.whatsNewVersion
         let lastSeen = Preferences.lastSeenWhatsNewVersion
@@ -165,6 +178,8 @@ extension AppDelegate {
     }
 
     /// Presents the What's New window and marks the feature version as seen.
+    /// Fronts the existing window instead of opening a second one. Also the
+    /// target of the manual "What's New" menu item, which bypasses the gate.
     func showWhatsNew() {
         if let existing = whatsNewWindow, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
@@ -200,6 +215,10 @@ extension AppDelegate {
 extension AppDelegate {
 
     /// Shows the first-launch onboarding wizard, or brings it forward if already visible.
+    ///
+    /// Forces `.regular` activation so the wizard has a Dock icon and can take
+    /// focus even in menu-only mode; `restoreMenuOnlyIfNeeded()` drops back to
+    /// `.accessory` when it closes. Centers on the main screen and fades in.
     func showOnboarding() {
         if let existing = onboardingWindow, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
@@ -270,6 +289,9 @@ extension AppDelegate {
     }
 
     /// Dismisses the onboarding window with a fade-out animation.
+    ///
+    /// After the window closes it starts the boot-time Twitch token validation,
+    /// which launch skipped while onboarding was pending.
     func dismissOnboarding() {
         Task { @MainActor [weak self] in
             guard let self, let window = self.onboardingWindow else { return }
@@ -298,9 +320,13 @@ extension AppDelegate {
 extension AppDelegate: NSWindowDelegate {
 
     /// Handles cleanup when an AppDelegate-owned window closes (onboarding or
-    /// whatsNew). The Settings window is owned by SwiftUI's `Settings` scene, so
+    /// whatsNew). The Settings window is owned by SwiftUI's `Window` scene, so
     /// its close is handled by the global `NSWindow.willCloseNotification`
     /// observer in `AppDelegate+Services`, not here.
+    ///
+    /// The reference is cleared and the menu-only policy re-checked on the next
+    /// main-actor turn, after the window has actually left the screen, so
+    /// `hasVisibleNormalWindow` no longer counts it.
     public func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
 

@@ -9,36 +9,23 @@
 import AppKit
 import SwiftUI
 
-/// Main settings UI for WolfWave application.
+/// Root of the Settings window: a `NavigationSplitView` with the grouped
+/// sidebar (`SettingsSidebarView`) and one detail pane per `SettingsSection`.
 ///
-/// Provides a split-view interface with sidebar navigation and detail panes for:
-/// - Music Playback Monitoring configuration
-/// - App Visibility (dock/menu bar modes)
-/// - WebSocket integration settings
-/// - Twitch bot authentication and commands
-/// - Advanced options (reset, debugging)
+/// Responsibilities beyond routing:
+/// - Owns the Settings-scoped Twitch OAuth presentation (`twitchOAuthOwner`)
+///   and cancels an in-flight sign-in when the user leaves the Twitch pane or
+///   closes the window.
+/// - Consumes `wolfwave://settings/...` deep links from `SettingsNavigation`
+///   through a single `ScrollViewReader` that wraps every pane.
+/// - Hosts the type-to-confirm factory reset alert and runs the reset itself
+///   (`performResetSettings`), including the relaunch.
+/// - Applies window chrome through `SettingsWindowConfigurator`.
 ///
-/// Architecture:
-/// - NavigationSplitView with sidebar and detail columns
-/// - Settings section enum for sidebar navigation
-/// - Detail views composed from separate view components
-/// - Sidebar toggle button in toolbar
-/// - Reset alert confirmation
-///
-/// State Management:
-/// - @State for TwitchViewModel (Twitch integration state, @Observable)
-/// - @AppStorage for user preferences (synced to UserDefaults)
-/// - @State for UI state (section selection, sidebar visibility)
-///
-/// Key Features:
-/// - Native sidebar visibility control
-/// - Keyboard shortcuts (Esc or Cmd+W to close)
-/// - Integration with AppDelegate services
-/// - Responsive to notifications from other parts of the app
-/// - Reset all settings with confirmation dialog
+/// Most panes render inside `standardDetailScroll`; General, Song Requests,
+/// History & Stats, and (DEBUG) Debug own their own scroll layout and are
+/// routed directly by `detailPane`.
 struct SettingsView: View {
-    // MARK: - Constants
-
     // MARK: - Settings Section Enum
     
     /// Navigation sections in the settings sidebar.
@@ -60,6 +47,7 @@ struct SettingsView: View {
         case debug = "Debug"
         #endif
 
+        /// The case itself; lets `List(selection:)` and `ForEach` key on the section.
         var id: Self { self }
 
         /// Stable identifier used in `wolfwave://settings/<slug>` deep links.
@@ -132,18 +120,21 @@ struct SettingsView: View {
 
     // MARK: - State
 
-    /// Twitch settings view model
+    /// The app-wide Twitch view model (a singleton), held in `@State` so this
+    /// view observes it.
     @State private var twitchViewModel = TwitchViewModel.shared
     /// Stable identity for this Settings presentation, including view recreation.
     @State private var twitchOAuthOwner =
         TwitchViewModel.OAuthPresentationOwner.settings(UUID())
 
-    /// Shared Twitch service from the app delegate.
+    /// The running `AppDelegate`, or `nil` in previews. Source of the live
+    /// Twitch, WebSocket, and song-request services.
     private var appDelegate: AppDelegate? {
         NSApplication.shared.delegate as? AppDelegate
     }
 
-    /// Controls the display of the reset confirmation alert
+    /// Drives the reset confirmation alert. Bound into `AdvancedSettingsView`,
+    /// whose reset button sets it.
     @State private var showingResetAlert = false
 
     /// Type-to-confirm text for the reset alert. The destructive "Reset" button
@@ -158,7 +149,8 @@ struct SettingsView: View {
     /// The exact (case-sensitive) word the user must type to enable Reset.
     private let resetConfirmWord = "RESET"
 
-    /// Currently selected settings section
+    /// The pane on screen. Also set by deep links and cross-pane jumps
+    /// (for example "Configure" rows and `reconnectTwitch`).
     @State private var selectedSection: SettingsSection = .general
 
     /// In-flight deep-link scroll + flash. Replaced (and cancelled) by each
@@ -169,6 +161,8 @@ struct SettingsView: View {
     /// automatic title-bar toggle (and any future programmatic show/hide) drives
     /// a single source of truth.
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    // MARK: - Body
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -314,7 +308,6 @@ struct SettingsView: View {
     
     // MARK: - Detail Views
 
-    /// Returns the detail pane content for the given sidebar section.
     /// Detail content for the selected section. Most sections render inside a
     /// shared scrolling, width-clamped column. A few opt out because they own
     /// their own scroll layout: General, Song Requests, and History & Stats
@@ -360,6 +353,8 @@ struct SettingsView: View {
         })
     }
 
+    /// Shared scrolling column for panes that don't own their layout: width
+    /// clamped to `SettingsUI.maxContentWidth` and centered.
     private var standardDetailScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
@@ -372,6 +367,8 @@ struct SettingsView: View {
         }
     }
 
+    /// Pane body rendered inside `standardDetailScroll`. Cases that `detailPane`
+    /// routes elsewhere return `EmptyView` only to keep the switch exhaustive.
     @ViewBuilder
     private func detailView(for section: SettingsSection) -> some View {
         switch section {
@@ -525,6 +522,13 @@ struct SettingsView: View {
         Task { @MainActor in await performResetSettings() }
     }
 
+    /// First gate of the factory reset: runs the Twitch teardown and turns a
+    /// failure into the "nothing was erased" alert. Static and closure-driven so
+    /// tests can exercise it without a live view model.
+    ///
+    /// - Parameter clearCredentials: Disconnects Twitch and clears its stored
+    ///   grant; returns `false` when that could not be done safely.
+    /// - Returns: `nil` when the reset may continue, otherwise the error to show.
     static func twitchResetError(clearCredentials: () async -> Bool) async -> UserFacingError? {
         guard await clearCredentials() else {
             return UserFacingError(
@@ -545,7 +549,7 @@ struct SettingsView: View {
 
     /// Removes the on-disk container, retrying once because the logger can
     /// recreate a file mid-removal. Returns `nil` when the container is gone,
-    /// or the banner to show when it is not.
+    /// or the alert error (id `resetIncompleteErrorID`) when it is not.
     ///
     /// By the time this runs, sign-ins and preferences are already erased, so
     /// the copy must not claim that nothing was.
@@ -689,8 +693,11 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
     /// every sidebar toggle and the initial width repair leaves a hidden column alone.
     let columnVisibility: NavigationSplitViewVisibility
 
+    /// One coordinator per hosted view; it remembers which window had its
+    /// sidebar width repaired.
     func makeCoordinator() -> Coordinator { Coordinator() }
 
+    /// Returns a zero-size placeholder and schedules the first chrome pass.
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         // The host window isn't attached yet during `makeNSView`; defer one
@@ -700,6 +707,7 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
         return view
     }
 
+    /// Re-applies the chrome on every update (including each sidebar toggle).
     func updateNSView(_ nsView: NSView, context: Context) {
         // Re-assert in case SwiftUI re-realizes or re-themes the window. Toggling
         // the sidebar re-themes the title bar (restoring the default visible title
@@ -710,10 +718,21 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
         DispatchQueue.main.async { coordinator.configure(nsView.window, visibility: columnVisibility) }
     }
 
+    /// Holds the one-shot sidebar-width repair state across updates.
     @MainActor
     final class Coordinator {
+        /// The window whose sidebar width was already repaired. Weak so a closed
+        /// window doesn't linger; a new window gets its own repair.
         private weak var repairedWindow: NSWindow?
 
+        /// Hides the title and makes the title bar transparent (every call,
+        /// cheap when already set). Until the repair has landed for this
+        /// window it also turns off the split view's frame autosave and pins
+        /// the divider to `SettingsUI.sidebarWidth`.
+        ///
+        /// The width repair is skipped while the sidebar is hidden or collapsed
+        /// (frame width of one point or less) so it never reopens a column the
+        /// user closed; it retries on the next update instead.
         func configure(_ window: NSWindow?, visibility: NavigationSplitViewVisibility) {
             guard let window else { return }
             if window.titleVisibility != .hidden { window.titleVisibility = .hidden }

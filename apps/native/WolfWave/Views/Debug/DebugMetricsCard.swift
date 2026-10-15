@@ -17,6 +17,8 @@ struct DebugMetricsCard: View {
 
     // MARK: - State
 
+    /// Latest metrics. Seeded synchronously so the first frame has numbers, then
+    /// replaced by the `.task` loop every `refreshInterval`.
     @State private var snapshot = MetricsService.shared.snapshot()
 
     /// Interval between metric snapshots while the card is on-screen.
@@ -71,6 +73,8 @@ struct DebugMetricsCard: View {
 
     // MARK: - Helpers
 
+    /// Label on the left, monospaced-digit value on the right, read by VoiceOver
+    /// as one element.
     private func metricRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)

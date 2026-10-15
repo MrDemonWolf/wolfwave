@@ -77,6 +77,11 @@ export function OBSOverlayWidget({ controls = true }: { controls?: boolean } = {
   );
 }
 
+/**
+ * One rendered overlay card for a theme + layout pair. Reads the shared
+ * cycling track itself; sizes come from `WIDGET_LAYOUTS` and colors from the
+ * theme token set, so only the per-layout arrangement lives here.
+ */
 function WidgetCard({
   theme,
   layout,
@@ -531,6 +536,11 @@ function WidgetCard({
   );
 }
 
+/**
+ * Track progress bar. `knob` switches to the taller, overflow-visible variant
+ * with a thumb; `showCounters` adds elapsed / total times. The width easing is
+ * disabled when motion is off.
+ */
 function ProgressBar({
   theme,
   elapsedSec,
@@ -611,6 +621,7 @@ function ProgressBar({
   );
 }
 
+/** Shared look for the layout and theme `<select>` controls. */
 const SELECT_STYLE = {
   minHeight: 36,
   padding: "7px 12px",
@@ -623,6 +634,7 @@ const SELECT_STYLE = {
   cursor: "pointer",
 } as const;
 
+/** Layout and theme pickers above the preview card (controlled by the parent). */
 function ControlBar({
   theme,
   layout,

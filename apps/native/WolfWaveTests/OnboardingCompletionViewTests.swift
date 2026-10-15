@@ -10,6 +10,8 @@ import XCTest
 import SwiftUI
 @testable import WolfWave
 
+/// `OnboardingCompletionView`: the dismiss timing, the VoiceOver rule (no auto-dismiss while it is
+/// running), and the Skipped vs Completed copy.
 @MainActor
 final class OnboardingCompletionViewTests: XCTestCase {
 

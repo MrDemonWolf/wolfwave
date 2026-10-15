@@ -19,6 +19,8 @@ import SwiftUI
 /// explains that the commands won't reply until Twitch is connected.
 struct CustomCommandsCard: View {
 
+    // MARK: - Properties
+
     /// Drives the connection notice. Commands reply only while Twitch chat is
     /// connected and the sign-in is valid.
     let viewModel: TwitchViewModel
@@ -31,6 +33,7 @@ struct CustomCommandsCard: View {
     /// says what stopped working.
     private let expiredMessage =
         "You can still edit these, but they won't reply until you reconnect."
+    /// Notice copy while disconnected: editing still works.
     private let disconnectedMessage =
         "You can set these up now. They reply in chat once you connect with Twitch above."
 
@@ -48,10 +51,14 @@ struct CustomCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.customCommandAnnounceStatus)
     private var announceStatusRaw = AnnounceStatus.ok.rawValue
 
+    /// Setup warning from the last announcement attempt (for example a missing
+    /// scope), shown only while at least one enabled command announces.
     private var announceBanner: String? {
         guard store.commands.contains(where: { $0.enabled && $0.delivery == .announce }) else { return nil }
         return AnnounceStatus(rawValue: announceStatusRaw)?.bannerMessage
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -119,6 +126,7 @@ struct CustomCommandsCard: View {
 
     // MARK: - Rows
 
+    /// Placeholder card when no commands exist yet.
     private var emptyState: some View {
         Text("No custom commands yet. Add one to reply to a chat trigger.")
             .fieldSubtitle()
@@ -127,6 +135,9 @@ struct CustomCommandsCard: View {
             .cardStyle()
     }
 
+    /// One command: trigger and reply preview, delivery and permission chips,
+    /// an enable switch, and an edit button. Rows are separated by a divider
+    /// except after the last.
     private func row(for command: CustomCommand) -> some View {
         HStack(spacing: DSSpace.s3) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
@@ -175,7 +186,9 @@ struct CustomCommandsCard: View {
     }
 
     /// A binding that flips a single command's `enabled` flag through the store
-    /// (so the change persists and re-renders the list).
+    /// (so the change persists and re-renders the list). If the store refuses
+    /// the update, its `Bool` result is ignored and the switch snaps back on
+    /// the next render, since `get` reads the stored command.
     private func enabledBinding(for command: CustomCommand) -> Binding<Bool> {
         Binding(
             get: { command.enabled },
@@ -195,16 +208,25 @@ struct CustomCommandsCard: View {
 /// names the problem under the field that needs fixing.
 private struct CustomCommandEditor: View {
 
+    // MARK: - Properties
+
+    /// Working copy edited by every field. Nothing reaches the store until Save.
     @State private var draft: CustomCommand
     /// Fields the user has edited. A mistake shows only once its field is
     /// dirty, so a fresh sheet doesn't open covered in red.
     @State private var dirtyFields: Set<CustomCommandIssue.Field> = []
+    /// New command: title reads "New Command" and Delete is hidden.
     let isNew: Bool
+    /// Used only to validate the draft against the other commands.
     let store: CustomCommandStore
+    /// Receives the normalized draft; the parent decides whether to close.
     let onSave: (CustomCommand) -> Void
+    /// Deletes the command being edited (shown only when not new).
     let onDelete: () -> Void
+    /// Closes the sheet without saving.
     let onCancel: () -> Void
 
+    /// Seeds `draft` from `command`; the rest are stored as given.
     init(
         command: CustomCommand,
         isNew: Bool,
@@ -221,14 +243,19 @@ private struct CustomCommandEditor: View {
         self.onCancel = onCancel
     }
 
+    /// First problem with the draft, or `nil` when it can be saved.
     private var issue: CustomCommandIssue? { store.validationIssue(for: draft) }
+    /// Enables Save.
     private var isValid: Bool { issue == nil }
 
     /// Counted in Unicode scalars to match the Save gate and the send-time
     /// truncation, so the counter never reads under the limit for a reply
     /// that would be cut.
     private var replyLength: Int { draft.response.unicodeScalars.count }
+    /// Turns the counter to the error color.
     private var replyOverLimit: Bool { replyLength > AppConstants.Twitch.maxMessageLength }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s5) {
@@ -375,7 +402,8 @@ private struct CustomCommandEditor: View {
             .accessibilityIdentifier("customCommandReplyCounter")
     }
 
-    /// A short reference of the supported variables.
+    /// A short reference of the supported variables. Keep in step with
+    /// `CustomCommandRenderer`.
     private var variableLegend: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1) {
             Text("Variables").sectionEyebrow()

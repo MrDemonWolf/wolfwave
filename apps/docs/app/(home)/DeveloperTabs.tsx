@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 
+/** Tab ids for the developer code samples. */
 type TabId = "overlay" | "browser" | "node";
 
 const TABS: { id: TabId; label: string; lang: string }[] = [
@@ -11,13 +12,16 @@ const TABS: { id: TabId; label: string; lang: string }[] = [
   { id: "node", label: "Node client", lang: "Node" },
 ];
 
+// Token colors for the hand-rolled syntax highlighting in SNIPPETS.
 const BRAND = "var(--brand-500)";
 const DIM = "var(--txt-2)";
 
+/** Wraps text in a colored span. Snippet strings are rendered as HTML, so literal `<` and `>` in them are pre-escaped as `&lt;` / `&gt;`. */
 function span(color: string, text: string) {
   return `<span style="color:${color}">${text}</span>`;
 }
 
+/** Pre-highlighted HTML per tab. Ports (8765 WebSocket, 8766 widget HTTP) must match the AppConstants defaults; `make lint-sync` checks docs pages, not this file. */
 const SNIPPETS: Record<TabId, string> = {
   overlay: [
     `${span(DIM, "// Settings → Stream Widgets → Build your own overlay: copy token.")}`,
@@ -57,6 +61,7 @@ const SNIPPETS: Record<TabId, string> = {
   ].join("\n"),
 };
 
+/** Tabbed code samples for the landing page's developer section, with arrow/Home/End keyboard navigation. */
 export function DeveloperTabs() {
   const [active, setActive] = useState<TabId>("overlay");
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);

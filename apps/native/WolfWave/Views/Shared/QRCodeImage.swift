@@ -25,6 +25,9 @@ struct QRCodeImage: View {
     /// Rendered edge length of the (square) code.
     let size: CGFloat
 
+    // Hidden from VoiceOver in both branches: the code is decorative, so any
+    // spoken equivalent of the payload has to come from the caller's layout.
+    // Note: the code is re-encoded on every body evaluation; there is no cache.
     var body: some View {
         if let cgImage = Self.makeQRCode(from: string) {
             Image(decorative: cgImage, scale: 1, orientation: .up)
@@ -45,6 +48,9 @@ struct QRCodeImage: View {
     /// Builds a white-modules-on-transparent `CGImage` for the payload so it
     /// reads on dark gradients without a background plate. Returns `nil` when
     /// the string can't be encoded.
+    ///
+    /// Uses error-correction level "M" (about 15% of modules recoverable), a
+    /// middle ground between density and tolerance for a URL-sized payload.
     private static func makeQRCode(from string: String) -> CGImage? {
         let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()

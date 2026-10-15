@@ -24,6 +24,7 @@ import UniformTypeIdentifiers
 struct AdvancedSettingsView: View {
     // MARK: - Environment
 
+    /// Drops the copy-feedback fade when Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - State
@@ -87,8 +88,11 @@ struct AdvancedSettingsView: View {
     /// Whether the export error alert is shown.
     @State private var showingExportError = false
 
+    // MARK: - Log Actions
+
     /// Returns the current log file URL, or `nil` after logging a warning whose
-    /// suffix is `reason` (e.g. "for export", "to reveal", "to copy").
+    /// suffix is `reason` (e.g. "for export", "to reveal", "to copy"). The
+    /// `nil` path also raises the "No logs yet." alert, so callers just return.
     private func requireLogFile(orWarn reason: String) -> URL? {
         guard let logURL = Log.exportLogFile() else {
             Log.warn("No log file available \(reason)", category: .app)
@@ -99,7 +103,9 @@ struct AdvancedSettingsView: View {
         return logURL
     }
 
-    /// Opens a save panel to export the application log file.
+    /// Opens a save panel to export the diagnostics bundle: the environment
+    /// header, the last crash summary, and every rotated log, oldest first
+    /// (see `DiagnosticsBundle`). The live log file only gates availability.
     ///
     /// Presents the panel as a sheet on the settings window when available,
     /// falling back to a modal run loop. Previously used `panel.begin` with
@@ -169,9 +175,12 @@ struct AdvancedSettingsView: View {
         NSWorkspace.shared.activateFileViewerSelecting([logURL])
     }
 
-    /// Copies the tail of the log file to the system clipboard.
+    /// Copies the tail of the live log file, prefixed with the environment
+    /// header, to the system clipboard and flashes "Copied" for two seconds.
     ///
-    /// Limited to the last 64 KB to avoid pasteboard overload.
+    /// Limited to the last 64 K characters (not bytes; the cut is on
+    /// `Character` count) to avoid pasteboard overload. Rotated logs are not
+    /// included; use Export for those.
     private func copyLogsToClipboard() {
         guard let logURL = requireLogFile(orWarn: "to copy") else { return }
 
@@ -206,7 +215,8 @@ struct AdvancedSettingsView: View {
         }
     }
 
-    /// Clears the current log file (truncates in place).
+    /// Clears the current log file (truncates in place and writes a fresh
+    /// header line). Rotated logs are left alone.
     private func clearLogs() {
         Log.clearLogFile()
         Log.info("Logs cleared by user", category: .app)
@@ -243,6 +253,7 @@ struct AdvancedSettingsView: View {
     }
 
     /// Refreshes the displayed artwork cache entry count + disk size.
+    /// Synchronous; `cacheStats()` is cheap enough to read on the main actor.
     private func refreshArtworkStats() {
         let stats = ArtworkService.shared.cacheStats()
         let size = ByteFormatting.string(stats.diskBytes)
@@ -251,11 +262,15 @@ struct AdvancedSettingsView: View {
     }
 
     /// Returns the host window for sheet presentation, or nil if none is visible.
+    /// Prefers the key window, then any visible window that isn't a status-bar
+    /// window. Callers fall back to `runModal()` on `nil`.
     @MainActor
     private func hostWindow() -> NSWindow? {
         if let key = NSApp.keyWindow { return key }
         return NSApp.windows.first { $0.isVisible && !$0.className.contains("NSStatusBar") }
     }
+
+    // MARK: - Crash Recovery
 
     /// "Recovered from a crash" callout shown at the top of the pane after the
     /// previous run crashed. The breadcrumb that drives it is written by
@@ -284,6 +299,8 @@ struct AdvancedSettingsView: View {
             .font(.system(size: DSFont.Size.sm))
         }
     }
+
+    // MARK: - Body
 
     /// Main view body with setup wizard, diagnostics, and danger zone sections.
     var body: some View {
@@ -387,6 +404,8 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Diagnostics Card
 
+    /// Log size / line count plus Export, Copy, Reveal, and Clear (confirmed).
+    /// Stats refresh on appear and after export / clear.
     @ViewBuilder
     private var diagnosticsCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -461,6 +480,7 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Artwork Cache Card
 
+    /// Artwork cache entry count + disk size with a confirmed Clear action.
     @ViewBuilder
     private var artworkCacheCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -507,12 +527,17 @@ struct AdvancedSettingsView: View {
 
     // MARK: - Backup Card
 
+    /// Opt-in iCloud mirror switch. Changes also post
+    /// `iCloudSettingsSyncSettingChanged` so `SettingsSyncService` starts or stops.
     @AppStorage(AppConstants.UserDefaults.iCloudSettingsSyncEnabled)
     private var iCloudSettingsSyncEnabled = false
 
+    /// Seconds since 1970 of the last iCloud payload applied here; `0` means never.
     @AppStorage(AppConstants.UserDefaults.iCloudSettingsSyncLastAppliedAt)
     private var iCloudSettingsSyncLastAppliedAt = 0.0
 
+    /// "Last synced …" once a sync has been applied while enabled, otherwise
+    /// the explainer line.
     private var iCloudSyncSubtitle: String {
         guard iCloudSettingsSyncEnabled, iCloudSettingsSyncLastAppliedAt > 0 else {
             return "Settings follow you to other Macs. Accounts stay on this one."
@@ -521,6 +546,9 @@ struct AdvancedSettingsView: View {
         return "Last synced \(date.formatted(date: .abbreviated, time: .shortened))."
     }
 
+    /// iCloud sync toggle plus file Export / Import. Import goes through
+    /// `chooseImportFile` → `loadImportFile` → `SettingsImportSheet` →
+    /// `applyImport`, and every failure lands in one of the alerts here.
     @ViewBuilder
     private var backupCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {

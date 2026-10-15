@@ -23,6 +23,7 @@ import Foundation
 /// wrappers those seams used to carry.
 nonisolated final class Atomic<Value>: @unchecked Sendable {
     private let lock = NSLock()
+    /// Backing storage. Only touched inside `lock`.
     private var _value: Value
 
     /// Creates a box seeded with `value`.
@@ -36,6 +37,9 @@ nonisolated final class Atomic<Value>: @unchecked Sendable {
     }
 
     /// Atomically replaces the stored value.
+    ///
+    /// There is no read-modify-write; a `value` read followed by `set` can race
+    /// another writer. Fine for last-writer-wins snapshots, which is all this is for.
     func set(_ newValue: Value) {
         lock.withLock { _value = newValue }
     }

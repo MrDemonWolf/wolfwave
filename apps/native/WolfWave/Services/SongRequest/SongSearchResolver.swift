@@ -23,19 +23,31 @@ final class SongSearchResolver {
 
     /// Result of a search resolution.
     enum Result {
+        /// A single catalog track the request pipeline can queue.
         case found(Song)
+        /// Plain-text search returned nothing; carries the trimmed query for the chat reply.
         case notFound(query: String)
+        /// A link was recognized but could not be matched to exactly one catalog track
+        /// (oEmbed miss, Apple Music ID not in the catalog, or an ambiguous / weak match).
         case linkNotFound
+        /// Search or resolve failed; the message comes from the controller or link resolver.
         case error(String)
     }
 
     // MARK: - Properties
 
+    /// Turns Spotify / YouTube links into title + artist via oEmbed, and validates Apple Music links.
     private let linkResolver: LinkResolverService
+    /// MusicKit search and Apple Music URL resolution (injected so tests can stub the catalog).
     private let musicController: any AppleMusicControlling
 
     // MARK: - Init
 
+    /// Creates a resolver over the given link and catalog backends.
+    ///
+    /// - Parameters:
+    ///   - linkResolver: oEmbed / URL classifier. Defaults to a live instance on `URLSession.shared`.
+    ///   - musicController: Catalog search backend.
     init(linkResolver: LinkResolverService = LinkResolverService(), musicController: any AppleMusicControlling) {
         self.linkResolver = linkResolver
         self.musicController = musicController
@@ -44,6 +56,13 @@ final class SongSearchResolver {
     // MARK: - Public API
 
     /// Resolve a search query to a MusicKit Song.
+    ///
+    /// If the text contains a supported music URL anywhere, the link path wins and
+    /// the surrounding words are ignored; otherwise the whole trimmed text is a
+    /// catalog search.
+    ///
+    /// - Parameter query: Raw request text from chat, a redemption, or a cheer.
+    /// - Returns: `.error` for an empty query; otherwise the outcome of the link or text path.
     func resolve(query: String) async -> Result {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -62,6 +81,12 @@ final class SongSearchResolver {
 
     /// Resolves a validated Apple Music, Spotify, or YouTube URL into a catalog
     /// track via `LinkResolverService` + MusicKit.
+    ///
+    /// - Parameter urlString: The validated music URL extracted from chat text.
+    /// For Spotify / YouTube, oEmbed only gives a free-text title (and maybe an
+    /// author), so the top 10 catalog candidates are scored and a song is accepted
+    /// only when it is a near-exact, unambiguous match. Guessing wrong would queue
+    /// a song the viewer never asked for, so a weak match reports `.linkNotFound`.
     ///
     /// - Parameter urlString: The validated music URL extracted from chat text.
     /// - Returns: `.found`, `.linkNotFound`, or `.error`.
@@ -88,12 +113,19 @@ final class SongSearchResolver {
             Log.debug("SongSearchResolver: oEmbed resolved to: \(searchQuery)", category: .songRequest)
             let candidates = await musicController.searchCandidates(query: searchQuery, limit: 10)
             if let error = candidates.error { return .error(error) }
+            // YouTube music videos are usually titled "Artist - Title" and the oEmbed
+            // author is the uploader channel, not the artist, so split the title
+            // instead of trusting `artist`. Only an exact two-part split is trusted.
             let host = URL(string: urlString)?.host ?? ""
             let youtube = host.hasSuffix("youtube.com") || host == "youtu.be"
             let pieces = TrackTextNormalizer.title(title).components(separatedBy: " - ")
             let expectedTitle = youtube && pieces.count == 2 ? pieces[1] : TrackTextNormalizer.title(title)
             let expectedArtist = youtube && pieces.count == 2 ? pieces[0] : artist.map(TrackTextNormalizer.title)
             guard !expectedTitle.isEmpty else { return .linkNotFound }
+            // Title score is word-set Jaccard similarity on normalized titles. With an
+            // expected artist the score is 0.8 * title + 0.2 * exact artist match, so
+            // against the 0.9 bar below an artist mismatch can never pass (max 0.8)
+            // and a match still needs a title score of at least 0.875.
             let expectedWords = Set(expectedTitle.split(separator: " "))
             let scored = candidates.songs.map { song -> (song: Song, score: Double) in
                 let words = Set(TrackTextNormalizer.title(song.title).split(separator: " "))
@@ -107,6 +139,8 @@ final class SongSearchResolver {
                 }
                 return (song, score)
             }.sorted { $0.score > $1.score }
+            // Reject ties: two equally good candidates (e.g. album vs. single
+            // release) mean we can't tell which one the viewer meant.
             guard let best = scored.first, best.score >= 0.9,
                   scored.count == 1 || best.score > scored[1].score else { return .linkNotFound }
             return .found(best.song)

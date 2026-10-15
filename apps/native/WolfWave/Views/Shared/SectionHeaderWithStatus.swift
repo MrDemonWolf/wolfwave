@@ -34,16 +34,24 @@ struct SectionHeaderWithStatus: View {
     /// `.sectionHeader()`), so a pane that hosts both a title and sub-sections
     /// keeps a clear two-step hierarchy instead of two near-identical headings.
     enum Prominence {
+        /// Pane title (H1).
         case pane
+        /// Sub-section heading (H2).
         case section
     }
 
     // MARK: - Properties
 
+    /// Heading text.
     let title: String
+    /// One-line description under the heading.
     let subtitle: String
+    /// Heading level; pane title by default.
     var prominence: Prominence = .pane
+    /// Chip label. The chip shows only when both this and `statusColor` are set.
     var statusText: String? = nil
+    /// Chip tint. Use a `DSColor` semantic token (the `raw-status-color` lint
+    /// rule rejects raw system colors here).
     var statusColor: Color? = nil
     /// Optional leading SF Symbol for the status chip, so state is not conveyed
     /// by color alone. Passed straight through to `StatusChip`.
@@ -72,6 +80,7 @@ struct SectionHeaderWithStatus: View {
 
     // MARK: - Title
 
+    /// The title styled for `prominence`.
     @ViewBuilder
     private var titleText: some View {
         switch prominence {

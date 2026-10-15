@@ -10,9 +10,10 @@ import Foundation
 
 /// Lightweight HTTP wrapper around `URLSession` for JSON request/response cycles.
 ///
-/// Centralizes request construction (bearer auth header, content type),
-/// status-code validation, and JSON decoding so services do not duplicate
-/// boilerplate at every call site.
+/// Centralizes request construction (caller headers plus a default
+/// `User-Agent`), status-code validation, and JSON decoding so services do not
+/// duplicate boilerplate at every call site. Auth and content-type headers are
+/// the caller's job (`HelixClient` builds the Twitch ones).
 ///
 /// - Note: For WebSocket connections (`URLSessionWebSocketTask`), continue to
 ///   use a dedicated `URLSession` configured per service. This client targets
@@ -138,6 +139,9 @@ nonisolated struct HTTPClient: Sendable {
     /// - Throws: `HTTPError.invalidResponse` if the response isn't HTTP, or
     ///   `HTTPError.transport` on session failure. Non-2xx statuses are
     ///   **not** thrown. The caller decides.
+    ///
+    /// The request is sent as-is: no default `User-Agent` is added here, so
+    /// callers building their own `URLRequest` apply `withDefaultUserAgent`.
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await transport(request)
         guard let http = response as? HTTPURLResponse else {
@@ -186,6 +190,7 @@ nonisolated struct HTTPClient: Sendable {
 
     // MARK: - Private Helpers
 
+    /// Builds a request with `headers` merged over the default `User-Agent`.
     private func makeRequest(
         url: URL,
         method: String,
@@ -201,6 +206,7 @@ nonisolated struct HTTPClient: Sendable {
         return request
     }
 
+    /// Sends, validates the status, then decodes the body with `decoder`.
     private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await transport(request)
         try validate(response: response, body: data)
@@ -211,6 +217,8 @@ nonisolated struct HTTPClient: Sendable {
         }
     }
 
+    /// Runs the request on `session`, wrapping any thrown error (including
+    /// cancellation) in `HTTPError.transport`.
     private func transport(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
             return try await session.data(for: request)
@@ -219,6 +227,8 @@ nonisolated struct HTTPClient: Sendable {
         }
     }
 
+    /// Throws `invalidResponse` for a non-HTTP response and `unexpectedStatus`
+    /// (with the body as UTF-8, or empty) for anything outside 200..<300.
     private func validate(response: URLResponse, body: Data) throws {
         guard let http = response as? HTTPURLResponse else {
             throw HTTPError.invalidResponse

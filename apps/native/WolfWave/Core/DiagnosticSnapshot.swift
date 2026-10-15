@@ -20,14 +20,20 @@ import Foundation
 /// Not `#if DEBUG`. That was the bug.
 nonisolated struct DiagnosticSnapshot: Equatable {
 
+    /// How this copy was installed. Raw values are the labels shown in the
+    /// bug report and export header.
     enum InstallMethod: String, Equatable {
         case homebrew = "Homebrew"
         case dmg = "DMG"
     }
 
+    /// `CFBundleShortVersionString` (via `AppConstants.AppInfo.shortVersion`).
     let appVersion: String
+    /// `CFBundleVersion`, the build number Sparkle compares.
     let build: String
+    /// `ProcessInfo.operatingSystemVersionString`, human-readable.
     let osVersion: String
+    /// See ``currentArch``.
     let arch: String
     let installMethod: InstallMethod
 
@@ -40,6 +46,8 @@ nonisolated struct DiagnosticSnapshot: Equatable {
     /// Whether the user opted into on-device MetricKit diagnostics.
     let diagnosticsEnabled: Bool
 
+    /// Log size in bytes as measured by the caller: usually `Log.logFileSize()`
+    /// (the live file only), but the export path passes the composed bundle's size.
     let logSizeBytes: Int64
 
     /// Human-readable log size, formatted at capture time.
@@ -76,7 +84,8 @@ nonisolated struct DiagnosticSnapshot: Equatable {
         )
     }
 
-    /// CPU architecture this build is running as.
+    /// CPU architecture this build is running as, decided at compile time, so an
+    /// x86_64 slice under Rosetta reports `x86_64`.
     static var currentArch: String {
         #if arch(arm64)
         return "arm64"

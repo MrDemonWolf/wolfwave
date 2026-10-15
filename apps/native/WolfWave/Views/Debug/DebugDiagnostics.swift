@@ -10,9 +10,13 @@
 import Foundation
 
 /// DEBUG-only diagnostics snapshot + markdown formatter for the "Copy Diagnostics"
-/// button in the Debug tab. Pure value type, no UI, no pasteboard. Mirrors the
-/// environment block built by `BugReportURL.make(…)` but routes to the pasteboard
-/// for quick pasting into a GitHub issue.
+/// button in the Debug tab. Pure value type, no UI, no pasteboard: the caller
+/// (`DebugSettingsView.copyDiagnostics()`) gathers the values and copies the result.
+///
+/// Covers similar ground to the `DiagnosticSnapshot` environment block used by
+/// `BugReportURL` and the Advanced pane export, but it is a separate type with
+/// its own fields (live connection state, preference toggles), so the two can
+/// differ.
 enum DebugDiagnostics {
 
     // MARK: - Snapshot
@@ -32,7 +36,9 @@ enum DebugDiagnostics {
         let build: String
         let osVersion: String
         let arch: String
+        /// Human label, "Homebrew" or "DMG".
         let installMethod: String
+        /// Current log file size in bytes; formatted with `ByteFormatting` on output.
         let logSizeBytes: Int64
         let logLineCount: Int
 
@@ -43,13 +49,24 @@ enum DebugDiagnostics {
 
         /// What is actually true right now (live service state).
         let twitchConnected: Bool
+        /// Raw value of `DiscordRPCService.ConnectionState` (for example "connected").
         let discordConnection: String
+        /// Whether a Twitch access token is in the Keychain. Presence only: a stored
+        /// token can still be expired or revoked, which is why it is listed next to
+        /// `twitchConnected` instead of standing in for it.
         let twitchTokenStored: Bool
     }
 
     // MARK: - Formatting
 
     /// Returns a markdown blob suitable for pasting into a GitHub issue.
+    ///
+    /// Three tables: Environment, Connections (live state), and Preferences
+    /// (what the user turned on). Keep Connections and Preferences apart; see
+    /// `Snapshot` for why.
+    ///
+    /// - Parameter snapshot: Values captured at click time.
+    /// - Returns: GitHub-flavored markdown.
     static func markdown(_ snapshot: Snapshot) -> String {
         let size = ByteFormatting.string(snapshot.logSizeBytes)
         return """
@@ -86,6 +103,7 @@ enum DebugDiagnostics {
         """
     }
 
+    /// "Yes" / "No" for table cells.
     private static func yesNo(_ value: Bool) -> String {
         value ? "Yes" : "No"
     }

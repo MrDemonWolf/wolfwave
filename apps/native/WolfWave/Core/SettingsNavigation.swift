@@ -17,6 +17,7 @@ import Observation
 @MainActor
 @Observable
 final class SettingsNavigation {
+    /// The one instance `AppDelegate` writes and `SettingsView` observes.
     static let shared = SettingsNavigation()
 
     /// Destination waiting to be applied by `SettingsView`.

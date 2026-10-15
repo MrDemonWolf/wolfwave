@@ -29,6 +29,7 @@ struct StreamDeckControlGateTests {
 
     private var store: UserDefaults { DefaultsStore.store }
 
+    /// Removes the capability key, so it reads as never set.
     private func clear() {
         store.removeObject(forKey: AppConstants.UserDefaults.streamDeckControlEnabled)
     }

@@ -19,9 +19,14 @@ struct CommandAliasField: View {
 
     // MARK: - Properties
 
+    /// Raw comma-separated alias text, stored as typed. Parsing (splitting,
+    /// trimming, dropping a leading `!`) is the consumer's job, not this view's.
     @Binding var aliases: String
+    /// Visible label before the field.
     var label: String = "Custom aliases:"
+    /// Placeholder shown while the field is empty.
     var placeholder: String = "e.g. np, track"
+    /// VoiceOver label for the field.
     var accessibilityLabel: String = "Custom aliases"
     /// Optional UI-test identifier. Applied only when non-nil so call sites that
     /// never set one (and don't need unique targeting) emit no identifier.
@@ -41,6 +46,7 @@ struct CommandAliasField: View {
 
     // MARK: - Private Views
 
+    /// The rounded text field, capped at the shared inline-field width.
     @ViewBuilder
     private var field: some View {
         let base = TextField(placeholder, text: $aliases)

@@ -34,6 +34,8 @@ extension AppDelegate {
 
     // MARK: - Sections
 
+    /// Adds a disabled "Song · Artist" header plus a separator. Skipped when
+    /// nothing is loaded. Long titles are clamped; the full text goes in the tooltip.
     private func addDockNowPlaying(into menu: NSMenu) {
         guard let song = currentSong else { return }
         let title = currentArtist.map { "\(song) · \($0)" } ?? song
@@ -48,6 +50,8 @@ extension AppDelegate {
         menu.addItem(.separator())
     }
 
+    /// Adds Play/Pause, Next, and Previous. Skipped while Music.app is not
+    /// running, so the Dock menu never offers controls that would relaunch it.
     private func addDockPlaybackControls(into menu: NSMenu) {
         guard isMusicAppOpen() else { return }
 
@@ -75,6 +79,9 @@ extension AppDelegate {
         menu.addItem(.separator())
     }
 
+    /// Adds the Hold / Resume Song Requests toggle when song requests are on.
+    /// The title flips on the service's current hold state (off when the
+    /// service has not been created yet).
     private func addDockSongRequestHold(into menu: NSMenu) {
         guard FeatureFlags.songRequestEnabled else { return }
         let holdEnabled = songRequestService?.isHoldEnabled ?? false
@@ -86,6 +93,10 @@ extension AppDelegate {
         menu.addItem(.separator())
     }
 
+    /// Adds the checkmarked integration toggles: Apple Music tracking, Twitch
+    /// (only when a credential is stored; checked while actually connected),
+    /// Discord, and the OBS overlay server. Discord and overlay checkmarks
+    /// reflect the stored preference, not live connection state.
     private func addDockServiceToggles(into menu: NSMenu) {
         let trackingOn = FeatureFlags.trackingEnabled
         let trackingItem = NSMenuItem(
@@ -129,6 +140,7 @@ extension AppDelegate {
         menu.addItem(.separator())
     }
 
+    /// Adds the Settings item (Command-comma, matching the tray menu).
     private func addDockSettings(into menu: NSMenu) {
         let settingsItem = NSMenuItem(
             title: AppConstants.MenuLabels.settings,

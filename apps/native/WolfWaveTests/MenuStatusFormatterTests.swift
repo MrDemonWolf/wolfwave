@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// Pure formatting behind the tray menu: `MenuStatusFormatter` rows, queue collapsing,
+/// `MenuTitleFormatting` clamping, and `TwitchMenuState`.
 @MainActor
 final class MenuStatusFormatterTests: XCTestCase {
 

@@ -81,6 +81,9 @@ actor DiscordRPCService {
     /// Partial frame bytes shared by idle reads and command transactions.
     /// Access is confined to the serial IPC queue.
     nonisolated final class IPCReadBuffer: @unchecked Sendable {
+        /// Bytes received but not yet consumed as a complete frame. A fresh
+        /// buffer is installed for every new socket so stale bytes from a prior
+        /// connection can never be parsed as a reply.
         var data = Data()
     }
 
@@ -95,6 +98,9 @@ actor DiscordRPCService {
         private var isComplete = false
         private var waiters: [CheckedContinuation<Void, Never>] = []
 
+        /// Marks the descriptor closed and resumes every current waiter.
+        /// Idempotent: calls after the first are ignored. Waiters are resumed
+        /// outside the lock.
         func complete() {
             lock.lock()
             guard !isComplete else {
@@ -108,6 +114,8 @@ actor DiscordRPCService {
             pending.forEach { $0.resume() }
         }
 
+        /// Suspends until ``complete()`` has run; returns immediately if it
+        /// already has.
         func wait() async {
             await withCheckedContinuation { continuation in
                 lock.lock()
@@ -158,6 +166,9 @@ actor DiscordRPCService {
     }
 
     /// Payload yielded by ``artworkResolutions`` when artwork resolves for a track.
+    ///
+    /// `track` / `artist` identify the song the lookup was for, so a consumer
+    /// can drop a resolution that arrives after the track already changed.
     struct ArtworkResolution: Sendable, Equatable {
         let url: String
         let track: String
@@ -170,12 +181,14 @@ actor DiscordRPCService {
     ///
     /// Consumers iterate via `for await newState in service.stateChanges`.
     nonisolated let stateChanges: AsyncStream<ConnectionState>
+    /// Producer side of ``stateChanges``; finished in `deinit`.
     private nonisolated let stateContinuation: AsyncStream<ConnectionState>.Continuation
 
     /// Track artwork URLs, yielded once `ArtworkService` resolves the lookup.
     ///
     /// Consumers iterate via `for await resolution in service.artworkResolutions`.
     nonisolated let artworkResolutions: AsyncStream<ArtworkResolution>
+    /// Producer side of ``artworkResolutions``; finished in `deinit`.
     private nonisolated let artworkContinuation: AsyncStream<ArtworkResolution>.Continuation
 
     // MARK: - Properties
@@ -282,12 +295,18 @@ actor DiscordRPCService {
     /// Widened from `private` for `DiscordRPCService+IPC.swift`.
     var reconnectTask: Task<Void, Never>?
 
-    /// Event-driven queue-owned reader for unsolicited frames.
+    /// Event-driven queue-owned reader for unsolicited frames. Once installed,
+    /// its cancel handler is the only code allowed to close ``socketFD``.
     var ipcReadSource: DispatchSourceRead?
+    /// Completion fired by ``ipcReadSource``'s cancel handler after it closes
+    /// the descriptor. Always installed together with the source.
     var ipcReadSourceClose: IPCDescriptorClose?
     /// Close currently executing on ``ipcQueue``. Retained after actor ownership
     /// is synchronously cleared so concurrent disconnects await the same close.
     var ipcCloseInProgress: IPCDescriptorClose?
+    /// Partial-frame buffer for the current socket, shared by the idle read
+    /// pump and command transactions (both run on ``ipcQueue``). Replaced on
+    /// every new connection.
     var ipcReadBuffer = IPCReadBuffer()
 
     /// Current availability poll interval (may be widened in reduced-power mode).
@@ -311,17 +330,34 @@ actor DiscordRPCService {
         let artist: String
         let album: String
         let playlist: String
+        /// Track length in seconds (0 if unknown).
         let duration: TimeInterval
+        /// Playback position in seconds at `capturedAt`.
         let elapsed: TimeInterval
         let isPaused: Bool
+        /// When the snapshot was taken; used to project `elapsed` forward on a
+        /// re-send and to detect seeks in the dedup check.
         let capturedAt: Date
     }
+    /// The latest track snapshot. Cleared when presence is cleared or idle is
+    /// shown, except on paths that pass `preservingLastPresence: true` so a
+    /// later re-enable or resume can restore the activity.
     private var lastPresence: LastPresence?
+    /// Newest activity waiting for the rate-limit window. Only the latest one
+    /// survives a burst; ``cancelPendingPresence()`` drops it.
     private var pendingActivity: [String: Any]?
+    /// Delayed flush of ``pendingActivity``; non-nil while a send is scheduled.
     private var presenceSendTask: Task<Void, Never>?
+    /// When the last `SET_ACTIVITY` with an activity was written.
     private var lastActivitySentAt: Date?
+    /// Nonce of the last activity sent. A Discord ERROR reply is retried only
+    /// when it matches, so a rejection of an older payload is ignored.
     private var lastActivityNonce: String?
+    /// Whether the one allowed retry for the current activity was spent. Reset
+    /// whenever a new activity is queued.
     private var presenceRetryUsed = false
+    /// Minimum seconds between activity sends. Discord rate-limits
+    /// `SET_ACTIVITY`, so updates inside this window are coalesced.
     var presenceMinimumInterval: TimeInterval = 4
 
     /// Observer token for `discordPresenceSettingsChanged`.
@@ -338,8 +374,19 @@ actor DiscordRPCService {
 
     /// Creates the service. Does not connect until `setEnabled(true)` is called.
     ///
-    /// - Parameter clientID: Discord Application ID. If nil, attempts to resolve
-    ///   from Info.plist (`DISCORD_CLIENT_ID`) or environment.
+    /// Registers a main-queue observer for `discordPresenceSettingsChanged`
+    /// that re-sends the current presence.
+    ///
+    /// - Parameters:
+    ///   - clientID: Discord Application ID. If nil, attempts to resolve
+    ///     from Info.plist (`DISCORD_CLIENT_ID`) or environment. An empty result
+    ///     leaves the service unable to connect (``ConnectionFailure/notConfigured``).
+    ///   - ipcSocketOpener: Opens and connects a socket for `(path, slot)`,
+    ///     returning the fd or -1. Runs on ``ipcQueue``. Tests inject fakes.
+    ///   - ipcSocketCloser: Closes a descriptor. Runs on ``ipcQueue``; tests use
+    ///     it to count closes.
+    ///   - ipcTransactionTimeoutNanoseconds: Budget for one whole write/reply
+    ///     transaction, in nanoseconds.
     init(
         clientID: String? = nil,
         ipcSocketOpener: @escaping @Sendable (String, Int) -> Int32 = {
@@ -370,7 +417,7 @@ actor DiscordRPCService {
         // edits and similar tweaks immediately. Delivery is pinned to the main
         // queue so the block never fires on an arbitrary thread while `init` is
         // still completing (the closure captures `self`); the block only hops
-        // into a detached Task, so main-queue delivery adds no real work.
+        // into an unstructured Task, so main-queue delivery adds no real work.
         let name = Notification.Name.discordPresenceSettingsChanged
         self.settingsObserver = NotificationCenter.default.addObserver(
             forName: name, object: nil, queue: .main
@@ -380,6 +427,8 @@ actor DiscordRPCService {
         }
     }
 
+    /// Removes the settings observer, cancels timers, hands the open descriptor
+    /// (if any) to its single owner for closing, and finishes both streams.
     deinit {
         if let settingsObserver {
             NotificationCenter.default.removeObserver(settingsObserver)
@@ -409,7 +458,12 @@ actor DiscordRPCService {
     /// Enables or disables the service.
     ///
     /// When enabled, immediately attempts to connect to Discord.
-    /// When disabled, disconnects and stops polling.
+    /// When disabled, clears the activity, disconnects, and stops polling.
+    ///
+    /// Each call bumps ``enableIntentGeneration``. After every await the call
+    /// checks it still owns the newest intent; if a later call won, it hands
+    /// off to ``reconcileLatestEnableIntent()`` instead of finishing a stale
+    /// transition.
     func setEnabled(_ enabled: Bool) async {
         enableIntentGeneration &+= 1
         let intentGeneration = enableIntentGeneration
@@ -531,6 +585,9 @@ actor DiscordRPCService {
         )
     }
 
+    /// Starts a one-time `ArtworkService` lookup for the track's artwork and
+    /// links, unless one was already attempted. When it returns anything new,
+    /// ``handleResolvedLinks(track:artist:links:)`` re-sends the presence.
     private func resolveLinksIfNeeded(track: String, artist: String) {
         guard !ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist) else {
             return
@@ -572,6 +629,10 @@ actor DiscordRPCService {
         await performShowIdleStatus(preservingLastPresence: false)
     }
 
+    /// Sends the idle activity if connected.
+    ///
+    /// - Parameter preservingLastPresence: Keep ``lastPresence`` so a resume
+    ///   can restore the track (used when a paused track is hidden).
     private func performShowIdleStatus(preservingLastPresence: Bool) async {
         if !preservingLastPresence {
             lastPresence = nil
@@ -582,6 +643,11 @@ actor DiscordRPCService {
 
     // MARK: - Resolution Handling
 
+    /// Applies a finished artwork / link lookup.
+    ///
+    /// Ignored when the track has changed since the lookup started. Otherwise
+    /// re-sends the presence (now using the cached links) and yields the
+    /// artwork URL on ``artworkResolutions``.
     private func handleResolvedLinks(
         track: String,
         artist: String,
@@ -602,6 +668,12 @@ actor DiscordRPCService {
 
     // MARK: - Presence Helpers
 
+    /// Drops any queued activity and sends a `SET_ACTIVITY` with no `activity`,
+    /// which clears the profile card. Not rate-limited: a clear always goes out
+    /// immediately.
+    ///
+    /// - Parameter preservingLastPresence: Keep ``lastPresence`` so the track
+    ///   can be restored later.
     private func performClearPresence(preservingLastPresence: Bool = false) async {
         cancelPendingPresence()
         if !preservingLastPresence {
@@ -631,6 +703,9 @@ actor DiscordRPCService {
     ///     asset uploaded in the Discord Developer Portal.
     ///   - duration: Total track duration in seconds (0 if unknown).
     ///   - elapsed: Elapsed time in seconds (0 if unknown).
+    ///   - appleMusicURL: Target for the first button, if resolved.
+    ///   - songLinkURL: Target for the second button, if resolved.
+    ///   - isPaused: Shows the paused badge and drops timestamps.
     private func sendPresenceActivity(
         track: String,
         artist: String,
@@ -661,6 +736,8 @@ actor DiscordRPCService {
         await sendActivityFrame(activity)
     }
 
+    /// Records the latest track snapshot (stamped with the current time) so
+    /// settings changes and reconnects can re-send it.
     private func cachePresence(
         track: String,
         artist: String,
@@ -678,6 +755,10 @@ actor DiscordRPCService {
     }
 
     /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
+    ///
+    /// Rate-limited: inside ``presenceMinimumInterval`` of the last send, the
+    /// activity replaces any pending one and goes out when the window ends.
+    /// No-op unless enabled and connected.
     func sendActivityFrame(_ activity: [String: Any]) async {
         guard isEnabled, state == .connected else { return }
         pendingActivity = activity
@@ -690,7 +771,10 @@ actor DiscordRPCService {
         }
     }
 
-    /// Only the latest pending payload survives a burst. Clear and disconnect cancel it.
+    /// Schedules a flush of ``pendingActivity`` when the rate-limit window
+    /// ends. Only the latest pending payload survives a burst. Clear and
+    /// disconnect cancel it. The flush is pinned to the current
+    /// ``connectionGeneration`` so it never writes to a later connection.
     private func schedulePendingPresence() {
         guard presenceSendTask == nil else { return }
         let generation = connectionGeneration
@@ -702,6 +786,8 @@ actor DiscordRPCService {
         }
     }
 
+    /// Sends ``pendingActivity`` with a fresh nonce, if the connection that
+    /// scheduled it is still current.
     private func flushPendingPresence(generation: UInt64) async {
         guard generation == connectionGeneration, isEnabled, state == .connected else { return }
         presenceSendTask = nil
@@ -722,6 +808,8 @@ actor DiscordRPCService {
         await sendCommandFrame(payload)
     }
 
+    /// Cancels the scheduled flush and forgets the pending activity and its
+    /// nonce, so a late ERROR reply for it is not retried.
     func cancelPendingPresence() {
         presenceSendTask?.cancel()
         presenceSendTask = nil
@@ -730,6 +818,10 @@ actor DiscordRPCService {
     }
 
     /// A rejected activity gets one delayed retry; newer updates own the pending slot.
+    ///
+    /// Called from ``sendCommandFrame(_:)`` when Discord answers ERROR. Skipped
+    /// when `nonce` is not the latest send, the retry was already used, a
+    /// newer activity is pending, or there is no track to show.
     func retryRejectedPresence(_ activity: [String: Any], nonce: String) {
         guard isEnabled, state == .connected, lastPresence != nil,
               nonce == lastActivityNonce, !presenceRetryUsed, pendingActivity == nil else { return }
@@ -741,8 +833,10 @@ actor DiscordRPCService {
     /// Re-sends the most recent presence with current settings applied.
     ///
     /// Called when `discordPresenceSettingsChanged` fires (e.g. user toggled a button
-    /// in settings). Re-uses cached `TrackLinks` via `ArtworkService.shared` so no
-    /// network round-trip is required.
+    /// in settings), after a connect, and after a link lookup. Re-uses cached
+    /// `TrackLinks` via `ArtworkService.shared` so no network round-trip is
+    /// required. With no snapshot, applies the no-track preference (idle or
+    /// clear) instead.
     func refreshPresenceFromSettings(
         showIdleStatus: Bool = FeatureFlags.discordShowIdleStatus,
         clearWhilePaused: Bool = FeatureFlags.discordClearWhilePaused
@@ -850,6 +944,7 @@ actor DiscordRPCService {
     /// canonical form (e.g., `/private/var/folders/…` instead of `/var/folders/…`).
     ///
     /// - Returns: Array of directory paths to search, most likely first.
+    ///
     /// Widened from `private` so `connectIfNeeded` in `DiscordRPCService+IPC.swift`
     /// can call it across files.
     func tempDirectoryCandidates() -> [String] {
@@ -943,7 +1038,10 @@ actor DiscordRPCService {
             return baseAddress.withMemoryRebound(to: Int32.self, capacity: 1) { $0.pointee }
         }
 
-        // Collect all null-terminated strings after the header
+        // Collect all null-terminated strings after the header. Runs of NULs
+        // (the exec-path padding) are skipped. An empty or non-UTF-8 argv entry
+        // is dropped too, which shifts `envStart` past the first environment
+        // entry(s); TMPDIR would be missed only if it sat in that slot.
         var strings: [String] = []
         var current: [UInt8] = []
         for i in MemoryLayout<Int32>.size..<size {
@@ -987,6 +1085,9 @@ actor DiscordRPCService {
     // MARK: - Polling
 
     /// Pure lifecycle policy shared by connection transitions and tests.
+    ///
+    /// Poll only while enabled, configured with a client ID, and fully
+    /// disconnected (never while a connect is in flight).
     nonisolated static func shouldPollAvailability(
         isEnabled: Bool,
         clientID: String,
@@ -1016,6 +1117,9 @@ actor DiscordRPCService {
     }
 
     /// Starts polling for Discord availability when not connected.
+    ///
+    /// No-op if a poll task already exists. The interval is captured at start,
+    /// so ``updatePollInterval(_:)`` restarts the task to apply a new one.
     func startPolling() {
         guard pollTask == nil else { return }
 
@@ -1031,6 +1135,7 @@ actor DiscordRPCService {
         }
     }
 
+    /// One poll iteration: tries to connect if still enabled and disconnected.
     private func pollTick() async {
         guard isEnabled, state == .disconnected else { return }
         await connectIfNeeded()

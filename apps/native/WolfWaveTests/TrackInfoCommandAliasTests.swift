@@ -22,6 +22,7 @@ final class TrackInfoCommandAliasTests: WolfWaveTestCase {
         super.tearDown()
     }
 
+    /// A `!song` command whose aliases are read from this suite's own defaults key.
     private func makeCommand() -> TrackInfoCommand {
         TrackInfoCommand(
             triggers: ["!song"],

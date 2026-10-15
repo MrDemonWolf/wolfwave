@@ -18,6 +18,9 @@ enum HistoryFormat {
 
     /// Formats a listening duration compactly, e.g. `6h 12m`, `12m`, `45s`.
     ///
+    /// Hours never roll into days (`49h 3m`), and leftover seconds are dropped
+    /// once the value reaches a minute.
+    ///
     /// - Parameter seconds: Duration in seconds.
     /// - Returns: A short human-readable string.
     static func listeningTime(_ seconds: TimeInterval) -> String {
@@ -41,7 +44,8 @@ enum HistoryFormat {
     /// ``listeningTime(_:)``, which is a compact `6h 12m` duration summary.
     ///
     /// - Parameter seconds: Position in seconds. Negative values clamp to `0`.
-    /// - Returns: A `M:SS` string.
+    /// - Returns: A `M:SS` string. Minutes are not split into hours, so an
+    ///   hour-long position reads `60:00`.
     static func clock(_ seconds: TimeInterval) -> String {
         let total = safeSeconds(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)

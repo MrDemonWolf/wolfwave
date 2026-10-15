@@ -10,6 +10,14 @@ import {
   findDuplicateTokenLists,
 } from "./check-sync.mjs";
 
+/**
+ * Unit tests for the pure checks exported by check-sync.mjs. Each check takes
+ * text plus expected values, so these use inline strings and a small fixture
+ * instead of the real tree (the real tree is covered by `make lint-sync`).
+ * Run with `node --test scripts/check-sync.test.mjs`.
+ */
+
+/** Minimal stand-in for what `projectExpected` reads from tokens.json and AppConstants. */
 const expected = {
   themes: ["Default", "Dark"],
   layouts: ["Horizontal", "Compact"],

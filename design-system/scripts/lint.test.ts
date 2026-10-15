@@ -4,12 +4,22 @@ import { resolve } from "node:path";
 
 import { RULES } from "./lint";
 
+/**
+ * Pins each lint rule's regex against known-good and known-bad lines. A rule
+ * that silently stops matching looks the same as a clean tree, so every rule
+ * has positive cases, and the "NOT caught" tests record the line-based
+ * linter's known blind spots so a change to them is deliberate.
+ * Run with `bun run ds:test`.
+ */
+
+/** Looks up a rule by name, failing loudly if it was renamed or removed. */
 function rule(name: string) {
   const found = RULES.find((r) => r.name === name);
   if (!found) throw new Error(`${name} rule is missing`);
   return found;
 }
 
+/** True if the named rule's pattern matches `line`. */
 function flags(name: string, line: string): boolean {
   return rule(name).pattern.test(line);
 }

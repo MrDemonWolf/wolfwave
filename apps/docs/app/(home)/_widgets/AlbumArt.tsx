@@ -56,6 +56,7 @@ export function AlbumArt({
   );
 }
 
+/** Line-art glyph centered over the gradient; stroke width scales with `size` but never drops below a legible minimum. */
 function Glyph({ glyph, size }: { glyph: SampleGlyph; size: number }) {
   const inner = size * 0.55;
   const stroke = Math.max(1.25, size * 0.018);

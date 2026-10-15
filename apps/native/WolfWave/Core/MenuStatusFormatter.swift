@@ -41,7 +41,10 @@ enum MenuStatusFormatter {
 
     // MARK: - Discord
 
-    /// Discord IPC connection states surfaced in the tray.
+    /// Discord IPC connection states surfaced in the tray, mirroring the
+    /// Discord service's states (the tray builder maps them with a switch, and
+    /// a missing service counts as disconnected). "Off" is not a state here;
+    /// it comes from the `enabled` flag instead.
     enum DiscordState: String {
         case connected
         case connecting

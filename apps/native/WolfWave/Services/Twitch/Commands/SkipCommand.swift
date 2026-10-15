@@ -18,7 +18,7 @@ final class SkipCommand: ServiceBoundCommand {
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!skip", "!next"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Skip the current song request (mod/broadcaster only)" }
 
     /// Channel-wide cooldown between invocations, in seconds.
@@ -43,10 +43,13 @@ final class SkipCommand: ServiceBoundCommand {
 
     /// Executes the skip action against the live song request service.
     ///
+    /// Non-privileged callers are already refused by `isAllowed(context:)`;
+    /// the guard here is defense in depth.
+    ///
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context; must be mod or broadcaster.
-    ///   - Returns: The eventual chat response, or nil when unauthorized.
+    /// - Returns: The eventual chat response, or nil when unauthorized.
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard !Task.isCancelled else { return nil }
         guard let service = requirePrivilegedService(context: context) else { return nil }

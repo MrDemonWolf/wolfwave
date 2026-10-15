@@ -23,10 +23,12 @@ import Foundation
 /// 2. A fatal POSIX signal (`SIGSEGV`, `SIGABRT`, …) from a memory fault or trap.
 ///
 /// `install()` registers handlers for both so a hard crash leaves a breadcrumb on
-/// disk first. Both paths **chain** to whatever was installed before, and the
-/// signal path resets to the default disposition and re-raises, so the OS still
-/// generates its normal crash report and MetricKit's `MXCrashDiagnostic` (consumed
-/// by ``DiagnosticsService``) still fires next launch. Nothing here runs on the
+/// disk first. Both paths **chain** to whatever was installed before: the
+/// exception path calls the previous handler, and the signal path restores the
+/// signal's prior `sigaction` (falling back to `SIG_DFL` only when none was
+/// captured) and re-raises. Nothing is swallowed and nothing calls `_exit`, so the
+/// OS still generates its normal crash report and MetricKit's `MXCrashDiagnostic`
+/// (consumed by ``DiagnosticsService``) still fires next launch. Nothing here runs on the
 /// happy path. The next launch reads the breadcrumb via ``readMarker()``.
 ///
 /// - Important: The signal handler is restricted to **async-signal-safe** work
@@ -34,6 +36,15 @@ import Foundation
 ///   `raise` over pre-baked C buffers. No Swift `String`/`Array` growth, no
 ///   Foundation, no `Log`. All rich work (backtrace, reason, `Log.flush()`) is
 ///   confined to the NSException handler, which runs in a normal runtime.
+///
+/// - Important: `SIGPIPE` is set to `SIG_IGN` and never trapped. The app's
+///   sockets handle `EPIPE` themselves; a re-raising handler would turn that
+///   handled case into a crash.
+///
+/// Trapped: `SIGABRT`, `SIGILL`, `SIGSEGV`, `SIGFPE`, `SIGBUS`, `SIGTRAP`.
+/// `AppDelegate.applicationWillFinishLaunching` installs it, skipped under
+/// XCTest. Tests must never raise a real signal or `NSException` (it kills the
+/// xctest host); use the `#if DEBUG` seams below instead.
 enum CrashReporter {
 
     // MARK: Installation
@@ -115,8 +126,8 @@ enum CrashReporter {
         return CrashMarker.parse(text)
     }
 
-    /// Removes the breadcrumb. Call after a clean launch has read it, so the
-    /// next launch is silent. No-op when absent.
+    /// Removes the breadcrumb. Call after a clean launch has read it (and written
+    /// its detail into the log), so the next launch is silent. No-op when absent.
     nonisolated static func clearMarker() {
         try? FileManager.default.removeItem(at: markerURL())
     }
@@ -136,11 +147,14 @@ enum CrashReporter {
     /// When set, the marker lives in this directory instead of Application
     /// Support. Production never sets this; tests point it at a temp dir to stay
     /// hermetic. Only affects the Foundation-level helpers (`writeMarker`,
-    /// `didCrashLastLaunch`, `clearMarker`); the signal handler always writes to
+    /// `readMarker`, `didCrashLastLaunch`, `clearMarker`); the signal handler always writes to
     /// the path baked at `install()` time.
     nonisolated(unsafe) static var markerDirectoryOverride: URL?
 
-    /// Writes the breadcrumb body via Foundation. Used by the NSException handler
+    /// Writes the breadcrumb body via Foundation, atomically (temp file + rename),
+    /// creating the `State` directory if needed. Errors are ignored: this runs
+    /// while the process is dying and has nowhere to report them. Used by the
+    /// NSException handler
     /// (which runs in a normal runtime) and by tests. **Never** call this from a
     /// signal handler (it allocates).
     nonisolated static func writeMarker(_ body: String) {
@@ -195,7 +209,7 @@ enum CrashReporter {
     /// of truncating it down to a bare signal record.
     ///
     /// The flag is set only after the write finishes, so a signal that lands
-    /// mid-write still records something.
+    /// mid-write still records something. Never reset in production.
     nonisolated static func recordExceptionMarker(_ body: String) {
         writeMarker(body)
         crashReporterExceptionRecorded = true
@@ -203,6 +217,7 @@ enum CrashReporter {
 
     // MARK: Private
 
+    /// Basename of the breadcrumb inside the `State` directory.
     nonisolated private static let markerFileName = "last-crash.marker"
 }
 
@@ -212,8 +227,11 @@ enum CrashReporter {
 // can't capture context; their shared state lives at file scope. `nonisolated`
 // keeps them out of the module's default `MainActor` isolation (a MainActor
 // function can't be converted to `@convention(c)`). `nonisolated(unsafe)` on the
-// mutable globals is sound here: everything is written once on the main thread in
+// mutable globals is sound here: everything except
+// `crashReporterExceptionRecorded` is written once on the main thread in
 // `install()` and only read afterward (the signal handler reads raw pointers).
+// That flag is the one write after install: a single `Bool` store from the
+// exception path, which can run on any thread just before the process aborts.
 
 /// Guards against double-install.
 private nonisolated(unsafe) var crashReporterDidInstall = false
@@ -232,8 +250,8 @@ private nonisolated(unsafe) var crashReporterPreviousExceptionHandler:
 /// (lives for the process lifetime by design).
 private nonisolated(unsafe) var crashReporterMarkerPath: UnsafeMutablePointer<CChar>?
 
-/// malloc'd table of `"SIGNAME\n"` C strings, parallel to
-/// `crashReporterTrappedSignals`. Indexed by a pure switch in the handler.
+/// malloc'd table of C strings copied from ``crashReporterSignalLabels``
+/// (`"SIGNAME\nepoch="`). Indexed by ``crashReporterSignalSlot``, a pure switch.
 private nonisolated(unsafe) var crashReporterLabelTable: UnsafeMutablePointer<UnsafePointer<CChar>?>?
 
 /// Fallback label when a signal isn't in the trapped set (defensive; shouldn't
@@ -261,6 +279,12 @@ private nonisolated(unsafe) var crashReporterPreviousActions: UnsafeMutablePoint
 // MARK: - Handlers
 
 /// Uncaught ObjC exception handler. Runs in a normal runtime (allocation OK).
+///
+/// Writes the rich exception marker (redacted name, one-line reason, up to 20
+/// redacted frames), logs the exception, flushes the log synchronously, then
+/// calls the previous handler. The default path aborts afterwards, which raises
+/// `SIGABRT`; ``crashReporterExceptionRecorded`` keeps that signal from
+/// overwriting this marker.
 private nonisolated func crashReporterExceptionHandler(_ exception: NSException) {
     let name = Log.redact(exception.name.rawValue)
     // Newlines are collapsed so `reason` stays one `key=value` line; the frames
@@ -283,11 +307,15 @@ private nonisolated func crashReporterExceptionHandler(_ exception: NSException)
         \(frames)
         """)
     Log.error("CrashReporter: uncaught NSException \(name): \(reason)", category: .app)
-    Log.flush() // belt-and-suspenders; Log.error already flushes
+    Log.flush() // required: Log.error only queues an async flush, and the abort is next
     crashReporterPreviousExceptionHandler?(exception) // chain, do not swallow
 }
 
 /// Fatal-signal handler. **Async-signal-safe only.**
+///
+/// Writes the signal marker (unless an exception marker already exists), then
+/// restores the prior disposition and re-raises. The marker is opened with
+/// `O_TRUNC`, so it replaces any older breadcrumb from a previous run.
 private nonisolated func crashReporterSignalHandler(_ signalNumber: Int32) {
     // An uncaught exception already wrote the richer marker; the SIGABRT that
     // follows it must not truncate that. Still chain and re-raise below.
@@ -345,8 +373,8 @@ private nonisolated func crashReporterSignalSlot(_ sig: Int32) -> Int {
     }
 }
 
-/// Builds the malloc'd label table on the main thread at install time.
-/// Signal labels, indexed by ``crashReporterSignalSlot``.
+/// Signal labels, indexed by ``crashReporterSignalSlot``. Internal (not
+/// private) so the DEBUG test seam can compose the same bytes the handler writes.
 ///
 /// Each closes the `signal=` line and opens the `epoch=` one, so the handler
 /// emits the whole record in three writes with no formatting.
@@ -355,6 +383,8 @@ nonisolated let crashReporterSignalLabels = [
     "SIGFPE\nepoch=", "SIGBUS\nepoch=", "SIGTRAP\nepoch="
 ]
 
+/// Builds the malloc'd label table (and the unknown-signal fallback) on the
+/// main thread at install time. The copies are never freed: process lifetime.
 private nonisolated func crashReporterBuildLabelTable() {
     let labels = crashReporterSignalLabels
     let table = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(capacity: labels.count)
@@ -372,7 +402,8 @@ private nonisolated func crashReporterBuildMarkerPrefix() {
         .withCString { UnsafePointer(strdup($0)) }
 }
 
-/// The fixed part of a signal marker, as a Swift string.
+/// The fixed part of a signal marker, as a Swift string. Shared by the install
+/// path and the DEBUG test seam so both produce identical bytes.
 ///
 /// Note the deliberate lack of a trailing newline after `signal=`: the signal
 /// label supplies the rest of that line.
@@ -391,7 +422,9 @@ nonisolated func crashReporterMarkerPrefixString() -> String {
 ///
 /// `clock_gettime` is on POSIX's async-signal-safe list, and the digits are
 /// formatted by hand into a buffer allocated at install time, so this adds no
-/// allocation, no Foundation, and no locking to the handler.
+/// allocation, no Foundation, and no locking to the handler. Writes nothing if
+/// the scratch buffer is missing or the clock read fails, leaving the `epoch=`
+/// line empty (the parser then reports no date).
 private nonisolated func crashReporterWriteEpoch(_ descriptor: Int32) {
     guard let scratch = crashReporterScratch else { return }
     var time = timespec()

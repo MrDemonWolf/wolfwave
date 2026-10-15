@@ -17,6 +17,7 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// Chat context for the broadcaster.
     private func privilegedContext() -> BotCommandContext {
         BotCommandContext(
             userID: "1", username: "streamer",
@@ -25,6 +26,7 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// Chat context for a plain viewer (no badges).
     private func viewerContext() -> BotCommandContext {
         BotCommandContext(
             userID: "2", username: "viewer",
@@ -33,6 +35,7 @@ final class ClearQueueCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// A service with an empty queue, an in-memory blocklist, and `MockAppleMusicController`.
     private func makeService() -> SongRequestService {
         SongRequestService(
             queue: SongRequestQueue(),

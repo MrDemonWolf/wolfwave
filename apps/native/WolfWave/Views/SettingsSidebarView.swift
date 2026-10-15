@@ -70,6 +70,7 @@ struct SettingsSidebarView: View {
 /// supply a template image so the system tints it like a symbol: monochrome at
 /// rest, white on the selection capsule.
 private struct SettingsSidebarRow: View {
+    /// The pane this row selects; supplies the title and icon.
     let section: SettingsView.SettingsSection
 
     var body: some View {
@@ -86,6 +87,8 @@ private struct SettingsSidebarRow: View {
                 Image(systemName: section.systemIcon)
             }
         }
+        // Kebab-cased title. Note the row's caller (`rows(for:)`) applies its own
+        // `settings.sidebar.<title>` identifier afterwards; UI tests query that one.
         .accessibilityIdentifier(section.rawValue.replacingOccurrences(of: " ", with: "-").lowercased())
     }
 }

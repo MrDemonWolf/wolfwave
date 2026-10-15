@@ -21,13 +21,17 @@ struct MonthlyWrapView: View {
     /// The history service supplying records. Observed for live updates.
     let service: ListeningHistoryService
 
+    /// Drops the "Saved" confirmation animation when Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Any date inside the month currently being shown.
     @State private var month: Date = Date()
 
-    /// Set briefly after a successful export to confirm to the user.
+    /// Set after a successful export so the button reads "Saved". Cleared
+    /// when the user changes month.
     @State private var didExport = false
+    /// Warning shown under the card when rendering, saving, or preparing a
+    /// share fails. Cleared on the next render attempt or month change.
     @State private var exportError: String?
 
     /// Color sampled from the top track's album art, blended into the card
@@ -35,8 +39,11 @@ struct MonthlyWrapView: View {
     /// which case the card shows the plain WolfWave brand gradient.
     @State private var tint: Color?
 
+    /// Closes the sheet ("Done").
     @Environment(\.dismiss) private var dismiss
 
+    /// Calendar used for month math; the user's current calendar, matching
+    /// how `ListeningHistoryService` buckets months.
     private let calendar = Calendar.current
 
     /// Shared width for the footer's Share and Export buttons so they match.
@@ -45,6 +52,8 @@ struct MonthlyWrapView: View {
 
     // MARK: - Derived
 
+    /// The summary for `month`. Recomputed on every access (several times per
+    /// render), so it always reflects the service's latest records.
     private var wrap: MonthlyWrapData {
         service.monthlyWrap(for: month)
     }
@@ -90,6 +99,8 @@ struct MonthlyWrapView: View {
 
     // MARK: - Header
 
+    /// Previous / next month arrows around the month label. Arrows disable at
+    /// the earliest recorded month and at the current month.
     private var header: some View {
         HStack {
             Button {
@@ -133,6 +144,7 @@ struct MonthlyWrapView: View {
 
     // MARK: - Footer
 
+    /// Done, then Share (only when the month has data) and Export as Image.
     private var footer: some View {
         HStack {
             Button("Done") { dismiss() }
@@ -210,7 +222,10 @@ struct MonthlyWrapView: View {
         exportError = nil
     }
 
-    /// Renders the wrap card to PNG data at 2x scale. Returns nil on render failure.
+    /// Renders the wrap card to PNG data at 2x scale, on the window background
+    /// with padding so the rounded corners survive. Returns nil on render
+    /// failure and sets `exportError`. Uses the current `tint`, so an export
+    /// before the artwork loads gets the plain brand gradient.
     @MainActor
     private func renderPNG() -> Data? {
         exportError = nil
@@ -242,7 +257,8 @@ struct MonthlyWrapView: View {
         Self.exportFileName(forMonthLabel: wrap.monthLabel)
     }
 
-    /// Renders the wrap card to a PNG and prompts the user for a save location.
+    /// Renders the wrap card to a PNG and prompts the user for a save location
+    /// (app-modal panel). Cancelling the panel is silent.
     @MainActor
     private func exportImage() {
         guard let png = renderPNG() else { return }
@@ -265,6 +281,8 @@ struct MonthlyWrapView: View {
 
     /// Renders the wrap card to a temp PNG and returns it as the share item for
     /// the macOS share sheet (Messages, Mail, AirDrop, etc.). Nil on failure.
+    /// The UUID prefix keeps concurrent shares from clobbering each other; the
+    /// file is deleted by `removeShareFiles` when the share picker finishes.
     @MainActor
     private func shareItems() -> [Any]? {
         guard let png = renderPNG() else { return nil }
@@ -281,6 +299,9 @@ struct MonthlyWrapView: View {
         return [url]
     }
 
+    /// Deletes the temp PNGs `shareItems()` created. Passed to
+    /// `SharePickerButton` as its completion; non-URL items are ignored and
+    /// removal errors are swallowed (the temp directory is purged anyway).
     static func removeShareFiles(_ items: [Any]) {
         for case let url as URL in items {
             try? FileManager.default.removeItem(at: url)
@@ -291,8 +312,12 @@ struct MonthlyWrapView: View {
 // MARK: - MonthlyWrapCard
 
 /// The shareable wrap card, displayed in the sheet and rendered to a PNG.
+///
+/// Styled with fixed white-on-brand colors rather than semantic ones so the
+/// exported PNG looks the same in Light and Dark appearance.
 struct MonthlyWrapCard: View {
 
+    /// The month's rollup. `hasData == false` switches to an empty state.
     let data: MonthlyWrapData
     /// `false` when no plays have ever been recorded. Switches the empty branch
     /// from a per-month "no plays" message to a punchy onboarding CTA.
@@ -465,6 +490,7 @@ struct MonthlyWrapCard: View {
         }
     }
 
+    /// A captioned "top" line (TOP ARTIST / TOP TRACK), value up to two lines.
     @ViewBuilder
     private func wrapRow(caption: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {

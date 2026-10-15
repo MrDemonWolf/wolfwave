@@ -21,21 +21,33 @@ struct StreamDeckSettingsView: View {
     /// Sends the user to Stream Widgets, which owns the shared server switch.
     let openStreamWidgets: () -> Void
 
+    // MARK: - Properties
+
+    /// The Stream Deck command capability. Defaults to **on** (see
+    /// `Defaults.streamDeckControlEnabled`); commands are still gated by the
+    /// control token and loopback-only transport.
     @AppStorage(AppConstants.UserDefaults.streamDeckControlEnabled)
     private var controlEnabled = AppConstants.UserDefaults.Defaults.streamDeckControlEnabled
 
+    /// The shared WebSocket server switch, owned by the Stream Widgets pane.
+    /// Read here to explain why keys would do nothing while it is off.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    /// Masks the control token on camera.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// The control credential (`wolfwave.control.<hex>`). Empty until the
+    /// first `.task` loads or creates it off the main actor (Keychain I/O);
+    /// the editor writes rotations back through this binding.
     @State private var currentControlToken: String = ""
 
     /// The overlay credential, read but never shown here. The editor needs it to
     /// reject a control token that collides with it.
     @State private var currentOverlayToken: String = ""
 
+    /// Collapses the server-state chip animation under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Live state of the shared server, seeded from the running service so the
@@ -44,6 +56,7 @@ struct StreamDeckSettingsView: View {
     @State private var serverState: WebSocketServerService.ServerState =
         AppDelegate.shared?.websocketServer?.state ?? .stopped
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
     // MARK: - Body
@@ -110,6 +123,9 @@ struct StreamDeckSettingsView: View {
 
     // MARK: - Control Card
 
+    /// The command switch, the loopback-only note, and a callout when the
+    /// shared server is off or failed to start (each with a jump to Stream
+    /// Widgets, where the fix lives).
     private var controlCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
@@ -179,6 +195,8 @@ struct StreamDeckSettingsView: View {
 
     // MARK: - Token Card
 
+    /// The control-token editor. `otherToken` hands it the overlay token so a
+    /// pasted value that matches the overlay credential is refused.
     private var tokenCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
@@ -208,6 +226,7 @@ struct StreamDeckSettingsView: View {
 
     // MARK: - Setup Card
 
+    /// Numbered install steps, a mobile-app hint, and the setup guide link.
     private var setupCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
             CardEyebrowHeader("Setting it up", systemImage: "list.number")

@@ -16,6 +16,12 @@ import MusicKit
 /// and Apple Music playback via MusicKit. State is polled by the queue
 /// settings view via a refresh timer, so this type does not adopt the
 /// `@Observable` macro.
+///
+/// MainActor-isolated by the module default. Concurrency safety rests on that:
+/// every reentrancy guard (`isStartingPlayback`, the native-clear gate, the
+/// playback generation) is checked and set with no `await` in between, and is
+/// re-checked after each Music.app await because other calls can interleave
+/// there.
 final class SongRequestService {
     // MARK: - Types
 
@@ -24,20 +30,32 @@ final class SongRequestService {
         /// The caller was cancelled before the request could mutate queue or
         /// playback state. Callers deliberately keep this outcome silent.
         case cancelled
+        /// Queued in the live queue. `position` is the 1-based slot from
+        /// `SongRequestQueue.add`; playback may already have started.
         case added(item: SongRequestItem, position: Int)
         /// Approval mode is on: the request is held for the streamer to approve or
         /// reject before it reaches the live queue.
         case pendingApproval(item: SongRequestItem)
+        /// The queue (or the pending pen) is at its configured capacity.
         case queueFull(max: Int)
+        /// The requester already has `max` items for their role tier (now-playing counts).
         case userLimitReached(max: Int)
+        /// The requester already has this song queued, pending, or playing.
         case alreadyInQueue
+        /// The requester, the song, or its artist is on the blocklist.
         case blocked
+        /// Plain-text search found nothing.
         case notFound(query: String)
+        /// A music link couldn't be matched to one catalog track.
         case linkNotFound
+        /// MusicKit access was denied or restricted (never asked counts as allowed,
+        /// so the first search can show the prompt).
         case notAuthorized
         /// The song-request feature's master toggle is off. No request of any
         /// kind (chat, channel points, bits) is accepted.
         case featureDisabled
+        /// User-facing failure text: the chat audience denial message, or a
+        /// search / MusicKit error.
         case error(String)
     }
 
@@ -68,9 +86,13 @@ final class SongRequestService {
 
     // MARK: - Properties
 
+    /// Live queue, pending-approval pen, and now-playing slot. Source of truth for ordering.
     let queue: SongRequestQueue
+    /// Requester, song, and artist blocks checked before anything is queued.
     let blocklist: SongBlocklist
+    /// Music.app / MusicKit boundary (stubbed in tests).
     let musicController: any AppleMusicControlling
+    /// Turns request text or links into a catalog `Song`.
     let searchResolver: SongSearchResolver
 
     /// Who may request a song via the `!sr` chat command.
@@ -257,6 +279,9 @@ final class SongRequestService {
         FeatureFlags.songRequestEnabled
     }
 
+    /// Whether the poll advances the queue on its own. Defaults to on; when off,
+    /// requests only start from the explicit start paths (skip, approve, etc.)
+    /// and the polling task is not created.
     var isAutoAdvanceEnabled: Bool {
         Preferences.bool(AppConstants.UserDefaults.songRequestAutoAdvance, default: true)
     }
@@ -274,12 +299,17 @@ final class SongRequestService {
         Preferences.bool(AppConstants.UserDefaults.songRequestAutoplayWhenEmpty, default: true)
     }
 
+    /// Hold mode: requests keep queueing but nothing new starts. See ``setHold(_:)``.
     var isHoldEnabled: Bool {
         FeatureFlags.songRequestHoldEnabled
     }
 
     /// Toggle hold mode. When enabled, new requests buffer without playing and
     /// auto-advance is suspended. When disabled, the first buffered song plays immediately.
+    ///
+    /// Persists the flag, posts `.songRequestHoldChanged` (the queue view and Stream Deck
+    /// state refresh from it), and always reconciles the polling task on exit. On release
+    /// the buffered song only starts if Music.app is running and nothing is playing.
     func setHold(_ enabled: Bool) async {
         guard !Task.isCancelled else { return }
         DefaultsStore.store.set(enabled, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
@@ -299,11 +329,15 @@ final class SongRequestService {
         }
     }
 
+    /// The auto-advance polling loop. `nil` whenever ``updatePlaybackPolling()``
+    /// decides polling isn't needed, so an idle service does no periodic work.
     private var playbackObserver: Task<Void, Never>?
     /// True only between explicit `startPlaybackMonitoring` / stop lifecycle calls.
     private var isPlaybackMonitoringEnabled = false
 
+    /// `NSWorkspace` launch observer that flushes buffered requests when Music.app starts.
     private var musicAppLaunchObserver: NSObjectProtocol?
+    /// `.songRequestQueueChanged` observer that starts / stops the polling task.
     private var queueChangeObserver: NSObjectProtocol?
 
     /// Interval between auto-advance polls. Injectable so tests can use a small
@@ -330,6 +364,8 @@ final class SongRequestService {
     /// Keeping the operation installed until the latest clear waiter publishes
     /// its result also gates every other Music.app mutation while clear runs.
     private var nativeClearOperation: (id: Int, task: Task<Void, Never>)?
+    /// Monotonic id source for `nativeClearOperation`, so a release can tell
+    /// its own operation from a newer one.
     private var nativeClearOperationSequence = 0
 
     /// The latest completed clear that still needs to start a request which
@@ -348,8 +384,8 @@ final class SongRequestService {
     /// through AppleMusicControlling.playNow(song:).
     private let playbackOverride: ((SongRequestItem) async throws -> Void)?
 
-    /// Track identifier of the streamer's own song that a queued request is
-    /// waiting to follow. Set the first time the poll notices a pending request
+    /// Track key (name + tab + artist, see `PlaybackSnapshot.trackKey`) of the
+    /// streamer's own song that a queued request is waiting to follow. Set the first time the poll notices a pending request
     /// while the streamer's own (non-request, non-fallback) track is playing,
     /// then cleared once that track changes so the request takes over. This is
     /// what implements the "play when the current song ends" takeover policy
@@ -357,12 +393,13 @@ final class SongRequestService {
     private var takeoverBaselineTrackID: String?
 
     /// Consecutive poll ticks that have read Music.app as stopped. The poll
-    /// requires two in a row before advancing or taking over, so a single flaky
-    /// AppleScript read (which returns "stopped" on error) can't trigger a
-    /// spurious skip mid-track.
+    /// requires two in a row before advancing or taking over, so a single
+    /// transient "stopped" read can't trigger a spurious skip mid-track. (A
+    /// failed read is a `nil` snapshot and skips the tick without touching this.)
     private var stoppedPollStreak = 0
 
-    /// Persistent track ID Music.app loaded for the request that is currently
+    /// Track key (name + tab + artist, not Music's persistent ID, which flakes for
+    /// streamed tracks) Music.app loaded for the request that is currently
     /// playing. Established on the first poll tick after a request starts, then
     /// compared against Music.app's live current track. If they diverge while
     /// playback continues, the request either finished (Music autoplayed the next
@@ -842,12 +879,19 @@ final class SongRequestService {
 
     /// Notes an observed Music track change before AppDelegate dispatches any
     /// unstructured vote-manager work.
+    ///
+    /// Bumping the revision invalidates every ``PlaybackTarget`` captured before
+    /// the change, so a vote opened on the old song can't skip the new one.
+    /// Wraps on overflow; only equality matters.
     func notePlaybackTrackChanged() {
         playbackRevision &+= 1
     }
 
     /// Captures the exact Music track and current in-process revision for a new
     /// vote. The revision is rechecked after the snapshot await.
+    ///
+    /// - Returns: `nil` when Music is closed, the read failed, no track is loaded,
+    ///   or the track changed while the snapshot was in flight.
     func capturePlaybackTarget() async -> PlaybackTarget? {
         let revision = playbackRevision
         guard let snapshot = await musicController.playbackSnapshot(),
@@ -865,6 +909,15 @@ final class SongRequestService {
     /// Queue policy is selected before the await, but neither the pending head
     /// nor now-playing/fallback state is committed until the controller's single
     /// PID-targeted AppleScript event reports that it performed the mutation.
+    ///
+    /// Action choice: the next queued request if any; otherwise, while a request
+    /// is playing, the drain policy (fallback playlist, then autoplay-on as
+    /// `next track`, then stop); otherwise a plain `next track` past the
+    /// streamer's own song.
+    ///
+    /// - Returns: `true` when Music changed tracks and the queue state was
+    ///   committed; `false` for a stale target, a busy or cancelled service, a
+    ///   failed command, or a clear that landed during the command.
     @discardableResult
     func voteSkip(target: PlaybackTarget) async -> Bool {
         guard !Task.isCancelled,
@@ -1010,6 +1063,9 @@ final class SongRequestService {
 
     /// Approve a held request: move it into the live queue and start it if idle.
     /// No-op (returns `nil`) when the ID is unknown or the queue is full.
+    ///
+    /// On a full queue the request goes back into the pending pen and chat is
+    /// told it's still pending. On success chat gets an "Approved" line.
     @discardableResult
     func approve(id: UUID) async -> SongRequestItem? {
         guard let item = queue.takePending(id: id) else { return nil }
@@ -1028,8 +1084,8 @@ final class SongRequestService {
         return item
     }
 
-    /// Reject a held request and drop it. Returns the removed item, or `nil` when
-    /// the ID is unknown.
+    /// Reject a held request and drop it, posting a "Request declined" chat line.
+    /// Returns the removed item, or `nil` when the ID is unknown.
     @discardableResult
     func reject(id: UUID) -> SongRequestItem? {
         guard let item = queue.takePending(id: id) else { return nil }
@@ -1233,7 +1289,13 @@ final class SongRequestService {
     }
 
     /// Body of `playNextInQueue` without the reentrancy guard, so the
-    /// skip-unplayable retry can recurse without deadlocking on the guard. The
+    /// skip-unplayable retry can recurse without deadlocking on the guard.
+    /// Callers must already hold `isStartingPlayback`.
+    ///
+    /// Failure handling: Music closed, cancellation, and command failures keep
+    /// the head for a later retry; `notPlayable` keeps it until
+    /// `maxPlayAttempts`, then drops it with a chat notice and tries the next
+    /// item; any other error drops the item silently and tries the next. The
     /// queue head remains present across the playback await. Any intervening
     /// clear, remove, move, or boost wins: the stale start is stopped and cannot
     /// rewrite the user's newer queue state.
@@ -1385,6 +1447,10 @@ final class SongRequestService {
     /// Called when Music.app starts. Flushes the first buffered request (or
     /// starts the fallback playlist) after a 500 ms grace period so Music.app
     /// has time to initialize its AppleScript surface.
+    ///
+    /// If a request was marked now-playing when Music quit and Music now reports
+    /// stopped, the drain path runs so the stale now-playing slot is cleared.
+    /// Gates are re-checked after the grace sleep because settings can change in it.
     func handleMusicAppLaunched() async {
         guard isFeatureEnabled, isAutoAdvanceEnabled else { return }
         Log.debug("SongRequestService: Music.app launched, flushing buffered requests", category: .songRequest)
@@ -1410,6 +1476,9 @@ final class SongRequestService {
     /// Plays the user-configured fallback playlist when the queue is empty,
     /// so the stream is never silent. No-op when no playlist is configured
     /// or hold mode is active.
+    ///
+    /// Takes the `isStartingPlayback` guard for the command; if a clear lands
+    /// while it runs, the started playlist is stopped instead of being marked live.
     private func startFallbackIfConfigured() async {
         guard !isNativeClearInFlight, !isStartingPlayback, !isHoldEnabled else { return }
         let name = DefaultsStore.store.string(forKey: AppConstants.UserDefaults.songRequestFallbackPlaylist) ?? ""

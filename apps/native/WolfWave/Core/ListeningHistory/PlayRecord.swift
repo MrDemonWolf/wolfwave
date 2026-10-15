@@ -50,6 +50,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
     ///   - album: Album title.
     ///   - duration: Total track length in seconds.
     ///   - playedSeconds: How long the track actually played in seconds.
+    ///   - sequence: Log sequence, or `nil` to let `ListeningHistoryService` assign one on append.
     init(
         timestamp: Date = Date(),
         track: String,
@@ -82,6 +83,11 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         case sequence = "seq"
     }
 
+    /// Decodes one NDJSON line. `t`, `track`, and `artist` are required (a line
+    /// missing them throws and is skipped by the store); `album` defaults to empty
+    /// and the durations default to 0 when missing or malformed.
+    ///
+    /// - Throws: `DecodingError` when a required key is missing or mistyped.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let epoch = try container.decode(Double.self, forKey: .timestamp)
@@ -102,6 +108,9 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
         DurationSanitizer.clampFiniteSeconds(value)
     }
 
+    /// Encodes with the compact keys. The timestamp and both durations are
+    /// rounded to whole seconds, so a record does not round-trip sub-second
+    /// precision (equality after a disk reload compares the rounded values).
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(timestamp.timeIntervalSince1970.rounded(), forKey: .timestamp)
@@ -114,6 +123,7 @@ nonisolated struct PlayRecord: Codable, Equatable, Hashable, Sendable {
     }
 
     /// Returns the same play with a durable log sequence assigned.
+    /// Used by `ListeningHistoryService` when appending and when back-filling legacy lines.
     func assigningSequence(_ sequence: UInt64) -> PlayRecord {
         PlayRecord(
             timestamp: timestamp,

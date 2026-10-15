@@ -35,15 +35,22 @@ struct AsyncActionButton: View {
     /// applied through a private `ViewModifier` because `buttonStyle` returns
     /// different opaque types per branch.
     enum Style {
+        /// `.bordered`: the neutral default for settings rows.
         case bordered
+        /// `.borderedProminent`: the primary action in a group.
         case borderedProminent
+        /// `.borderless`: inline actions inside dense rows.
         case borderless
     }
 
     /// Where the button is in the action lifecycle.
     private enum Phase: Equatable {
+        /// Waiting for a tap; shows the title label.
         case idle
+        /// The action is in flight; shows the spinner and disables the control.
         case running
+        /// The action finished without throwing; shows the checkmark for
+        /// `successDuration` seconds, then returns to `.idle`.
         case succeeded
     }
 
@@ -60,8 +67,11 @@ struct AsyncActionButton: View {
     /// that would fill the whole control.
     var role: ButtonRole? = nil
 
+    /// Button style applied through `AsyncActionButtonStyleModifier`.
     var style: Style = .bordered
 
+    /// Control size passed to `.controlSize(_:)`. Small by default to match
+    /// the settings rows.
     var size: ControlSize = .small
 
     /// Caller-owned disable reason (an unmet precondition, a dirty-state gate,
@@ -85,17 +95,23 @@ struct AsyncActionButton: View {
     /// checkmark would be noise.
     var showsSuccess: Bool = true
 
-    /// How long the success checkmark holds before reverting to idle.
+    /// How long the success checkmark holds before reverting to idle, in seconds.
     var successDuration: TimeInterval = 2.0
 
+    /// UI-test identifier. Applied only when non-nil, via
+    /// `accessibilityIdentifier(optional:)`.
     var accessibilityIdentifier: String? = nil
 
     /// The work to run. A thrown error returns the button to idle.
     let action: () async throws -> Void
 
+    /// Current lifecycle phase; drives which label is shown and the disable.
     @State private var phase: Phase = .idle
+    /// The in-flight action (plus its success hold). Cancelled on disappear so
+    /// a closed pane does not keep running the work or flip state later.
     @State private var task: Task<Void, Never>?
 
+    /// Gates the label cross-fade; under Reduce Motion the swap is instant.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
@@ -129,6 +145,8 @@ struct AsyncActionButton: View {
 
     // MARK: - Private Views
 
+    /// The label for the current phase. All three variants are also rendered
+    /// as hidden ghosts so the width never changes between them.
     @ViewBuilder
     private var label: some View {
         switch phase {
@@ -141,6 +159,7 @@ struct AsyncActionButton: View {
         }
     }
 
+    /// Title (with the optional leading symbol) in the caller's label size.
     private var idleLabel: some View {
         Group {
             if let systemImage {
@@ -154,6 +173,8 @@ struct AsyncActionButton: View {
         .frame(maxWidth: fillsWidth ? .infinity : nil)
     }
 
+    /// Mini circular spinner. Hidden from VoiceOver; the "Working" accessibility
+    /// value announces the state instead.
     private var spinnerLabel: some View {
         ProgressView()
             .progressViewStyle(.circular)
@@ -161,6 +182,8 @@ struct AsyncActionButton: View {
             .accessibilityHidden(true)
     }
 
+    /// Success checkmark in `DSColor.success`. Hidden from VoiceOver; the
+    /// "Done" accessibility value announces it.
     private var successLabel: some View {
         Image(systemName: "checkmark")
             .font(.system(size: labelSize, weight: .semibold))
@@ -180,6 +203,8 @@ struct AsyncActionButton: View {
         }
     }
 
+    /// VoiceOver value for the phase. The label stays `title` throughout, so
+    /// the control keeps one stable name while its value changes.
     private var accessibilityValue: String {
         switch phase {
         case .idle: ""
@@ -192,6 +217,10 @@ struct AsyncActionButton: View {
 
     /// Starts the action. Re-entrant taps are dropped: the button is disabled
     /// while running, and this guard covers the keyboard-activation race.
+    ///
+    /// A thrown error (including `CancellationError`) returns to `.idle`. If the
+    /// task is cancelled without throwing, the phase is left as is: the only
+    /// canceller is `onDisappear`, after which the view is gone.
     private func run() {
         guard phase != .running else { return }
         task?.cancel()
@@ -236,6 +265,9 @@ private struct AsyncActionButtonWidthModifier<Ghosts: View>: ViewModifier {
 
 // MARK: - Style Modifier
 
+/// Maps `AsyncActionButton.Style` to a concrete `buttonStyle`. Lives in a
+/// modifier because each `buttonStyle` call returns a different opaque type,
+/// which a plain `switch` in `body` cannot unify.
 private struct AsyncActionButtonStyleModifier: ViewModifier {
     let style: AsyncActionButton.Style
     let size: ControlSize

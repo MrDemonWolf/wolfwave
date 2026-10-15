@@ -208,6 +208,9 @@ final class WebSocketServerAuthTests: XCTestCase {
 
     // MARK: - Role-isolated persistence
 
+    /// Runs `body` under the shared-state lock with `backend` swapped in for the Keychain, and
+    /// clears the session token cache before and after. Takes the lock by hand because this suite
+    /// is a plain XCTestCase.
     private func withInMemoryKeychain(
         backend: KeychainBackend = InMemoryKeychainBackend(),
         _ body: () throws -> Void
@@ -334,6 +337,7 @@ final class WebSocketServerAuthTests: XCTestCase {
     }
 }
 
+/// Keychain backend whose `save` always throws, to prove a failed rotation leaves no token behind.
 private final class FailingKeychainBackend: KeychainBackend, @unchecked Sendable {
     func save(account _: String, value _: String) throws {
         throw KeychainService.KeychainError.saveFailed(errSecInteractionNotAllowed)
@@ -344,6 +348,8 @@ private final class FailingKeychainBackend: KeychainBackend, @unchecked Sendable
     func deleteAll() {}
 }
 
+/// Keychain backend whose `load` always throws while counting `save` attempts,
+/// so a test can prove a read failure never persists a fallback token.
 private final class ReadFailingKeychainBackend: KeychainBackend, @unchecked Sendable {
     private let lock = NSLock()
     private var _saveAttempts = 0

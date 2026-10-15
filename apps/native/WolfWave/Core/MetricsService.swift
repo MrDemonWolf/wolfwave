@@ -37,6 +37,7 @@ nonisolated struct TwitchRateLimitMetric: Sendable, Identifiable {
     /// Seconds until the bucket window resets.
     let secondsUntilReset: Int
 
+    /// The endpoint key; one metric per endpoint.
     var id: String { endpoint }
 }
 
@@ -64,8 +65,11 @@ nonisolated final class MetricsService: @unchecked Sendable {
     /// Guards every mutable counter below.
     private let lock = NSLock()
 
+    /// Latest overlay-client count pushed by the WebSocket server.
     private var wsClients = 0
+    /// Cumulative frames sent since launch (or since this instance was made).
     private var wsMessagesSent = 0
+    /// Cumulative bytes sent since launch.
     private var wsBytesSent = 0
 
     /// Message count + timestamp at the previous `snapshot()`, used to derive
@@ -73,6 +77,8 @@ nonisolated final class MetricsService: @unchecked Sendable {
     private var lastSnapshotMessageCount = 0
     private var lastSnapshotTime = Date()
 
+    /// Latest headroom per Helix endpoint key. Entries are overwritten, never
+    /// removed, so an endpoint not hit recently shows its last known state.
     private var twitchRateLimits: [String: TwitchRateLimitMetric] = [:]
 
     // MARK: - Init
@@ -92,7 +98,7 @@ nonisolated final class MetricsService: @unchecked Sendable {
         }
     }
 
-    /// Records the current connected overlay-client count.
+    /// Records the current connected overlay-client count (a gauge, not a delta).
     func recordWebSocketClients(_ count: Int) {
         lock.withLock { wsClients = count }
     }
@@ -103,7 +109,8 @@ nonisolated final class MetricsService: @unchecked Sendable {
     ///   - endpoint: Helix endpoint key.
     ///   - remaining: Requests left in the bucket.
     ///   - limit: Bucket size.
-    ///   - resetTime: Bucket reset time as a Unix timestamp.
+    ///   - resetTime: Bucket reset time as a Unix timestamp (seconds). Converted
+    ///     to seconds-from-now and clamped to 0...86,400; non-finite becomes 0.
     func recordTwitchRateLimit(endpoint: String, remaining: Int, limit: Int, resetTime: TimeInterval) {
         // resetTime comes from the raw `Ratelimit-Reset` header (parsed via
         // TimeInterval(String), which accepts "inf"/"nan"/"1e999"). Int(_:)
@@ -124,7 +131,13 @@ nonisolated final class MetricsService: @unchecked Sendable {
     /// Captures a consistent snapshot of all metrics.
     ///
     /// WebSocket throughput is the message rate since the previous call, so
-    /// `snapshot()` is expected to be invoked on a steady interval.
+    /// `snapshot()` is expected to be invoked on a steady interval (the Debug
+    /// metrics card polls it). Side effect: every call resets the rate window,
+    /// so two readers would each see a distorted rate. Calls under 10 ms apart
+    /// report a rate of 0.
+    ///
+    /// Memory is sampled before taking the lock, so the kernel call never runs
+    /// while holding it.
     func snapshot() -> MetricsSnapshot {
         let memory = Self.residentMemory()
         let now = Date()
@@ -151,7 +164,8 @@ nonisolated final class MetricsService: @unchecked Sendable {
     // MARK: - Memory
 
     /// Returns the process's current resident memory size in bytes, or 0 if the
-    /// kernel query fails.
+    /// kernel query fails. Uses `task_info(MACH_TASK_BASIC_INFO)`; the struct is
+    /// rebound to `integer_t` because that is the buffer type the call takes.
     static func residentMemory() -> UInt64 {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(

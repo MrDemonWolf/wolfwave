@@ -11,17 +11,27 @@ import SwiftUI
 /// Sized album-art tile. Falls back to the WolfWave-branded placeholder (the
 /// wolf mark on a brand-blue gradient) when no artwork is supplied.
 ///
-/// Used by the now-playing hero on the General tab (`NowPlayingHeroCard`), and
-/// intended for any other album thumbnail the design adds.
+/// Used by the now-playing hero in the Music Monitor pane (`NowPlayingHeroCard`),
+/// and intended for any other album thumbnail the design adds.
+///
+/// Source precedence: `image` wins over `url`; with neither, the placeholder
+/// shows. A URL load that is still pending or failed also shows the placeholder,
+/// so a broken link never leaves an empty box.
 struct AlbumArtView: View {
 
     // MARK: - Properties
 
+    /// Artwork already in memory. Takes precedence over `url`.
     var image: NSImage? = nil
+    /// Remote artwork, loaded with `AsyncImage` (fades in unless Reduce Motion is on).
     var url: URL? = nil
+    /// Edge length of the square tile, in points.
     var size: CGFloat = 64
+    /// Corner radius override. `nil` scales the radius with `size`, with a small
+    /// floor so tiny thumbnails stay rounded.
     var cornerRadius: CGFloat? = nil
 
+    /// Disables the `AsyncImage` fade-in transaction.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
@@ -62,6 +72,8 @@ struct AlbumArtView: View {
         .accessibilityHidden(true)
     }
 
+    /// Branded fallback: the wolf mark over a brand-blue diagonal gradient, the
+    /// mark scaled to about half the tile.
     @ViewBuilder
     private var placeholder: some View {
         LinearGradient(

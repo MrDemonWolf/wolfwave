@@ -28,6 +28,8 @@ final class PowerStateMonitor {
 
     // MARK: - Properties
 
+    /// Process-lifetime instance. First access evaluates the current state and
+    /// installs the observers; nothing is posted for that initial value.
     static let shared = PowerStateMonitor()
 
     /// Whether the system is in a reduced-power state (Low Power Mode or serious/critical thermal pressure).
@@ -40,7 +42,8 @@ final class PowerStateMonitor {
 
     // MARK: - Lifecycle
 
-    // Process-lifetime singleton. Deinit included for completeness
+    /// Removes the system observers. The singleton is never released, so this
+    /// only runs in theory; kept for completeness.
     deinit {
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)

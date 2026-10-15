@@ -154,6 +154,7 @@ function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
   );
 }
 
+/** Landing page. Section ids are linked from the navbar; keep them stable (see CLAUDE.md). */
 export default async function HomePage() {
   // All three resolve at build time and degrade to "omit it" on failure, so
   // the proof row only ever shows numbers GitHub actually returned.

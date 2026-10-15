@@ -11,8 +11,12 @@ import Testing
 
 // MARK: - StreamDeckControl.parse
 
+/// `StreamDeckControl.parse` envelope decoding (type, protocol version and action
+/// gating, args) and the `CommandAck` JSON shape. Must stay in step with the TypeScript mirror in
+/// `apps/streamdeck/src/wolfwave/`.
 struct StreamDeckCommandTests {
 
+    /// A command envelope as JSON, at the current protocol version unless overridden.
     private func frame(_ action: String, protocolVersion: Int = StreamDeckControl.protocolVersion) -> String {
         #"{"type":"command","action":"\#(action)","protocol":\#(protocolVersion)}"#
     }

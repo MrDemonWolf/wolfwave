@@ -58,21 +58,33 @@ struct DiscordPreviewCard: View {
 
     /// A single button row in the mock card.
     struct PreviewButton: Equatable {
+        /// Pill text, as the user typed it.
         let label: String
+        /// Destination. Carried for parity with the real payload; the mock
+        /// pill isn't clickable, so it is never opened.
         let url: String
     }
 
     // MARK: - Environment
 
+    /// Mode changes cross-fade unless Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Properties
 
+    /// Which state the card mirrors. Track fields are ignored unless
+    /// `mode.showsTrack`.
     var mode: Mode = .playing
+    /// The `details` line (song title).
     let trackTitle: String
+    /// Artist line under the title.
     let artist: String
+    /// Album line (the real presence puts it in `large_text`).
     let album: String
+    /// Album art; `nil` falls back to the Apple Music tile, like the real
+    /// payload's `large_image`.
     let artworkURL: URL?
+    /// First / second presence buttons; `nil` hides that pill.
     let button1: PreviewButton?
     let button2: PreviewButton?
 
@@ -119,6 +131,8 @@ struct DiscordPreviewCard: View {
 
     // MARK: - Header
 
+    /// Status dot plus "LISTENING TO WOLFWAVE" (or just "WOLFWAVE" when no
+    /// activity is on the profile).
     private var header: some View {
         // Mirrors Discord's real "Listening to <app>" row: muted gray label with
         // the app name brighter, preceded by a status dot. Discord shows the
@@ -135,6 +149,8 @@ struct DiscordPreviewCard: View {
         }
     }
 
+    /// Header dot: success while playing, warning while paused, a faint white
+    /// for every state without live playback.
     private var dotColor: Color {
         switch mode {
         case .playing:        return DSColor.success
@@ -149,6 +165,7 @@ struct DiscordPreviewCard: View {
         }
     }
 
+    /// Header text with "WOLFWAVE" brightened inside the listening variant.
     private var headerLabel: Text {
         if mode.showsListeningHeader {
             return Text("LISTENING TO \(Text("WOLFWAVE").foregroundStyle(Color.white.opacity(0.9)))")
@@ -158,6 +175,7 @@ struct DiscordPreviewCard: View {
 
     // MARK: - Track content
 
+    /// Artwork + title / artist / album + faux progress bar, dimmed when paused.
     private var trackContent: some View {
         HStack(alignment: .top, spacing: DSSpace.s4) {
             artworkView
@@ -182,6 +200,8 @@ struct DiscordPreviewCard: View {
         .opacity(mode == .paused ? 0.65 : 1)
     }
 
+    /// Large album-art tile (desaturated when paused) with the small source
+    /// badge in its bottom-trailing corner.
     private var artworkView: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
@@ -233,6 +253,8 @@ struct DiscordPreviewCard: View {
             .help(tooltip)
     }
 
+    /// Brand gradient + WolfMark tile used by the empty states (stopped, Music
+    /// closed, Discord offline) so the card keeps its shape.
     private var artworkPlaceholder: some View {
         LinearGradient(
             colors: [DSColor.brand500, DSColor.brand800],
@@ -249,9 +271,10 @@ struct DiscordPreviewCard: View {
     }
 
     /// Mirrors Discord's `assets.large_image: "apple_music"` art asset: the Apple
-    /// Music app icon (white note on the Apple Music gradient). The real idle
-    /// presence ships this as its large image, so the idle card renders it too
-    /// instead of the WolfMark placeholder, keeping the preview honest.
+    /// Music app icon. The real playing / paused presence falls back to this
+    /// large image when no album art URL resolved (`artworkURL ?? "apple_music"`
+    /// in `DiscordPresenceBuilder`), so the track tile does the same while the
+    /// artwork is missing, loading, or failed.
     private var appleMusicTile: some View {
         // Mirrors Discord's `assets.large_image: "apple_music"` art exactly: the
         // same `apple_music.png` uploaded to the Discord portal, not a rebuilt
@@ -275,8 +298,8 @@ struct DiscordPreviewCard: View {
     /// WolfWave app-icon PNG (`discord-assets/wolfwave.png`) that's uploaded to
     /// the Discord developer portal as the `wolfwave` Rich Presence asset. Used
     /// for the idle tile so the preview shows the real registered art instead of
-    /// a hand-built `WolfMark`-on-gradient stand-in. Rendered on the Discord card
-    /// surface so the asset's transparent edges read like the live client.
+    /// a hand-built `WolfMark`-on-gradient stand-in. Rendered on black so the
+    /// asset's transparent edges read like the live client.
     private var wolfWaveArtTile: some View {
         Color.black
             .overlay(
@@ -286,6 +309,8 @@ struct DiscordPreviewCard: View {
             )
     }
 
+    /// Static progress bar at `progressFraction`. Decorative only; it does not
+    /// track the real playback position.
     private var progressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
@@ -299,6 +324,7 @@ struct DiscordPreviewCard: View {
         .frame(height: 4)
     }
 
+    /// Up to two full-width button pills, in order, skipping `nil`s.
     @ViewBuilder
     private var buttons: some View {
         let visible = [button1, button2].compactMap { $0 }
@@ -311,6 +337,7 @@ struct DiscordPreviewCard: View {
         }
     }
 
+    /// One non-interactive Discord-style button.
     private func buttonPill(label: String) -> some View {
         Text(label)
             .font(.system(size: DSFont.Size.base, weight: .medium))
@@ -348,6 +375,7 @@ struct DiscordPreviewCard: View {
         }
     }
 
+    /// Headline for the empty states; empty for modes that never show it.
     private var emptyHeadline: String {
         switch mode {
         case .stopped:        return "Nothing playing"
@@ -357,6 +385,7 @@ struct DiscordPreviewCard: View {
         }
     }
 
+    /// One-line "what to do" under `emptyHeadline`.
     private var emptySubtext: String {
         switch mode {
         case .stopped:        return "Play a song in Apple Music and it shows up here."
@@ -398,6 +427,8 @@ struct DiscordPreviewCard: View {
 
     // MARK: - Accessibility
 
+    /// One VoiceOver sentence for the whole card (children are combined), so
+    /// the mock reads as a single preview rather than loose text.
     private var accessibilitySummary: String {
         switch mode {
         case .playing, .paused:

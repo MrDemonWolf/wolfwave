@@ -14,13 +14,24 @@ import SwiftUI
 /// DEBUG-only card for inspecting persistent state: UserDefaults values, Keychain
 /// presence flags, and bundle/build metadata. Never displays Keychain values.
 struct DebugInspectorsCard: View {
+
+    // MARK: - Properties
+
+    /// Bumped (wrapping) to reload everything: the refresh button, the poll,
+    /// Twitch state changes, any UserDefaults write, and each delete. The
+    /// Keychain `.task(id:)` keys off it, and `userDefaultsRow` reads it so the
+    /// rows re-render.
     @State private var refreshTick = 0
+    /// Case-insensitive substring filter over UserDefaults key names.
     @State private var filter: String = ""
 
     /// Keychain presence flags, loaded off-main via `.task(id: refreshTick)`
     /// so the card paints instantly. Each `KeychainService.load…()` call is a
-    /// `SecItemCopyMatching` syscall; running 5 in `body` per render is wasteful.
+    /// `SecItemCopyMatching` syscall; running six of them in `body` per render
+    /// is wasteful. Keys are the short ids used in the `.task` below.
     @State private var keychainPresence: [String: Bool] = [:]
+    /// False until the first presence load lands. Later reloads keep showing the
+    /// previous values instead of flashing back to the loading row.
     @State private var keychainLoaded = false
 
     /// Backstop poll interval. UserDefaults edits surface instantly via
@@ -103,6 +114,8 @@ struct DebugInspectorsCard: View {
 
     // MARK: - Bundle / Build
 
+    /// Version, build, bundle id, OS, locale, and build configuration, plus a
+    /// Copy as JSON button.
     private var bundleSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text("Bundle & build")
@@ -131,6 +144,8 @@ struct DebugInspectorsCard: View {
 
     // MARK: - Keychain
 
+    /// Presence (never values) of each credential, with a delete button on the
+    /// entries that can be removed safely on their own.
     private var keychainSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text("Keychain")
@@ -175,6 +190,9 @@ struct DebugInspectorsCard: View {
 
     // MARK: - UserDefaults
 
+    /// Every key in `AppConstants.UserDefaults.allKeys`, sorted and filtered,
+    /// with its current value from `DefaultsStore.store`. Keys not listed there
+    /// do not appear.
     private var userDefaultsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack {
@@ -198,6 +216,7 @@ struct DebugInspectorsCard: View {
 
     // MARK: - Row Builders
 
+    /// Fixed-width label plus a selectable monospaced value.
     private func inspectorRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top) {
             Text(label)
@@ -211,6 +230,15 @@ struct DebugInspectorsCard: View {
         }
     }
 
+    /// One credential: a filled check when present, an optional note, and a
+    /// delete button shown only when the item is present and `onDelete` is given.
+    ///
+    /// - Parameters:
+    ///   - label: Visible credential name.
+    ///   - present: Whether the last presence load found it.
+    ///   - note: Short caption, used to explain why there is no delete button.
+    ///   - onDelete: Removes the item. A thrown error is logged (category
+    ///     `keychain`) and the tick is not bumped, so the row keeps its state.
     private func keychainRow(
         _ label: String,
         present: Bool,
@@ -249,7 +277,13 @@ struct DebugInspectorsCard: View {
         }
     }
 
+    /// Key, current value, and a remove button (disabled while the key is unset).
+    ///
+    /// Reads `DefaultsStore.store` directly, the same store production code uses,
+    /// so removing a key here resets the live app to that key's default.
     private func userDefaultsRow(key: String) -> some View {
+        // Read the tick so SwiftUI re-evaluates this row whenever it changes;
+        // the defaults read below is not observable on its own.
         _ = refreshTick
         let value = DefaultsStore.store.object(forKey: key)
         return HStack(alignment: .top, spacing: DSSpace.s2) {
@@ -281,6 +315,9 @@ struct DebugInspectorsCard: View {
 
     // MARK: - Helpers
 
+    /// Build configuration label. The whole file is `#if DEBUG`, so in practice
+    /// this is always "DEBUG"; the `#else` branch only keeps the helper honest if
+    /// it is ever moved out.
     private var configurationString: String {
         #if DEBUG
         return "DEBUG"
@@ -289,6 +326,8 @@ struct DebugInspectorsCard: View {
         #endif
     }
 
+    /// The bundle section's values as pretty-printed, key-sorted JSON. Empty
+    /// string if serialization fails.
     private var buildInfoJSON: String {
         let dict: [String: String] = [
             "version": AppConstants.AppInfo.shortVersion,
@@ -308,6 +347,11 @@ struct DebugInspectorsCard: View {
         return string
     }
 
+    /// Renders a defaults value for display: `<unset>` for nil, strings quoted,
+    /// numbers via `stringValue`, anything else via `String(describing:)`.
+    ///
+    /// The `Bool` case runs first, and an `NSNumber` holding 0 or 1 bridges to
+    /// `Bool`, so an integer key stored as 0 or 1 shows as false / true.
     private func formatValue(_ value: Any?) -> String {
         guard let value else { return "<unset>" }
         switch value {

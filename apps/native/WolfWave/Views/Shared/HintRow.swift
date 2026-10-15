@@ -19,11 +19,16 @@ struct HintRow: View {
 
     // MARK: - Properties
 
+    /// Hint text; inline Markdown (`**bold**`, code spans) is rendered.
     let text: String
+    /// Leading SF Symbol. Decorative: hidden from VoiceOver.
     var systemImage: String = "info.circle.fill"
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - text: Hint text; inline Markdown is rendered.
+    ///   - systemImage: Leading SF Symbol, an info circle by default.
     init(_ text: String, systemImage: String = "info.circle.fill") {
         self.text = text
         self.systemImage = systemImage

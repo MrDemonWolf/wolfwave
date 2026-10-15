@@ -34,6 +34,7 @@ struct RecentTrack: Equatable, Hashable, Sendable {
         lhs.title == rhs.title && lhs.artist == rhs.artist
     }
 
+    /// Hashes title and artist only, matching `==`.
     func hash(into hasher: inout Hasher) {
         hasher.combine(title)
         hasher.combine(artist)
@@ -54,6 +55,7 @@ struct RecentTracksBuffer: Equatable {
     /// Entries in newest-first order.
     private(set) var entries: [RecentTrack] = []
 
+    /// - Parameter maxEntries: Capacity; values below 1 are raised to 1.
     init(maxEntries: Int = AppConstants.RecentlyPlayed.maxEntries) {
         // Clamp instead of trapping: a non-positive capacity is a programming
         // error, but a hard `precondition` would crash a shipped build over a

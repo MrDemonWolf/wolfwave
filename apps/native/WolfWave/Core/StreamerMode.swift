@@ -17,8 +17,9 @@ import Foundation
 /// or to Twitch chat. Those payloads are out-of-band of the user's screen.
 nonisolated enum StreamerMode {
 
-    /// Placeholder style, chosen so the redacted glyph hints at the value
-    /// shape it replaces.
+    /// What kind of value is being masked. URLs and tokens get the longer
+    /// "hidden (streamer mode)" placeholder; channel and generic values get a
+    /// bare "hidden" that fits in tighter rows.
     enum Style {
         case url
         case token

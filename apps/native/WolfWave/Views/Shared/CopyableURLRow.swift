@@ -18,7 +18,7 @@ import SwiftUI
 /// copy-disabled rule live in one place instead of being re-typed per row.
 ///
 /// Streamer Mode behavior is uniform: when `isStreamerMode` is on, the URL is
-/// replaced with `StreamerMode.mask(_:style:.url:)`, the badge renders beside
+/// replaced with `StreamerMode.mask(_:style:isOn:)` (style `.url`), the badge renders beside
 /// the label, and the copy button (plus any `trailing` accessory) is disabled.
 /// Pass `actionsDisabled` for an additional gate (e.g. the server is off).
 ///
@@ -82,6 +82,8 @@ struct CopyableURLRow<Trailing: View>: View {
 
     // MARK: - Init
 
+    /// Creates a row. Only `url`, `isStreamerMode`, and the copy button's
+    /// VoiceOver label are required; `trailing` defaults to nothing.
     init(
         label: String? = nil,
         url: String,
@@ -125,6 +127,8 @@ struct CopyableURLRow<Trailing: View>: View {
         return actionsDisabled ? actionsDisabledReason : nil
     }
 
+    /// The fixed disabled reason while Streamer Mode is on. Outranks
+    /// `actionsDisabledReason`, since turning the server on would not help.
     private static var streamerModeHint: String { "Turn off Streamer Mode to copy." }
 
     // MARK: - Body

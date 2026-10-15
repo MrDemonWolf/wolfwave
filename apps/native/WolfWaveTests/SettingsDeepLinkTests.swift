@@ -10,6 +10,9 @@ import Foundation
 import Testing
 @testable import WolfWave
 
+/// `SettingsDeepLink` parsing of `wolfwave://settings/<pane>[/<section>]`. It never fails: unknown
+/// input falls back to General. The pinned slug table is what the docs link to, so changing a slug
+/// breaks published links.
 @Suite("Settings deep links")
 struct SettingsDeepLinkTests {
     private typealias Section = SettingsView.SettingsSection

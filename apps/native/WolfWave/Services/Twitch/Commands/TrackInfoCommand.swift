@@ -10,8 +10,12 @@ import Foundation
 
 /// A parameterized bot command that responds with track information.
 ///
-/// Used for both current song and last song commands, avoiding
-/// duplicated execute/truncation logic.
+/// One class backs `!song`, `!last`, and `!stats` (three instances built by
+/// `BotCommandDispatcher`), avoiding duplicated execute/truncation logic. The
+/// reply text comes entirely from the wired provider closure.
+///
+/// The dispatcher special-cases this type and calls ``executeAsync(message:)``;
+/// ``execute(message:)`` only serves tests and other sync callers.
 ///
 /// MainActor-isolated (project default isolation). The `getTrackInfo`,
 /// `getTrackInfoAsync`, and `isEnabled` closure properties keep an `NSLock` as a
@@ -24,7 +28,7 @@ final class TrackInfoCommand: BotCommand {
     /// Chat triggers that invoke this command (e.g. `["!song"]` or `["!last"]`).
     let triggers: [String]
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     let description: String
 
     /// UserDefaults key for the user-configurable global cooldown override.
@@ -38,6 +42,7 @@ final class TrackInfoCommand: BotCommand {
 
     // MARK: - Thread-safe Closures
 
+    /// Guards the three closure slots below.
     private let lock = NSLock()
 
     private var _getTrackInfo: (() -> String)?
@@ -54,8 +59,11 @@ final class TrackInfoCommand: BotCommand {
 
     private var _isEnabled: (() -> Bool)?
 
-    /// Closure that returns whether this command is enabled. Backed by a lock-
-    /// guarded property (defense-in-depth on the MainActor-isolated type).
+    /// Closure that returns whether this command is enabled. `nil` means
+    /// always enabled. Separate from the protocol's `enabledKey` (left `nil`)
+    /// because the gate can depend on runtime state, e.g. `!stats` is live-only.
+    /// Backed by a lock-guarded property (defense-in-depth on the
+    /// MainActor-isolated type).
     var isEnabled: (() -> Bool)? {
         get { lock.withLock { _isEnabled } }
         set { lock.withLock { _isEnabled = newValue } }
@@ -74,6 +82,7 @@ final class TrackInfoCommand: BotCommand {
 
     // MARK: - Private State
 
+    /// Reply used when no provider is wired at all.
     private let defaultMessage: String
 
     // MARK: - Init
@@ -83,9 +92,11 @@ final class TrackInfoCommand: BotCommand {
     /// - Parameters:
     ///   - triggers: Chat trigger strings (e.g. `["!song", "!currentsong"]`).
     ///   - description: Human-readable description.
-    ///   - defaultMessage: Reply used when `getTrackInfo` is unset or returns empty.
+    ///   - defaultMessage: Reply used when neither provider is set. An empty
+    ///     string from a provider is passed through as-is, not replaced.
     ///   - globalCooldownKey: UserDefaults key for the global cooldown override.
     ///   - userCooldownKey: UserDefaults key for the per-user cooldown override.
+    ///   - aliasesKey: UserDefaults key for comma-separated custom aliases.
     init(
         triggers: [String],
         description: String,
@@ -104,7 +115,7 @@ final class TrackInfoCommand: BotCommand {
 
     // MARK: - Execute
 
-    /// Matches `message` against `triggers`, checks `isEnabled`, then returns
+    /// Matches `message` against `allTriggers`, checks `isEnabled`, then returns
     /// the resolved track info string truncated to Twitch's 500-char limit.
     ///
     /// - Parameter message: Raw chat message.
@@ -135,6 +146,14 @@ final class TrackInfoCommand: BotCommand {
     /// MainActor-isolated app state can be read without the deprecated
     /// `runSync` semaphore bridge that previously deadlocked MainActor on the
     /// first `!song`/`!last`/`!stats` chat command after Twitch auth.
+    ///
+    /// Provider precedence: `getTrackInfoAsync`, then `getTrackInfo`, then
+    /// `defaultMessage`. Closures are snapshotted before the await, so a
+    /// re-wire mid-call doesn't affect this invocation.
+    ///
+    /// - Parameter message: Trimmed chat message.
+    /// - Returns: The truncated reply, or `nil` when no trigger matched or the
+    ///   command is disabled.
     func executeAsync(message: String) async -> String? {
         let token = commandToken(in: message)
 
