@@ -49,6 +49,9 @@ struct CopyButton: View {
 
     /// True during the feedback window; swaps the icon and label.
     @State private var copied = false
+    /// The pending timer that clears `copied`; replaced (and the old one
+    /// cancelled) on every click.
+    @State private var resetTask: Task<Void, Never>?
 
     /// VoiceOver hint while the button is live, and the disabled fallback when
     /// no `disabledHint` is given.
@@ -61,11 +64,15 @@ struct CopyButton: View {
             Pasteboard.copy(text, sensitive: isSensitive)
             action?()
             copied = true
-            // Unstructured, so it outlives the view; each click starts its own
-            // timer, and an earlier click's timer can end a later click's
-            // checkmark early. Harmless for a cosmetic flag.
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(feedbackDuration))
+            // One reset timer at a time: a new click cancels the previous one,
+            // so an earlier click can't end a later click's checkmark early.
+            resetTask?.cancel()
+            resetTask = Task { @MainActor in
+                do {
+                    try await Task.sleep(for: .seconds(feedbackDuration))
+                } catch {
+                    return
+                }
                 copied = false
             }
         } label: {

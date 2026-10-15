@@ -44,6 +44,11 @@ struct ErrorCallout: View {
     /// re-enables on its own instead of staying disabled forever.
     @State private var remainingWait: Int?
 
+    /// The absolute expiry of the current wait, and the error it belongs to.
+    /// Kept in `@State` so a view that disappears and reappears resumes the
+    /// same countdown instead of starting the full delay again.
+    @State private var countdown: Countdown?
+
     // MARK: - Init
 
     /// - Parameters:
@@ -104,11 +109,44 @@ struct ErrorCallout: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(error.accessibilityLabel)
         .accessibilityIdentifier(error.accessibilityIdentifier)
-        // Restarts whenever the error id changes, so a new rate limit gets a
-        // fresh countdown and a non-waiting error clears the old one. Keyed on
-        // the id only: a second error with the same id but a different wait
-        // keeps the running countdown.
-        .task(id: error.id) { await runCountdown() }
+        // Restarts whenever the error id or its declared wait changes, so a new
+        // rate limit gets a fresh countdown (even under the same id) and a
+        // non-waiting error clears the old one.
+        .task(id: countdownKey) { await runCountdown() }
+    }
+
+    // MARK: - Countdown
+
+    /// What a countdown belongs to: the error, and the wait it declared.
+    struct CountdownKey: Equatable {
+        let errorID: String
+        let waitSeconds: Int?
+    }
+
+    /// A running wait: its key and the absolute instant it ends.
+    struct Countdown: Equatable {
+        let key: CountdownKey
+        let deadline: ContinuousClock.Instant
+    }
+
+    /// The key for the error as it stands now.
+    private var countdownKey: CountdownKey {
+        CountdownKey(errorID: error.id, waitSeconds: error.primaryAction?.waitSeconds)
+    }
+
+    /// The countdown to run for `key`.
+    ///
+    /// Reuses `existing` when it belongs to the same key, so the deadline stays
+    /// absolute across a disappear / reappear. A different key starts a new
+    /// deadline at `now`. Returns `nil` when there is nothing to wait for.
+    static func countdown(
+        for key: CountdownKey,
+        existing: Countdown?,
+        now: ContinuousClock.Instant
+    ) -> Countdown? {
+        guard let wait = key.waitSeconds, wait > 0 else { return nil }
+        if let existing, existing.key == key { return existing }
+        return Countdown(key: key, deadline: now.advanced(by: .seconds(wait)))
     }
 
     /// Whole seconds left until `deadline`, rounded up so a partially elapsed
@@ -117,10 +155,6 @@ struct ErrorCallout: View {
     /// Derived from an instant rather than counted down tick by tick, because a
     /// decrementing counter drifts under a busy main actor. Uses `ContinuousClock`
     /// so a system clock change cannot move the expiry.
-    ///
-    /// Note: `runCountdown()` sets its deadline when the task starts, so the
-    /// countdown still restarts at the full delay if the view disappears and
-    /// reappears (the `.task` runs again).
     static func remainingSeconds(
         now: ContinuousClock.Instant,
         deadline: ContinuousClock.Instant
@@ -136,13 +170,14 @@ struct ErrorCallout: View {
     /// rounding stutter. Cancellation from `.task(id:)` ends it; nothing here
     /// outlives the view.
     private func runCountdown() async {
-        guard let declared = error.primaryAction?.waitSeconds, declared > 0 else {
+        let clock = ContinuousClock()
+        guard let current = Self.countdown(for: countdownKey, existing: countdown, now: clock.now) else {
+            countdown = nil
             remainingWait = nil
             return
         }
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: .seconds(declared))
-        remainingWait = declared
+        countdown = current
+        let deadline = current.deadline
 
         while true {
             let left = Self.remainingSeconds(now: clock.now, deadline: deadline)

@@ -18,7 +18,11 @@ import Foundation
 /// can be tested directly.
 ///
 /// The caller owns the `FileHandle`: ask ``planRead(fileSize:primingBytes:)``
-/// what to read, read it, then hand the text to ``consume(_:)``.
+/// what to read, read it, then hand the bytes to ``consume(bytes:)``.
+///
+/// `planRead` advances ``offset`` as if the read will succeed. The cursor is a
+/// value, so a caller whose read fails keeps its pre-`planRead` copy and the
+/// same range is tried again on the next poll instead of being skipped.
 nonisolated struct LogTailCursor: Equatable {
 
     /// Byte offset already consumed. Everything before this has been returned.
@@ -62,6 +66,42 @@ nonisolated struct LogTailCursor: Equatable {
         return start..<fileSize
     }
 
+    /// Decodes newly read bytes and splits them into complete lines.
+    ///
+    /// Reads are byte ranges, so either edge can cut a multi-byte UTF-8
+    /// character in half, and strict decoding would then reject the whole chunk:
+    ///
+    /// - A priming window starts at an arbitrary byte. Leading continuation
+    ///   bytes (the tail of a character whose start is outside the window) are
+    ///   dropped; that partial first line was never going to parse anyway.
+    /// - A read can land while a character is half written. An incomplete
+    ///   trailing sequence is not consumed: ``offset`` steps back over it so
+    ///   the next read starts on the character's first byte.
+    ///
+    /// Anything still invalid in the middle decodes as U+FFFD rather than
+    /// failing, so one corrupt byte can never wedge the tail.
+    ///
+    /// - Parameter bytes: The bytes of the range `planRead` returned.
+    /// - Returns: Only the lines terminated by a newline.
+    mutating func consume(bytes: Data) -> [String] {
+        var body = bytes[...]
+        // Valid UTF-8 never starts with a continuation byte, and a sequence is at
+        // most four bytes, so at most three can belong to a cut character.
+        var dropped = 0
+        while dropped < 3, let first = body.first, Self.isContinuation(first) {
+            body = body.dropFirst()
+            dropped += 1
+        }
+
+        let held = Self.incompleteTrailingCount(body)
+        if held > 0 {
+            body = body.dropLast(held)
+            offset -= min(offset, UInt64(held))
+        }
+
+        return consume(String(decoding: body, as: UTF8.self))
+    }
+
     /// Splits newly read text into complete lines.
     ///
     /// A read can land mid-line. The incomplete tail is held in ``carry`` and
@@ -77,5 +117,36 @@ nonisolated struct LogTailCursor: Equatable {
         // followed the final newline, which is "" when the chunk ended cleanly.
         carry = pieces.removeLast()
         return pieces
+    }
+
+    // MARK: - UTF-8 Helpers
+
+    /// `10xxxxxx`: a byte that continues a multi-byte sequence.
+    private static func isContinuation(_ byte: UInt8) -> Bool {
+        byte & 0b1100_0000 == 0b1000_0000
+    }
+
+    /// How many bytes at the end of `bytes` form a multi-byte sequence whose
+    /// remaining bytes have not been read yet. `0` when the chunk ends cleanly.
+    private static func incompleteTrailingCount(_ bytes: Data.SubSequence) -> Int {
+        // Walk back over continuation bytes to the sequence's lead byte.
+        var index = bytes.endIndex
+        var trailing = 0
+        while index > bytes.startIndex, trailing < 4 {
+            index = bytes.index(before: index)
+            trailing += 1
+            let byte = bytes[index]
+            guard isContinuation(byte) else {
+                let expected: Int
+                switch byte {
+                case 0b1100_0000...0b1101_1111: expected = 2
+                case 0b1110_0000...0b1110_1111: expected = 3
+                case 0b1111_0000...0b1111_0111: expected = 4
+                default: expected = 1 // ASCII, or an invalid lead U+FFFD covers
+                }
+                return trailing < expected ? trailing : 0
+            }
+        }
+        return 0
     }
 }

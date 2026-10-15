@@ -21,6 +21,8 @@ ErrorCallout(error: viewModel.channelError) { action in
 | `error` | `UserFacingError` | (required) | Supplies title, message, severity, actions, and the accessibility identifier. |
 | `onAction` | `(ErrorAction) -> Void` | `{ _ in }` | Called with the intent the user chose. The caller owns the behavior; the component never performs the fix itself. |
 
+A `retryAfter` primary action counts down to an absolute deadline. The countdown restarts when the error id or its declared wait changes (so a new rate limit under the same id gets a fresh wait), and resumes rather than restarts when the view disappears and comes back.
+
 Severity maps to the banner style in one place: `.error` → `.error`, `.warning` → `.warning`, `.info` → `.info`. `UserFacingError` stays free of SwiftUI so it remains `Sendable` and testable without a renderer.
 
 ## Tokens used

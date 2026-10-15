@@ -27,9 +27,8 @@ struct QRCodeImage: View {
 
     // Hidden from VoiceOver in both branches: the code is decorative, so any
     // spoken equivalent of the payload has to come from the caller's layout.
-    // Note: the code is re-encoded on every body evaluation; there is no cache.
     var body: some View {
-        if let cgImage = Self.makeQRCode(from: string) {
+        if let cgImage = Self.qrCode(for: string) {
             Image(decorative: cgImage, scale: 1, orientation: .up)
                 .interpolation(.none)
                 .resizable()
@@ -45,6 +44,28 @@ struct QRCodeImage: View {
 
     // MARK: - Encoding
 
+    /// One rendering context for every code. A `CIContext` is expensive to
+    /// create and safe to reuse.
+    private static let context = CIContext()
+
+    /// Rendered codes keyed by payload, so a body re-evaluation (or several
+    /// views showing the same URL) does not re-run the filter chain.
+    /// `NSCache` evicts under memory pressure on its own.
+    private static let cache: NSCache<NSString, CGImage> = {
+        let cache = NSCache<NSString, CGImage>()
+        cache.countLimit = 16
+        return cache
+    }()
+
+    /// The cached code for `string`, encoding it on first use.
+    private static func qrCode(for string: String) -> CGImage? {
+        let key = string as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+        guard let image = makeQRCode(from: string) else { return nil }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+
     /// Builds a white-modules-on-transparent `CGImage` for the payload so it
     /// reads on dark gradients without a background plate. Returns `nil` when
     /// the string can't be encoded.
@@ -52,7 +73,6 @@ struct QRCodeImage: View {
     /// Uses error-correction level "M" (about 15% of modules recoverable), a
     /// middle ground between density and tolerance for a URL-sized payload.
     private static func makeQRCode(from string: String) -> CGImage? {
-        let context = CIContext()
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
         filter.correctionLevel = "M"

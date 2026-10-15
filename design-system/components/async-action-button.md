@@ -60,7 +60,10 @@ AsyncActionButton(
 | `running` | mini circular `ProgressView` | Disabled |
 | `succeeded` | `checkmark` in `DSColor.success` | Enabled |
 
-A thrown error returns straight to `idle` with no checkmark. Error
+A thrown error returns straight to `idle` with no checkmark, and so does a
+cancelled run, even when the action returns without throwing. Disappearing
+cancels the run and resets to `idle`, so the button never comes back as a
+disabled spinner; a superseded run never writes the phase. Error
 **presentation** stays with the caller, matching how the settings panes already
 own their `CalloutBanner` or status string.
 
