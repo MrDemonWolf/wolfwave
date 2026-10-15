@@ -1073,6 +1073,12 @@ actor TwitchChatService {
     /// therefore outlives EventSub socket generations; only the eventual chat
     /// reply is gated to the originating session.
     var paidRedemptionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Durable Bits items whose boost / request already ran in this process
+    /// but whose outbox acknowledgement has not been written yet. Replay
+    /// only acknowledges these; it never applies the paid action again. A
+    /// relaunch starts empty, so an item the process never confirmed is
+    /// still applied once from disk.
+    var appliedUnacknowledgedBitsItemIDs: Set<UUID> = []
     /// Number of in-flight Bits pipelines. Exposed for tests.
     var activePaidRedemptionTaskCount: Int { paidRedemptionTasks.count }
     /// Fulfillment/refund HTTP work outlives its originating EventSub session so

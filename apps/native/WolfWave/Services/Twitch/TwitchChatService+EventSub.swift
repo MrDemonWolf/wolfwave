@@ -470,13 +470,17 @@ extension TwitchChatService {
     }
 
     /// Terminal stop for a revocation that retrying can't fix: cancels any
-    /// pending reconnect, then disconnects with `error` shown to the user.
-    /// Reconnect credentials are not cleared, so a later wake or network
-    /// recovery event can still schedule a reconnect.
+    /// pending reconnect, disconnects with `error` shown to the user, and
+    /// clears the saved reconnect details. Without them `scheduleReconnect()`
+    /// is a no-op, so a later wake or network recovery cannot reopen a session
+    /// Twitch has finally refused. A fresh join publishes new details.
     private func stopEventSubWithoutReconnect(error: String) {
         reconnectTask?.cancel()
         reconnectTask = nil
         reconnectionAttempts = 0
+        reconnectChannelName = nil
+        reconnectToken = nil
+        reconnectClientID = nil
         disconnectFromEventSub(error: error)
     }
 
