@@ -196,13 +196,19 @@ struct OnboardingCompletionView: View {
 
     // MARK: - Copyright
 
-    /// Footer line with the current year. The holder is still hardcoded here even
-    /// though `AppConstants.AppInfo.copyrightHolder` (overridable through
-    /// `COPYRIGHT_HOLDER`) now exists, so a fork that sets that key will still
-    /// see "MrDemonWolf, Inc." on this screen.
+    /// Footer line with the current year and the configured holder.
     private static var copyrightLine: String {
-        let year = Calendar.current.component(.year, from: Date())
-        return "© \(year) MrDemonWolf, Inc."
+        copyrightLine(year: Calendar.current.component(.year, from: Date()))
+    }
+
+    /// Builds the footer line. The holder defaults to
+    /// `AppConstants.AppInfo.copyrightHolder` (overridable through
+    /// `COPYRIGHT_HOLDER`), so a fork's name shows here as it does in About.
+    static func copyrightLine(
+        year: Int,
+        holder: String = AppConstants.AppInfo.copyrightHolder
+    ) -> String {
+        "© \(year) \(holder)"
     }
 }
 

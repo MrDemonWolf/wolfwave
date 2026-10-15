@@ -115,6 +115,9 @@ All notable changes to this project will be documented in this file.
 - A "Try Again in Ns" countdown no longer restarts from the top when you leave and come back, and a new wait for the same problem now gets its own countdown.
 - The Share button no longer stops responding after a sharing service that never reports back.
 - Copying twice in a row keeps the checkmark up for the full time after the second copy.
+- **The setup wizard honors Reduce Motion everywhere.** The OBS, Permissions, Notifications, and Twitch steps, the progress dots, and the integration toggle cards no longer fade or slide when Reduce Motion is on.
+- **The setup wizard's OBS URL names the right port.** A stored widget port outside the valid range now shows the port the server actually listens on.
+- **The setup wizard no longer stalls on the Music permission check.** It runs in the background instead of holding up the window while each step loads.
 
 ### Developer
 
@@ -185,6 +188,7 @@ All notable changes to this project will be documented in this file.
 - **Design-system lint gains `raw-radius`.** It also catches edge-specific `.padding(.edge, N)` / `.padding([.a, .b], N)`, `Font.system(size:)`, and whole-number floats such as `12.0`, and every rule has flag and ignore tests.
 - **Docs brand colours come from tokens.** `global.css` reads the generated `--ds-color-brand-*` properties, so `tokens.json` is the source for the docs brand blue. No visual change.
 - **Split the oversized Twitch sources along their existing seams, with no behaviour change.** The Helix rate limiter moved to `TwitchChatService+RateLimiter.swift`, chat sending and the retry queue to `TwitchChatService+Sending.swift`, redemption subscriptions and handlers to `TwitchChatService+RedemptionSubscriptions.swift` / `+RedemptionHandlers.swift`, and `TwitchViewModel.Failure` to `TwitchFailure.swift`.
+- Onboarding cleanup: the setup wizard's finish-screen copyright uses `AppConstants.AppInfo.copyrightHolder` (`COPYRIGHT_HOLDER`) instead of a hardcoded name, and the Twitch step's write-only `hasStartedActivation` state is gone.
 
 ## [2.1.0] - 2026-08-14
 

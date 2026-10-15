@@ -19,14 +19,19 @@ struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music State
 
-    /// Current Automation grant. Seeded with a synchronous probe on the main
-    /// actor when the step appears, then refreshed by Recheck, by the grant
-    /// prompt, and whenever the app becomes active again.
-    @State private var permissionState: MusicPermissionState = MusicPermissionChecker.currentState()
+    /// Current Automation grant. Seeded from the last persisted decision (a
+    /// cheap defaults read), then replaced by an off-main Apple Events probe
+    /// when the step appears, and refreshed by Recheck, by the grant prompt,
+    /// and whenever the app becomes active again.
+    @State private var permissionState: MusicPermissionState =
+        MusicPermissionChecker.loadPersisted() ?? .unknown
     /// `true` while the system prompt is pending; disables the grant button.
     @State private var isRequesting = false
     /// `true` while a recheck is in flight; also guards against overlapping rechecks.
     @State private var isRechecking = false
+
+    /// Drops the state-change animations when Reduce Motion is on.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
 
@@ -39,9 +44,17 @@ struct OnboardingPermissionsStepView: View {
             },
             extras: {
                 appleMusicSection
-                    .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
+                    .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
         )
+        // The Apple Events probe can take tens of milliseconds, so it runs
+        // detached rather than on the main actor while the step builds.
+        .task {
+            let state = await Task.detached(priority: .userInitiated) {
+                MusicPermissionChecker.currentState()
+            }.value
+            permissionState = state
+        }
         // The usual fix happens in System Settings, so re-probe when the user
         // switches back to WolfWave instead of making them press Recheck.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -169,13 +182,13 @@ struct OnboardingPermissionsStepView: View {
     /// the probe itself runs off the main actor. A no-op while one is running.
     private func recheckTapped() {
         guard !isRechecking else { return }
-        withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.fast), reduceMotion: reduceMotion) {
             isRechecking = true
         }
         Task {
             let next = await MusicPermissionChecker.recheck()
             await MainActor.run {
-                withAnimation(.easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     permissionState = next
                     isRechecking = false
                 }
