@@ -11,6 +11,7 @@ import {
 } from 'remotion';
 import { brand } from '../brand';
 
+/** Closing scene (60 frames): the tagline and project URL. */
 export const CTAOutroScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

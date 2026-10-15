@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `StreamerMode` masking rules per value kind and the toggle's persistence in
+/// `DefaultsStore.store`.
 final class StreamerModeTests: WolfWaveTestCase {
 
     // MARK: - mask: off

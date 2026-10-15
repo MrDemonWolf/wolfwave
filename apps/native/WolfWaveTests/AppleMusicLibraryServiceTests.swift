@@ -528,6 +528,7 @@ struct AppleMusicLibraryServiceTests {
 
     // MARK: - Fixtures
 
+    /// A throwaway `UserDefaults` suite (emptied before use) and its name; the caller removes it.
     private func isolatedDefaults() throws -> (UserDefaults, String) {
         let suiteName = "AppleMusicLibraryServiceTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -535,6 +536,8 @@ struct AppleMusicLibraryServiceTests {
         return (defaults, suiteName)
     }
 
+    /// Builds a library-playlists JSON page from `(id, name, description)` tuples. `next` adds a
+    /// pagination link.
     private func libraryData(
         _ resources: [(id: String, name: String, description: String?)],
         next: String? = nil
@@ -558,11 +561,15 @@ struct AppleMusicLibraryServiceTests {
     }
 }
 
+/// Errors thrown by the playlist transport fakes: a transient failure, or a request to a path the
+/// test did not expect.
 private enum AppleMusicLibraryTestError: Error {
     case transient
     case unexpectedPath(String)
 }
 
+/// Playlist transport whose listing GET parks until `releaseLookup()`, and which counts GETs and
+/// POSTs, to prove concurrent lookups share one request and one create.
 private actor CoalescingPlaylistTransport {
     private var getCalls = 0
     private var postCalls = 0
@@ -615,6 +622,8 @@ private actor CoalescingPlaylistTransport {
     }
 }
 
+/// Playlist transport whose first listing GET throws a transient error and whose later GETs return
+/// the recovered data.
 private actor RetryPlaylistTransport {
     private let recoveredData: Data
     private var getCalls = 0
@@ -643,6 +652,9 @@ private actor RetryPlaylistTransport {
     }
 }
 
+/// Playlist transport that parks the first lookup (of the old playlist id) until released, then
+/// checks cancellation. Models a reset landing mid-lookup, after which the new playlist data must
+/// win.
 private actor ResetRacePlaylistTransport {
     private let newData: Data
     private var getCalls = 0
@@ -698,12 +710,15 @@ private actor ResetRacePlaylistTransport {
     }
 }
 
+/// Scripted result of one track POST: success, the playlist is gone, or a transient failure.
 private enum TrackPostOutcome: Sendable {
     case success
     case missing
     case transient
 }
 
+/// Playlist transport that serves old and new playlist ids and answers track POSTs from a scripted
+/// `TrackPostOutcome` list, recording every GET/POST path.
 private actor PlaylistRecoveryTransport {
     private let oldID: String
     private let newID: String
@@ -762,6 +777,8 @@ private actor PlaylistRecoveryTransport {
     }
 }
 
+/// Like `PlaylistRecoveryTransport`, but the recovery lookup parks until released so concurrent
+/// recoveries can be observed sharing it.
 private actor ConcurrentPlaylistRecoveryTransport {
     private let oldID: String
     private let newID: String
@@ -852,6 +869,8 @@ private actor ConcurrentPlaylistRecoveryTransport {
     }
 }
 
+/// Playlist transport that answers the listing with paged results (`next` links) and counts GETs
+/// and POSTs.
 private actor PagingPlaylistTransport {
     private let responses: [String: Data]
 

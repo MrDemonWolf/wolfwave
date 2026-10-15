@@ -6,14 +6,22 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
-/// Displays a "What's New" sheet highlighting key features introduced in this version.
-///
-/// Shown once per version after the user has completed onboarding. Each feature is
-/// displayed as a card-styled row with an SF Symbol icon, title, and short description.
-
 import SwiftUI
 
+/// Displays a "What's New" window highlighting key features introduced in this version.
+///
+/// Shown once per *feature* release (`AppConstants.AppInfo.whatsNewVersion`) to
+/// returning users who have completed onboarding; `AppDelegate.checkWhatsNew()`
+/// owns that gate. Each feature is displayed as a card-styled row with an SF
+/// Symbol icon, title, and short description.
+///
+/// The feature list is hardcoded below. Update it, and bump `whatsNewVersion`,
+/// in the same change when a feature release ships.
 struct WhatsNewView: View {
+
+    // MARK: - Properties
+
+    /// Used only when `onClose` is `nil`.
     @Environment(\.dismiss) private var dismiss
 
     /// Closes the hosting window. `AppDelegate` hosts this view in an `NSWindow`,
@@ -23,6 +31,9 @@ struct WhatsNewView: View {
 
     // MARK: - Feature Data
 
+    /// One row per headline feature: SF Symbol, its tint, title, and one-line
+    /// description. `title` doubles as the `ForEach` id and the accessibility
+    /// identifier suffix, so titles must be unique.
     private let features: [(icon: String, iconColor: Color, title: String, description: String)] = [
         ("text.bubble.fill", .purple, "Custom Commands", "Make your own !commands with variables and cooldowns."),
         ("checkmark.circle.fill", .orange, "Approve Requests", "Hold every song request until you say yes."),

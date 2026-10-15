@@ -10,14 +10,17 @@ import Foundation
 
 /// Handles `!queue` / `!songlist` / `!requests`: shows the current song request queue.
 ///
-/// Displays the next 3-5 songs in queue with position, title, artist, and requester.
+/// Displays the now-playing request (if any) and up to the next 5 queued songs
+/// with position, title, artist, and requester. Read-only, so any viewer may run it.
+///
+/// Synchronous: it only reads the in-memory queue.
 final class QueueCommand: BotCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!queue", "!songlist", "!requests"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Show the current song request queue" }
 
     /// Channel-wide cooldown between invocations, in seconds.

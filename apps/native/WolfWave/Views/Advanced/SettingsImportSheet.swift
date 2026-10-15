@@ -35,6 +35,9 @@ struct SettingsImportSheet: View {
 
     /// Whether to restore the Twitch channel and prompt re-sign-in.
     @State private var reconnectTwitch = false
+    /// Opt-in for the security-relevant keys (diagnostics sharing, update
+    /// channel, widget / Stream Deck servers). Off by default so importing a
+    /// backup never silently opens a server or changes what is shared.
     @State private var includeLocalSharingSettings = false
 
     // MARK: - Body
@@ -77,6 +80,7 @@ struct SettingsImportSheet: View {
 
     // MARK: - Sections
 
+    /// Title plus where the backup came from (date, version, build).
     private var header: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1) {
             Text("Import Settings")
@@ -88,6 +92,8 @@ struct SettingsImportSheet: View {
         }
     }
 
+    /// "Reconnect Twitch" opt-in when the backup names a channel; otherwise a
+    /// note that only preferences will be imported.
     @ViewBuilder
     private var accountsSection: some View {
         if let twitch = backup.integrations.twitch {
@@ -112,6 +118,8 @@ struct SettingsImportSheet: View {
         }
     }
 
+    /// Cancel (Escape) and Import (Return). Import hands both toggles to
+    /// `onConfirm` as `ImportChoices`.
     private var buttons: some View {
         HStack(spacing: DSSpace.s3) {
             Spacer()
@@ -132,16 +140,19 @@ struct SettingsImportSheet: View {
 
     // MARK: - Copy Helpers
 
+    /// "This replaces the N matching settings…" line built from `restorableCount`.
     private var summaryLine: String {
         "This replaces the \(restorableCount) matching settings on this Mac. "
             + "Anything not in the backup stays as is."
     }
 
+    /// Provenance line: export date (localized), app version, and build.
     private var sourceLine: String {
         let date = backup.exportedAt.formatted(date: .abbreviated, time: .shortened)
         return "From a backup made \(date), WolfWave \(backup.appVersion) (\(backup.appBuild))."
     }
 
+    /// Prefixes the channel with `#` unless the stored name already has one.
     private func channelDisplay(_ name: String) -> String {
         name.hasPrefix("#") ? name : "#\(name)"
     }

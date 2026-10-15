@@ -37,6 +37,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         }
     }
 
+    /// Removes the Song Request and managed-reward keys these tests write, so each test starts from
+    /// defaults.
     nonisolated private static func resetRedemptionDefaults() {
         let defaults = DefaultsStore.store
         [
@@ -53,6 +55,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
 
     // MARK: - attemptReactiveRefresh (persistence)
 
+    /// A Keychain write failure while committing a new device grant must leave the
+    /// previous grant (all fields) intact and its credential revision still current.
     func testAtomicDeviceGrantWriteFailurePreservesCompletePriorAccount() throws {
         let failingBackend = InspectableKeychainBackend()
         KeychainService.backend = failingBackend
@@ -86,6 +90,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         )
     }
 
+    /// Cancelling OAuth mid-request (the token endpoint is held open with semaphores)
+    /// restarts the token-validation schedule exactly once and leaves the prior grant untouched.
     func testOAuthReplacementCancelRestoresOnlyCurrentValidationOwner() async throws {
         let prior = KeychainService.TwitchCredentialGrant(
             accessToken: "OLD_ACCESS",
@@ -141,6 +147,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.authState, .idle)
     }
 
+    /// `cancelOAuth()` must not finish, or restart validation, while the account-leave
+    /// step is still blocked; both happen only after the gate is released.
     func testCancelOAuthWaitsForBlockedLeaveBeforeRestoringValidation() async throws {
         let prior = KeychainService.TwitchCredentialGrant(
             accessToken: "OLD_ACCESS",
@@ -196,6 +204,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertNil(viewModel.connectionError)
     }
 
+    /// Only the window that started the flow (settings vs onboarding owner) can cancel
+    /// it on close; a close from another owner returns nil and changes nothing.
     func testOnlyOwningWindowCloseCancelsOAuthAndRestoresValidation() async throws {
         let settingsOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
         let onboardingOwner = TwitchViewModel.OAuthPresentationOwner.onboarding(UUID())
@@ -259,6 +269,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.authState, .idle)
     }
 
+    /// A close queued by an old presentation must not cancel a newer flow started by a
+    /// replacement owner, and the old owner can no longer request cancellation.
     func testStaleSettingsPresentationCannotCancelReplacementOAuth() async throws {
         let oldOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
         let replacementOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
@@ -294,6 +306,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         await replacement.value
     }
 
+    /// When the device-code request fails outright (503), validation is restarted for
+    /// the surviving grant and the failure stays visible in `authState`.
     func testOAuthRequestFailureRestoresSurvivingGrantValidationOwner() async throws {
         let prior = KeychainService.TwitchCredentialGrant(
             accessToken: "OLD_ACCESS",
@@ -337,6 +351,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         }
     }
 
+    /// Starting a second flow while the first is in flight: the superseded flow's late
+    /// completion must not restart validation over the retry (one restart total, not two).
     func testSupersededOAuthFlowCannotRestartValidationOverRetry() async throws {
         let prior = KeychainService.TwitchCredentialGrant(
             accessToken: "OLD_ACCESS",
@@ -405,6 +421,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), prior)
     }
 
+    /// A full successful device flow stores the grant and identity and ends with one
+    /// validation restart.
     func testSuccessfulOAuthFlowInstallsSingleValidationOwner() async throws {
         let requests = ThreadSafeBox(0)
         let auth = TwitchDeviceAuth(
@@ -463,6 +481,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.authState, .idle)
     }
 
+    /// Validation restarts as soon as the grant is committed, so a later identity-lookup
+    /// failure still leaves the stored grant covered and the error visible.
     func testOAuthCommitRestartsValidationBeforeIdentityFailure() async throws {
         enum IdentityFailure: Error {
             case injected
@@ -500,6 +520,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         }
     }
 
+    /// Cancelling the task while the identity lookup is suspended must not restart
+    /// validation again or discard the already-committed grant.
     func testOAuthCommitKeepsValidationOwnerWhenIdentityTaskIsCancelled() async throws {
         let restarts = ThreadSafeBox(0)
         let gate = OAuthIdentityGate()
@@ -540,6 +562,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "REFRESH")
     }
 
+    /// Once the grant is committed, closing the owning window can no longer cancel the
+    /// flow (cancellation returns nil), so the in-flight identity lookup completes and is stored.
     func testWindowCloseAfterGrantCommitAllowsIdentityToFinish() async throws {
         let settingsOwner = TwitchViewModel.OAuthPresentationOwner.settings(UUID())
         let auth = TwitchDeviceAuth(
@@ -600,6 +624,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.authState, .idle)
     }
 
+    /// If committing the new grant fails, the prior grant is kept, no identity lookup
+    /// runs, and the pending imported channel hint is not consumed.
     func testOAuthCommitFailureRestoresPriorGrantValidationOwner() async throws {
         let failingBackend = InspectableKeychainBackend()
         KeychainService.backend = failingBackend
@@ -650,6 +676,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         )
     }
 
+    /// A channel restored from backup (a pending hint in UserDefaults) is verified via
+    /// Helix and committed with the new account in one record, then the hint is cleared.
     func testOAuthCommitAtomicallyPromotesPendingImportedChannel() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -718,6 +746,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(Preferences.pendingImportedTwitchChannelName, "")
     }
 
+    /// If Helix says the pending imported channel does not exist, the new account is
+    /// committed with its old channel, the hint stays pending, and a not-found error shows.
     func testOAuthDoesNotPromoteMissingPendingChannel() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -778,6 +808,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.connectionError?.id, "twitch.channelNotFound")
     }
 
+    /// A Helix outage (503) while verifying the pending channel must not promote it: the
+    /// account commits with its old channel and the hint stays pending.
     func testOAuthDoesNotPromotePendingChannelOnValidationOutage() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -845,6 +877,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.connectionError?.id, "twitch.lookupRefused")
     }
 
+    /// If the user edits the channel while the pending one is being verified, the stale
+    /// verification result is dropped: the edit wins and the old channel stays committed.
     func testOAuthDoesNotPromoteChannelChangedDuringValidation() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -923,6 +957,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.channelValidationState, .idle)
     }
 
+    /// When the stored grant cannot be read, restoring the validation schedule errs
+    /// toward restarting it (and does not cancel) instead of leaving it stopped.
     func testKeychainReadFailureConservativelyRestoresValidationOwner() throws {
         let failingBackend = InspectableKeychainBackend()
         KeychainService.backend = failingBackend
@@ -949,6 +985,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(restarts.value, 1)
     }
 
+    /// If the old connection cannot be torn down when switching channels, the stored
+    /// channel is unchanged, the user stays signed in, and a disconnect-failed error shows.
     func testJoinTeardownFailureKeepsCanonicalChannelAndSignedInUI() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1003,6 +1041,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         )
     }
 
+    /// A channel that Helix cannot find is rejected before any teardown, so the working
+    /// connection and stored channel are untouched.
     func testInvalidJoinDraftNeverTearsDownOrCommitsCanonicalChannel() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1053,6 +1093,9 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         )
     }
 
+    /// Join is refused with a "Finish or cancel" message while a sign-in is running (no
+    /// network, teardown or pending-hint change). Once OAuth is idle, join succeeds, commits
+    /// the channel, clears the pending hint, and restarts validation once.
     func testJoinWaitsForOAuthThenClearsPendingAndRestartsValidation() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1137,6 +1180,7 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         _ = await service.leaveChannel()
     }
 
+    /// A reactive refresh stores both new tokens and keeps the stored channel.
     func testReactiveRefreshPersistsNewTokens() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1159,6 +1203,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchChannelID(), "channel")
     }
 
+    /// A second caller arriving while a refresh is in flight joins it (one network
+    /// request, same result for both), because refresh tokens are single-use.
     func testConcurrentRefreshCallersShareOneNetworkFlight() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1214,6 +1260,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(attempts.value, 1)
     }
 
+    /// A refresh response that lands after the account was replaced is discarded
+    /// (`.superseded`) and the replacement account's tokens stay stored.
     func testStaleRefreshResponseCannotOverwriteReplacementAccount() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1272,6 +1320,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_ACCOUNT_RT")
     }
 
+    /// A 429 with `Retry-After: 12` is waited out via the injected sleeper (no real delay), then
+    /// the retry succeeds.
     func testReactiveRefreshHonorsRetryAfterThenSucceeds() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1302,6 +1352,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(delays.value, [.seconds(12)])
     }
 
+    /// A 403 from the token endpoint is permanent: one attempt, no backoff sleep, result
+    /// `.invalid`, and the stored refresh token is kept.
     func testReactiveRefreshDoesNotRetryPermanentStatus() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1325,6 +1377,9 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "OLD_RT")
     }
 
+    /// A 200 that lacks a refresh token is treated as a transient failure: retried with
+    /// backoff (250 ms, then 500 ms) and, when it never completes, reports
+    /// `.temporarilyUnavailable` while the stored grant is left as it was.
     func testMalformedRefreshSuccessRetriesWithoutReplacingStoredGrant() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1353,6 +1408,7 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "OLD_RT")
     }
 
+    /// Same malformed first response, but a valid second response is adopted after one backoff.
     func testMalformedRefreshSuccessRecoversOnValidRetry() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1410,6 +1466,9 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(result, .invalid)
     }
 
+    /// If the caller's expected credential is already replaced, the refresher returns
+    /// `.superseded` without making any network request, so it can never spend the new
+    /// account's refresh token.
     func testStaleExpectedCredentialDoesNotStartReplacementAccountRefresh() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1453,6 +1512,9 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant().refreshToken, "NEW_ACCOUNT_RT")
     }
 
+    /// After an hourly token rotation, `adoptRefreshedAccessCredential` updates both the
+    /// chat service's active token and its pending reconnect token, and cancels a stale
+    /// reconnect task that was holding the old token.
     func testHourlyRotationAdoptsActiveAndPendingReconnectTokens() async throws {
         await TwitchTokenRefresher.invalidateSession()
         try KeychainService.saveTwitchCredentialGrant(
@@ -1505,6 +1567,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertTrue(cancellationObserved)
     }
 
+    /// A rotation for an account that has since been replaced is refused and leaves the
+    /// actor's tokens unchanged.
     func testStaleHourlyRotationCannotMutateReplacementActorState() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(accessToken: "OLD_AT", refreshToken: "OLD_RT")
@@ -1541,6 +1605,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         XCTAssertEqual(actorState.reconnectToken, "OLD_AT")
     }
 
+    /// Adopting a refreshed token while a live EventSub socket is up retires that socket
+    /// and reconnects once on a new one, with Helix calls using the new bearer token.
     func testDefaultRefreshAdoptionRetiresLiveSocketAndReconnectsWithNewToken()
         async throws {
         try KeychainService.saveTwitchCredentialGrant(
@@ -1622,6 +1688,9 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
     }
 
     #if DEBUG
+    /// A 401 on the chat subscription, when the stored grant belongs to the same bot with
+    /// a newer token, adopts it and reconnects (no re-auth banner).
+    /// Needs the DEBUG-only test seams, hence the `#if DEBUG`.
     func testChatSubscription401AdoptsStoredSameBotRotationAndReconnects()
         async throws {
         Preferences.setTwitchReauthNeeded(false)
@@ -1704,6 +1773,8 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
         await service.leaveChannel()
     }
 
+    /// A 401 where the stored grant belongs to a different user must not be adopted: no
+    /// reconnect, and the actor keeps its token.
     func testChatSubscription401RejectsStoredDifferentUserWithoutReconnect()
         async throws {
         Preferences.setTwitchReauthNeeded(false)

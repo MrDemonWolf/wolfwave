@@ -11,12 +11,20 @@ import SwiftUI
 
 /// Preferences step. Wire up the Mac-level conveniences (launch at login,
 /// listening history) so the user doesn't have to hunt for them in Settings
-/// later. Permissions (Apple Music, notifications) live in the next step.
+/// later. Apple Music access is the next step (Permissions) and notifications
+/// the one after it.
+///
+/// Each toggle posts its change notification itself, because writing the
+/// preference alone does not start or stop the matching service.
 struct OnboardingPreferencesStepView: View {
 
     // MARK: - Properties
 
+    /// The `launchAtLogin` preference, owned by `OnboardingView`. Only written
+    /// after `LaunchAtLoginService` accepts the change.
     @Binding var launchAtLogin: Bool
+    /// Registration failure shown under the toggle, with a link to Login Items.
+    /// Cleared by the next attempt that does not fail.
     @State private var launchAtLoginError: String?
 
     @AppStorage(AppConstants.UserDefaults.listeningHistoryEnabled)

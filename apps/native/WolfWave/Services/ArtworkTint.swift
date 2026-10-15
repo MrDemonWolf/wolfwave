@@ -19,6 +19,11 @@ enum ArtworkTint {
 
     /// A vivid, representative color sampled from `image`, or `nil` if it can't
     /// be read. Convenience over the `CGImage` overload.
+    ///
+    /// - Parameters:
+    ///   - image: Artwork to sample. Its best `CGImage` representation for the
+    ///     image's point size is used.
+    ///   - sample: Grid size per axis; `sample * sample` pixels are read.
     nonisolated static func dominantColor(from image: NSImage, sample: Int = 16) -> NSColor? {
         var rect = CGRect(origin: .zero, size: image.size)
         guard let cgImage = image.cgImage(forProposedRect: &rect, context: nil, hints: nil) else {
@@ -34,6 +39,14 @@ enum ArtworkTint {
     ///
     /// Reads through `NSBitmapImageRep.colorAt`, which is color-managed, so we
     /// don't have to reason about raw byte order or premultiplied alpha.
+    ///
+    /// - Parameters:
+    ///   - cgImage: Artwork to sample.
+    ///   - sample: Grid size per axis (clamped to at least 1). The default 16
+    ///     reads 256 evenly spaced pixels, enough for a stable average on album
+    ///     art without walking every pixel.
+    /// - Returns: An opaque sRGB color, or `nil` when every sampled pixel was
+    ///   transparent, near-black, or flat near-white.
     nonisolated static func dominantColor(from cgImage: CGImage, sample: Int = 16) -> NSColor? {
         let rep = NSBitmapImageRep(cgImage: cgImage)
         let width = rep.pixelsWide
@@ -63,6 +76,8 @@ enum ArtworkTint {
                 if maxC < 0.06 { continue }
                 if maxC > 0.96, saturation < 0.15 { continue }
 
+                // Squaring sharpens the bias toward saturated pixels, so a small
+                // vivid accent outweighs a large grey or pastel area.
                 let weight = saturation * saturation
                 weighted.r += r * weight
                 weighted.g += g * weight
@@ -77,6 +92,8 @@ enum ArtworkTint {
 
         guard plain.count > 0 else { return nil }
 
+        // A near-zero total weight means every surviving pixel was grey, so
+        // the weighted average would divide by ~0; use the plain mean instead.
         if weighted.w > 0.0001 {
             return NSColor(
                 srgbRed: weighted.r / weighted.w,

@@ -11,11 +11,15 @@ import SwiftUI
 
 /// Bot Commands card for the Twitch settings pane.
 ///
-/// Hosts the `!song`, `!last`, and "Include song.link" controls plus their
-/// per-command cooldown sliders and custom-alias text fields. Extracted from
+/// Hosts the `!song`, `!last`, "Include song.link", and `!wolfwave` controls
+/// plus their per-command cooldown sliders, custom-alias text fields, and the
+/// `!wolfwave` reply-style picker. Every control is disabled until Twitch is
+/// connected with a valid sign-in. Extracted from
 /// `SettingsView` so toggling any of its `@AppStorage` keys does not invalidate
 /// the parent settings shell on each tap.
 struct TwitchCommandsCard: View {
+
+    // MARK: - Properties
 
     /// Shared Twitch state, read to gate the card on a live, authorized connection.
     /// Stored as a plain `let`: the Observation framework tracks property reads in
@@ -38,6 +42,7 @@ struct TwitchCommandsCard: View {
     /// The split is rendered by ``TwitchConnectionNotice``.
     private let expiredMessage =
         "Chat commands are paused until you reconnect."
+    /// Lock-banner copy for a disconnected (but not expired) account.
     private let disconnectedMessage =
         "Connect with Twitch above to let people use these chat commands."
 
@@ -57,15 +62,22 @@ struct TwitchCommandsCard: View {
             && (currentSongCommandEnabled || lastSongCommandEnabled)
     }
 
+    // MARK: - User Settings
+
+    /// `!song` / `!currentsong` / `!nowplaying` switch (default off).
     @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
     private var currentSongCommandEnabled = false
 
+    /// `!last` / `!lastsong` / `!prevsong` switch (default off).
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
     private var lastSongCommandEnabled = false
 
+    /// Appends a song.link URL to `!song` and `!last` replies. Its row only
+    /// shows while one of those commands is on.
     @AppStorage(AppConstants.UserDefaults.songCommandSongLinkEnabled)
     private var songCommandSongLinkEnabled = false
 
+    // Cooldowns are in seconds: channel-wide ("global") and per viewer ("user").
     @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
     private var songGlobalCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
@@ -75,11 +87,14 @@ struct TwitchCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
     private var lastSongUserCooldown: Double = 15.0
 
+    // Comma-separated extra triggers for each command.
     @AppStorage(AppConstants.UserDefaults.songCommandAliases)
     private var songCommandAliases = ""
     @AppStorage(AppConstants.UserDefaults.lastSongCommandAliases)
     private var lastSongCommandAliases = ""
 
+    /// `!wolfwave` info command switch, with its own cooldowns, aliases, and
+    /// reply style below.
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandEnabled)
     private var wolfwaveCommandEnabled = false
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandGlobalCooldown)
@@ -88,6 +103,8 @@ struct TwitchCommandsCard: View {
     private var wolfwaveUserCooldown: Double = 15.0
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandAliases)
     private var wolfwaveCommandAliases = ""
+    /// `WolfWaveReplyStyle` raw value. Read through `snapped(to:fallback:)` so
+    /// an unknown stored value can't reach the picker.
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandReplyStyle)
     private var wolfwaveReplyStyle = WolfWaveReplyStyle.default.rawValue
 
@@ -95,6 +112,8 @@ struct TwitchCommandsCard: View {
     private var selectedWolfwaveMessage: String {
         (WolfWaveReplyStyle(rawValue: wolfwaveReplyStyle) ?? .default).message
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {

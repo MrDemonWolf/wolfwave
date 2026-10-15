@@ -11,12 +11,21 @@ import SwiftUI
 /// Music Sync uses Apple Events for the current track; optional Song Requests
 /// use separate MusicKit access for catalog and playlist operations.
 /// Notification alerts live on their own step right after this one.
+///
+/// This step only handles the Apple Events (Automation) grant for Music.app.
+/// The state shows one of three layouts: a grant button (`.unknown`), a
+/// confirmation (`.granted`), or fix-it steps with Recheck (`.denied`).
 struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music State
 
+    /// Current Automation grant. Seeded with a synchronous probe on the main
+    /// actor when the step appears, then refreshed by Recheck, by the grant
+    /// prompt, and whenever the app becomes active again.
     @State private var permissionState: MusicPermissionState = MusicPermissionChecker.currentState()
+    /// `true` while the system prompt is pending; disables the grant button.
     @State private var isRequesting = false
+    /// `true` while a recheck is in flight; also guards against overlapping rechecks.
     @State private var isRechecking = false
 
     // MARK: - Body
@@ -33,6 +42,8 @@ struct OnboardingPermissionsStepView: View {
                     .animation(.easeInOut(duration: DSMotion.Duration.base), value: permissionState)
             }
         )
+        // The usual fix happens in System Settings, so re-probe when the user
+        // switches back to WolfWave instead of making them press Recheck.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             recheckTapped()
         }
@@ -40,6 +51,7 @@ struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music Section
 
+    /// Eyebrow plus the layout for the current `permissionState`.
     @ViewBuilder
     private var appleMusicSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s3) {
@@ -153,6 +165,8 @@ struct OnboardingPermissionsStepView: View {
 
     /// Re-queries Apple Music automation permission with a brief spinner so
     /// the user gets visible feedback even when the state doesn't change.
+    /// The minimum spinner time comes from `MusicPermissionChecker.recheck()`;
+    /// the probe itself runs off the main actor. A no-op while one is running.
     private func recheckTapped() {
         guard !isRechecking else { return }
         withAnimation(.easeInOut(duration: DSMotion.Duration.fast)) {
@@ -171,6 +185,9 @@ struct OnboardingPermissionsStepView: View {
 
     /// Prompts the user for Apple Music automation permission via
     /// `MusicPermissionChecker.requestAccess()` and refreshes the UI state.
+    ///
+    /// May launch Music.app in the background first, because macOS only shows
+    /// the prompt for a running target. Waits until the user answers.
     private func requestAccess() {
         isRequesting = true
         Task {

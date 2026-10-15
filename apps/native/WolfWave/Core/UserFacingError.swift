@@ -80,6 +80,7 @@ nonisolated struct UserFacingError: Equatable, Sendable, Identifiable {
     /// What to do about it. Matches the primary action's label when there is one.
     let fix: String?
 
+    /// Drives the banner tint and icon. Defaults to `.error`.
     let severity: Severity
 
     /// Offered actions, most useful first. Empty when there is nothing the app
@@ -91,6 +92,8 @@ nonisolated struct UserFacingError: Equatable, Sendable, Identifiable {
 
     // MARK: - Init
 
+    /// Memberwise init. Only `id` and `title` are required; everything else
+    /// defaults to absent, with `severity` defaulting to `.error`.
     init(
         id: String,
         title: String,

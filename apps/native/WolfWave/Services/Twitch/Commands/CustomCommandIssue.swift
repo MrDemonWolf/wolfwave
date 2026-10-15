@@ -33,7 +33,8 @@ nonisolated enum CustomCommandIssue: Equatable, Sendable {
 
     // MARK: - Field
 
-    /// Which editor field an issue belongs under.
+    /// Which editor field an issue belongs under, so the message renders
+    /// directly beneath it.
     enum Field: Hashable, Sendable {
         case trigger
         case aliases

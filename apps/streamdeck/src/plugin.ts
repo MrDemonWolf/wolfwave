@@ -37,6 +37,7 @@ function pushConnectionStatus(): void {
   }
 }
 
+// Re-push on every state change, on a handshake refusal, and whenever a panel opens.
 client.onState(pushConnectionStatus);
 client.onRejection(pushConnectionStatus);
 streamDeck.ui.onDidAppear(pushConnectionStatus);
@@ -64,10 +65,12 @@ function applySettings(settings: Record<string, unknown>): void {
   client.configure({ port, token });
 }
 
+/** Trimmed string, or `""` for anything that is not a string. */
 function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** The port if it is an integer in 1-65535, else `DEFAULT_PORT`. */
 function readPort(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value)) return DEFAULT_PORT;
   return value > 0 && value <= 65535 ? value : DEFAULT_PORT;

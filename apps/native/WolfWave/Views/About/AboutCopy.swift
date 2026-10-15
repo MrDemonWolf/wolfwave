@@ -17,14 +17,18 @@ enum AboutCopy {
 
     // MARK: - Bundle Info
 
+    /// Display name from the bundle (`CFBundleDisplayName`, then `CFBundleName`),
+    /// falling back to the constant. Resolves to "WolfWave Dev" in Debug builds.
     static var appName: String {
         Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String
             ?? Bundle.main.infoDictionary?["CFBundleName"] as? String
             ?? AppConstants.AppInfo.displayName
     }
 
+    /// Marketing version (`CFBundleShortVersionString`).
     static var version: String { AppConstants.AppInfo.shortVersion }
 
+    /// Build number (`CFBundleVersion`). CI stamps this from `scripts/version.sh`.
     static var build: String { AppConstants.AppInfo.buildNumber }
 
     /// User-facing version label, e.g. `Version 1.2.3 (45)`.
@@ -39,12 +43,18 @@ enum AboutCopy {
 
     // MARK: - Legal Copy
 
+    /// Non-affiliation statement shown in the About pane footer.
     static let independenceNotice =
         "WolfWave is an independent, open-source project. It is not affiliated with, endorsed by, or sponsored by Apple, Twitch, Discord, or Odesli. WolfWave connects to Twitch and Discord via their official public APIs, and reads Apple Music playback locally on your Mac via macOS ScriptingBridge. No listening history is collected or sent to any external service."
 
+    /// Third-party trademark attributions. Shown in the About pane footer and
+    /// as the credits of the standard About panel. Add a line here whenever a
+    /// new brand is named in the UI.
     static let trademarkNotice =
         "Apple Music and iTunes are trademarks of Apple Inc. Twitch is a trademark of Twitch Interactive, Inc. Discord is a trademark of Discord Inc. song.link is a trademark of Song, Inc. (Odesli). Spotify is a trademark of Spotify AB. YouTube is a trademark of Google LLC. Elgato and Stream Deck are trademarks of Corsair Memory, Inc. OBS is a trademark of OBS Project."
 
+    /// Copyright line for the About pane. The year is hard-coded, so update it
+    /// alongside `NSHumanReadableCopyright` (which the standard panel uses).
     static var copyrightLine: String {
         "© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved."
     }

@@ -13,10 +13,15 @@ import SwiftUI
 /// because they differ per pane (Twitch song commands cap the global cooldown at
 /// 30s, History's `!stats` allows up to 60s).
 struct CommandCooldown {
+    /// Everyone (channel-wide) cooldown, in seconds.
     let global: Binding<Double>
+    /// Per-person cooldown, in seconds.
     let user: Binding<Double>
+    /// Slider bounds for `global`, in seconds.
     var globalRange: ClosedRange<Double> = 0...30
+    /// Slider bounds for `user`, in seconds.
     var userRange: ClosedRange<Double> = 0...60
+    /// Slider step for both sliders, in seconds.
     var step: Double = 5
 }
 
@@ -37,24 +42,42 @@ struct CommandSettingRow<Extra: View>: View {
 
     // MARK: - Properties
 
+    /// Command name shown as the row title (e.g. "!song Command").
     let title: String
+    /// Pre-formatted trigger list shown as the row subtitle.
     let triggers: String
+    /// Whether the command is enabled. Also gates the details block.
     @Binding var isOn: Bool
+    /// VoiceOver label for the switch.
     let accessibilityLabel: String
+    /// UI-test identifier for the switch. Also the prefix for the cooldown
+    /// sliders (`<id>.everyoneCooldown`, `<id>.perUserCooldown`).
     let accessibilityIdentifier: String
 
+    /// Cooldown sliders to show while on; `nil` hides them.
     var cooldown: CommandCooldown?
+    /// Comma-separated alias text to edit while on; `nil` hides the field.
     var aliases: Binding<String>?
+    /// Placeholder for the alias field.
     var aliasPlaceholder: String
+    /// VoiceOver label for the alias field.
     var aliasAccessibilityLabel: String
+    /// UI-test identifier for the alias field; omitted when `nil`.
     var aliasAccessibilityIdentifier: String?
 
+    /// `true` for the card's final row, which suppresses the bottom divider.
     var isLast: Bool
+    /// Forwarded to `ToggleSettingRow`; called with the new value when the
+    /// switch flips.
     var onChange: ((Bool) -> Void)?
+    /// Extra controls appended below the aliases while the command is on.
     @ViewBuilder let extra: () -> Extra
 
     // MARK: - Init
 
+    /// Creates a command row. Only the toggle fields are required; each
+    /// optional piece (cooldown, aliases, `extra`) adds itself to the details
+    /// block shown while the command is on.
     init(
         title: String,
         triggers: String,
@@ -128,6 +151,8 @@ struct CommandSettingRow<Extra: View>: View {
 
     // MARK: - Private Views
 
+    /// The on-state block: cooldown sliders, then aliases, then `extra`, each
+    /// only when supplied.
     @ViewBuilder
     private var details: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {

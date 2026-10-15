@@ -11,11 +11,16 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `ErrorCallout` rendering for every `UserFacingError` severity, action handler
+/// dispatch (the view reports an `ErrorAction` intent, it never runs the fix), and
+/// the countdown behavior of waiting actions (remaining seconds derive from a
+/// deadline, round up, clamp to zero, and expire into an enabled retry).
 @MainActor
 final class ErrorCalloutTests: XCTestCase {
 
     // MARK: - Fixtures
 
+    /// A `UserFacingError` with fixed copy; vary the id, severity, and actions.
     private func makeError(
         id: String = "twitch.signInExpired",
         severity: UserFacingError.Severity = .warning,

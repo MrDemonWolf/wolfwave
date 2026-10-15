@@ -11,6 +11,8 @@ import SwiftUI
 import Testing
 @testable import WolfWave
 
+/// Sidebar-width repair in `SettingsWindowConfigurator`: runs once per window, tolerates a hidden
+/// sidebar and a missing attachment, and repairs a second window independently.
 @MainActor
 struct SettingsWindowConfiguratorTests {
     @Test("Restored sidebar width is repaired only once per window")
@@ -72,6 +74,8 @@ struct SettingsWindowConfiguratorTests {
         #expect(abs(split.arrangedSubviews[0].frame.width - AppConstants.SettingsUI.sidebarWidth) < 1)
     }
 
+    /// An offscreen window holding a two-pane vertical split view whose first divider sits at
+    /// `sidebarWidth`.
     private func makeWindow(sidebarWidth: CGFloat) -> (NSWindow, NSSplitView) {
         let frame = NSRect(x: 0, y: 0, width: 900, height: 600)
         let window = NSWindow(contentRect: frame, styleMask: [.titled], backing: .buffered, defer: false)

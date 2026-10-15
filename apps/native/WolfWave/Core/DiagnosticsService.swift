@@ -40,12 +40,20 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     // MARK: - Properties
 
+    /// Holds the opt-in flag and the launch counter.
     private let defaults: UserDefaults
+    /// Injected payload directory (tests). `nil` in production.
     private let payloadDirectoryOverride: URL?
+    /// Cap on payload files kept after each write (clamped to `>= 0`).
     private let maxStoredPayloads: Int
+    /// Age cutoff for payload files, in seconds.
     private let maxPayloadAge: TimeInterval
+    /// Guards ``isSubscribed`` and ``lastDiagnosticSummary``.
     private let lock = NSLock()
+    /// Whether `self` is currently registered with `MXMetricManager`.
     private var isSubscribed = false
+    /// Summary of the latest diagnostic batch; in memory only, so it resets
+    /// each launch.
     private var lastDiagnosticSummary: String?
 
     // MARK: - Init
@@ -89,7 +97,10 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
     /// Subscribes to or unsubscribes from MetricKit payloads.
     ///
     /// Turning it off also deletes every stored payload: opting out means the
-    /// data goes too, not just that collection stops.
+    /// data goes too, not just that collection stops. The one exception is a
+    /// test harness with no injected directory, which skips the delete so it
+    /// cannot wipe the developer's real payloads. Deletion runs on every
+    /// "off" call, even when not currently subscribed.
     ///
     /// - Parameter enabled: `true` to start collecting on-device diagnostics.
     func setEnabled(_ enabled: Bool) {
@@ -115,7 +126,8 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     // MARK: - Anonymous Usage
 
-    /// Increments the local app-launch counter. The count never leaves the device.
+    /// Increments the local app-launch counter in `defaults`. The count never
+    /// leaves the device.
     ///
     /// Only counts when the user has opted in to diagnostics.
     func recordAppLaunch() {
@@ -124,7 +136,8 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
         defaults.set(next, forKey: AppConstants.UserDefaults.diagnosticsLaunchCount)
     }
 
-    /// Total app launches recorded on this device.
+    /// Total app launches recorded on this device (only launches made while
+    /// opted in are counted).
     var launchCount: Int {
         defaults.integer(forKey: AppConstants.UserDefaults.diagnosticsLaunchCount)
     }
@@ -181,11 +194,17 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     // MARK: - MXMetricManagerSubscriber
 
+    /// MetricKit's daily metric batch. Called on a background queue; persisted
+    /// as `metric-<stamp>-<n>.json` only while opted in.
     func didReceive(_ payloads: [MXMetricPayload]) {
         guard isEnabled else { return }
         persist(payloads.map { $0.jsonRepresentation() }, prefix: "metric")
     }
 
+    /// MetricKit's diagnostic batch (crashes, hangs, CPU and disk-write
+    /// exceptions), typically delivered on the launch after the event. Called on
+    /// a background queue. Persists `diagnostic-<stamp>-<n>.json` files and
+    /// updates ``diagnosticSummary``, only while opted in.
     func didReceive(_ payloads: [MXDiagnosticPayload]) {
         guard isEnabled else { return }
         persist(payloads.map { $0.jsonRepresentation() }, prefix: "diagnostic")
@@ -197,7 +216,11 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
 
     // MARK: - Private Helpers
 
-    /// Writes raw payload JSON to the on-device payload directory.
+    /// Writes raw payload JSON to the on-device payload directory, then prunes.
+    ///
+    /// Filenames are `<prefix>-<ISO-8601 stamp with ':' replaced by '-'>-<index>.json`
+    /// (colons are not safe in filenames). A failure is logged, and the rest
+    /// of the batch is skipped.
     private func persist(_ payloads: [Data], prefix: String) {
         guard !payloads.isEmpty else { return }
         let dir = payloadDirectory
@@ -218,7 +241,8 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
         }
     }
 
-    /// Removes the payload folder. No-op when it doesn't exist.
+    /// Removes the whole payload folder (not just `.json` files). No-op when it
+    /// doesn't exist; a failure is logged, not thrown.
     private func deleteStoredPayloads() {
         let dir = payloadDirectory
         guard FileManager.default.fileExists(atPath: dir.path) else { return }

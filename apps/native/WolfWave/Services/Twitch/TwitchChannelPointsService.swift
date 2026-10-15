@@ -14,27 +14,53 @@ import Foundation
 /// Helix mutation consults this owner-bound record, so changing Twitch accounts
 /// cannot make one broadcaster mutate or discard another broadcaster reward.
 nonisolated enum TwitchManagedRewardStore {
+
+    // MARK: - Types
+
+    /// The managed reward bound to the broadcaster that created or adopted it.
+    /// Both IDs are Twitch opaque strings; an empty one makes the record invalid.
     struct Identity: Codable, Equatable, Sendable {
         let rewardID: String
         let broadcasterID: String
 
+        /// True when both IDs are non-empty. Invalid identities are never stored
+        /// and decode as `.corrupt`.
         var isValid: Bool { !rewardID.isEmpty && !broadcasterID.isEmpty }
     }
 
+    /// What is on disk right now, read under ``lock``.
     enum Snapshot: Equatable, Sendable {
+        /// No managed reward has been created for any account.
         case none
+        /// Only the pre-ownership string key exists. The broadcaster is unknown,
+        /// so callers must prove ownership through Helix before adopting it.
         case legacy(rewardID: String)
+        /// An owner-bound record. The only state Helix mutations may act on.
         case owned(Identity)
+        /// The identity key holds bytes that are not a valid `Identity`. Treated
+        /// as unverified ownership everywhere; never silently overwritten.
         case corrupt
     }
 
+    // MARK: - Properties
+
+    /// Serializes every read-compare-write so the CAS in ``store(_:replacing:)``
+    /// and ``remove(matching:)`` is atomic within the process.
     private static let lock = NSLock()
+    /// Routed through `DefaultsStore` so tests never touch the live app domain.
     private static var defaults: UserDefaults { DefaultsStore.store }
 
+    // MARK: - Public Methods
+
+    /// Reads the current reward state. Side effect: when an owned record exists,
+    /// rewrites the legacy string key if it drifted, so the UI mirror stays in sync.
     static func snapshot() -> Snapshot {
         lock.withLock { snapshotUnlocked(repairingLegacyMirror: true) }
     }
 
+    /// True when the stored owned record is exactly `identity`. Callers re-check
+    /// this after an `await` to detect an account switch that happened meanwhile.
+    /// Repairs the legacy mirror like ``snapshot()``.
     static func matches(_ identity: Identity) -> Bool {
         lock.withLock {
             snapshotUnlocked(repairingLegacyMirror: true) == .owned(identity)
@@ -43,6 +69,14 @@ nonisolated enum TwitchManagedRewardStore {
 
     /// Compare-and-swap persistence. A newly-created or migrated reward cannot
     /// overwrite an identity installed by a concurrent account/session.
+    ///
+    /// Writes the owner record and then the legacy string mirror.
+    ///
+    /// - Parameters:
+    ///   - identity: The record to install. Rejected when invalid.
+    ///   - expected: The snapshot the caller based its decision on.
+    /// - Returns: `false` when `identity` is invalid, fails to encode, or the
+    ///   stored state no longer equals `expected`.
     @discardableResult
     static func store(_ identity: Identity, replacing expected: Snapshot) -> Bool {
         guard identity.isValid,
@@ -86,6 +120,17 @@ nonisolated enum TwitchManagedRewardStore {
         }
     }
 
+    // MARK: - Private Helpers
+
+    /// Decodes the stored state. Caller must hold ``lock``.
+    ///
+    /// The owner record wins whenever its key exists at all; an undecodable or
+    /// invalid value is `.corrupt` rather than falling back to the legacy key,
+    /// so damaged ownership never downgrades into an adoptable legacy ID.
+    ///
+    /// - Parameter repairingLegacyMirror: When true, rewrites the legacy string
+    ///   key to match an owned record. CAS paths pass false so a comparison
+    ///   never has a write side effect.
     private static func snapshotUnlocked(
         repairingLegacyMirror: Bool
     ) -> Snapshot {
@@ -136,6 +181,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         let token: String
         let clientID: String
 
+        /// The subset `HelixClient` needs for auth headers.
         var helix: HelixClient.Credentials {
             HelixClient.Credentials(token: token, clientID: clientID)
         }
@@ -153,9 +199,14 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     /// the legacy reward error, this preserves status and Retry-After metadata
     /// so only transient outcomes are retried and Twitch controls 429 pacing.
     enum RedemptionResolutionError: Error, Sendable {
+        /// Non-2xx response. `retryAfter` is the parsed `Retry-After` header
+        /// when the raw response was available, else `nil`.
         case http(status: Int, body: String, retryAfter: Duration?)
+        /// No HTTP response (offline, DNS, timeout). Carries a description only.
         case transport(String)
+        /// The URL could not be built or the body could not be encoded/decoded.
         case malformedResponse
+        /// The stored managed reward does not belong to these credentials.
         case ownershipUnverified
     }
 
@@ -206,7 +257,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     // MARK: - Properties
 
+    /// Helix base URL with no trailing slash; endpoint paths are appended to it.
     private let baseURL = AppConstants.Twitch.apiBaseURL
+    /// Shared Helix transport: auth headers, JSON encode, status mapping.
     private let helix: HelixClient
 
     // MARK: - Init
@@ -268,6 +321,12 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// Returns the owner-bound reward for these credentials. A legacy ID is
     /// migrated only after Helix proves this broadcaster can manage it.
+    ///
+    /// - Returns: `nil` when no reward has ever been stored.
+    /// - Throws: `RewardError.ownershipUnverified` for a corrupt record, a record
+    ///   owned by another broadcaster, a legacy ID Twitch does not list as
+    ///   manageable, or a lost CAS race. Helix failures while probing a legacy
+    ///   ID surface as the mapped `RewardError`.
     func managedRewardIdentity(
         credentials: Credentials
     ) async throws -> TwitchManagedRewardStore.Identity? {
@@ -307,6 +366,16 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     /// WolfWave stops channel-point song requests at the source when the feature
     /// is turned off, without deleting and recreating the reward (which would
     /// reset its ID and any viewer-facing customization).
+    ///
+    /// Unpausing also sets `is_enabled = true`, because ``createReward`` creates
+    /// the reward disabled.
+    ///
+    /// - Parameters:
+    ///   - rewardID: Must equal the stored owned identity for these credentials.
+    ///   - requestTimeout: Per-request timeout in seconds; `nil` uses the
+    ///     session default.
+    /// - Throws: `RewardError.ownershipUnverified` before any network call when
+    ///   ownership does not check out; otherwise a mapped `RewardError`.
     func setRewardPaused(
         credentials: Credentials,
         rewardID: String,
@@ -335,7 +404,8 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         }
     }
 
-    /// Updates the cost of the managed reward.
+    /// Updates the cost of the managed reward after the same ownership check as
+    /// ``setRewardPaused(credentials:rewardID:paused:requestTimeout:)``.
     func updateRewardCost(credentials: Credentials, rewardID: String, cost: Int) async throws {
         _ = try await requireManagedRewardIdentity(
             credentials: credentials, rewardID: rewardID)
@@ -356,6 +426,15 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     /// Returns every currently-unfulfilled redemption for the managed reward.
     /// Twitch caps this endpoint at 50 items per page and returns an opaque
     /// cursor in `pagination.cursor`; IDs are de-duplicated across pages.
+    ///
+    /// Fails closed on any inconsistency: a row naming another broadcaster or
+    /// reward, an empty ID, a non-string or empty cursor, or a cursor seen
+    /// before (which would otherwise loop forever) all throw
+    /// `RewardError.malformedResponse`.
+    ///
+    /// - Parameter requestTimeout: Total budget in seconds across every page,
+    ///   not per page. Exceeding it throws a transport `URLError(.timedOut)`.
+    /// - Returns: Redemption IDs, oldest first.
     func unfulfilledRedemptionIDs(
         credentials: Credentials,
         rewardID: String,
@@ -389,6 +468,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
             let json: [String: Any]?
             do {
+                // Each page gets only what is left of the shared deadline.
                 let remainingTimeout: TimeInterval?
                 if let deadline {
                     let remaining = deadline.timeIntervalSinceNow
@@ -406,6 +486,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
                     credentials: credentials.helix,
                     requestTimeout: remainingTimeout)
             } catch let error as RewardError {
+                // The deadline throw above; pass it through unchanged.
                 throw error
             } catch let error as HelixClient.HelixError {
                 throw RewardError.from(error)
@@ -451,6 +532,12 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// Checks whether one redemption still needs resolution after Twitch
     /// rejects a replayed PATCH with a state-conflict response.
+    ///
+    /// - Returns: `false` when Twitch returns no row (already resolved or gone)
+    ///   or a status other than `UNFULFILLED`; the caller then acknowledges the
+    ///   outbox item instead of retrying.
+    /// - Throws: `RedemptionResolutionError` from the ownership check, else a
+    ///   mapped `RewardError` (note: the two error types differ by stage).
     func isRedemptionUnfulfilled(
         credentials: Credentials,
         rewardID: String,
@@ -486,6 +573,14 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     /// Resolves a redemption while retaining the response metadata required by
     /// the durable retry worker.
+    ///
+    /// Uses the raw-response path so a non-2xx keeps its status, body, and
+    /// `Retry-After`. Cancellation is checked before and after the PATCH and
+    /// always rethrown as `CancellationError`, so a torn-down worker never
+    /// records a cancelled request as a Helix failure.
+    ///
+    /// - Throws: `RedemptionResolutionError` for every failure other than
+    ///   cancellation.
     func resolveRedemptionWithMetadata(
         credentials: Credentials,
         rewardID: String,
@@ -528,6 +623,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             throw error
         } catch let error as HelixClient.HelixError {
             if Task.isCancelled { throw CancellationError() }
+            // These cases lose the Retry-After header, so `retryAfter` is nil.
             switch error {
             case let .transport(message):
                 throw RedemptionResolutionError.transport(message)
@@ -551,6 +647,13 @@ nonisolated struct TwitchChannelPointsService: Sendable {
 
     // MARK: - Private Helpers
 
+    /// Creates (or adopts a same-title) reward on Twitch, then CAS-stores it
+    /// bound to these credentials.
+    ///
+    /// If the CAS fails but the store already holds this exact identity (a
+    /// concurrent caller won with the same result), that still counts as
+    /// success. Any other outcome throws `ownershipUnverified`, leaving the
+    /// newly created remote reward unrecorded.
     private func createAndStoreReward(
         credentials: Credentials,
         cost: Int,
@@ -569,6 +672,11 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         return rewardID
     }
 
+    /// Gate for every reward mutation: the stored owned identity must belong to
+    /// these credentials, name `rewardID`, and still be current after the await.
+    ///
+    /// - Throws: `RewardError.ownershipUnverified` (or a Helix error while
+    ///   migrating a legacy ID).
     private func requireManagedRewardIdentity(
         credentials: Credentials,
         rewardID: String
@@ -582,6 +690,8 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         return identity
     }
 
+    /// ``requireManagedRewardIdentity(credentials:rewardID:)`` with its errors
+    /// re-typed as `RedemptionResolutionError`, for the outbox worker's paths.
     private func requireResolutionManagedRewardIdentity(
         credentials: Credentials,
         rewardID: String
@@ -629,6 +739,9 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     }
 
     /// Checks whether a reward ID still exists and is manageable by this client.
+    ///
+    /// - Returns: `false` on an empty `data` array, a 404, or an unbuildable
+    ///   URL. Other Helix errors throw as a mapped `RewardError`.
     private func rewardExists(credentials: Credentials, rewardID: String) async throws -> Bool {
         guard let url = customRewardsURL(
             broadcasterID: credentials.broadcasterID, id: rewardID, onlyManageable: true
@@ -648,6 +761,10 @@ nonisolated struct TwitchChannelPointsService: Sendable {
     }
 
     /// Creates the "Request a Song" reward and returns its ID.
+    ///
+    /// The reward is created with `is_enabled = false`; it only becomes
+    /// redeemable when reconciliation unpauses it via ``setRewardPaused``,
+    /// after the outbox has proved it can persist intake.
     private func createReward(credentials: Credentials, cost: Int) async throws -> String {
         guard let url = customRewardsURL(
             broadcasterID: credentials.broadcasterID

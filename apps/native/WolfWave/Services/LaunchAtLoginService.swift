@@ -40,6 +40,10 @@ enum LaunchAtLoginService {
 
     // MARK: - Public API
 
+    /// User-facing copy shown when ``setEnabled(_:)`` returns `.failure`.
+    ///
+    /// Shared by the App Visibility pane and the onboarding Preferences step so
+    /// both surfaces word the failure identically.
     static let registrationFailureMessage =
         "Couldn't change Launch at Login. Check WolfWave in Login Items and try again."
 

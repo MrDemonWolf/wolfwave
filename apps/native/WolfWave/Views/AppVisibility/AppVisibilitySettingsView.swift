@@ -19,9 +19,14 @@ import SwiftUI
 struct AppVisibilitySettingsView: View {
     // MARK: - User Settings
 
+    /// Display mode string (`AppConstants.DockVisibility`). Every write here is
+    /// paired with `applyDockVisibility` so `AppDelegate` updates the
+    /// activation policy.
     @AppStorage(AppConstants.UserDefaults.dockVisibility)
     private var dockVisibility = AppConstants.DockVisibility.default
 
+    /// Mirror of the login-item state. The source of truth is `SMAppService`
+    /// (via `LaunchAtLoginService`); `syncLoginItemState()` corrects drift.
     @AppStorage(AppConstants.UserDefaults.launchAtLogin)
     private var launchAtLogin = false
 
@@ -31,6 +36,8 @@ struct AppVisibilitySettingsView: View {
     /// user's approval in System Settings → General → Login Items. Drives the
     /// "Approve in Login Items" affordance; the toggle stays on.
     @State private var loginItemNeedsApproval = false
+    /// Message from a failed registration, shown with an "Open Login Items"
+    /// button. Cleared by the next successful attempt.
     @State private var launchAtLoginError: String?
 
     // MARK: - Body
@@ -203,6 +210,14 @@ struct AppVisibilitySettingsView: View {
 
     // MARK: - Helpers
 
+    /// Registers or unregisters the login item and maps a failure to the
+    /// user-facing message. Static with an injectable `register` so tests can
+    /// cover each outcome without touching `SMAppService`.
+    ///
+    /// - Parameters:
+    ///   - enabled: Desired login-item state.
+    ///   - register: The registration call; defaults to `LaunchAtLoginService.setEnabled`.
+    /// - Returns: The outcome, plus an error message only for `.failure`.
     static func requestLaunchAtLogin(
         _ enabled: Bool,
         register: @MainActor (Bool) -> LaunchAtLoginService.RegistrationOutcome = LaunchAtLoginService.setEnabled

@@ -11,27 +11,40 @@ import SwiftUI
 /// Compact dashboard listing every place WolfWave is broadcasting right now.
 /// Each row: brand glyph · plain-language status · chip · "Configure ›".
 ///
-/// Used on the General tab (Screen B in the redesign). Sourced from live
-/// integration state pushed via NotificationCenter.
+/// Rendered by `MusicMonitorSettingsView` on the General pane. The view is
+/// stateless about the integrations: the host passes in each one's current
+/// state, and "Configure ›" routes back through `configure`.
 struct IntegrationDashboardView: View {
 
+    /// Streamer Mode masks the Twitch channel and widget URL in the subtitles.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
     // MARK: - Inputs
 
+    /// Whether the Twitch chat bot is connected.
     var twitchConnected: Bool
+    /// Channel login shown as `@channel`; masked under Streamer Mode.
     var twitchChannel: String?
+    /// Live viewer count; omitted from the subtitle when `nil` or zero.
     var twitchViewerCount: Int?
+    /// Whether Discord Rich Presence is connected.
     var discordConnected: Bool
+    /// Whether the widget HTTP server is up.
     var widgetRunning: Bool
+    /// Browser-source URL for OBS. Falls back to a bare localhost string when
+    /// `nil`; masked under Streamer Mode.
     var widgetURL: String?
+    /// Whether the remote-site row reads On.
     var remoteSendingEnabled: Bool
+    /// Music Automation permission is denied. Twitch, Discord, and the widget
+    /// rows switch to a Paused chip and explain why; the remote row does not.
     var permissionPaused: Bool = false
 
     /// Routes to a specific Settings section when "Configure ›" is tapped.
     var configure: (Section) -> Void = { _ in }
 
+    /// The settings destination behind each row's "Configure ›" button.
     enum Section { case twitch, discord, obs, advanced }
 
     // MARK: - Body
@@ -148,6 +161,7 @@ struct IntegrationDashboardView: View {
     /// Cached per-asset existence check. `NSImage(named:)` allocates and decodes. Caching the
     /// boolean lookup keeps row rendering free of asset-catalog work on every redraw.
     nonisolated(unsafe) private static var brandIconExistsCache: [String: Bool] = [:]
+    /// Guards `brandIconExistsCache`; the static is shared by every instance.
     private static let brandIconCacheLock = NSLock()
 
     /// Returns whether an asset of the given name exists in the bundle's asset
@@ -190,6 +204,7 @@ struct IntegrationDashboardView: View {
 
     // MARK: - Chips & subtitles
 
+    /// Paused, Live, or Off for the Twitch row.
     private var twitchChip: StatusChip {
         if permissionPaused {
             return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
@@ -199,6 +214,8 @@ struct IntegrationDashboardView: View {
             : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
     }
 
+    /// Twitch row detail: the pause reason, the (masked) channel plus viewer
+    /// count when connected, or a sign-in prompt.
     private var twitchSubtitle: String {
         if permissionPaused { return "Will reply once Music permission is restored." }
         if twitchConnected {
@@ -214,6 +231,7 @@ struct IntegrationDashboardView: View {
         return "Sign in so !song works in chat."
     }
 
+    /// Paused, Showing now, or Off for the Discord row.
     private var discordChip: StatusChip {
         if permissionPaused {
             return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
@@ -223,6 +241,7 @@ struct IntegrationDashboardView: View {
             : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
     }
 
+    /// Discord row detail for the paused, connected, and off states.
     private var discordSubtitle: String {
         if permissionPaused { return "Paused while Music permission is missing." }
         return discordConnected
@@ -230,6 +249,7 @@ struct IntegrationDashboardView: View {
             : "Turn it on to share Apple Music on your Discord profile."
     }
 
+    /// Paused, Ready for OBS, or Off for the Stream Widgets row.
     private var widgetChip: StatusChip {
         if permissionPaused {
             return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
@@ -239,6 +259,8 @@ struct IntegrationDashboardView: View {
             : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
     }
 
+    /// Stream Widgets row detail: the pause note, the (masked) OBS URL while
+    /// running, or a prompt to turn the server on.
     private var widgetSubtitle: String {
         if permissionPaused { return "Showing the last known track until permission is fixed." }
         if widgetRunning {

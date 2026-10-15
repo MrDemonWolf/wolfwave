@@ -462,8 +462,17 @@ extension AppConstants {
         static let sponsorLinksEnabled = "sponsorLinksEnabled"
 
         #if DEBUG
+        /// DEBUG-only: treat every chatter as a plain viewer for permission and
+        /// cooldown checks, so viewer paths can be exercised from a mod or
+        /// broadcaster account. Read by `TwitchChatService.shouldTreatAsViewer`.
+        /// (Bool, default: false)
         static let debugTreatAllChattersAsViewers = "debugTreatAllChattersAsViewers"
+        /// DEBUG-only: comma-separated Twitch logins treated as plain viewers,
+        /// matched case-insensitively. (String, default: empty)
         static let debugViewerUsernames = "debugViewerUsernames"
+        /// The DEBUG-only keys, appended to `allKeys` and the runtime-state list
+        /// so reset and the inspector cover them. Empty in Release, where the keys
+        /// do not exist.
         private static let debugKeys = [
             debugTreatAllChattersAsViewers,
             debugViewerUsernames,
@@ -609,25 +618,39 @@ extension AppConstants {
         /// catalog remains the source of truth while the backup coder performs
         /// the concrete tagged-value match.
         nonisolated enum ExportedIntegerDomain: Equatable, Sendable {
+            /// Only these exact values (a picker's tags).
             case values(Set<Int>)
+            /// `0` (meaning "use the default") or a value inside the range, such as a port.
             case zeroOrRange(ClosedRange<Int>)
         }
 
+        /// Valid values for a slider-backed `Double`: finite, inside `range`,
+        /// and on a `step` tick from `range.lowerBound`. Import enforces the
+        /// step; `Preferences.resolvedDouble` only clamps to the range.
         nonisolated struct ExportedDoubleDomain: Equatable, Sendable {
             let range: ClosedRange<Double>
             let step: Double
         }
 
+        /// JSON blobs stored as `Data`, each decoded and re-validated by its own
+        /// model's import normalizer before it is accepted.
         nonisolated enum ExportedDataFormat: Equatable, Sendable {
             case customCommands, songRequestBlocklist
         }
 
+        /// What an import accepts for one key. A value of the wrong type is
+        /// rejected, never coerced; the checks run in `SettingsBackupCoder`.
         nonisolated enum ExportedValueRule: Equatable, Sendable {
             case bool
             case int(ExportedIntegerDomain)
             case double(ExportedDoubleDomain)
+            /// Free text up to `maxLength` characters, or one of the given
+            /// values when the set is non-`nil`.
             case string(Set<String>?, maxLength: Int)
+            /// A string that must normalize through `Preferences.normalizedHTTPSURL`
+            /// (empty clears it).
             case httpsURL(maxLength: Int)
+            /// A non-empty comma-separated list whose every trimmed item is in the set.
             case stringList(Set<String>)
             case data(ExportedDataFormat)
         }
@@ -638,10 +661,14 @@ extension AppConstants {
             let rule: ExportedValueRule
         }
 
+        // Builders for `exportablePreferences` entries, one per rule kind.
+
+        /// A key that accepts any `Bool`.
         private static func portableBool(_ key: String) -> ExportablePreference {
             ExportablePreference(key: key, rule: .bool)
         }
 
+        /// An integer key restricted to `allowedValues` (a picker's tag set).
         private static func portableInt(
             _ key: String,
             allowedValues: [Int]
@@ -649,6 +676,8 @@ extension AppConstants {
             ExportablePreference(key: key, rule: .int(.values(Set(allowedValues))))
         }
 
+        /// A port key: `0` (use the default) or a value within
+        /// `WebSocketServer.minPort...maxPort`.
         private static func portablePort(_ key: String) -> ExportablePreference {
             ExportablePreference(
                 key: key,
@@ -658,6 +687,7 @@ extension AppConstants {
             )
         }
 
+        /// A slider-backed `Double` key that must sit on a `step` tick inside `range`.
         private static func portableDouble(
             _ key: String,
             in range: ClosedRange<Double>,
@@ -669,6 +699,7 @@ extension AppConstants {
             )
         }
 
+        /// A string key capped at 256 characters, optionally limited to `allowedValues`.
         private static func portableString(
             _ key: String,
             allowedValues: [String]? = nil
@@ -678,6 +709,7 @@ extension AppConstants {
                 rule: .string(allowedValues.map { Set($0) }, maxLength: 256))
         }
 
+        /// A comma-separated list key whose items must all be in `allowedValues`.
         private static func portableStringList(
             _ key: String,
             allowedValues: [String]
@@ -685,6 +717,7 @@ extension AppConstants {
             ExportablePreference(key: key, rule: .stringList(Set(allowedValues)))
         }
 
+        /// A JSON `Data` key validated by the model behind `format`.
         private static func portableData(
             _ key: String,
             format: ExportedDataFormat
@@ -901,6 +934,10 @@ extension AppConstants {
         /// again as the `default:` argument to a `Preferences.*` read in the
         /// owning service. Referencing these from both sides keeps the two in
         /// lockstep. Only keys whose two copies already agreed are listed here.
+        ///
+        /// Each value is documented beside its key above; units follow the key
+        /// (`…Seconds` / `…Cooldown` / `…Duration` are seconds, costs are
+        /// channel points, `songRequestBitsMinimum` is Bits).
         enum Defaults {
             static let updateCheckEnabled = true
             static let sponsorLinksEnabled = true
@@ -913,6 +950,9 @@ extension AppConstants {
             static let songRequestFairShare = true
             static let songRequestChannelPointsCost = 500
             static let songRequestBitsMinimum = 100
+            /// Must stay `true`: Stream Deck control shipped already gated by the
+            /// control token, so an off default would disarm every deployed deck
+            /// on the first launch after an update.
             static let streamDeckControlEnabled = true
         }
     }

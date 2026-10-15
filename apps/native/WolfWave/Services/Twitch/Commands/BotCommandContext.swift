@@ -46,6 +46,9 @@ nonisolated struct BotCommandContext: Sendable {
     /// Stable login used for queue ownership; legacy callers fall back to the display name.
     var login: String? = nil
 
+    /// The identity to key queue ownership on: `login` when present and
+    /// non-empty, otherwise the display name. Logins are stable across
+    /// display-name capitalization changes, so prefer them.
     var requesterLogin: String { login.flatMap { $0.isEmpty ? nil : $0 } ?? username }
 
     // MARK: - Computed

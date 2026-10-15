@@ -6,9 +6,15 @@ import { IntroTitleScene } from './scenes/IntroTitleScene';
 import { FeaturesShowcaseScene } from './scenes/FeaturesShowcaseScene';
 import { CTAOutroScene } from './scenes/CTAOutroScene';
 
+// Load fonts at module scope so they are registered before the first frame renders.
 loadSpaceGrotesk('normal', { weights: ['700'], subsets: ['latin'] });
 loadJetBrainsMono('normal', { weights: ['400'], subsets: ['latin'] });
 
+/**
+ * The full announcement: intro, feature showcase, then CTA, played back to back.
+ * Scene lengths are in frames and must sum to `durationInFrames` in `Root.tsx`
+ * (120 + 210 + 60 = 390).
+ */
 export const MainVideo: React.FC = () => (
   <Series>
     <Series.Sequence durationInFrames={120}>

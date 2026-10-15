@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
+/** Ghost button that copies `value` to the clipboard and shows "Copied" for 1.6 s. `label` is also used in the aria-label. */
 export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 

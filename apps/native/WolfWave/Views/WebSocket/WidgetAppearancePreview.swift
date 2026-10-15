@@ -29,6 +29,8 @@ struct WidgetAppearancePreview: View {
     /// those edits don't reach the real overlay until the user taps Apply.
     let config: WidgetAppearanceConfig
 
+    // MARK: - Body
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
             header
@@ -38,6 +40,7 @@ struct WidgetAppearancePreview: View {
 
     // MARK: - Header
 
+    /// "Live Preview" eyebrow plus the Apply reminder.
     private var header: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             HStack(spacing: DSSpace.s2) {
@@ -53,6 +56,9 @@ struct WidgetAppearancePreview: View {
 
     // MARK: - Stage
 
+    /// The web view, clipped and outlined. Read by VoiceOver as one element
+    /// naming the theme and layout, since the web content isn't meaningful
+    /// to it.
     private var stage: some View {
         WidgetPreviewWebView(config: config)
             .frame(height: stageHeight)
@@ -82,10 +88,15 @@ struct WidgetAppearancePreview: View {
 /// via `updateNSView` and are pushed to the already-loaded page with a tiny
 /// `evaluateJavaScript` call, so changing theme/layout/font is instant.
 private struct WidgetPreviewWebView: NSViewRepresentable {
+    /// Draft appearance to push into the page.
     let config: WidgetAppearanceConfig
 
+    /// One coordinator per web view; tracks load state and the latest draft.
     func makeCoordinator() -> Coordinator { Coordinator() }
 
+    /// Builds the web view in preview mode and loads the bundled `widget.html`
+    /// with read access to its folder. A missing bundle file is logged and the
+    /// view stays blank.
     func makeNSView(context: Context) -> WKWebView {
         let controller = WKUserContentController()
         // Flip the bundle into preview mode *before* its scripts run, so boot
@@ -117,6 +128,8 @@ private struct WidgetPreviewWebView: NSViewRepresentable {
         return webView
     }
 
+    /// Records the new draft and, once the page has loaded, pushes it. Drafts
+    /// that arrive before load are applied in `didFinish`.
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.pendingConfig = config
         if context.coordinator.isLoaded {
@@ -126,10 +139,16 @@ private struct WidgetPreviewWebView: NSViewRepresentable {
 
     // MARK: - Coordinator
 
+    /// Navigation delegate that seeds the demo track and replays the latest
+    /// draft once the page has finished loading.
     final class Coordinator: NSObject, WKNavigationDelegate {
+        /// True after the first `didFinish`; before that, JS calls would run
+        /// against a page that hasn't defined `window.WWPreview` yet.
         var isLoaded = false
+        /// The most recent draft, applied on load.
         var pendingConfig: WidgetAppearanceConfig?
 
+        /// Page loaded: inject the demo track, then apply the pending draft.
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoaded = true
             injectDemoTrack(into: webView)
@@ -175,10 +194,15 @@ private struct WidgetPreviewWebView: NSViewRepresentable {
 /// overlay (and `UserDefaults`, which `WebSocketServerService.broadcastWidgetConfig()`
 /// reads) when the user taps Apply. The preview renders whatever draft it's handed.
 struct WidgetAppearanceConfig: Equatable {
+    /// Theme name from `AppConstants.Widget.themes`.
     var theme: String
+    /// Layout name from `AppConstants.Widget.layouts`.
     var layout: String
+    /// Hex color string; only honored by customizable themes.
     var textColor: String
+    /// Hex color string; only honored by customizable themes.
     var backgroundColor: String
+    /// CSS font family name passed to the page.
     var fontFamily: String
 
     /// Snapshot the currently-applied values from `UserDefaults`.

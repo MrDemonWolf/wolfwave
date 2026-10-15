@@ -9,21 +9,33 @@
 import SwiftUI
 
 /// Hero "Now Playing" card with 92pt album art, title/artist/album, and a
-/// scrubber. Used on the General tab (Screen B in the redesign).
+/// scrubber. Rendered by `MusicMonitorSettingsView` at the top of the General
+/// pane.
 ///
-/// When `track` is nil this renders an empty-state card pointing back to the
-/// permission helper or "tracking off" message.
+/// When `track` is nil this renders an empty-state card whose headline names
+/// the cause (tracking off, Music closed, or nothing loaded); see
+/// `emptyStateTitle(trackingEnabled:musicNotRunning:)`.
 struct NowPlayingHeroCard: View {
 
     // MARK: - Properties
 
+    /// Track title. `nil` switches the card to its empty state.
     let track: String?
+    /// Artist credit; joined with `album` into the subtitle.
     let artist: String?
+    /// Album name; joined with `artist` into the subtitle.
     let album: String?
+    /// Already-loaded artwork. Takes precedence over `artworkURL` in
+    /// `AlbumArtView`.
     var artwork: NSImage? = nil
+    /// Remote artwork to fetch when no `artwork` image is supplied.
     var artworkURL: URL? = nil
+    /// Playback position, in seconds.
     var elapsed: TimeInterval = 0
+    /// Track length, in seconds. `0` (unknown) hides the scrubber.
     var duration: TimeInterval = 0
+    /// Whether the "Sync Music" setting is on. Off changes the empty-state copy
+    /// and hides the Open Music button.
     var trackingEnabled: Bool = true
     /// Renders the paused affordance: dimmed artwork, pause glyph overlay,
     /// frozen scrubber. The track text and subtitle remain at full opacity
@@ -105,6 +117,8 @@ struct NowPlayingHeroCard: View {
 
     // MARK: - Subviews
 
+    /// Album art (dimmed and desaturated, with a pause glyph, while paused), or
+    /// a music-note placeholder tile of the same size when there is no track.
     @ViewBuilder
     private var artworkView: some View {
         if track != nil {
@@ -134,6 +148,9 @@ struct NowPlayingHeroCard: View {
         }
     }
 
+    /// Read-only scrubber plus an elapsed / total clock. The fraction is
+    /// clamped to the unit range so a stale `elapsed` past `duration` cannot
+    /// overflow the bar.
     @ViewBuilder
     private var progressBar: some View {
         HStack(spacing: DSSpace.s3) {
@@ -170,14 +187,18 @@ struct NowPlayingHeroCard: View {
         trackingEnabled && musicNotRunning
     }
 
+    /// Instance shorthand for the static rule above.
     private var emptyStateTitle: String {
         Self.emptyStateTitle(trackingEnabled: trackingEnabled, musicNotRunning: musicNotRunning)
     }
 
+    /// Instance shorthand for the static rule above.
     private var showsOpenMusic: Bool {
         Self.showsOpenMusic(trackingEnabled: trackingEnabled, musicNotRunning: musicNotRunning)
     }
 
+    /// Second line: "artist · album" (or whichever exists) for a track; in the
+    /// empty state, a hint only when Music is closed.
     private var subtitleText: String? {
         if track == nil {
             return showsOpenMusic ? "Open it and WolfWave picks up what you play." : nil
@@ -190,6 +211,8 @@ struct NowPlayingHeroCard: View {
         }
     }
 
+    /// One spoken sentence for the combined text element: state, title,
+    /// artist, album, then elapsed and remaining time when the length is known.
     private var accessibilityLabel: String {
         guard let track else { return emptyStateTitle }
         var label = isPaused ? "Paused: \(track)" : "Now playing: \(track)"

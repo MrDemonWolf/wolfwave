@@ -48,6 +48,10 @@ nonisolated enum AppleMusicLibraryError: LocalizedError {
 /// All adds are funneled into one dedicated `WolfWave Requests` library playlist
 /// (which also adds each song to the library) so the streamer's curated library
 /// stays clean and clearable.
+///
+/// Main-actor isolated by the module default. The shared ensure task and its
+/// generation counter rely on that: the cache and in-flight slot are only read
+/// and written on the main actor, between awaits.
 final class AppleMusicLibraryService {
     // MARK: - Properties
 
@@ -58,16 +62,27 @@ final class AppleMusicLibraryService {
     private var cachedPlaylistID: String?
     /// Shared ensure operation so concurrent first adds cannot create duplicates.
     private var ensureTask: (generation: Int, task: Task<String, Error>)?
+    /// Bumped by every new ensure and every reset. A result is cached only if
+    /// its generation is still current, so a reset during a lookup wins.
     private var ensureGeneration = 0
 
+    /// Holds the persisted playlist id (`songRequestPlaylistID`).
     private let defaults: Foundation.UserDefaults
+    /// Test replacement for GET; same contract as ``get(_:)`` (`nil` = 404).
     private let getOverride: (@Sendable (String) async throws -> Data?)?
+    /// Test replacement for POST.
     private let postOverride: (@Sendable (String, Data) async throws -> Data)?
 
     // MARK: - Init
 
     /// Creates the library service. Network overrides are narrow test seams;
     /// production uses MusicDataRequest for both.
+    ///
+    /// - Parameters:
+    ///   - defaults: Store for the persisted playlist id.
+    ///   - getOverride: Replaces the Apple Music GET. Paths are relative to
+    ///     `AppConstants.Music.apiBaseURL`.
+    ///   - postOverride: Replaces the Apple Music POST.
     init(
         defaults: Foundation.UserDefaults = DefaultsStore.store,
         getOverride: (@Sendable (String) async throws -> Data?)? = nil,
@@ -118,6 +133,13 @@ final class AppleMusicLibraryService {
     /// Returns the `WolfWave Requests` playlist id, finding it in the user's
     /// library or creating it if it does not exist yet. Concurrent callers share
     /// one lookup/create task so first-use song bursts cannot create duplicates.
+    ///
+    /// Does not check MusicKit authorization; public callers do that first.
+    /// Caches and persists the id on success.
+    ///
+    /// - Throws: Lookup or create errors (a transient lookup failure never
+    ///   creates a playlist), or `CancellationError` when
+    ///   ``resetCachedPlaylistID()`` ran while this call was waiting.
     func ensureRequestsPlaylist() async throws -> String {
         if let cached = cachedPlaylistID { return cached }
         if let inFlight = ensureTask {
@@ -183,7 +205,8 @@ final class AppleMusicLibraryService {
     /// health check to decide whether the song-request feature is healthy, the
     /// `!playlist` link has gone dead, or the playlist needs rebuilding.
     enum PlaylistProbe: Equatable {
-        /// Playlist exists. `shareURL` is non-nil when it is public.
+        /// Playlist exists and is public. ``classifyProbe(foundPlaylistID:shareURL:)``
+        /// always fills `shareURL`; it is optional only in the type.
         case ok(shareURL: String?)
         /// Playlist is no longer in the library (deleted by the user).
         case missing
@@ -283,6 +306,9 @@ final class AppleMusicLibraryService {
     /// Clears the cached playlist id so the next `ensureRequestsPlaylist()` call
     /// re-finds or recreates it. Used by the health check after it detects the
     /// playlist was deleted.
+    ///
+    /// Also cancels any in-flight ensure and removes the persisted id; callers
+    /// still waiting on that ensure get `CancellationError`.
     func resetCachedPlaylistID() {
         ensureGeneration &+= 1
         ensureTask?.task.cancel()
@@ -349,6 +375,11 @@ final class AppleMusicLibraryService {
     /// first; if it is gone or renamed, the method falls back to a complete,
     /// loop-guarded paged scan. A same-name user playlist is never adopted by
     /// discovery.
+    ///
+    /// - Returns: The playlist id (also persisted), or `nil` when the API
+    ///   definitively shows no owned playlist.
+    /// - Throws: Transport, server, or decoding errors, so callers can tell
+    ///   "unknown" apart from "missing".
     private func findRequestsPlaylist() async throws -> String? {
         let defaultsKey = AppConstants.UserDefaults.songRequestPlaylistID
         if let persistedID = defaults.string(forKey: defaultsKey),
@@ -406,6 +437,11 @@ final class AppleMusicLibraryService {
     }
 
     /// Creates the `WolfWave Requests` library playlist and returns its id.
+    ///
+    /// The ownership description is written here; discovery later relies on it.
+    ///
+    /// - Throws: `AppleMusicLibraryError.playlistCreateFailed` when the response
+    ///   has no resource, or the POST / decoding error.
     private func createRequestsPlaylist() async throws -> String {
         let data = try await post("/me/library/playlists", body: Self.createPlaylistBody())
         let page = try JSONCoders.default.decode(LibraryPlaylistsPage.self, from: data)
@@ -507,11 +543,15 @@ final class AppleMusicLibraryService {
 // MARK: - Codable Payloads
 
 /// A page of the user's library playlists from `GET /me/library/playlists`.
+/// Also decodes single-playlist GETs and the create response, which use the
+/// same `data` envelope.
 private struct LibraryPlaylistsPage: Decodable {
     let data: [LibraryPlaylistResource]
+    /// Path of the next page (with a `/v1` prefix), or `nil` on the last page.
     let next: String?
 }
 
+/// One library playlist. `id` is the library id (`p.…`), not the catalog id.
 private struct LibraryPlaylistResource: Decodable {
     let id: String
     let attributes: Attributes?
@@ -521,6 +561,7 @@ private struct LibraryPlaylistResource: Decodable {
         let description: Description?
         let playParams: PlayParams?
 
+        /// Apple's description object; `standard` holds the plain text.
         struct Description: Decodable {
             let standard: String?
         }
@@ -538,6 +579,7 @@ private struct CatalogPlaylistsPage: Decodable {
     let data: [CatalogPlaylistResource]
 }
 
+/// One catalog playlist; only the share URL is read.
 private struct CatalogPlaylistResource: Decodable {
     let id: String
     let attributes: Attributes?
@@ -553,6 +595,7 @@ private struct StorefrontsPage: Decodable {
     let data: [StorefrontResource]
 }
 
+/// A storefront; `id` is the two-letter code used in catalog paths.
 private struct StorefrontResource: Decodable {
     let id: String
 }
@@ -571,6 +614,7 @@ private struct CreatePlaylistRequest: Encodable {
 private struct AddTracksRequest: Encodable {
     let data: [ResourceRef]
 
+    /// A catalog resource reference; `type` is `"songs"` for track adds.
     struct ResourceRef: Encodable {
         let id: String
         let type: String

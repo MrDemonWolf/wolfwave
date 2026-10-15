@@ -11,10 +11,14 @@ import SwiftUI
 // MARK: - WolfHeroMark
 
 /// Scalable presentation wrapper around the canonical `WolfMark` template asset.
+///
+/// Decorative only: hidden from VoiceOver, so place it next to text that names
+/// the screen.
 struct WolfHeroMark: View {
 
     // MARK: - Style
 
+    /// How the mark is filled.
     enum Style: Equatable {
         /// Flat tint for small or inline marks.
         case mono(Color)
@@ -26,8 +30,10 @@ struct WolfHeroMark: View {
 
     /// Square render size in points.
     var size: CGFloat
+    /// Fill treatment. Defaults to the primary label color.
     var style: Style = .mono(.primary)
 
+    /// Picks the gradient stops for `.brandGradient`.
     @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Body
@@ -47,6 +53,8 @@ struct WolfHeroMark: View {
 
     // MARK: - Private Views
 
+    /// The `WolfMark` asset as a template image, so either a flat style or a
+    /// gradient mask can color it.
     private var mark: some View {
         Image("WolfMark")
             .resizable()
@@ -54,6 +62,8 @@ struct WolfHeroMark: View {
             .scaledToFit()
     }
 
+    /// Brand gradient, top-leading to bottom-trailing. Dark appearance shifts to
+    /// lighter stops so the mark keeps contrast on a dark window.
     private var brandGradient: LinearGradient {
         let colors: [Color] = colorScheme == .dark
             ? [AppConstants.Brand.wolfwaveGradientEnd, DSColor.brand300]

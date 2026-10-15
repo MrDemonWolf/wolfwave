@@ -10,6 +10,10 @@ import Foundation
 import Observation
 
 /// Manages step navigation and completion persistence for the onboarding wizard.
+///
+/// Owns only the wizard's position and its ending. Each step's own settings are
+/// written by that step's view (through `@AppStorage` bindings or services), so
+/// leaving the wizard early keeps whatever the user already changed.
 @MainActor
 @Observable
 final class OnboardingViewModel {
@@ -20,6 +24,9 @@ final class OnboardingViewModel {
     ///
     /// Streaming-related steps (Twitch, OBS) are kept adjacent so the user mentally
     /// finishes "stream stuff" before moving to system-level prefs and Apple Music.
+    ///
+    /// Raw values must stay contiguous from `0`: navigation steps by `rawValue ± 1`
+    /// and the progress indicator reports `rawValue + 1` as the step number.
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
         case discordConnect = 1
@@ -48,7 +55,10 @@ final class OnboardingViewModel {
 
     // MARK: - Observable State
 
+    /// The step on screen. Changes go through `goToNextStep()` / `goToPreviousStep()`.
     var currentStep: OnboardingStep = .welcome
+    /// `true` once `completeOnboarding(skipped:)` runs; swaps the wizard for
+    /// `OnboardingCompletionView`.
     var showCompletion = false
     /// `true` when the wizard ended through Skip All, so the completion screen
     /// can use its lighter "Skipped" copy.
@@ -56,21 +66,23 @@ final class OnboardingViewModel {
 
     // MARK: - Navigation
 
+    /// Whether the wizard is on its first step (Back is hidden there).
     var isFirstStep: Bool {
         currentStep == OnboardingStep.allCases.first
     }
 
+    /// Whether the wizard is on its last step (Next becomes Finish, Skip All hides).
     var isLastStep: Bool {
         currentStep == OnboardingStep.allCases.last
     }
 
-    /// Advances to the next step if one exists.
+    /// Advances to the next step if one exists. A no-op on the last step.
     func goToNextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
         currentStep = next
     }
 
-    /// Returns to the previous step if one exists.
+    /// Returns to the previous step if one exists. A no-op on the first step.
     func goToPreviousStep() {
         guard let prev = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
         currentStep = prev
@@ -79,6 +91,10 @@ final class OnboardingViewModel {
     // MARK: - Completion
 
     /// Persists the onboarding-completed flag so the wizard won't show again.
+    ///
+    /// The flag is written before the completion screen appears, so quitting
+    /// during the celebration still counts as completed. Skip All writes the
+    /// same flag: a skipped wizard does not come back on the next launch.
     ///
     /// - Parameter skipped: Pass `true` when the user chose Skip All, so the
     ///   completion screen shows the lighter "Skipped" ending.
@@ -93,6 +109,8 @@ final class OnboardingViewModel {
     }
 
     /// Whether onboarding has been completed on a previous launch.
+    ///
+    /// Read by `AppDelegate` at launch to decide whether to open the wizard.
     static var hasCompletedOnboarding: Bool {
         Preferences.hasCompletedOnboarding
     }

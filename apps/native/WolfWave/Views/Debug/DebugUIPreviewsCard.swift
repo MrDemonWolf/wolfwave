@@ -31,6 +31,7 @@ struct DebugUIPreviewsCard: View {
             .buttonStyle(.bordered)
             .pointerCursor()
 
+            // Only clears the flag; the popup appears on the next launch, not now.
             Button {
                 DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.lastSeenWhatsNewVersion)
                 Log.info("Reset lastSeenWhatsNewVersion (dev)", category: .whatsNew)
@@ -64,6 +65,9 @@ struct DebugUIPreviewsCard: View {
 
             Divider().padding(.vertical, DSSpace.s1)
 
+            // Posts the same update-state notification SparkleUpdaterService posts,
+            // with a fake version, so the Software Update pane shows its
+            // "update available" state. Nothing is downloaded.
             Button {
                 NotificationCenter.default.postUpdateState(
                     isUpdateAvailable: true,

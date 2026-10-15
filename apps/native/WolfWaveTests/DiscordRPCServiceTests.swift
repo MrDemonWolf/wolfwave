@@ -10,6 +10,10 @@ import Darwin
 import XCTest
 @testable import WolfWave
 
+/// `DiscordRPCService` over real `socketpair(2)` descriptors with the test acting as Discord:
+/// presence coalescing, ping echo, handshake and command-reply matching, transaction deadlines,
+/// backoff, availability polling, connection-ownership guards across descriptor reuse, and
+/// enable/disable. Never opens a real `discord-ipc-N` socket.
 @MainActor
 final class DiscordRPCServiceTests: XCTestCase {
 
@@ -38,6 +42,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         await service.releaseTestSocket()
     }
 
+    /// Discord rejecting a SET_ACTIVITY makes the service resend the cached presence exactly
+    /// once; a second rejection must not start an unbounded resend loop (no third frame arrives).
     func testErrorReplyTriggersSingleResend() async throws {
         var sockets: [Int32] = [-1, -1]
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -131,6 +137,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertEqual(state, .disconnected)
     }
 
+    /// A connect attempt whose socket open is still pending (and will fail) must not downgrade
+    /// the state when a newer connection has been installed meanwhile; state stays `.connected`.
     func testStaleFailedOpenerCannotOverwriteNewerConnectedState() async throws {
         let openerEntered = DispatchSemaphore(value: 0)
         let releaseOpener = DispatchSemaphore(value: 0)
@@ -185,6 +193,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertEqual(state, .disconnected)
     }
 
+    /// Disabling the service while a socket open is in flight ends in `.disconnected`, not a stuck
+    /// `.connecting`.
     func testDisableWhileSocketOpenIsQueuedRetiresConnectingState() async {
         let openerEntered = DispatchSemaphore(value: 0)
         let releaseOpener = DispatchSemaphore(value: 0)
@@ -255,6 +265,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertEqual(error, ECONNREFUSED)
     }
 
+    /// With "clear while paused" on, a paused track sends a clear (no activity), and nothing is
+    /// written before the handshake completes. Turning the setting off re-sends the cached track.
     func testPausedTrackReturnsAfterHideToggleTurnsOff() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -322,6 +334,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         Darwin.close(sockets[1])
     }
 
+    /// A disable whose clear reply is held back, followed by a re-enable, must end connected with
+    /// the presence restored. The newest enable intent wins over the stale disable.
     func testRapidReenableRestoresPresenceAfterStaleDisableClear() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -398,6 +412,9 @@ final class DiscordRPCServiceTests: XCTestCase {
         Darwin.close(peerFD)
     }
 
+    /// Two commands issued at once are serialized: the second is written only after the first
+    /// gets its reply, with different nonces. A stale reply with the wrong nonce is drained
+    /// rather than taken as the answer.
     func testConcurrentCommandsAreAtomicAndNonceMatched() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -497,6 +514,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         XCTAssertFalse(canceledResult)
     }
 
+    /// A PING during the handshake is answered with a PONG echoing its payload before READY
+    /// completes the handshake.
     func testHandshakeEchoesPingPayloadBeforeReady() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -530,6 +549,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         Darwin.close(sockets[1])
     }
 
+    /// A PING that arrives while a command awaits its reply is answered with a PONG
+    /// (payload echoed, including non-UTF-8 bytes), and the command still completes.
     func testCommandEchoesPingPayloadBeforeMatchedReply() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -586,6 +607,9 @@ final class DiscordRPCServiceTests: XCTestCase {
         Darwin.close(sockets[1])
     }
 
+    /// Two concurrent `disconnect()` calls share exactly one physical close. The test forces the
+    /// closed descriptor number to be reused inside the close handler, to prove a late second
+    /// close cannot hit the reused descriptor.
     func testConcurrentDisconnectsAwaitSoleCancelHandlerCloseAcrossFDReuse() async {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -642,6 +666,8 @@ final class DiscordRPCServiceTests: XCTestCase {
         Darwin.close(sockets[1])
     }
 
+    /// A peer that dribbles one byte every 50 ms must not extend the transaction: the overall
+    /// 250 ms deadline holds, the call returns in under a second, and the service disconnects.
     func testTransactionDeadlineDoesNotResetForDripFedFrame() async throws {
         var sockets = [Int32](repeating: -1, count: 2)
         XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &sockets), 0)
@@ -726,6 +752,7 @@ final class DiscordRPCServiceTests: XCTestCase {
     // Discord peer must never crash the IPC read loop, so malformed bytes have
     // to decode to nil, not trap.
 
+    /// Only an opcode-frame `DISPATCH`/`READY` payload counts as handshake completion.
     func testHandshakeAcceptsOnlyFrameDispatchReady() {
         let ready: [String: Any] = [
             "cmd": "DISPATCH",
@@ -765,6 +792,7 @@ final class DiscordRPCServiceTests: XCTestCase {
         )
     }
 
+    /// A reply counts as a command's answer only if it is a frame with the same `cmd` and nonce.
     func testCommandResponseRequiresFrameMatchingCommandAndNonce() {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
@@ -970,6 +998,7 @@ final class DiscordRPCServiceTests: XCTestCase {
 
     // MARK: - Availability Poll Lifecycle
 
+    /// The availability poll runs only while enabled, disconnected, and with a non-blank client id.
     func testAvailabilityPollPolicyRunsOnlyWhileEnabledAndDisconnected() {
         XCTAssertTrue(
             DiscordRPCService.shouldPollAvailability(
@@ -1018,7 +1047,12 @@ final class DiscordRPCServiceTests: XCTestCase {
 
 }
 
+/// Test seams that adopt a test socket descriptor as the live connection.
 private extension DiscordRPCService {
+    /// Adopts `fd` as the live connection. `connected: false` leaves the handshake pending,
+    /// `supersedingConnection` bumps the connection generation, and `presenceInterval` sets the
+    /// minimum interval between presence frames
+    /// (`presenceMinimumInterval`). Leaves the state `.connecting` when `connected` is false.
     func installTestSocket(
         _ fd: Int32,
         connected: Bool = true,
@@ -1033,6 +1067,7 @@ private extension DiscordRPCService {
         state = connected ? .connected : .connecting
     }
 
+    /// Enables the service and resets it to `.disconnected` so `connectIfNeeded()` runs.
     func prepareTestConnect() {
         isEnabled = true
         state = .disconnected
@@ -1044,20 +1079,25 @@ private extension DiscordRPCService {
         ipcCloseInProgress = close
     }
 
+    /// Sets the enabled flag directly, skipping the side effects of `setEnabled(_:)`.
     func setEnabledForTesting(_ enabled: Bool) {
         isEnabled = enabled
     }
 
+    /// Disconnects and leaves the service disabled, closing the adopted descriptor.
     func releaseTestSocket() async {
         await disconnect()
         isEnabled = false
     }
 
+    /// Whether a descriptor close is still pending.
     func hasTestCloseInProgress() -> Bool {
         ipcCloseInProgress != nil
     }
 }
 
+/// What `DiscordGatedSocketCloser` observed: close count, the original and reused descriptor
+/// numbers, the peer, and any setup errno.
 private nonisolated struct DiscordGatedCloseSnapshot: Sendable {
     let closeCount: Int
     let originalFD: Int32
@@ -1137,6 +1177,8 @@ private nonisolated final class DiscordGatedSocketCloser: @unchecked Sendable {
     }
 }
 
+/// Sends one byte from `sourceFD` and checks the same byte arrives on `peerFD`, proving two
+/// descriptors are still a live pair.
 private nonisolated func exchangeProbeByte(from sourceFD: Int32, to peerFD: Int32) -> Bool {
     var sent: UInt8 = 0xA5
     let writeCount = withUnsafePointer(to: &sent) { pointer in
@@ -1151,6 +1193,8 @@ private nonisolated func exchangeProbeByte(from sourceFD: Int32, to peerFD: Int3
     return readCount == 1 && received == sent
 }
 
+/// Counts IPC enqueues and lets a test await a target count, so it can wait on an observable event
+/// instead of sleeping.
 private actor DiscordIPCEnqueueGate {
     private var count = 0
     private struct Waiter {
@@ -1201,6 +1245,7 @@ private actor DiscordIPCEnqueueGate {
     }
 }
 
+/// Failures from the raw socket helpers in this file.
 private nonisolated enum DiscordTestSocketError: Error, Sendable {
     case readFailed(Int32)
     case writeFailed(Int32)
@@ -1209,26 +1254,33 @@ private nonisolated enum DiscordTestSocketError: Error, Sendable {
     case timedOut
 }
 
+/// What the fake Discord saw in one command: whether it carried an activity, and its `details`.
 private nonisolated struct DiscordCommandSnapshot: Sendable {
     let hasActivity: Bool
     let activityDetails: String?
 }
 
+/// The first command and the one restored after a disable/enable race.
 private nonisolated struct DiscordPresenceProbe: Sendable {
     let initial: DiscordCommandSnapshot
     let restored: DiscordCommandSnapshot
 }
 
+/// Whether a second command reached the socket before the first one's reply, and whether their
+/// nonces differed.
 private nonisolated struct DiscordTransactionProbe: Sendable {
     let secondArrivedBeforeFirstReply: Bool
     let noncesDiffer: Bool
 }
 
+/// One IPC frame: opcode and raw payload.
 private nonisolated struct DiscordRawFrame: Sendable {
     let opcode: UInt32
     let payload: Data
 }
 
+/// One-second send/receive timeouts plus `SO_NOSIGPIPE`, so a stuck peer fails a test instead of
+/// hanging it.
 private nonisolated func configureTestSocketTimeouts(_ fd: Int32) -> Bool {
     var timeout = timeval(tv_sec: 1, tv_usec: 0)
     var noSigPipe: Int32 = 1
@@ -1248,6 +1300,8 @@ private nonisolated func configureTestSocketTimeouts(_ fd: Int32) -> Bool {
     return setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, size) == 0
 }
 
+/// Plays Discord: reads one command, replies with a matching nonce (an `ERROR` event when
+/// `rejected`), and reports what the command carried.
 private nonisolated func readAndAcknowledgeCommand(
     from fd: Int32,
     rejected: Bool = false
@@ -1271,6 +1325,7 @@ private nonisolated func readAndAcknowledgeCommand(
     )
 }
 
+/// Reads one frame and parses it as a JSON object; throws if it is not an opcode-frame object.
 private nonisolated func readRPCPayload(from fd: Int32) throws -> [String: Any] {
     let frame = try readRPCFrame(from: fd)
     guard frame.opcode == DiscordRPCService.Opcode.frame.rawValue else {
@@ -1284,6 +1339,7 @@ private nonisolated func readRPCPayload(from fd: Int32) throws -> [String: Any] 
     return payload
 }
 
+/// Reads one raw frame (8-byte header, then payload) of any opcode.
 private nonisolated func readRPCFrame(from fd: Int32) throws -> DiscordRawFrame {
     let header = try readExactly(8, from: fd)
     let opcode = header.withUnsafeBytes { bytes in
@@ -1298,6 +1354,7 @@ private nonisolated func readRPCFrame(from fd: Int32) throws -> DiscordRawFrame 
     )
 }
 
+/// Sends `payload` as a JSON opcode-frame.
 private nonisolated func writeRPCPayload(
     _ payload: [String: Any],
     to fd: Int32
@@ -1322,6 +1379,7 @@ private nonisolated func writeRPCPayload(
     try writeExactly(header + body, to: fd)
 }
 
+/// Sends a frame of the given opcode with a raw payload.
 private nonisolated func writeRPCFrame(
     opcode: DiscordRPCService.Opcode,
     payload: Data,
@@ -1330,6 +1388,7 @@ private nonisolated func writeRPCFrame(
     try writeExactly(makeRPCFrameData(opcode: opcode, payload: payload), to: fd)
 }
 
+/// Header plus payload bytes for one frame, without sending it.
 private nonisolated func makeRPCFrameData(
     opcode: DiscordRPCService.Opcode,
     payload: Data
@@ -1345,6 +1404,7 @@ private nonisolated func makeRPCFrameData(
     return header + payload
 }
 
+/// Sends one byte without blocking; false if it could not go out.
 private nonisolated func sendDripByte(_ byte: UInt8, to fd: Int32) -> Bool {
     var byte = byte
     let count = withUnsafePointer(to: &byte) { pointer in
@@ -1353,6 +1413,7 @@ private nonisolated func sendDripByte(_ byte: UInt8, to fd: Int32) -> Bool {
     return count == 1
 }
 
+/// Reads exactly `count` bytes, looping over short reads.
 private nonisolated func readExactly(_ count: Int, from fd: Int32) throws -> Data {
     var data = Data(count: count)
     var offset = 0
@@ -1372,6 +1433,7 @@ private nonisolated func readExactly(_ count: Int, from fd: Int32) throws -> Dat
     return data
 }
 
+/// Writes all of `data`, looping over short writes.
 private nonisolated func writeExactly(_ data: Data, to fd: Int32) throws {
     try data.withUnsafeBytes { bytes in
         guard let baseAddress = bytes.baseAddress else {

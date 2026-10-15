@@ -25,12 +25,15 @@ nonisolated struct CrashMarker: Equatable {
     /// First line of the current schema. Version bump goes here.
     static let header = "WOLFWAVE-CRASH 1"
 
+    /// Which handler wrote the marker. Raw values match the `kind=` line;
+    /// a missing or unrecognized value parses as ``unknown``.
     enum Kind: String, Equatable {
         case signal
         case exception
         case unknown
     }
 
+    /// Which handler wrote the marker.
     let kind: Kind
 
     /// e.g. `SIGSEGV`. Signal crashes only.
@@ -46,14 +49,25 @@ nonisolated struct CrashMarker: Equatable {
     /// handler cannot walk the stack safely.
     let frames: [String]
 
+    /// When the crash happened, from the `epoch=` line (Unix seconds).
+    /// `nil` for legacy markers or an unparseable stamp.
     let date: Date?
+    /// Process id of the run that crashed.
     let pid: Int?
+    /// Marketing version of the build that crashed.
     let version: String?
+    /// Build number of the build that crashed.
     let build: String?
 
     // MARK: - Parsing
 
     /// Parses a marker file's contents.
+    ///
+    /// Current-schema markers are `key=value` lines after the ``header``.
+    /// Each line splits on its first `=`, so a value may itself contain `=`.
+    /// Repeated `frame=` lines accumulate in order; for any other key the last
+    /// occurrence wins. Lines without `=` are skipped. Text without the header
+    /// goes to the legacy parser.
     ///
     /// - Returns: The marker, or `nil` for empty/whitespace-only input.
     static func parse(_ text: String) -> CrashMarker? {
@@ -93,7 +107,8 @@ nonisolated struct CrashMarker: Equatable {
     /// `EXCEPTION <name>` followed by a reason and raw frames.
     ///
     /// These carry no timestamp, pid, or build, which is exactly why the schema
-    /// exists. Reading them is still better than showing the user nothing.
+    /// exists. Reading them is still better than showing the user nothing. Any
+    /// first line that is not `EXCEPTION …` is taken as a signal name.
     private static func parseLegacy(_ text: String) -> CrashMarker? {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         guard let first = lines.first, !first.isEmpty else { return nil }
@@ -128,7 +143,7 @@ nonisolated struct CrashMarker: Equatable {
     // MARK: - Presentation
 
     /// One-line description for the recovery callout, e.g.
-    /// `SIGSEGV at 14:03 on 2.1.1 (1841)`.
+    /// `SIGSEGV at 14:03 on 2.1.1 (1841)`. Parts with no data are omitted.
     var summary: String {
         var parts: [String] = []
 
@@ -151,7 +166,8 @@ nonisolated struct CrashMarker: Equatable {
         return parts.joined(separator: " ")
     }
 
-    /// Multi-line detail for the log and the diagnostics export.
+    /// Multi-line detail for the log and the diagnostics export: the
+    /// ``summary``, then reason and pid when present, then each frame indented.
     var detail: String {
         var lines = [summary]
         if let reason, !reason.isEmpty {

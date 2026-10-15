@@ -11,11 +11,13 @@ import { brand, raveColor } from '../brand';
 
 // --- Shared styles ---
 
+/** Drop shadow shared by the three mock windows. */
 const mockShadow =
   '0 16px 48px rgba(0,0,0,0.5), 0 0 40px rgba(15,172,237,0.06)';
 
 // --- Discord Rich Presence ---
 
+/** Mock Discord Rich Presence card. `frame` is the scene-local frame. */
 const DiscordRPC: React.FC<{ frame: number; fps: number }> = ({
   frame,
   fps,
@@ -258,6 +260,7 @@ const DiscordRPC: React.FC<{ frame: number; fps: number }> = ({
 
 // --- Twitch Chat Bot ---
 
+/** Mock Twitch chat showing the bot reply. `frame` is the scene-local frame. */
 const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
   frame,
   fps,
@@ -447,6 +450,7 @@ const TwitchChat: React.FC<{ frame: number; fps: number }> = ({
 
 // --- OBS Browser Source ---
 
+/** Mock OBS browser-source overlay. `frame` is the scene-local frame. */
 const OBSOverlay: React.FC<{ frame: number; fps: number }> = ({
   frame,
   fps,
@@ -679,6 +683,7 @@ const OBSOverlay: React.FC<{ frame: number; fps: number }> = ({
 
 // --- Main Scene ---
 
+/** Middle scene (210 frames): the three mocks in turn under a shared header and glow. */
 export const FeaturesShowcaseScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

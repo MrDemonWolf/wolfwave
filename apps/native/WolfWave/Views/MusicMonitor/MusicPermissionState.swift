@@ -13,20 +13,33 @@ import Foundation
 
 /// Apple Events automation permission state for the Music app.
 ///
-/// Inferred on the first Apple Events track query. When the system returns
-/// `errAEEventNotPermitted` the user has denied automation, and we surface a
-/// banner + instruction sheet via `PermissionDeniedView`.
+/// Resolved from `AEDeterminePermissionToAutomateTarget` by
+/// `MusicPermissionChecker`. When the system returns `errAEEventNotPermitted`
+/// the user has denied automation, and the UI surfaces a banner + instruction
+/// sheet via `PermissionDeniedView`.
+///
+/// The raw values are persisted (`lastResolvedMusicPermission`), so don't
+/// rename them.
 enum MusicPermissionState: String, Sendable {
+    /// No definitive answer yet: never asked, Music closed with no prior
+    /// decision on record, or an unexpected probe status.
     case unknown
+    /// The user allowed WolfWave to control Music.
     case granted
+    /// The user turned the Automation toggle off (or declined the prompt).
     case denied
 }
 
 // MARK: - MusicPermissionChecker
 
-/// Lightweight, read-only helpers for checking + opening the System Settings
-/// Automation pane. Used by the Music permission denied flow (Screen J in
-/// the redesign).
+/// Helpers for probing, requesting, and remembering the Music Automation grant,
+/// plus opening the System Settings Automation pane. Used by the Music
+/// permission banner, `PermissionDeniedView`, onboarding, and the song-request
+/// setup gate.
+///
+/// Side effects to know about: `currentState()` and `requestAccess()` write the
+/// last definitive decision to `DefaultsStore`, and `requestAccess()` may
+/// launch Music.app in the background.
 enum MusicPermissionChecker {
 
     /// Asks the system whether the calling process is allowed to send Apple
@@ -92,6 +105,8 @@ enum MusicPermissionChecker {
     ///
     /// Returns the resolved state after the prompt. If the user has previously
     /// allowed/denied, no prompt is shown and the cached decision is returned.
+    /// Launches Music.app first if needed (see `ensureMusicRunning()`); the
+    /// prompt itself runs on a detached task because it blocks until answered.
     static func requestAccess() async -> MusicPermissionState {
         // The system automation prompt only fires for a *running* target. With
         // Music.app closed the probe returns `procNotFound` and silently no-ops,

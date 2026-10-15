@@ -19,7 +19,8 @@ nonisolated struct TwitchMenuState: Sendable, Equatable {
     /// `true` when a Twitch access token is stored.
     let hasCredential: Bool
 
-    /// The configured channel name, if any.
+    /// The configured channel name, if any (the snapshot's `channelID`,
+    /// which holds the channel login, not a numeric id).
     let channelName: String?
 
     /// No account stored. Also the value before the first refresh lands.
@@ -30,6 +31,7 @@ nonisolated struct TwitchMenuState: Sendable, Equatable {
         self.init(hasCredential: snapshot != nil, channelName: snapshot?.channelID)
     }
 
+    /// Memberwise initializer, used for `empty` and by tests.
     init(hasCredential: Bool, channelName: String?) {
         self.hasCredential = hasCredential
         self.channelName = channelName

@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// Cross-reference sanity checks on `AppConstants`: fallbacks, URL validity, widget theme/layout
+/// lists, dimension bounds, and timing relationships.
 @MainActor
 final class AppConstantsEdgeCaseTests: XCTestCase {
 

@@ -83,6 +83,7 @@ struct ListeningHistoryServiceTests {
 
     // MARK: - Helpers
 
+    /// A fresh temp directory for one test; the test removes it.
     private func makeTempDirectory() -> URL {
         makeIsolatedTempDirectory(prefix: "history-svc-test")
     }
@@ -191,6 +192,8 @@ struct ListeningHistoryServiceTests {
         )
     }
 
+    /// Writes one record to the play log and one folded record to the lifetime tally in
+    /// `directory`, so a clear has something in both stores to remove.
     private func seedClearFixture(
         directory: URL
     ) -> (log: PlayLogStore, tally: LifetimeTallyStore) {

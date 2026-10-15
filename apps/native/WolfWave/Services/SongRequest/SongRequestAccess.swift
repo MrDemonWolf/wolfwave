@@ -119,10 +119,14 @@ enum RequestAudience: String, CaseIterable, Identifiable {
 /// The channel through which a song request arrived.
 ///
 /// Determines how the request is gated and how the outcome is acknowledged.
+/// Only `.chatCommand` carries badges; the other sources fall back to the
+/// everyone-tier limit (``SongRequestLimits/nonChatLimit(in:)``) and never get
+/// the Sub/VIP priority perk.
 enum RequestSource {
     /// Requested via the `!sr` chat command, gated by `RequestAudience`.
     case chatCommand(BotCommandContext)
-    /// Redeemed with channel points via a WolfWave-managed custom reward.
+    /// Redeemed with channel points via a WolfWave-managed custom reward. The
+    /// IDs are what Helix needs to fulfill or refund the redemption.
     case channelPoints(redemptionID: String, rewardID: String)
     /// Requested with a bit cheer of the given amount.
     case bits(amount: Int)
@@ -175,6 +179,8 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     /// Writes this preset's full configuration (chat command, audience, and the
     /// channel-point / bit redemption toggles) into `UserDefaults`.
     ///
+    /// `.channelPointsOnly` leaves the chat audience unchanged, since `!sr` is off.
+    ///
     /// Always records the active mode. `.custom` records the mode only and leaves
     /// every other setting intact so the streamer can fine-tune by hand.
     ///
@@ -212,7 +218,10 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
     ///
     /// On a fresh install or a pre-mode upgrade (no stored value) the chat
     /// settings are inferred so an existing config maps to a sensible chip;
-    /// a brand-new install lands on `.open`.
+    /// a brand-new install lands on `.open`. A stored value that isn't a known
+    /// preset is treated as missing and inferred the same way.
+    ///
+    /// - Parameter defaults: Store to read. Defaults to `DefaultsStore.store`.
     static func current(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> SongRequestPreset {
         if let raw = defaults.string(forKey: AppConstants.UserDefaults.songRequestPolicyMode),
            let stored = SongRequestPreset(rawValue: raw) {
@@ -244,6 +253,7 @@ enum QueueLimitMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Short label for the settings picker.
     var displayName: String {
         switch self {
         case .highest: return "Highest tier"
@@ -251,6 +261,7 @@ enum QueueLimitMode: String, CaseIterable, Identifiable {
         }
     }
 
+    /// One-line explanation for the settings picker.
     var summary: String {
         switch self {
         case .highest: return "A viewer gets the limit of their best role."
@@ -279,6 +290,12 @@ enum SongRequestLimits {
     /// pool when the viewer holds that badge (the broadcaster counts as a mod).
     /// In `.highest` mode the largest applicable tier wins; in `.stacked` mode
     /// the applicable tiers are summed.
+    ///
+    /// Every tier that is unset or non-positive counts as 2 (see
+    /// ``positiveLimit(_:)``), so under `.stacked` a subscriber on a fresh
+    /// install gets 4, not 2.
+    ///
+    /// - Returns: A positive limit; saturates at `Int.max` instead of trapping.
     static func effectiveLimit(
         isSubscriber: Bool,
         isVIP: Bool,
@@ -306,8 +323,10 @@ enum SongRequestLimits {
         }
     }
 
-    /// Treats corrupted zero/negative defaults as the normal fallback. Imports
-    /// reject them, but this keeps values written through `defaults` tooling safe.
+    /// Treats unset or corrupted zero/negative defaults as the normal fallback
+    /// of 2 (matching `AppConstants.UserDefaults.Defaults.songRequestPerUserLimit`).
+    /// Imports reject bad values, but this keeps values written through
+    /// `defaults` tooling safe.
     private static func positiveLimit(_ stored: Int?) -> Int {
         guard let stored, stored > 0 else { return 2 }
         return stored
@@ -386,6 +405,9 @@ enum SongRequestPriority {
     }
 
     /// Convenience overload reading roles straight from a chat command context.
+    ///
+    /// Callers combine this with ``mode(in:)``: `!sr` checks `skipsCooldown`,
+    /// `SongRequestService` checks `jumpsQueue`.
     static func qualifies(_ context: BotCommandContext) -> Bool {
         qualifies(
             isSubscriber: context.isSubscriber,

@@ -12,18 +12,29 @@ import SwiftUI
 /// DEBUG-only card for poking live services: force reconnects, fake track events,
 /// queue injection, and Sparkle / WebSocket broadcasts.
 struct DebugServiceControlsCard: View {
+
+    // MARK: - Properties
+
+    // Form state for the injection sections below. Local to the card; nothing
+    // here is persisted.
     @State private var fakeTitle: String = "Test Track"
     @State private var fakeArtist: String = "Test Artist"
     @State private var fakeAlbum: String = "Test Album"
     @State private var fakePlaylist: String = "Test Playlist"
+    /// Injected track length, in seconds.
     @State private var fakeDuration: Double = 180
     @State private var fakeIsPaused: Bool = false
+    /// Requester login for injected queue items; an empty field falls back to "tester".
     @State private var queueRequester: String = "tester"
+    /// How many fake requests one Inject press adds.
     @State private var queueCount: Int = 3
     @State private var wsTestTitle: String = "WS Test"
     @State private var wsTestArtist: String = "Debug"
+    /// Multi-line PASS / FAIL report from the last Music self-test; empty until one runs.
     @State private var musicSelfTestReport: String = ""
+    /// True while the self-test runs; disables its button against a second press.
     @State private var musicSelfTestRunning: Bool = false
+    /// Shown when Check for Updates could not start Sparkle; cleared on a successful start.
     @State private var sparkleNotice: String?
 
     /// Live connection state, refreshed by the poll below.
@@ -36,11 +47,20 @@ struct DebugServiceControlsCard: View {
     /// after a disconnect) until some unrelated state change forced a re-render.
     @State private var twitchConnected = false
     @State private var discordState: DiscordRPCService.ConnectionState = .disconnected
+    /// DEBUG-only role override read by `TwitchChatService.shouldTreatAsViewer`:
+    /// every chatter (or the listed usernames) gets normal viewer permissions and
+    /// cooldowns, so a broadcaster can test viewer paths from their own account.
+    /// `@AppStorage` writes the standard domain while the reader uses
+    /// `DefaultsStore.store`; they are the same domain outside test harnesses.
     @AppStorage(AppConstants.UserDefaults.debugTreatAllChattersAsViewers)
     private var treatAllChattersAsViewers = false
+    /// Comma-separated logins treated as viewers when the toggle above is off.
+    /// Matched case-insensitively against the chatter's login.
     @AppStorage(AppConstants.UserDefaults.debugViewerUsernames)
     private var viewerUsernames = ""
 
+    /// Shorthand for the running app delegate. `nil` in previews, where every
+    /// action below quietly does nothing.
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
     var body: some View {
@@ -84,6 +104,8 @@ struct DebugServiceControlsCard: View {
     /// Poll interval for connection state. Matches `DebugInspectorsCard`.
     private static let pollInterval: Duration = .seconds(2)
 
+    /// Copies the services' atomic connection snapshots into `@State` so the
+    /// rows and the Send Test Chat gate re-render.
     private func refreshConnectionState() {
         twitchConnected = appDelegate?.twitchService?.currentlyConnected == true
         discordState = appDelegate?.discordService?.stateSnapshot ?? .disconnected
@@ -91,6 +113,10 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Playback
 
+    /// Fake track form. Inject calls the app delegate's `PlaybackSourceDelegate`
+    /// callback directly, so the track fans out to Discord, the overlay, Twitch
+    /// `!song`, and history exactly as a real Music update would (with elapsed
+    /// time at zero). Simulate Stop sends the "No track playing" status.
     private var playbackSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Apple Music: Inject Track")
@@ -176,6 +202,10 @@ struct DebugServiceControlsCard: View {
         }
     }
 
+    /// Builds the self-test report: Music's pid, whether the song-request
+    /// controller sees Music running, and whether a real `playbackSnapshot()`
+    /// Apple Event came back. Requires Song Requests to have started, since the
+    /// controller lives on `SongRequestService`.
     private func runMusicAccessSelfTest() async {
         musicSelfTestRunning = true
         defer { musicSelfTestRunning = false }
@@ -207,6 +237,8 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Twitch
 
+    /// Connection state, the viewer-role override, Force Disconnect (leaves the
+    /// channel), and Send Test Chat (a timestamped ping, only while connected).
     private var twitchSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Twitch")
@@ -246,6 +278,7 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Discord
 
+    /// RPC state, Clear Presence, and Force Reconnect.
     private var discordSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Discord RPC")
@@ -268,7 +301,8 @@ struct DebugServiceControlsCard: View {
                     size: .regular,
                     fillsWidth: true
                 ) {
-                    // Disable + re-enable cycle = full reconnect
+                    // Disable + re-enable cycle = full reconnect. The short pause
+                    // lets the disable finish tearing down the socket first.
                     guard let service = appDelegate?.discordService else { return }
                     await service.setEnabled(false)
                     try? await Task.sleep(for: .milliseconds(500))
@@ -280,6 +314,9 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - WebSocket
 
+    /// Sends a fake now-playing frame (fixed album and length) to connected
+    /// overlay clients, or clears it. Does not go through the playback pipeline,
+    /// so Discord and Twitch are untouched.
     private var webSocketSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("WebSocket Server")
@@ -315,6 +352,8 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Sparkle
 
+    /// Check for Updates (in DEBUG, Sparkle reads the bundled dev appcast) and a
+    /// reset for the "skip this version" choice.
     private var sparkleSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Sparkle Updater")
@@ -355,6 +394,7 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Song Request
 
+    /// Inject placeholder requests, clear the queue, and toggle hold mode.
     private var songRequestSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             sectionLabel("Song Request Queue")
@@ -399,6 +439,12 @@ struct DebugServiceControlsCard: View {
         }
     }
 
+    /// Adds `queueCount` placeholder songs straight to the queue, bypassing
+    /// search, blocklist, and audience checks. `add` results are ignored, so items
+    /// over a queue or per-user limit are dropped silently.
+    ///
+    /// The placeholder titles are fixed plain strings on purpose:
+    /// `Song.debugPlaceholder` traps on a `"` or `\` in its inputs.
     private func injectFakeRequests() {
         guard let queue = appDelegate?.songRequestService?.queue else { return }
         for index in 0..<queueCount {
@@ -418,6 +464,7 @@ struct DebugServiceControlsCard: View {
 
     // MARK: - Helpers
 
+    /// Eyebrow heading for one control group.
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .sectionEyebrow()

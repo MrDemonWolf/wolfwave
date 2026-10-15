@@ -11,6 +11,8 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// `FieldValidationRow` states: idle renders nothing, each visible state renders,
+/// long failures wrap, and `.failed` surfaces the real reason, not just the headline.
 @MainActor
 final class FieldValidationRowTests: XCTestCase {
 

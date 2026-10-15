@@ -41,6 +41,13 @@ extension AppDelegate {
 
     /// Maps each action to an existing service seam. Trivial wiring; the
     /// non-trivial parse/validation lives in ``StreamDeckControl``.
+    ///
+    /// Failure reasons are short tokens the plugin renders on the key:
+    /// `unavailable` (the backing service does not exist yet), `music`
+    /// (the Music.app AppleScript call threw), `empty` (nothing to act on),
+    /// and `twitch` (not connected to chat).
+    ///
+    /// - Returns: The ack for the originating connection.
     private func performStreamDeckAction(_ command: StreamDeckCommand) async -> CommandAck {
         let action = command.action
         switch action {
@@ -70,6 +77,8 @@ extension AppDelegate {
             guard let service = songRequestService, let next = service.queue.pending.first else {
                 return .failure(action.rawValue, "empty")
             }
+            // Approves the oldest pending request. The result is ignored, so a
+            // full live queue (which puts the request back in pending) still acks.
             _ = await service.approve(id: next.id)
             return .success(action)
 
@@ -138,6 +147,8 @@ extension AppDelegate {
             guard let service = songRequestService else {
                 return .failure(action.rawValue, "unavailable")
             }
+            // Writes the stored audience directly; `chatAudience` re-reads it on
+            // every access, so the next `!sr` sees the new value.
             let next = service.chatAudience.next
             DefaultsStore.store.set(
                 next.rawValue,
@@ -169,6 +180,7 @@ extension AppDelegate {
         let discord = discordEnabled && discordConnection == .connected
         let overlay = websocketServer?.state == .listening
             && websocketServer?.overlayVisible == true
+        // Snapshot taken synchronously above; the sends hop to the server actor.
         Task { [weak self] in
             await self?.websocketServer?.broadcastQueueState(
                 count: count, pending: pending, held: held, audience: audience)

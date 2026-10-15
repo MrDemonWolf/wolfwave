@@ -16,6 +16,8 @@ extension TwitchViewModel {
     /// the action that actually fixes it. Reconnect is offered only where a new
     /// sign-in genuinely helps.
     enum Failure {
+        /// The stored grant exists but the Keychain read failed (not "no
+        /// credentials"), so Try Again is offered before a new sign-in.
         static func keychainUnreadable() -> UserFacingError {
             UserFacingError(
                 id: "twitch.keychainUnreadable",
@@ -27,6 +29,8 @@ extension TwitchViewModel {
             )
         }
 
+        /// Sign-in succeeded but the grant couldn't be saved, so it won't
+        /// survive a relaunch.
         static func keychainWriteFailed() -> UserFacingError {
             UserFacingError(
                 id: "twitch.keychainWriteFailed",
@@ -54,6 +58,8 @@ extension TwitchViewModel {
             )
         }
 
+        /// The build has no `TWITCH_CLIENT_ID`; nothing the user does in-app
+        /// can fix it, so the only action is the docs.
         static func missingClientID() -> UserFacingError {
             UserFacingError(
                 id: "twitch.missingClientID",
@@ -66,6 +72,8 @@ extension TwitchViewModel {
             )
         }
 
+        /// The token was rejected (401) or could not be refreshed. Reconnect
+        /// is the fix.
         static func signInExpired() -> UserFacingError {
             UserFacingError(
                 id: "twitch.signInExpired",
@@ -78,6 +86,7 @@ extension TwitchViewModel {
             )
         }
 
+        /// Join was attempted with no stored sign-in.
         static func noCredentials() -> UserFacingError {
             UserFacingError(
                 id: "twitch.noCredentials",
@@ -88,6 +97,9 @@ extension TwitchViewModel {
             )
         }
 
+        /// Local validation of the typed channel failed.
+        ///
+        /// - Parameter reason: The specific rule that failed, shown as the cause.
         static func channelNameInvalid(_ reason: String) -> UserFacingError {
             UserFacingError(
                 id: "twitch.channelNameInvalid",
@@ -97,6 +109,8 @@ extension TwitchViewModel {
             )
         }
 
+        /// Twitch has no user by that login. The name is masked under Streamer
+        /// Mode because this text can be on screen.
         static func channelNotFound(_ channel: String) -> UserFacingError {
             UserFacingError(
                 id: "twitch.channelNotFound",
@@ -123,6 +137,9 @@ extension TwitchViewModel {
             )
         }
 
+        /// Joining chat failed for a reason other than a timeout.
+        ///
+        /// - Parameter detail: The underlying error text, shown as the cause.
         static func connectionFailed(_ detail: String) -> UserFacingError {
             UserFacingError(
                 id: "twitch.connectionFailed",
@@ -134,6 +151,7 @@ extension TwitchViewModel {
             )
         }
 
+        /// Joining chat timed out.
         static func connectionTimedOut() -> UserFacingError {
             UserFacingError(
                 id: "twitch.connectionTimedOut",
@@ -144,6 +162,7 @@ extension TwitchViewModel {
             )
         }
 
+        /// Leaving the previous channel failed while switching channels.
         static func disconnectFailed() -> UserFacingError {
             UserFacingError(
                 id: "twitch.disconnectFailed",
@@ -182,6 +201,8 @@ extension TwitchViewModel {
             )
         }
 
+        /// The signed-in account's user ID couldn't be resolved, so WolfWave
+        /// can't tell which account it posts as.
         static func botIdentityUnresolved() -> UserFacingError {
             UserFacingError(
                 id: "twitch.botIdentityUnresolved",
@@ -192,6 +213,7 @@ extension TwitchViewModel {
             )
         }
 
+        /// The app delegate had no Twitch service to connect with.
         static func serviceUnavailable() -> UserFacingError {
             UserFacingError(
                 id: "twitch.serviceUnavailable",
@@ -215,6 +237,9 @@ extension TwitchViewModel {
             )
         }
 
+        /// Any other device-flow failure.
+        ///
+        /// - Parameter message: Human-readable reason, shown as the cause.
         static func oauth(_ message: String) -> UserFacingError {
             UserFacingError(
                 id: "twitch.oauthFailed",

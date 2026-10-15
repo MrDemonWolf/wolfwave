@@ -10,15 +10,21 @@ import CoreText
 import Network
 import SwiftUI
 
-/// Now-playing widget settings: server port, enable/disable toggle, status, and widget URL.
+/// Stream Widgets pane: the shared server switch, the OBS browser-source link,
+/// widget appearance, and the raw WebSocket feed for custom overlays.
 ///
-/// The view is decomposed into three sibling cards so a state change in one card doesn't
-/// invalidate the others. Network IP discovery is cached in `@State` and refreshed off-main
-/// via `NWPathMonitor` to avoid running `getifaddrs` on every render.
+/// The view is decomposed into four sibling cards so a state change in one card doesn't
+/// invalidate the others. This parent owns only what several cards share: the live server
+/// state (so the header chip and `WebSocketServerCard` can't disagree) and the LAN IP.
+/// Network IP discovery is cached in `@State` and refreshed off-main via `NWPathMonitor`
+/// to avoid running `getifaddrs` on every render.
 struct WebSocketSettingsView: View {
+    /// Shared server switch. Re-keys the refresh `.task` so state and IP are
+    /// re-read after every flip.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    /// State-change animations collapse under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - State
@@ -30,6 +36,8 @@ struct WebSocketSettingsView: View {
     @State private var clientCount: Int =
         AppDelegate.shared?.websocketServer?.connectionCount ?? 0
     @State private var localNetworkIP: String? = NetworkInfoService.cachedIPv4
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
@@ -88,6 +96,7 @@ struct WebSocketSettingsView: View {
 
     // MARK: - Status helpers
 
+    /// Header chip label; shows the client count while listening.
     private var serverStatusText: String {
         switch serverState {
         case .listening:
@@ -101,6 +110,7 @@ struct WebSocketSettingsView: View {
         }
     }
 
+    /// Header chip tint for `serverState`.
     private var serverStatusColor: Color {
         switch serverState {
         case .listening: return DSColor.success
@@ -153,24 +163,36 @@ struct WebSocketSettingsView: View {
 
 // MARK: - Browser Source Card
 
+/// "Widget Setup": the widget HTTP server switch, its port, the OBS
+/// browser-source links (local and LAN), and the recommended OBS size for the
+/// current layout. The widget page needs the WebSocket server on to work, so
+/// its switch is locked until Stream Widgets is on.
 fileprivate struct WebSocketBrowserSourceCard: View {
+    /// The LAN row slides in unless Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Masks the URLs and disables Open / Copy on camera.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// Shared WebSocket server switch.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    /// Widget HTTP server switch (default off). Changes post
+    /// `widgetHTTPServerChanged`.
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
+    /// Applied widget layout; picks the recommended OBS dimensions.
     @AppStorage(AppConstants.UserDefaults.widgetLayout)
     private var widgetLayout = AppConstants.Widget.Defaults.layout
 
+    /// Persisted widget HTTP port; written only by `applyWidgetPort()`.
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
+    /// Port field text; may hold an uncommitted entry until `applyWidgetPort()`.
     @State private var widgetPortText: String = ""
 
     /// Result of the last port commit ("Saved" or "Not saved, kept X"), shown
@@ -181,20 +203,27 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     /// click elsewhere keeps the edit instead of silently discarding it.
     @FocusState private var widgetPortFocused: Bool
 
-    /// Cached read-only overlay token. Seeded once in `.onAppear` so a SwiftUI recompute
+    /// Cached read-only overlay token. Loaded once by `.task` so a SwiftUI recompute
     /// never reaches into the Keychain (which `WebSocketAuthToken.currentOrCreate()`
     /// would otherwise do, with side effects, on every render).
     @State private var currentToken: String = ""
 
+    /// This Mac's LAN IPv4 address; `nil` hides the Network Address row.
     let localNetworkIP: String?
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
+    /// Loopback widget URL. Carries no token: `WidgetHTTPService` injects the
+    /// overlay token itself for literal-loopback requests. A stored port of
+    /// zero or less falls back to the default.
     private var widgetURL: String {
         let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
         return "http://localhost:\(port)"
     }
 
+    /// LAN widget URL. Unlike the loopback link it must carry the token in the
+    /// query, so it stays hidden until the token has loaded.
     private var networkWidgetURL: String? {
         guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
         let port = storedWidgetPort > 0 ? storedWidgetPort : Int(AppConstants.WebSocketServer.widgetDefaultPort)
@@ -214,11 +243,14 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             : "Turn on Stream Widgets to copy."
     }
 
+    /// Whether `widgetPortText` is a port inside the allowed range.
     private var isWidgetPortValid: Bool {
         guard let port = UInt16(widgetPortText) else { return false }
         return port >= AppConstants.WebSocketServer.minPort
             && port <= AppConstants.WebSocketServer.maxPort
     }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s6) {
@@ -240,6 +272,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         }
     }
 
+    /// Section header for the card.
     private var widgetSetupHeader: some View {
         SectionHeaderWithStatus(
             title: "Widget Setup",
@@ -248,6 +281,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         )
     }
 
+    /// Switch, port, links, and the OBS sizing callout.
     private var widgetSetupCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             ToggleSettingRow(
@@ -447,7 +481,10 @@ fileprivate struct WebSocketBrowserSourceCard: View {
 
 // MARK: - Widget Appearance Card
 
+/// Theme, layout, colors, and font for the overlay, edited as a draft with an
+/// explicit Apply (Command-S) / Revert, plus the live web preview.
 fileprivate struct WebSocketWidgetAppearanceCard: View {
+    /// The Apply bar's dirty-state change animates unless Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Applied (persisted) values. These are the source of truth the overlay
@@ -478,8 +515,10 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     /// inside `body`. Keep it lazy + off the main thread.
     @State private var fontFamilies: [String] = []
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
 
+    /// Seeds `draft` from the applied values.
     init() {
         // Seed the draft from whatever's currently applied. The `@AppStorage`
         // wrappers initialize from their declared defaults; only the draft is
@@ -499,8 +538,12 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         )
     }
 
+    /// True when the draft has edits not yet applied. Drives the Apply bar.
     private var isDirty: Bool { draft != applied }
 
+    /// Color-picker binding over `draft.textColor` (a hex string). An
+    /// unparseable stored value shows as white; a color that can't be
+    /// converted to hex is ignored.
     private var textColorBinding: Binding<Color> {
         Binding(
             get: { Color(hex: draft.textColor) ?? .white },
@@ -510,6 +553,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         )
     }
 
+    /// Same as `textColorBinding` for the background, falling back to black.
     private var backgroundColorBinding: Binding<Color> {
         Binding(
             get: { Color(hex: draft.backgroundColor) ?? .black },
@@ -527,6 +571,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             WidgetAppearancePreview(config: draft)
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
+        // Font enumeration is slow; run it once, off the main actor.
         .task {
             guard fontFamilies.isEmpty else { return }
             let families = await Task.detached(priority: .userInitiated) {
@@ -536,6 +581,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         }
     }
 
+    /// Section header for the card.
     private var widgetAppearanceHeader: some View {
         SectionHeaderWithStatus(
             title: "Widget Appearance",
@@ -544,6 +590,8 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
         )
     }
 
+    /// Theme / layout pickers, the color row, and the font picker, all bound
+    /// to `draft`.
     private var widgetAppearanceCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             twoColumnRow {
@@ -658,7 +706,8 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
     }
 
     /// Commit the draft: copy it into the persisted `@AppStorage` values, then
-    /// push the new config to every connected overlay.
+    /// push the new config to every connected overlay. The values are written
+    /// before the broadcast because the server reads them from defaults.
     private func applyChanges() {
         widgetTheme = draft.theme
         widgetLayout = draft.layout

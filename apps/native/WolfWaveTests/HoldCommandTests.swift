@@ -10,6 +10,10 @@ import XCTest
 
 @testable import WolfWave
 
+/// `!hold` / `!resume` / `!unhold`: metadata, the broadcaster/moderator privilege
+/// gate (everyone else gets no reply at all), and that hold mode on the
+/// `SongRequestService` is toggled. Subclasses `WolfWaveTestCase` for the shared
+/// settings lock; `resetAllSettings()` runs around each test.
 @MainActor
 final class HoldCommandTests: WolfWaveTestCase {
 
@@ -27,6 +31,8 @@ final class HoldCommandTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// Chat context for the broadcaster by default, or a moderator when `broadcaster` is false and
+    /// `moderator` true.
     private func privilegedContext(
         broadcaster: Bool = true,
         moderator: Bool = false
@@ -38,6 +44,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// Chat context for a plain viewer (no badges).
     private func viewerContext() -> BotCommandContext {
         BotCommandContext(
             userID: "2", username: "viewer",
@@ -46,6 +53,7 @@ final class HoldCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// A service with an empty queue, an in-memory blocklist, and `MockAppleMusicController`.
     private func makeService() -> SongRequestService {
         SongRequestService(
             queue: SongRequestQueue(),

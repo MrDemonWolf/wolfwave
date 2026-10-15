@@ -8,6 +8,10 @@
 
 import Foundation
 
+/// Managed-reward lifecycle and the redemption EventSub subscriptions: create
+/// or reuse the "Request a Song" reward, reconcile redemptions missed while
+/// offline, subscribe, unpause, and pause it again before credentials are
+/// torn down.
 extension TwitchChatService {
 
     // MARK: - Redemption EventSub Subscriptions
@@ -166,6 +170,13 @@ extension TwitchChatService {
         }
     }
 
+    /// Readies the managed reward before any subscription: ensures it exists,
+    /// pauses it, resolves every redemption left UNFULFILLED while WolfWave
+    /// wasn't listening, and syncs its cost (a cost failure is only logged).
+    ///
+    /// - Returns: The credentials and reward ID to activate with, or `nil` when
+    ///   the session or account changed, or intake storage failed, partway.
+    /// - Throws: Errors from creating or pausing the reward.
     private func prepareManagedRewardForSubscription(
         credentials: TwitchChannelPointsService.Credentials,
         cost: Int,
@@ -228,6 +239,11 @@ extension TwitchChatService {
         return (reconciledCredentials, rewardID)
     }
 
+    /// Subscribes to redemptions of the prepared reward, then unpauses it.
+    /// The reward stays paused unless the subscription succeeded, so viewers
+    /// can't spend points on redemptions nobody is listening for.
+    ///
+    /// - Throws: Errors from unpausing the reward.
     private func activateManagedRewardSubscription(
         credentials: TwitchChannelPointsService.Credentials,
         rewardID: String,
@@ -959,6 +975,9 @@ extension TwitchChatService {
         return true
     }
 
+    /// POSTs the channel-point redemption subscription for this session.
+    ///
+    /// - Returns: `true` when Twitch accepted it.
     private func subscribeToChannelPointsRedemption(
         receiveContext: EventSubReceiveContext? = nil
     ) async -> Bool {
@@ -977,6 +996,9 @@ extension TwitchChatService {
         )
     }
 
+    /// POSTs the `channel.bits.use` subscription for this session. Failure is
+    /// reported through the redemption status banner by
+    /// `postEventSubSubscription`.
     private func subscribeToBitsUse(
         receiveContext: EventSubReceiveContext? = nil
     ) async {

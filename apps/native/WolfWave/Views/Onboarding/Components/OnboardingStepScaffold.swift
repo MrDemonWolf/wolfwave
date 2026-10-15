@@ -15,14 +15,18 @@ import SwiftUI
 /// block is constant-height (icon + fixed-vertical text) and the extras slot
 /// has a floor, the (header + extras) column is the same size on every step,
 /// so balanced top/bottom spacers land the icon at an identical Y offset
-/// across Welcome → Discord → Twitch → … → Completion. Steps whose extras
-/// grow beyond the floor (e.g. Twitch device-code state) push the bottom
-/// spacer down but never shift the header upward.
+/// across the steps that use it (Discord, Twitch, OBS Widget, Preferences,
+/// Permissions, Notifications). Welcome, Menu Bar Pointer, and the completion
+/// screen have their own layouts. Steps whose extras grow beyond the floor
+/// (e.g. Twitch device-code state) push the bottom spacer down but never shift
+/// the header upward.
 struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
 
     // MARK: - Properties
 
+    /// Step headline.
     let title: String
+    /// One or two sentences under the title, capped to a readable width.
     let description: String
 
     /// Shows an "Optional" eyebrow above the title. The line is always laid out
@@ -30,7 +34,11 @@ struct OnboardingStepScaffold<Icon: View, Extras: View>: View {
     /// optional and required steps.
     var isOptional: Bool = false
 
+    /// The step's hero, normally a `BrandTile`.
     @ViewBuilder var icon: () -> Icon
+    /// Step-specific controls under the header. Gets a minimum height of
+    /// `DSDimension.Onboarding.stepContentMinHeight` so short extras don't move
+    /// the header.
     @ViewBuilder var extras: () -> Extras
 
     // MARK: - Body

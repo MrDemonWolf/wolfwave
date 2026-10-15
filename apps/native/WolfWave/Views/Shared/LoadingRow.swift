@@ -18,6 +18,7 @@ struct LoadingRow: View {
 
     // MARK: - Properties
 
+    /// The waiting message; also the row's VoiceOver label.
     let text: String
 
     // MARK: - Body

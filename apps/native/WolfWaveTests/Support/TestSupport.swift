@@ -285,30 +285,38 @@ nonisolated final class InspectableKeychainBackend: KeychainBackend, @unchecked 
     private var nextDeleteAllStatus: Int32?
     private var loadedAccounts: [String] = []
 
+    /// Makes the next `save` for `account` throw once.
     func failNextSave(for account: String) {
         lock.withLock { nextFailingSaveAccount = account }
     }
 
+    /// Makes the next `load` for `account` throw `loadFailed(status)` once. The default status is
+    /// `errSecInteractionNotAllowed`.
     func failNextLoad(for account: String, status: Int32 = -25308) {
         lock.withLock { nextFailingLoad = (account, status) }
     }
 
+    /// Makes the next `delete` for `account` throw `deleteFailed(status)` once.
     func failNextDelete(for account: String, status: Int32 = -25308) {
         lock.withLock { nextFailingDelete = (account, status) }
     }
 
+    /// Makes the next `deleteAll` throw `deleteFailed(status)` once.
     func failNextDeleteAll(status: Int32 = -25308) {
         lock.withLock { nextDeleteAllStatus = status }
     }
 
+    /// Stores a value directly, bypassing failure injection and load counting.
     func seed(account: String, value: String) {
         lock.withLock { store[account] = value }
     }
 
+    /// Reads a stored value without counting it as a load.
     func rawValue(account: String) -> String? {
         lock.withLock { store[account] }
     }
 
+    /// How many times `load` was called for `account`.
     func loadCount(account: String) -> Int {
         lock.withLock { loadedAccounts.filter { $0 == account }.count }
     }

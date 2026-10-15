@@ -16,6 +16,7 @@ import { useCyclingTrack, cyclingPauseHandlers, demoVisibilityRef } from "./useC
  * features. No praise lines: on a marketing page they read as testimonials.
  */
 
+/** Twitch chat dark-theme palette (fixed; the widget ignores the site theme). */
 const TW = {
   bg: "#18181b",
   header: "#1f1f23",
@@ -29,6 +30,7 @@ const TW = {
 // (white text 3.65:1) to #0A6CD6 (5.09:1) so the BOT label clears WCAG AA.
 const BOT = { color: "#3aa0ff", badge: { label: "BOT", bg: "#0A6CD6" } };
 
+/** One rendered chat line; `id` is the React key and increases monotonically. */
 interface Msg {
   id: number;
   user: string;
@@ -36,20 +38,26 @@ interface Msg {
   body: ReactNode;
   badge?: { label: string; bg: string };
 }
+/** A message before it is assigned an id. */
 type Line = Omit<Msg, "id">;
+/** Live track context handed to script steps at fire time. */
 interface Ctx {
   cur: SampleTrack;
   last: SampleTrack;
 }
 
+/** Song titles viewers "request" in the script; drawn from the shared sample list. */
 const REQUESTS = SAMPLE_TRACKS.map((t) => t.title);
 
+/** Builds a viewer chat line. */
 function v(user: string, color: string, body: ReactNode): Line {
   return { user, color, body };
 }
+/** Builds a WolfWave bot reply line (BOT badge, brand color). */
 function bot(body: ReactNode): Line {
   return { user: "WolfWave", color: BOT.color, badge: BOT.badge, body };
 }
+/** Bot reply body for `!song` style answers. */
 function nowPlaying(t: SampleTrack): ReactNode {
   return (
     <>
@@ -58,6 +66,7 @@ function nowPlaying(t: SampleTrack): ReactNode {
   );
 }
 
+/** The sample track after `t`, wrapping around (used for the queue reply). */
 function nextTrack(t: SampleTrack): SampleTrack {
   const i = SAMPLE_TRACKS.findIndex((s) => s.title === t.title);
   return SAMPLE_TRACKS[(i + 1) % SAMPLE_TRACKS.length];
@@ -140,6 +149,7 @@ function buildSeed(ctx: Ctx): { msgs: Msg[]; lastId: number; nextStep: number } 
   return { msgs, lastId: id, nextStep: Math.max(...SEED_STEPS) + 1 };
 }
 
+/** Small colored chat badge (e.g. BOT) shown before the username. */
 function Badge({ label, bg }: { label: string; bg: string }) {
   return (
     <span
@@ -163,6 +173,7 @@ function Badge({ label, bg }: { label: string; bg: string }) {
   );
 }
 
+/** One chat row: optional badge, colored username, message body. */
 function ChatLine({ msg }: { msg: Msg }) {
   return (
     <div className="ww-tw-line" style={{ fontSize: 13, lineHeight: 1.5 }}>
@@ -174,6 +185,10 @@ function ChatLine({ msg }: { msg: Msg }) {
   );
 }
 
+/**
+ * The chat window itself. Streams the scripted lines while the shared demo is
+ * running; `viewportHeight` is the fixed pixel height of the message area.
+ */
 export function TwitchChatPreview({
   viewportHeight = 300,
 }: { viewportHeight?: number } = {}) {

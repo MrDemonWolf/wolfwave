@@ -142,6 +142,12 @@ private actor PlaybackTargetCaptureGate {
     }
 }
 
+/// Chat vote-to-skip: the `SkipVoteManager` session state machine.
+/// Covers the feature gate, vote counting and de-duplication, the subscriber-only
+/// gate, threshold and window expiry, session cooldown, Twitch Polls mode, and the
+/// actor-reentrancy races (track change mid-vote) driven by the gate actors above.
+/// Subclasses `WolfWaveTestCase`, so it runs under `SharedTestStateIsolation`;
+/// `setUp`/`tearDown` also clear every vote-skip key in `DefaultsStore.store`.
 @MainActor
 final class SkipVoteManagerTests: WolfWaveTestCase {
 
@@ -167,6 +173,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     // MARK: - Helpers
 
+    /// Chat context for `user<userID>` with the given badges.
     private func context(
         userID: String,
         isSubscriber: Bool = false,
@@ -184,6 +191,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         )
     }
 
+    /// Turns vote-skip on and writes its threshold, session cooldown (seconds), and window
+    /// (seconds) to `DefaultsStore.store`.
     private func enableFeature(minVotes: Int = 3, cooldown: Double = 0, window: Int = 60) {
         let d = DefaultsStore.store
         d.set(true, forKey: AppConstants.UserDefaults.voteSkipEnabled)
@@ -483,6 +492,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         )
     }
 
+    /// The manager is reentrant while it awaits the playback-target capture. A track change
+    /// landing in that gap must make the first vote fail with `.playbackUnavailable` and
+    /// leave no chat session open for the new track.
     func testTrackChangeDuringChatTargetCaptureDoesNotOpenSession() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
@@ -510,6 +522,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(state)
     }
 
+    /// Same gap as above, but `reset()` lands during capture: the late vote must not reopen a
+    /// session.
     func testResetDuringChatTargetCaptureDoesNotReopenSession() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
@@ -537,6 +551,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(state)
     }
 
+    /// Poll mode: a track change during target capture returns `.pollTrackChanged` and the
+    /// Twitch poll is never created.
     func testTrackChangeDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -571,6 +587,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active)
     }
 
+    /// Poll mode: `reset()` during target capture returns `.pollRequestCancelled` and no poll is
+    /// created.
     func testResetDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -605,6 +623,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active)
     }
 
+    /// Two moderators vote while both are parked in target capture. Only one creates a poll
+    /// (`.pollStarted`); the other gets `.pollInProgress`, since Twitch allows one active poll.
     func testConcurrentModeratorVotesCreateOnlyOnePoll() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -641,6 +661,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertEqual(createCalls.value, 1)
     }
 
+    /// The mode setting is re-read after capture: switching to Polls mid-capture means the
+    /// chat-tally vote started under the old mode is abandoned (`.playbackUnavailable`, no
+    /// session).
     func testChatModeToggleDuringTargetCaptureDoesNotOpenTally() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
@@ -668,6 +691,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(state)
     }
 
+    /// Mirror of the chat toggle test: turning Polls mode off mid-capture cancels the poll request.
     func testPollModeToggleDuringTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -702,6 +726,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active)
     }
 
+    /// Once a poll exists on Twitch it stays latched: turning Polls mode off afterwards does
+    /// not let a chat tally start beside it (the next vote is `.pollInProgress`).
     func testActivePollBlocksChatTallyAfterPollModeIsDisabled() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -730,6 +756,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(chatState)
     }
 
+    /// A poll that ends after vote-skip was switched off is drained but must not skip the track,
+    /// even with a winning tally.
     func testPollEndDrainsWithoutSkippingAfterFeatureIsDisabled() async {
         enableFeature(minVotes: 1)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -758,6 +786,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active)
     }
 
+    /// Disabling the feature during target capture yields `.disabled` and no open session.
     func testFeatureDisableDuringChatTargetCaptureDoesNotOpenTally() async {
         enableFeature(minVotes: 3)
         let manager = SkipVoteManager()
@@ -785,6 +814,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertNil(state)
     }
 
+    /// Disabling the feature during target capture yields `.disabled` and creates no poll.
     func testFeatureDisableDuringPollTargetCaptureDoesNotCreatePoll() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -911,6 +941,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertTrue(chatMessages.value.isEmpty)
     }
 
+    /// When poll creation's result is unknown (`.indeterminate`) the poll may exist on Twitch,
+    /// so the manager latches as in-progress (blocks a chat fallback tally) until its timeout
+    /// (shortened to 50 ms here) clears it; only then may another attempt create a poll.
     func testIndeterminatePollCreationLatchesUntilTimeoutAndBlocksFallback() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -972,6 +1005,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertTrue(skipped.value)
     }
 
+    /// A passing poll skips the track captured when it opened, not whatever plays now. If
+    /// that mutation is stale (the skip reports false after the supplied target changed), no
+    /// success chat message or `.passed` event is emitted.
     func testPollPassUsesOpeningTargetAndDoesNotClaimSuccessWhenMutationIsStale() async {
         enableFeature(minVotes: 1)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1007,6 +1043,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertTrue(events.value.isEmpty)
     }
 
+    /// Same for the chat tally: the skip is applied to the opening target, and a stale
+    /// mutation yields `.skipUnavailable` with only the `started` event.
     func testChatTallyBindsOpeningTargetAndDoesNotReportPassedForStaleMutation() async {
         enableFeature(minVotes: 2)
         let manager = SkipVoteManager()
@@ -1073,6 +1111,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(skipped.value)
     }
 
+    /// A `poll.end` for some other poll id is ignored: the active poll, its timer, and the
+    /// track are untouched. The right id then drains it.
     func testWrongPollIDDoesNotClearOrApplyActivePoll() async {
         enableFeature(minVotes: 1)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1121,6 +1161,9 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active, "The matching stale poll result should still drain active state")
     }
 
+    /// A poll that was created on Twitch while the track changed stays latched (Twitch
+    /// allows one poll at a time, so no chat tally fallback) and its eventual result never skips
+    /// the new track.
     func testTrackChangeDuringPollCreationRetainsSuccessfulRemotePollUntilDrain() async {
         enableFeature(minVotes: 1)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1159,6 +1202,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(drained)
     }
 
+    /// If poll creation definitively fails after the track already changed, the outgoing track's
+    /// failure must not seed a chat vote on the new track.
     func testTrackChangeDuringFailedPollCreationDoesNotFallbackVote() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1186,6 +1231,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         XCTAssertFalse(active)
     }
 
+    /// Disabling the feature while a poll creation is failing returns `.disabled`: no chat
+    /// fallback, no skip, no chat message.
     func testDisableDuringDefinitivePollFailureDoesNotFallbackOrSkip() async {
         enableFeature(minVotes: 1)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)
@@ -1230,6 +1277,8 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
 
     // MARK: - Polls Mode Timeout Fallback
 
+    /// `reset()` during poll creation returns `.pollRequestCancelled` quietly, with no fallback
+    /// tally and no chat message.
     func testResetDuringPollCreationReturnsSilentCancellationWithoutFallback() async {
         enableFeature(minVotes: 3)
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.voteSkipUsePolls)

@@ -20,6 +20,15 @@ import SwiftUI
 /// - Re-authentication state tracking
 ///
 /// All operations are @MainActor marked for UI thread safety.
+///
+/// Concurrency model: OAuth and join each run in one owned `Task`, fenced by a
+/// generation counter (`oauthGeneration`, `joinGeneration`) so a superseded
+/// flow can never write UI state or credentials after a newer one starts.
+/// Account transitions (sign-in, sign-out, re-auth) always leave the old
+/// service before the Keychain grant changes, and set
+/// `isAccountTeardownInProgress` while they do, which locks out new flows.
+/// The validation scheduler is owned by `AppDelegate`; this type only stops or
+/// restarts it through the injected closures.
 @MainActor
 @Observable
 final class TwitchViewModel {
@@ -29,8 +38,13 @@ final class TwitchViewModel {
     /// UI surface that presented a device-code flow. The shared view model uses
     /// this to ensure one window disappearing cannot cancel another window lifecycle.
     enum OAuthPresentationOwner: Equatable {
+        /// A Settings window presentation, keyed by a per-presentation UUID.
         case settings(UUID)
+        /// An onboarding wizard presentation.
         case onboarding(UUID)
+        /// Default when no presenting surface is named (no production caller
+        /// passes it today). Settings and onboarding cancels, which pass
+        /// their own owner, never match it.
         case unspecified
     }
 
@@ -38,10 +52,15 @@ final class TwitchViewModel {
 
     /// State of the channel name validation check.
     enum ChannelValidationState: Equatable {
+        /// No check has run for the current text.
         case idle
+        /// A Helix lookup is in flight.
         case validating
+        /// Twitch confirmed the channel exists.
         case valid
+        /// The name is malformed or Twitch has no such user.
         case invalid
+        /// The lookup itself failed; the message says why (shown inline).
         case error(String)
     }
 
@@ -49,7 +68,8 @@ final class TwitchViewModel {
 
     /// The bot account's Twitch username, resolved after OAuth completes.
     var botUsername = ""
-    /// The raw OAuth token used for Twitch API calls.
+    /// The raw OAuth token, mirrored from the stored grant. Not rendered; the
+    /// join path reads the token from `TwitchCredentialStore` instead.
     var oauthToken = ""
     /// The target Twitch channel name the bot connects to.
     var channelID = ""
@@ -83,10 +103,16 @@ final class TwitchViewModel {
 
     /// Tracks where the user is in the OAuth Device Code flow.
     enum AuthState: Equatable {
+        /// No flow running.
         case idle
+        /// Asking Twitch for a device code.
         case requestingCode
+        /// Code on screen; polling until the user approves it.
         case waitingForAuth(userCode: String, verificationURI: String)
+        /// Approved; saving the grant and resolving identity.
         case inProgress
+        /// The flow failed. The message is for logs and tests; the user sees
+        /// `connectionError`.
         case error(String)
 
         /// Whether the flow is actively running (requesting, waiting, or exchanging).
@@ -112,9 +138,13 @@ final class TwitchViewModel {
 
     /// High level integration states consumed by the UI to simplify view logic
     enum IntegrationState: Equatable {
+        /// No stored grant and no flow running: show the sign-in button.
         case notConnected
+        /// A device-code flow is running.
         case authorizing
+        /// Signed in (joined or not).
         case connected
+        /// `authState` is `.error`; carries its message.
         case error(String)
     }
 
@@ -257,6 +287,8 @@ final class TwitchViewModel {
     /// Owns the current validate+join pipeline so logout/account replacement can
     /// cancel it before clearing credentials and leaving the actor service.
     @ObservationIgnored private var joinTask: Task<Void, Never>?
+    /// Bumped on every join start or cancel; a join task only writes UI state
+    /// while its captured generation is still current.
     @ObservationIgnored private var joinGeneration: UInt64 = 0
     /// Fences identity completion from overwriting a newer channel text edit.
     @ObservationIgnored private var channelDraftGeneration: UInt64 = 0
@@ -286,12 +318,30 @@ final class TwitchViewModel {
     /// teardown is still awaiting actor-owned refresh/socket cleanup.
     private(set) var isAccountTeardownInProgress = false
 
-    /// Tracked notification observer tokens for proper cleanup
+    /// Observer for `twitchReauthNeededChanged`; registered once by
+    /// `loadSavedCredentials()`, removed in `deinit`.
     @ObservationIgnored private var reauthObserver: NSObjectProtocol?
+    /// Observer for `TwitchChatService.connectionStateChanged`; same lifecycle.
     @ObservationIgnored private var connectionObserver: NSObjectProtocol?
 
     // MARK: - Initialization
 
+    /// Creates a view model. Every parameter is a seam for tests; production
+    /// uses the defaults, which call into `AppDelegate`, `TwitchChatService`,
+    /// and the credential stores. Picks up the running chat service (if any)
+    /// and starts observing its connection state immediately.
+    ///
+    /// - Parameters:
+    ///   - cancelTokenValidationSchedule: Stops the app-lifetime token validator.
+    ///   - restartTokenValidationSchedule: (Re)starts it for the stored grant.
+    ///   - twitchClientIDProvider: Client ID for joins and validation.
+    ///   - makeOAuthClient: Builds the device-flow client, or `nil` when the
+    ///     build has no client ID.
+    ///   - resolveBotIdentity: Looks up and stores the signed-in account's
+    ///     login and user ID for a credential revision.
+    ///   - leaveAccountService: Leaves the channel for an account transition;
+    ///     returns `false` when teardown wasn't safe (for example an unresolved
+    ///     channel-points reward), in which case credentials must be kept.
     init(
         cancelTokenValidationSchedule: @escaping @MainActor @Sendable () -> Void = {
             AppDelegate.shared?.cancelTwitchBootValidation()
@@ -357,6 +407,10 @@ final class TwitchViewModel {
 
     /// Cancels the active OAuth flow, waits for its old-account leave boundary,
     /// then restores validation only if no newer flow superseded this cancel.
+    ///
+    /// No-op when `owner` or `expectedGeneration` doesn't match the current
+    /// flow, or once the grant has been durably committed (identity
+    /// finalization must not be interrupted).
     func cancelOAuth(
         ifOwnedBy owner: OAuthPresentationOwner? = nil,
         expectedGeneration: UInt64? = nil
@@ -406,7 +460,7 @@ final class TwitchViewModel {
 
     // MARK: - Computed Properties
 
-    /// Status chip text based on current state
+    /// Header chip text. Precedence: expired, joined, signed in, signed out.
     var statusChipText: String {
         if reauthNeeded { return "Sign-in expired" }
         if channelConnected { return "Connected" }
@@ -414,7 +468,7 @@ final class TwitchViewModel {
         return "Not signed in"
     }
 
-    /// Status chip color based on current state
+    /// Header chip tint, same precedence as `statusChipText`.
     var statusChipColor: Color {
         if reauthNeeded { return DSColor.warning }
         if channelConnected { return DSColor.success }
@@ -430,6 +484,9 @@ final class TwitchViewModel {
     /// Loads saved credentials from macOS Keychain.
     ///
     /// Also loads the reauth needed flag and sets up notification observers for auth state changes.
+    /// The credential read happens only once per instance (so a second surface can't overwrite a
+    /// live channel draft); a Keychain read error keeps the current UI values, surfaces
+    /// `Failure.keychainUnreadable()`, and leaves the load eligible to run again.
     func loadSavedCredentials() {
         guard !hasLoadedSavedCredentials else { return }
         do {
@@ -487,6 +544,9 @@ final class TwitchViewModel {
     }
 
     /// Updates connection UI state from extracted notification values.
+    /// A disconnect with an error message maps to a timeout or generic
+    /// connection failure; a silent disconnect while expired maps to
+    /// `signInExpired`; a plain disconnect shows nothing.
     private func handleTwitchConnectionState(isConnected: Bool?, errorMessage: String?) {
         guard let isConnected else {
             Log.error(
@@ -549,8 +609,8 @@ final class TwitchViewModel {
     ///
     /// Cancellation:
     /// - Cancels any previous OAuth flow before starting new one
-    /// - Device polling can be cancelled independently
-    /// - Cancellation errors are ignored; UI shows "cancelled" status
+    /// - Request and polling share one task, so cancelling it stops both
+    /// - A `CancellationError` resets to `.idle` with an "Authorization cancelled" progress line
     ///
     /// UI State Updates:
     /// - authState cycles: idle -> requestingCode -> waitingForAuth -> inProgress, then
@@ -565,9 +625,15 @@ final class TwitchViewModel {
     /// - Timeout: Polling stops at Twitch's original device-code expiry deadline
     ///
     /// Dependencies:
-    /// - Requires TWITCH_CLIENT_ID environment variable in Xcode scheme
+    /// - Requires a `TWITCH_CLIENT_ID` baked into Info.plist (from `Config.xcconfig`)
     /// - Requires internet connectivity
     ///
+    /// Before requesting a code it leaves the current account's service and
+    /// supersedes the stored credential revision, so the old account can't keep
+    /// running under the new grant. Ignored while an account teardown is running.
+    ///
+    /// - Parameter owner: The presenting surface. Only that surface's
+    ///   `requestOAuthCancellation(ifOwnedBy:)` can cancel this flow.
     func startOAuth(owner: OAuthPresentationOwner = .unspecified) {
         guard !isAccountTeardownInProgress else { return }
         // A new attempt starts clean: an old failure must not sit above a
@@ -697,6 +763,16 @@ final class TwitchViewModel {
     }
 
     /// Clears all stored Twitch credentials and resets state.
+    ///
+    /// Order: stop validation and cancel in-flight join / OAuth, invalidate the
+    /// refresh session, leave the service, then delete the Keychain grant
+    /// (channel included). If leaving or deleting fails, credentials are kept,
+    /// validation is restored, and a retry banner is shown.
+    ///
+    /// - Parameter discardOpaqueRedemptionRecovery: Allow leaving even when
+    ///   paid-redemption recovery state can't be resolved. Only the factory
+    ///   reset passes `true`.
+    /// - Returns: `true` when the account was fully signed out.
     @discardableResult
     func clearCredentials(
         discardOpaqueRedemptionRecovery: Bool = false
@@ -751,6 +827,9 @@ final class TwitchViewModel {
 
     /// Clears OAuth credentials and bot identity without touching the channel name.
     /// Use for re-authentication flows where the target channel should be preserved.
+    /// Same teardown order and failure handling as `clearCredentials`.
+    ///
+    /// - Returns: `true` when the old grant was removed and a new sign-in may start.
     @discardableResult
     func clearAuthOnly() async -> Bool {
         guard !isAccountTeardownInProgress else { return false }
@@ -823,9 +902,13 @@ final class TwitchViewModel {
     /// - All updates dispatched to @MainActor
     ///
     /// Error Handling:
-    /// - ConnectionError subclasses for specific failures (auth, network, config)
-    /// - Generic errors from system are caught and displayed
-    /// - Errors are logged; UI shows user-friendly messages
+    /// - Local checks (empty, too long, bad characters, no client ID, no
+    ///   grant) fail synchronously with a `connectionError`
+    /// - Lookup results map to `channelValidationState` plus a matching banner
+    /// - `TwitchChatService.ConnectionError` and other errors become
+    ///   `Failure.connectionFailed`
+    /// - A cancelled or superseded join (newer join, teardown, credential
+    ///   change) exits silently
     ///
     /// The canonical channel remains unchanged if validation or safe teardown
     /// fails, so reconnect owners never observe an unvalidated draft.
@@ -1012,20 +1095,15 @@ final class TwitchViewModel {
         setReauthFlag(true)
     }
 
-    /// Leaves the connected Twitch channel and closes EventSub connection.
+    /// Leaves the connected Twitch channel and closes the EventSub connection,
+    /// keeping the account signed in.
     ///
-    /// Cleanup:
-    /// - Calls TwitchChatService.leaveChannel() for clean disconnection
-    /// - Closes EventSub WebSocket with .goingAway code
-    /// - Sets channelConnected = false
+    /// Runs `TwitchChatService.leaveChannel()` on a task. On success sets
+    /// `channelConnected = false`; if the service reports the leave wasn't safe,
+    /// shows `Failure.disconnectFailed()` and leaves the flag alone. With no
+    /// service it just clears the flag.
     ///
-    /// Thread Safety: Safe to call from any thread; dispatches to service on proper queue.
-    ///
-    /// Side Effects:
-    /// - onMessageReceived callbacks will stop being called
-    /// - Pending sends are discarded
-    /// - Connection state notifications are posted
-    ///
+    /// Main-actor isolated like the rest of the type.
     func leaveChannel() {
         guard let service = twitchService else {
             channelConnected = false
@@ -1095,6 +1173,8 @@ final class TwitchViewModel {
         case accountSwitch
     }
 
+    /// Surfaces a failed account teardown: the purpose-specific banner plus
+    /// `authState = .error` so the card leaves its in-progress state.
     private func showAccountTeardownRetry(_ purpose: AccountTeardownPurpose) {
         let message = "Could not safely disconnect Twitch. Please try again."
         switch purpose {
@@ -1106,6 +1186,8 @@ final class TwitchViewModel {
         authState = .error(message)
     }
 
+    /// Surfaces a Keychain delete failure during sign-out or re-auth. The
+    /// account is still signed in at this point.
     private func showCredentialDeletionRetry(_ error: Error) {
         let message = "Could not clear saved Twitch credentials. Please try again."
         connectionError = Failure.credentialClearFailed()
@@ -1161,9 +1243,21 @@ final class TwitchViewModel {
     /// re-auth flag, and resolves the bot identity (username + user ID) via
     /// Helix so subsequent EventSub subscriptions have everything they need.
     ///
+    /// If a channel is pending (a restored backup's hint, else the visible
+    /// field), it is validated with the new token first and committed together
+    /// with the grant only when Twitch confirms it exists. A failed check keeps
+    /// the sign-in and shows the reason.
+    ///
     /// - Parameters:
-    ///   - token: New OAuth access token.
+    ///   - grant: Token response from the device flow; must carry a refresh token.
     ///   - clientID: Twitch developer client ID used to mint the token.
+    ///   - generation: The OAuth generation that produced the grant; any
+    ///     mismatch means a newer flow owns the UI and this one bails.
+    ///   - credentialRevision: Revision from `supersede()`; the commit is a
+    ///     compare-and-swap against it.
+    /// - Returns: `true` when this method settled token-validation ownership
+    ///   (so the caller's `defer` must not restore it again); `false` only when
+    ///   it bailed before doing anything.
     @discardableResult
     func handleOAuthSuccess(
         grant: TwitchTokenResponse,
@@ -1345,7 +1439,9 @@ final class TwitchViewModel {
     /// protocol behaving normally. Rendering those as errors made a healthy
     /// sign-in look broken.
     ///
-    /// - Parameter error: Failure produced by the device-code OAuth flow.
+    /// - Parameters:
+    ///   - error: Failure produced by the device-code OAuth flow.
+    ///   - generation: The flow that failed; ignored if superseded.
     private func handleOAuthError(
         _ error: TwitchDeviceAuthError,
         generation: UInt64

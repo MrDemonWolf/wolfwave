@@ -12,6 +12,7 @@ import Foundation
 
 // MARK: - Context Fixture
 
+/// Chat context for `username` with the given badges. The user id is fixed at "123".
 private func makeContext(
     username: String = "viewer",
     isModerator: Bool = false,
@@ -32,6 +33,7 @@ private func makeContext(
 
 // MARK: - Permission
 
+/// `CommandPermission` gating: which chat roles each level admits.
 @Suite("CommandPermission")
 struct CommandPermissionTests {
 
@@ -76,6 +78,9 @@ struct CommandPermissionTests {
 
 // MARK: - Renderer
 
+/// `CustomCommandRenderer` variable substitution (`$user`, `$touser`, `$args`,
+/// `$1`-`$9`, `$song`, `$lastsong`), literal insertion of user-controlled tokens,
+/// neutralized leading command punctuation, and truncation to Twitch's limit.
 @Suite("CustomCommandRenderer")
 struct CustomCommandRendererTests {
 
@@ -166,6 +171,8 @@ struct CustomCommandRendererTests {
 
 // MARK: - Normalization
 
+/// Trigger/alias normalization, and how whitespace-containing triggers are
+/// refused on import but repaired when already in storage.
 @Suite("CustomCommand normalization")
 struct CustomCommandNormalizationTests {
 
@@ -231,6 +238,8 @@ struct CustomCommandNormalizationTests {
 
 // MARK: - Command execution
 
+/// `CustomBotCommand`, the `AsyncBotCommand` adapter rebuilt from a `CustomCommand` definition per
+/// message.
 @Suite("CustomBotCommand")
 @MainActor
 struct CustomBotCommandTests {
@@ -269,10 +278,15 @@ struct CustomBotCommandTests {
 
 // MARK: - Store
 
+/// `CustomCommandStore` persistence and the single `validationIssue(for:)` draft
+/// check. The `.isolatedSharedTestState` trait serializes it against every other
+/// suite that touches `DefaultsStore.store`.
 @Suite("CustomCommandStore", .isolatedSharedTestState)
 @MainActor
 struct CustomCommandStoreTests {
 
+    /// A store backed by a uniquely named throwaway `UserDefaults` suite, returned with it so a
+    /// test can inspect or reload from it.
     private func makeStore() -> (CustomCommandStore, UserDefaults) {
         let suite = "test.customcommands.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -498,6 +512,8 @@ struct CustomCommandStoreTests {
     }
 }
 
+/// `ReplyDelivery`: stable raw values (they are storage keys), distinct labels, and the `.reply`
+/// default.
 @Suite("ReplyDelivery")
 struct ReplyDeliveryTests {
     @Test("raw values are stable storage keys")

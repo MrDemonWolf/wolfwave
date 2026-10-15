@@ -10,6 +10,9 @@ import XCTest
 
 @testable import WolfWave
 
+/// `SettingsBackupService` export/import orchestration: file limits, validation, apply ordering,
+/// and side effects. `setUp` swaps in an `InMemoryKeychainBackend` and restores the previous one in
+/// a teardown block; `WolfWaveTestCase` holds the shared-state lock for the duration.
 @MainActor
 final class SettingsBackupServiceTests: WolfWaveTestCase {
 
@@ -36,6 +39,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         }
     }
 
+    /// Applying a backup posts one `websocketServerChanged` notification carrying the fully
+    /// resolved overlay config: port 0 resolves to the default WebSocket port, and the widget
+    /// port and enabled flags come through. Uses a private `NotificationCenter` and defaults suite.
     func testApplyBroadcastsCompleteResolvedOverlayConfiguration() async {
         let suiteName = "SettingsBackupServiceTests.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
@@ -105,6 +111,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         XCTAssertEqual(backup.integrations.twitch?.channelName, "canonical_channel")
     }
 
+    /// Custom commands and the blocklist survive export then import through their live owners
+    /// (`CustomCommandStore`, `SongBlocklist`), replacing stale local data, in memory and in
+    /// persisted storage.
     func testBackupRoundTripsPortableCollectionsThroughLiveOwners() async throws {
         let suiteName = "SettingsBackupCollections." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -202,6 +211,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// After an import, adds a command and a blocklist entry through the live owners and
+    /// checks the persisted commands are the imported ones plus the new one, and the persisted
+    /// blocklist holds both the imported entry and the new entry.
     private func assertSubsequentMutationsRetainImportedState(
         commandStore: CustomCommandStore,
         blocklist: SongBlocklist,
@@ -238,6 +250,8 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         })
     }
 
+    /// Malformed command or blocklist payloads are ignored before reaching the owners (zero
+    /// replace calls), so live and persisted data are unchanged and both are counted as ignored.
     func testMalformedPortableCollectionsPreserveLiveAndPersistedState() async throws {
         let suiteName = "SettingsBackupMalformedCollections." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -308,6 +322,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// Importing Song Requests as enabled while setup is incomplete turns them off immediately,
+    /// before the (suspended) blocklist replacement finishes, so requests are never live without
+    /// their blocklist.
     func testApplyDisablesUnsafeSongRequestsBeforePortableOwnerSuspends() async throws {
         let suiteName = "SettingsBackupSongRequestSafety." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -370,6 +387,8 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// An imported Twitch channel is staged only as a pending hint. The stored grant is
+    /// unchanged, the legacy channel key is cleared, and the re-auth flag is raised.
     func testTwitchImportStagesPendingChannelWithoutMutatingCanonicalGrant() async throws {
         let suiteName = "SettingsBackupPendingChannel.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -412,6 +431,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.twitchReauthNeeded))
         XCTAssertEqual(KeychainService.loadTwitchCredentialGrant(), original)
     }
+    /// Launch at Login, appearance, and update preferences are pushed through the injected
+    /// `SideEffects` (the real login item, `NSApp`, and Sparkle are never touched) and counted as
+    /// restored.
     func testApplyEnactsSystemBackedPreferences() async throws {
         let suiteName = "SettingsBackupServiceTests.sideEffects.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -465,6 +487,8 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         XCTAssertTrue(summary.warnings.isEmpty)
     }
 
+    /// If the system refuses the login-item change, the stored value reverts to off, nothing
+    /// counts as restored, and a warning explains it.
     func testApplyReconcilesRejectedLaunchAtLoginChange() async throws {
         let suiteName = "SettingsBackupServiceTests.loginFailure.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -507,6 +531,8 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
             ["Launch at Login couldn't be restored and remains off."]
         )
     }
+    /// A login item that needs approval in System Settings is kept on and counted, with a warning
+    /// about approval.
     func testApplyCountsPendingLaunchAtLoginAndWarnsAboutSystemApproval() async {
         let suiteName = "SettingsBackupServiceTests.loginApproval.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
@@ -542,6 +568,8 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         )
     }
 
+    /// Song Request settings are neither previewed nor restored on a Mac whose Song Request
+    /// setup is incomplete; the key is forced off, ignored, and a warning is given.
     func testSongRequestsAreNotPreviewedOrRestoredBeforeSetupCompletes() async {
         let suiteName = "SettingsBackupServiceTests.songRequestSetup.\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
@@ -589,6 +617,7 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         XCTAssertTrue(summary.warnings.isEmpty)
     }
 
+    /// A backup of the current format with the given settings and no Twitch integration.
     private func makeBackup(settings: [String: BackupValue]) -> SettingsBackup {
         SettingsBackup(
             format: SettingsBackup.currentFormat,
@@ -602,6 +631,7 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
     }
 }
 
+/// Parks a caller in `suspend()` until `resume()`, so a test can hold an import step open.
 private actor SettingsBackupAsyncGate {
     private(set) var suspended = false
     private var released = false

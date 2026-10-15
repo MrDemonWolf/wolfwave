@@ -8,11 +8,23 @@
 
 import Foundation
 
+/// Token validation, identity lookup, and channel-name resolution. Every call
+/// here is a read against Twitch; none of them change the joined channel.
 extension TwitchChatService {
 
     // MARK: - Bot Identity
 
     /// Static method to resolve bot identity without an instance.
+    ///
+    /// Looks up the account that owns `token` and commits its user ID and
+    /// display name into the stored Keychain grant. Used by `TwitchViewModel`
+    /// after sign-in. Builds a throwaway service for the request.
+    ///
+    /// - Parameter credentialRevision: Grant revision to commit against. When
+    ///   `nil`, the revision currently stored for `token` is used.
+    /// - Throws: `ConnectionError` for empty input or a failed lookup;
+    ///   `CancellationError` when no grant matches `token`, or the grant
+    ///   changed before the commit (another sign-in won).
     static func resolveBotIdentityStatic(
         token: String,
         clientID: String,
@@ -48,6 +60,9 @@ extension TwitchChatService {
     }
 
     /// Resolves the Twitch Client ID from Info.plist (set via Config.xcconfig at build time).
+    ///
+    /// An unexpanded `$(...)` placeholder counts as missing. Falls back to the
+    /// `TWITCH_CLIENT_ID` environment variable, then `nil`.
     nonisolated static func resolveClientID() -> String? {
         if let plistValue = Bundle.main.object(forInfoDictionaryKey: "TWITCH_CLIENT_ID") as? String,
            !plistValue.isEmpty,
@@ -61,6 +76,12 @@ extension TwitchChatService {
     }
 
     /// Fetches the bot's identity (user ID and usernames) from Twitch.
+    ///
+    /// Calls `GET /helix/users` with no query, which returns the token's owner.
+    /// A missing display name falls back to the login.
+    ///
+    /// - Throws: `ConnectionError.authenticationFailed` on 401, otherwise
+    ///   `.networkError` (including an empty `data` array).
     func fetchBotIdentity(token: String, clientID: String) async throws -> BotIdentity {
         guard let url = URL(string: apiBaseURL + "/users") else {
             Log.error("TwitchChatService: Failed to construct users endpoint URL", category: .twitchAuth)
@@ -100,6 +121,17 @@ extension TwitchChatService {
     ///
     /// Twitch documents HTTP 401 as its definitive invalid-token response.
     /// Every ambiguous failure preserves the local session for a later retry.
+    ///
+    /// Required scopes grow with the features that are on: Polls mode, channel
+    /// points, Bits, and announce-mode custom commands each add their scope.
+    /// As a side effect this sets or clears the announce-scope banner status.
+    ///
+    /// - Parameters:
+    ///   - requiredScopes: Baseline scopes; the chat read/write pair by default.
+    ///   - expectedClientID: When non-empty, a token minted for another client
+    ///     is ``TokenValidationResult/invalid``.
+    ///   - http: HTTP client; injectable for tests.
+    /// - Returns: Never throws; failures map onto ``TokenValidationResult``.
     func validateToken(
         _ token: String,
         requiredScopes: [String] = ["user:read:chat", "user:write:chat"],
@@ -250,6 +282,13 @@ extension TwitchChatService {
     }
 
     /// Pure classifier used by live refresh and focused tests.
+    ///
+    /// - Parameters:
+    ///   - statusCode: `/oauth2/validate` status, or `nil` when no response.
+    ///   - responseData: The response body.
+    /// - Returns: ``PollScopeValidation/missing`` for 401 or a parsed scope
+    ///   list without the Polls scope; ``PollScopeValidation/indeterminate``
+    ///   for anything that can't be parsed or any other status.
     nonisolated static func pollScopeValidation(
         statusCode: Int?,
         responseData: Data?
@@ -318,6 +357,14 @@ extension TwitchChatService {
     }
 
     /// Resolves a Twitch username to a user ID.
+    ///
+    /// The name is normalized first, so `" Streamer "` and `"streamer"` resolve
+    /// the same.
+    ///
+    /// - Throws: `ConnectionError.networkError` for a malformed name or a
+    ///   transport / decode failure; `.authenticationFailed` on 401;
+    ///   `.notPermitted` for any other non-2xx; `.channelNotFound` when Twitch
+    ///   answers with no matching user.
     func resolveUsername(_ username: String, token: String, clientID: String) async throws -> String {
         guard let sanitizedUsername = Self.normalizedChannelName(username) else {
             throw ConnectionError.networkError("Invalid username format")

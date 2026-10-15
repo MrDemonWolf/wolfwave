@@ -11,23 +11,43 @@ import Foundation
 /// Process-local lifecycle fence for reward setup and unpersisted redemption
 /// containment. Disk remains authoritative for persisted work; this gate only
 /// supplies the bounded ordering that UserDefaults and task dictionaries cannot.
+///
+/// Keys are (service instance, broadcaster). Generations are the service's
+/// `channelOwnershipGeneration`, which only grows on an explicit join, so a
+/// teardown at generation N blocks setup from N and earlier but not from a
+/// newer join. All state sits behind one lock, so every member is safe to call
+/// from any isolation.
 nonisolated enum TwitchRedemptionTeardownGate {
+    /// Proof that a reward setup is in progress. Pass it back to `endSetup`.
+    /// `@unchecked` only because `Owner` holds an `ObjectIdentifier`; the
+    /// fields are immutable.
     struct SetupLease: @unchecked Sendable {
         let id: UUID
         fileprivate let owner: Owner
         fileprivate let generation: UInt64
     }
 
+    /// One service instance acting for one broadcaster.
     fileprivate struct Owner: Hashable {
         let serviceID: ObjectIdentifier
         let broadcasterID: String
     }
 
+    /// Guards the three tables below. `nonisolated(unsafe)` is sound only
+    /// because every access goes through this lock.
     private static let lock = NSLock()
+    /// Reward setups in flight, by lease ID.
     private nonisolated(unsafe) static var setups: [UUID: SetupLease] = [:]
+    /// The ownership generation each owner is currently tearing down.
     private nonisolated(unsafe) static var teardownGenerations: [Owner: UInt64] = [:]
+    /// Storage-failure containment tasks in flight, by task ID.
     private nonisolated(unsafe) static var containments: [UUID: Owner] = [:]
 
+    /// Registers a reward setup.
+    ///
+    /// - Returns: `nil` when a teardown at this generation or later is in
+    ///   progress, so setup must not start. A newer generation clears an
+    ///   older teardown record and proceeds.
     static func beginSetup(
         serviceID: ObjectIdentifier,
         broadcasterID: String,
@@ -50,6 +70,7 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Releases a lease from `beginSetup`.
     static func endSetup(_ lease: SetupLease) {
         lock.withLock {
             guard setups[lease.id]?.generation == lease.generation else {
@@ -59,6 +80,10 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Records a teardown at `generation`.
+    ///
+    /// - Returns: `false` when a teardown for a newer generation is already
+    ///   recorded; this older one must not proceed.
     static func beginTeardown(
         serviceID: ObjectIdentifier,
         broadcasterID: String,
@@ -77,6 +102,8 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Whether the recorded teardown for this owner is still `generation`
+    /// (not cancelled or replaced).
     static func teardownIsCurrent(
         serviceID: ObjectIdentifier,
         broadcasterID: String,
@@ -91,6 +118,7 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Clears the teardown record, but only if it is still `generation`.
     static func cancelTeardown(
         serviceID: ObjectIdentifier,
         broadcasterID: String,
@@ -105,6 +133,8 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Whether any setup started at `generation` or earlier is still running.
+    /// Teardown waits for these before its final pause.
     static func hasActiveSetup(
         serviceID: ObjectIdentifier,
         broadcasterID: String,
@@ -119,6 +149,7 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Registers a storage-failure containment task so teardown waits for it.
     static func beginContainment(
         id: UUID,
         serviceID: ObjectIdentifier,
@@ -131,12 +162,15 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Unregisters a containment task.
     static func endContainment(id: UUID) {
         lock.withLock {
             containments[id] = nil
         }
     }
 
+    /// Drops every record for a service instance. Called from its `deinit`,
+    /// since an `ObjectIdentifier` can be reused by a later allocation.
     static func removeService(serviceID: ObjectIdentifier) {
         lock.withLock {
             setups = setups.filter {
@@ -151,6 +185,7 @@ nonisolated enum TwitchRedemptionTeardownGate {
         }
     }
 
+    /// Whether a containment task for this owner is still running.
     static func hasContainment(
         serviceID: ObjectIdentifier,
         broadcasterID: String
@@ -179,6 +214,9 @@ private enum RedemptionContainmentOutcome {
     case accountGone
 }
 
+/// Paid-event plumbing shared by channel-point and Bits handling: durable
+/// outcome replay, fulfill / refund retries, storage-failure containment, and
+/// the chat copy for each request result.
 extension TwitchChatService {
 
     // Redemption EventSub subscriptions live in TwitchChatService+RedemptionSubscriptions.swift
@@ -189,6 +227,14 @@ extension TwitchChatService {
     /// Durably trips the local circuit breaker before launching HTTP cleanup.
     /// The task is tracked with other paid work so socket reconnects cannot
     /// cancel the pause/refund sequence after a viewer has spent points.
+    ///
+    /// Used when the outbox can't record an outcome. Sets the
+    /// `storageUnavailable` banner, then loops (with backoff) pausing the reward
+    /// and applying `resolution` until both are confirmed or no live account
+    /// can act on the redemption.
+    ///
+    /// - Parameter resolution: Outcome to apply to the redemption, or `nil` to
+    ///   only pause the reward (the redemption was already resolved).
     func beginRedemptionStorageFailureContainment(
         broadcasterID: String,
         rewardID: String,
@@ -334,6 +380,10 @@ extension TwitchChatService {
     }
 
     /// Atomically records a known outcome before starting any Helix request.
+    ///
+    /// On success the outcome is replayed until Twitch accepts it. If the
+    /// write fails the intake record stays on disk (refunded at next startup)
+    /// and storage-failure containment starts.
     func finalizeRedemptionIntake(
         _ intake: TwitchRedemptionResolutionOutbox.Item,
         as resolution: TwitchChannelPointsService.Resolution
@@ -387,6 +437,8 @@ extension TwitchChatService {
         }
     }
 
+    /// Starts a worker that applies a persisted fulfill / refund, unless one
+    /// is already running for `item`. The worker outlives socket reconnects.
     func startPersistedRedemptionResolution(
         _ item: TwitchRedemptionResolutionOutbox.Item
     ) {
@@ -402,6 +454,13 @@ extension TwitchChatService {
         }
     }
 
+    /// Applies one persisted outcome, retrying until Twitch accepts it, the
+    /// failure is terminal, or the task is cancelled.
+    ///
+    /// Waits (60 s steps) while the stored account isn't this item's
+    /// broadcaster. Transport errors and retryable statuses back off;
+    /// malformed responses and unverified reward ownership stop and leave the
+    /// item on disk for a later replay.
     private func runPersistedRedemptionResolution(
         _ item: TwitchRedemptionResolutionOutbox.Item
     ) async {
@@ -491,6 +550,15 @@ extension TwitchChatService {
         }
     }
 
+    /// Decides what to do after a fulfill / refund PATCH failed with `status`.
+    ///
+    /// 404 acknowledges the item (already resolved or gone) when the reward is
+    /// still ours. 401 / 403 try a token refresh. 400 / 409 / 422 check whether
+    /// the redemption is still unfulfilled. Other retryable statuses back off;
+    /// anything else stops and shows the "stuck" banner.
+    ///
+    /// - Returns: The next transient-attempt count to retry with, or `nil` to
+    ///   stop this worker.
     private func retryRedemptionAfterHTTPFailure(
         status: Int,
         retryAfter: Duration?,
@@ -545,6 +613,11 @@ extension TwitchChatService {
         return nextAttempt
     }
 
+    /// Handles a 401 / 403 on a redemption PATCH by trying one token refresh.
+    ///
+    /// - Returns: `0` to retry at once with an adopted refreshed token, the
+    ///   next attempt count after a backoff, or `nil` to stop (re-auth needed,
+    ///   superseded, or cancelled).
     private func retryRedemptionAfterUnauthorized(
         snapshot: TwitchCredentialStore.AccessSnapshot,
         clientID: String,
@@ -584,6 +657,14 @@ extension TwitchChatService {
         return nextAttempt
     }
 
+    /// Handles 400 / 409 / 422 on a redemption PATCH.
+    ///
+    /// If Twitch reports the redemption is no longer unfulfilled, the work is
+    /// done and the item is acknowledged. Otherwise the failure is counted on
+    /// disk; the fifth one moves the item to the dead-letter store and shows
+    /// the "stuck" banner.
+    ///
+    /// - Returns: The next attempt count after a backoff, or `nil` to stop.
     private func retryRedemptionConflict(
         status: Int,
         retryAfter: Duration?,
@@ -638,6 +719,9 @@ extension TwitchChatService {
         return nextAttempt
     }
 
+    /// Removes a resolved item from the outbox and clears a "stuck" banner.
+    /// If the delete fails, storage-failure containment pauses the reward;
+    /// a later replay of the item is safe (see the comment in the catch).
     private func acknowledgeRedemptionResolution(
         _ item: TwitchRedemptionResolutionOutbox.Item
     ) {
@@ -675,6 +759,10 @@ extension TwitchChatService {
     }
     #endif
 
+    /// Backs off before a redemption retry: 1, 2, 4, ... up to 256 s by
+    /// attempt, or the server's `retryAfter` when that is longer.
+    ///
+    /// - Returns: `false` when the sleep was cancelled; the caller stops.
     func sleepBeforeRedemptionRetry(
         attempt: Int,
         retryAfter: Duration?
@@ -694,16 +782,20 @@ extension TwitchChatService {
         }
     }
 
+    /// Statuses worth retrying with backoff: 408, 425, 429, and 5xx.
     nonisolated static func shouldRetryRedemptionResolution(status: Int) -> Bool {
         status == 408 || status == 425 || status == 429 || (500...599).contains(status)
     }
 
+    /// Clears a finished worker's slot unless a newer worker has replaced it.
     private func clearRedemptionResolutionTask(_ id: UUID, workerID: UUID) {
         guard redemptionResolutionWorkerIDs[id] == workerID else { return }
         redemptionResolutionTasks[id] = nil
         redemptionResolutionWorkerIDs[id] = nil
     }
 
+    /// Whether a redemption's chat reply still belongs to the live session.
+    /// The paid work itself is not gated by this; only its reply is.
     func redemptionWorkIsCurrent(
         generation: UInt64,
         broadcasterID: String
@@ -717,6 +809,9 @@ extension TwitchChatService {
     }
 
     /// Maps a request result to a chat message and a redemption resolution.
+    ///
+    /// Added and sent-for-approval fulfill (points are spent); every refusal
+    /// refunds. `.cancelled` refunds with an empty message, meaning no reply.
     func redemptionOutcome(
         for result: SongRequestService.RequestResult,
         username: String
@@ -758,6 +853,9 @@ extension TwitchChatService {
     }
 
     /// Builds a chat reply for a bit-cheer song request.
+    ///
+    /// Bits can't be refunded, so unlike `redemptionOutcome` there is no
+    /// refund wording. Returns an empty string (no reply) for `.cancelled`.
     func bitsOutcomeMessage(
         for result: SongRequestService.RequestResult,
         username: String

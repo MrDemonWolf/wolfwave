@@ -22,24 +22,39 @@ import SwiftUI
 /// duration and spring token demos.
 struct MotionGallerySection: View {
 
+    // MARK: Properties
+
+    /// System Reduce Motion setting; pauses the chip auto-cycle and drives the mirror chip.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Current state of the auto-cycling `StatusChip` demo.
     @State private var chipState: ChipDemoState = .off
+    /// Whether the chip demo is on screen. The cycle loop only runs while it is.
     @State private var chipCycleVisible = false
+    /// Index into `demoTracks`; wraps with modulo, so it can grow without bound.
     @State private var trackIndex: Int = 0
+    /// Simulated playback position for the hero card scrubber, in seconds.
     @State private var elapsed: TimeInterval = 0
-    // Neutral placeholder image (not real album art) so the AsyncImage phased
-    // load is exercisable without shipping a third-party music artwork URL.
     /// Remote image for the phased-load demo. `let`, never mutated.
+    ///
+    /// A neutral placeholder image (not real album art), so the `AsyncImage`
+    /// phased load is exercisable without shipping a third-party music artwork URL.
     ///
     /// Offline this silently falls back to the branded placeholder, which makes
     /// the phased-load demo indistinguishable from the fallback demo. That is a
     /// known limit of using a network image here, not a bug in AlbumArtView.
     private let artURL: URL? = URL(string: "https://picsum.photos/seed/wolfwave/512")
+    /// Load counter for the remote image. `0` means "never loaded" (no request
+    /// fires); each press bumps it and changes the URL's `v` query, defeating the
+    /// `URLCache` so the phased load runs again.
     @State private var cacheBuster: Int = 0
 
+    // MARK: Demo data
+
+    /// The four states the chip demo cycles through, in order.
     private enum ChipDemoState: CaseIterable {
         case off, connecting, live, error
 
+        /// Chip label for this state.
         var text: String {
             switch self {
             case .off:        return "Off"
@@ -49,6 +64,7 @@ struct MotionGallerySection: View {
             }
         }
 
+        /// Semantic status token for this state (never a raw system color).
         var color: Color {
             switch self {
             case .off:        return DSColor.neutral
@@ -58,6 +74,7 @@ struct MotionGallerySection: View {
             }
         }
 
+        /// The following state, wrapping from `.error` back to `.off`.
         func next() -> ChipDemoState {
             let all = ChipDemoState.allCases
             let i = all.firstIndex(of: self) ?? 0
@@ -65,6 +82,7 @@ struct MotionGallerySection: View {
         }
     }
 
+    /// Invented track metadata for the hero card demo. `duration` is in seconds.
     private struct DemoTrack {
         let title: String
         let artist: String
@@ -83,6 +101,7 @@ struct MotionGallerySection: View {
         DemoTrack(title: "Pack Mentality", artist: "Maned Wolf", album: "Wild Frontier", duration: 263)
     ]
 
+    /// The track at `trackIndex`, wrapping around the list.
     private var currentTrack: DemoTrack {
         Self.demoTracks[trackIndex % Self.demoTracks.count]
     }
@@ -101,6 +120,7 @@ struct MotionGallerySection: View {
 
     // MARK: Reduce-motion mirror
 
+    /// Shows the live Reduce Motion value, so a tester can confirm the toggle took.
     private var reduceMotionMirror: some View {
         HStack(spacing: DSSpace.s2) {
             Text("System setting:")
@@ -116,6 +136,8 @@ struct MotionGallerySection: View {
 
     // MARK: Chip cycle
 
+    /// `StatusChip` stepping through its states, exercising its text and color
+    /// transitions. Auto-advances on a timer when allowed; Advance steps by hand.
     private var chipCycleDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text(reduceMotion ? "StatusChip: auto-cycle paused (Reduce Motion)" : "StatusChip: auto-cycles every 1.2s")
@@ -130,6 +152,8 @@ struct MotionGallerySection: View {
                 .controlSize(.small)
             }
             // Pause offscreen or under Reduce Motion; manual Advance always works.
+            // The task id flips whenever either condition changes, which cancels
+            // the running loop and restarts (or skips) it.
             .task(id: reduceMotion || !chipCycleVisible) {
                 guard !reduceMotion, chipCycleVisible else { return }
                 while !Task.isCancelled {
@@ -144,6 +168,9 @@ struct MotionGallerySection: View {
 
     // MARK: Track swap
 
+    /// `NowPlayingHeroCard` driven by buttons: Next track swaps the title (its
+    /// `contentTransition`), and the skip buttons move `elapsed`, clamped to
+    /// the track's length, to show the input-driven scrubber.
     private var trackSwapDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("NowPlayingHeroCard: title contentTransition + input-driven scrubber")
@@ -185,6 +212,8 @@ struct MotionGallerySection: View {
 
     // MARK: AlbumArt phased load
 
+    /// `AlbumArtView` side by side: the branded fallback, and a URL-backed
+    /// instance that only starts loading once the button is pressed.
     private var albumArtPhasedDemo: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("AlbumArtView: direct image vs URL phased load")
@@ -226,6 +255,8 @@ struct MotionGallerySection: View {
         }
     }
 
+    /// `artURL` with its query replaced by `v=<cacheBuster>`. Falls back to the
+    /// plain URL if it cannot be decomposed.
     private var bustedURL: URL? {
         guard let base = artURL,
               var comps = URLComponents(url: base, resolvingAgainstBaseURL: false)

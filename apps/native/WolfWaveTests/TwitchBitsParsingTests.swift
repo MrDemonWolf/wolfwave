@@ -10,6 +10,8 @@ import XCTest
 
 @testable import WolfWave
 
+/// `channel.bits.use` message cleaning: joining text fragments and stripping leading cheermote
+/// tokens (case-insensitive, never mid-string).
 @MainActor
 final class TwitchBitsParsingTests: XCTestCase {
 

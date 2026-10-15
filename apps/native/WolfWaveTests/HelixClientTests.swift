@@ -38,6 +38,7 @@ final class HelixClientTests: XCTestCase {
         URL(string: "https://api.twitch.tv/helix/test")!
     }
 
+    /// Minimal Helix `{"data":[...]}` response shape used to check decoding.
     private struct Reward: Decodable, Equatable {
         struct Item: Decodable, Equatable {
             let id: String
@@ -83,6 +84,7 @@ final class HelixClientTests: XCTestCase {
         XCTAssertEqual(reward, Reward(data: [.init(id: "r1", cost: 100)]))
     }
 
+    /// `post` sends the body dictionary as JSON; read back from the request's body stream.
     func testPostSerializesJSONBody() async throws {
         nonisolated(unsafe) var capturedBody: Data?
         handlerStore.handler = { request in

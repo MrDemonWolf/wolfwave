@@ -41,21 +41,37 @@ struct DailyCount: Identifiable, Hashable, Sendable {
 
 /// An immutable, fully-derived view of the listening history. Recomputed from
 /// the in-memory play log whenever it changes. It costs no disk I/O.
+///
+/// All-time totals and the top lists include the persisted `LifetimeTally`
+/// (plays trimmed out of the rolling log). Everything time-sliced (today, this
+/// week, last 7 days, by hour, recent) comes only from in-memory records,
+/// because trimmed plays keep no timestamps.
 struct StatsSnapshot: Sendable {
+    /// All-time plays, including trimmed history.
     let totalPlays: Int
+    /// All-time listening time in seconds, including trimmed history.
     let totalListeningSeconds: TimeInterval
+    /// Plays since local midnight.
     let playsToday: Int
+    /// Listening seconds since local midnight.
     let listeningSecondsToday: TimeInterval
+    /// Plays in the rolling 7 days ending today (today plus the 6 days before),
+    /// not the calendar week.
     let playsThisWeek: Int
+    /// Listening seconds over the same rolling 7 days.
     let listeningSecondsThisWeek: TimeInterval
+    /// Up to `StatsAggregator.topListLimit` artists, most played first.
     let topArtists: [CountedItem]
+    /// Up to `topListLimit` tracks; `detail` is the artist.
     let topTracks: [CountedItem]
+    /// Up to `topListLimit` albums; records with no album are skipped.
     let topAlbums: [CountedItem]
     /// Exactly 7 buckets, oldest day first, ending today.
     let last7Days: [DailyCount]
-    /// 24 buckets, index = hour of day (0-23).
+    /// 24 buckets, index = hour of day (0-23), in the snapshot's calendar.
     let playsByHour: [Int]
-    /// Most recent plays, newest first.
+    /// Most recent plays, newest first, capped at
+    /// `AppConstants.History.recentDisplayCount`.
     let recent: [PlayRecord]
     /// The most-played track recorded today, if any.
     let topTrackToday: CountedItem?
@@ -245,7 +261,11 @@ enum StatsAggregator {
     ///   - key: Key path producing the grouping key.
     ///   - name: Key path producing the display name.
     ///   - detail: Optional key path producing the secondary line.
-    /// - Returns: Up to `topListLimit` items, highest count first.
+    ///   - tally: Lifetime counts for trimmed plays, keyed by the same grouping
+    ///     key. Seeds the buckets; pass `[:]` for windows that must not include
+    ///     trimmed history.
+    /// - Returns: Up to `topListLimit` items, highest count first, ties broken
+    ///   by ``rankedItemPrecedes(_:_:)``.
     private static func topItems(
         _ records: [PlayRecord],
         key: KeyPath<PlayRecord, String>,
@@ -365,6 +385,8 @@ enum StatsAggregator {
     /// Folds play records into per-day buckets keyed on the start of each
     /// record's day. Shared by the 7-day trend and the Monthly Wrap busiest-day
     /// rollup.
+    ///
+    /// - Returns: Only days that had plays; empty days are absent, not zero.
     static func dayBuckets(
         _ records: [PlayRecord],
         calendar: Calendar
@@ -381,6 +403,9 @@ enum StatsAggregator {
     }
 
     /// Builds exactly 7 day buckets ending today (oldest first).
+    ///
+    /// Days with no plays get a zero bucket so the chart has a fixed width.
+    /// Fewer than 7 come back only if `calendar.date(byAdding:)` fails.
     private static func dailyBuckets(
         _ records: [PlayRecord],
         startOfToday: Date,

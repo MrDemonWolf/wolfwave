@@ -13,14 +13,21 @@ import SwiftUI
 /// Stream Widgets server switch, its reach summary, and the "Couldn't start"
 /// callout. Rendered by ``WebSocketSettingsView``.
 struct WebSocketServerCard: View {
+    // MARK: - Properties
+
+    /// The toggle's change notification animates unless Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The shared server switch (overlay and Stream Deck both ride on it).
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
 
+    /// Hides the LAN address in the reach summary; it does not change reach.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    /// Stored WebSocket port, used only for display here (edited in
+    /// `WebSocketCustomOverlayCard`). Not re-clamped, so it shows the raw value.
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
@@ -28,9 +35,14 @@ struct WebSocketServerCard: View {
     /// can never disagree about whether the server came up.
     let serverState: WebSocketServerService.ServerState
 
+    /// This Mac's LAN IPv4 address, or `nil` when there is none (the summary
+    /// then says "this Mac" only).
     let localNetworkIP: String?
 
+    /// Shorthand for the standard settings card inset.
     private let cardPadding = AppConstants.SettingsUI.cardPadding
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -76,6 +88,8 @@ struct WebSocketServerCard: View {
         }
         .cardStyleUnpadded()
     }
+
+    // MARK: - Private Helpers
 
     /// One sentence describing where the server can be reached right now.
     ///

@@ -13,12 +13,18 @@ import AppKit
 extension AppDelegate {
 
     /// Creates the menu bar status item with the tray icon.
+    ///
+    /// Call once at launch, before `setupMenu()`, which attaches the menu to
+    /// the item created here.
     func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         configureStatusItemButton()
     }
 
     /// Sets the status item button image, falling back to a system music note.
+    ///
+    /// The `WolfMark` asset is drawn as a template so the menu bar tints it for
+    /// light, dark, and highlighted states.
     private func configureStatusItemButton() {
         guard let button = statusItem?.button else { return }
         if let icon = NSImage(named: "WolfMark") {
@@ -34,6 +40,10 @@ extension AppDelegate {
     }
 
     /// Builds and attaches the status bar dropdown menu with dynamic rebuilding.
+    ///
+    /// The menu starts empty: `AppDelegate` is its delegate, and
+    /// `menuNeedsUpdate(_:)` fills it from live state on every open. Also starts
+    /// the Twitch menu-state observers so that rebuild never reads the Keychain.
     func setupMenu() {
         let menu = NSMenu()
         menu.delegate = self
@@ -90,11 +100,23 @@ extension AppDelegate {
 
     /// Creates a now-playing menu item with album art (when available),
     /// song title, and artist line in a fixed-width, word-wrapping layout.
+    ///
+    /// The item is a custom view and disabled, so it is display-only. The text
+    /// labels are hidden from accessibility and the container carries one
+    /// combined "Now playing" label, so VoiceOver reads the row once.
+    ///
+    /// - Parameters:
+    ///   - song: Track title (bold first line).
+    ///   - artist: Artist name; the "by" line is omitted when `nil`.
+    ///   - artwork: Album art to show at the leading edge, or `nil` for text only.
+    /// - Returns: A disabled menu item whose view is already sized to fit.
     fileprivate func makeNowPlayingMenuItem(
         song: String,
         artist: String?,
         artwork: NSImage?
     ) -> NSMenuItem {
+        // Layout metrics in points. The text column is fixed-width so long
+        // titles wrap instead of widening the whole menu.
         let maxTextWidth: CGFloat = 232
         let horizontalPadding: CGFloat = 12
         let verticalPadding: CGFloat = 8
@@ -190,9 +212,10 @@ extension AppDelegate {
     /// (so the row stays put rather than lying "Resolving…" for the lookup TTL).
     ///
     /// On a cache miss the menu drives resolution itself (mirroring
-    /// `currentAlbumArtwork()`), so a track whose links were never fetched. or
-    /// were lost to a launch/relaunch race. resolves on the next menu open,
-    /// independent of play/pause state.
+    /// `currentAlbumArtwork()`), so a track whose links were never fetched, or
+    /// were lost to a launch/relaunch race, resolves on the next menu open,
+    /// independent of play/pause state. With no artist there is nothing to
+    /// search on, so the row goes straight to "No link found".
     ///
     /// Mirrors the same `ArtworkService.cachedTrackLinks` source the Discord
     /// RPC button row uses, so what the streamer pastes matches what their
@@ -246,6 +269,13 @@ extension AppDelegate {
 
     /// Returns a tray menu item with a primary title and a dimmed trailing
     /// status string, e.g. `"Twitch Chat"` + `"@nathanial"`.
+    ///
+    /// - Parameters:
+    ///   - title: Primary label; also the plain `title` used for accessibility.
+    ///   - status: Secondary text drawn smaller and dimmed after the title.
+    ///   - action: Selector sent to the responder chain when the row is picked.
+    ///   - on: Shows the checkmark state when `true`.
+    ///   - image: Optional leading icon (usually a template brand mark).
     fileprivate func makeStatusItem(
         title: String,
         status: String,
@@ -283,6 +313,10 @@ extension AppDelegate {
     /// fetched. On cache miss, kicks off a background fetch via
     /// `ArtworkService` and stores the decoded image. The next menu open
     /// will pick it up. Never blocks the menu.
+    ///
+    /// Images are keyed `"artist|song"`. `albumArtLoadsInFlight` dedups so
+    /// repeated menu opens during one slow download start only one fetch. A
+    /// failed download caches nothing, so the next open retries.
     fileprivate func currentAlbumArtwork() -> NSImage? {
         guard let song = currentSong, let artist = currentArtist else { return nil }
         let key = "\(artist)|\(song)"
@@ -321,6 +355,9 @@ extension AppDelegate {
     }
 
     /// Approximate decoded bitmap bytes for NSCache's cost-based eviction.
+    ///
+    /// Uses the largest representation at 4 bytes per pixel (RGBA). A
+    /// representation whose size overflows `Int` is skipped rather than trapping.
     private static func decodedImageCost(_ image: NSImage) -> Int {
         image.representations.reduce(0) { largest, representation in
             let pixels = representation.pixelsWide.multipliedReportingOverflow(
@@ -338,6 +375,10 @@ extension AppDelegate {
 extension AppDelegate: NSMenuDelegate {
 
     /// Rebuilds the menu each time it opens so items reflect live state.
+    ///
+    /// Runs on the main thread while the menu is tracking, so every section
+    /// builder reads only cached in-memory state (no Keychain, no synchronous
+    /// Apple events). Section order here is the on-screen order.
     public func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
@@ -355,6 +396,10 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Now Playing
 
+    /// Adds the now-playing card plus Copy Song Info, Copy Song Link, Share to
+    /// Twitch Chat (only while connected), and the Recently Played submenu.
+    ///
+    /// Adds nothing, not even a separator, when no song is known.
     private func buildNowPlayingSection(into menu: NSMenu) {
         guard let song = currentSong else { return }
 
@@ -409,6 +454,10 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(.separator())
     }
 
+    /// Builds the Recently Played submenu, one row per `recentTracks` entry.
+    ///
+    /// Titles are clamped by `MenuTitleFormatting`; the full label goes in the
+    /// tooltip and in `representedObject`, which `copyRecentTrack(_:)` copies.
     private func buildRecentlyPlayedSubmenu() -> NSMenu {
         let submenu = NSMenu()
         for track in recentTracks.entries {
@@ -426,6 +475,7 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Playback Controls
 
+    /// Adds Play/Pause, Next Track, and Previous Track while Music.app is running.
     private func buildPlaybackControls(into menu: NSMenu) {
         // Only surface playback controls when Music.app is running. The
         // AppleScript commands silently no-op otherwise and a greyed-out
@@ -477,6 +527,13 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Song Requests
 
+    /// Adds the song-request section when the feature is on and the service exists.
+    ///
+    /// Hold/Resume always shows at the top level. The rest is either flat
+    /// (now-playing request, queue count, actions) or folded into a
+    /// "Song Requests (N)" submenu once
+    /// `MenuStatusFormatter.shouldCollapseSongRequests` says the queue is busy.
+    /// Skip and Clear appear only when there is something to act on.
     private func buildSongRequestSection(into menu: NSMenu) {
         guard FeatureFlags.songRequestEnabled,
               let srQueue = songRequestService?.queue else { return }
@@ -545,6 +602,8 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(.separator())
     }
 
+    /// Builds the collapsed "Song Requests (N)" submenu: the playing request,
+    /// the queue count, then the Skip and Clear actions.
     private func buildSongRequestSubmenu(
         nowPlaying: SongRequestItem?,
         queueCount: Int
@@ -575,6 +634,7 @@ extension AppDelegate: NSMenuDelegate {
         return submenu
     }
 
+    /// Appends Skip Song Request and Clear Queue to `menu`, split by a separator.
     private func addSongRequestActions(into menu: NSMenu) {
         let skipItem = NSMenuItem(
             title: "Skip Song Request",
@@ -604,6 +664,13 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Service Toggles
 
+    /// Adds one status row per integration: Apple Music, Twitch, Discord, and
+    /// OBS Overlay.
+    ///
+    /// The Twitch row appears only when `twitchMenuState` says a credential is
+    /// stored, and its channel name goes through Streamer Mode masking. A row's
+    /// checkmark tracks the user's toggle except Twitch, where it tracks the
+    /// live connection.
     private func buildServiceToggles(into menu: NSMenu) {
         let trackingOn = FeatureFlags.trackingEnabled
         let trackingItem = makeStatusItem(
@@ -668,6 +735,8 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Streamer Quick Actions
 
+    /// Adds the Streamer Mode toggle, the widget link actions (only while the
+    /// overlay is on), and Restart Integrations.
     private func buildStreamerActions(into menu: NSMenu) {
         let streamerModeOn = StreamerMode.isEnabled
         let streamerModeItem = NSMenuItem(
@@ -724,6 +793,7 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - App Items (Settings · Help ▸ · About · Quit)
 
+    /// Adds Settings (Cmd-comma), the Help submenu, About, and Quit (Cmd-Q).
     private func buildAppItems(into menu: NSMenu) {
         let settingsItem = NSMenuItem(
             title: AppConstants.MenuLabels.settings,
@@ -769,6 +839,8 @@ extension AppDelegate: NSMenuDelegate {
         menu.addItem(quitItem)
     }
 
+    /// Builds the Help submenu: What's New, Check for Updates, docs and
+    /// community links, bug report, GitHub, and the optional Sponsor link.
     private func buildHelpSubmenu() -> NSMenu {
         let submenu = NSMenu()
 
@@ -864,9 +936,11 @@ extension AppDelegate {
         )
     }
 
-    /// Toggles the Twitch chat connection. Connects if credentials are saved
-    /// and the bot is idle; opens the Twitch settings pane when credentials
-    /// are missing or the channel is unconfigured.
+    /// Tray action for the Twitch row.
+    ///
+    /// When connected it leaves the channel. When not connected it never
+    /// connects from here; it opens the Twitch settings pane, where the
+    /// account and channel needed to join are set up.
     @objc func toggleTwitchConnection() {
         if twitchService?.currentlyConnected ?? false {
             if let service = twitchService {
@@ -897,7 +971,8 @@ extension AppDelegate {
     }
 
     /// Toggles the WebSocket overlay broadcast plus the bundled widget HTTP
-    /// server. Both flags are kept in sync from this single tray control.
+    /// server. Both flags are kept in sync from this single tray control
+    /// (see `applyOverlayEnabled(_:)`).
     @objc func toggleWebSocket() {
         let newValue = !FeatureFlags.websocketEnabled
         applyOverlayEnabled(newValue)
@@ -906,7 +981,11 @@ extension AppDelegate {
     /// Flips a boolean UserDefaults value and broadcasts a notification.
     ///
     /// Helper used by the menu toggle actions to keep persistence and
-    /// observers in lockstep.
+    /// observers in lockstep. Reads and writes through `DefaultsStore.store`,
+    /// and reads with `bool(forKey:)`, so a never-set key counts as `false`
+    /// and the first flip turns it on. A flag whose default is `true` must be
+    /// seeded before this runs (tracking is, by
+    /// `Preferences.seedTrackingEnabledDefaultIfNeeded()` at launch).
     ///
     /// - Parameters:
     ///   - key: UserDefaults key holding the current `Bool`.
@@ -940,7 +1019,11 @@ extension AppDelegate {
         }
     }
 
-    /// Removes every entry from the song-request queue.
+    /// Removes every entry from the song-request queue after a confirmation.
+    ///
+    /// Goes through `SongRequestService.clearQueue()`, which also stops the
+    /// playing request in Music.app; the alert copy says so when the queue
+    /// itself is empty.
     @objc func clearSongRequestQueue() {
         let count = songRequestService?.queue.count ?? 0
         let message = count > 0
@@ -979,6 +1062,9 @@ extension AppDelegate {
 
     /// Copies the local widget URL (e.g. `http://localhost:8766`) to the
     /// pasteboard for OBS browser-source configuration.
+    ///
+    /// Uses the resolved (clamped) widget port, so an out-of-range stored
+    /// port still yields a usable URL.
     @objc func copyWidgetURL() {
         let url = "http://localhost:\(Preferences.resolvedWidgetPort)"
         Pasteboard.copy(url)
@@ -991,6 +1077,10 @@ extension AppDelegate {
 extension AppDelegate {
 
     /// Toggles Music.app play/pause without stealing focus.
+    ///
+    /// Playback actions borrow the song-request service's `AppleMusicController`
+    /// and are silent no-ops when that service doesn't exist. Errors are
+    /// dropped: a menu click has nowhere to show them.
     @objc func playPause() {
         guard let controller = songRequestService?.musicController else { return }
         Task { try? await controller.playPause() }
@@ -1037,6 +1127,8 @@ extension AppDelegate {
     }
 
     /// Sends the same `!song` reply a viewer would see, directly to chat.
+    ///
+    /// No-op unless Twitch is connected (the menu hides the row otherwise).
     @objc func shareCurrentTrackToTwitch() {
         guard twitchService?.currentlyConnected ?? false else { return }
         let message = getCurrentSongInfo()
@@ -1070,6 +1162,11 @@ extension AppDelegate {
     /// Twitch leaves *and* rejoins (when creds + channel are available) so
     /// the menu item lives up to its name. Previously it only left, which
     /// required opening Settings to come back online.
+    ///
+    /// Asks for confirmation first. Each integration restarts only if it is
+    /// currently on (Twitch: connected; Discord and overlay: enabled). The
+    /// three restarts run as independent tasks, each with a 250 ms gap
+    /// between teardown and bring-up.
     @objc func reconnectAllServices() {
         guard confirmDestructiveMenuAction(
             title: "Restart integrations?",
@@ -1089,6 +1186,9 @@ extension AppDelegate {
                     return
                 }
                 Log.info("AppDelegate: Twitch left channel for restart", category: .app)
+                // Rejoin only with the credential captured before leaving. If a
+                // sign-out or account switch landed meanwhile, the snapshot no
+                // longer matches and the rejoin is skipped.
                 guard let credential,
                       TwitchCredentialStore.shared.connectionSnapshot() == credential,
                       let channel = credential.channelID, !channel.isEmpty,

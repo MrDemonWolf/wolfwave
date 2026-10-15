@@ -79,6 +79,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 };
 
+/**
+ * schema.org SoftwareApplication JSON-LD for the whole site.
+ * @param softwareVersion latest release version, or null to omit the field.
+ * Theme/layout counts in `featureList` come from the generated widget tokens so they track `tokens.json`.
+ */
 function buildJsonLd(softwareVersion: string | null) {
   return {
     "@context": "https://schema.org",
@@ -125,6 +130,7 @@ function buildJsonLd(softwareVersion: string | null) {
   };
 }
 
+/** Root layout: font variable, skip link, JSON-LD (fetched at build time), and the Fumadocs provider. */
 export default async function Layout({ children }: LayoutProps<"/">) {
   const jsonLd = buildJsonLd(await getLatestVersion());
   return (

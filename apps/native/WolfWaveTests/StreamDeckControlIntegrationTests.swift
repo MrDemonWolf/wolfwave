@@ -87,6 +87,7 @@ final class StreamDeckControlIntegrationTests: XCTestCase, @unchecked Sendable {
         return (session, session.webSocketTask(with: url, protocols: [subprotocol]))
     }
 
+    /// A command envelope as JSON for sending over the socket.
     private func commandFrame(action: String, protocolVersion: Int) -> String {
         #"{"type":"command","protocol":\#(protocolVersion),"action":"\#(action)"}"#
     }
@@ -135,6 +136,7 @@ final class StreamDeckControlIntegrationTests: XCTestCase, @unchecked Sendable {
         }
     }
 
+    /// Closes the socket normally and invalidates its session.
     private func close(_ session: URLSession, _ task: URLSessionWebSocketTask) {
         task.cancel(with: .normalClosure, reason: nil)
         session.invalidateAndCancel()

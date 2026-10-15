@@ -119,9 +119,12 @@ enum LogLevel: String, CaseIterable {
 ///
 /// ## Thread safety
 ///
-/// All mutable file state (`fileHandle`, `_logFileURL`, `bannerPending`,
-/// `lineCountCache`) is accessed exclusively on `fileQueue`, a serial dispatch
-/// queue. The throttle table and the OSLog cache have their own locks.
+/// All mutable file state (`fileHandle`, `_logFileURL`, `openedInode`,
+/// `bannerPending`, `lineCountCache`) is accessed exclusively on `fileQueue`, a
+/// serial dispatch queue. The OSLog cache has its own lock. Every entry point
+/// is `nonisolated` and safe from any thread; writes are queued asynchronously,
+/// while ``flush()``, the export, size, line-count, clear, and shutdown calls
+/// block on `fileQueue`.
 ///
 /// ## Usage
 ///
@@ -138,7 +141,8 @@ enum Log {
     /// dictionary literal at the call site, so no new type is needed.
     typealias Fields = KeyValuePairs<String, any CustomStringConvertible>
 
-    /// Whether debug logging is enabled (only in DEBUG builds)
+    /// Whether debug logging is enabled (only in DEBUG builds). A compile-time
+    /// gate, separate from the runtime ``minRank`` gate.
     nonisolated private static var isDebugLoggingEnabled: Bool {
         #if DEBUG
         return true
@@ -159,7 +163,8 @@ enum Log {
 
     // MARK: - Level Gate
 
-    /// Numeric severity rank for `LogLevel`. Higher = more severe.
+    /// Numeric severity rank for `LogLevel`. Higher = more severe. Compared
+    /// against ``minRank``.
     nonisolated private static func rank(_ level: LogLevel) -> Int {
         switch level {
         case .debug: return 0
@@ -178,6 +183,9 @@ enum Log {
     ///
     /// Override with the `WOLFWAVE_LOG_LEVEL` env var (`silent` / `error` /
     /// `warn` / `info` / `debug`). `silent` suppresses everything.
+    ///
+    /// Read once, at first use, for the process lifetime. Under a UI test the
+    /// app runs in its own process without XCTest loaded, so it logs at `.debug`.
     ///
     /// This gates the **file sink as well as OSLog**. It used to gate only
     /// OSLog, which meant the variable could not actually reduce disk volume
@@ -264,8 +272,12 @@ enum Log {
     /// Only access on `fileQueue`.
     nonisolated(unsafe) private static var lineCountCache: (size: Int64, modified: Date, lines: Int)?
 
-    /// Returns the log file URL, creating the directory and file if needed.
-    /// Must be called on `fileQueue`.
+    /// Returns the log file URL (`…/Application Support/WolfWave/Logs/wolfwave.log`),
+    /// creating the directory and file if needed. Must be called on `fileQueue`.
+    ///
+    /// The URL is cached after the first call, but the existence check is not
+    /// repeated: a file deleted later is recreated by the next write's reopen
+    /// path, not here.
     nonisolated private static var logFileURL: URL {
         if let url = _logFileURL { return url }
 
@@ -284,6 +296,12 @@ enum Log {
     }
 
     /// Writes a formatted log line to the log file.
+    ///
+    /// Asynchronous on `fileQueue`, so the caller never blocks on disk. Per
+    /// write: rotate if the file is already past ``maxLogFileSize`` (so the file
+    /// can exceed it by one line), reopen the handle if the inode changed,
+    /// write the session banner if one is pending, then append the line with
+    /// continuation lines framed.
     nonisolated private static func writeToFile(_ line: String) {
         fileQueue.async {
             let url = logFileURL
@@ -367,6 +385,11 @@ enum Log {
     }
 
     /// Builds the per-launch banner identifying the build that wrote what follows.
+    ///
+    /// Emitted as an ordinary `INFO`/`App` record (fields: session, version,
+    /// build, os, arch, pid) so readers need no special case. It is written on
+    /// the first line of each launch and again at the top of each fresh file
+    /// after a rotation or clear.
     nonisolated private static func sessionBannerLine() -> String {
         let osVersion = ProcessInfo.processInfo.operatingSystemVersion
         #if arch(arm64)
@@ -393,7 +416,12 @@ enum Log {
         )
     }
 
-    /// Rotates the log file by shifting backups and starting fresh.
+    /// Rotates the log file by shifting backups and starting fresh. Call on
+    /// `fileQueue`.
+    ///
+    /// `wolfwave.log.N` (the oldest) is deleted, each `.k` moves to `.k+1`, the
+    /// live file becomes `.1`, and an empty `wolfwave.log` is created. All file
+    /// operations are best effort (`try?`).
     nonisolated private static func rotateLogFile(at url: URL) {
         try? fileHandle?.close()
         fileHandle = nil
@@ -419,7 +447,9 @@ enum Log {
         cleanupOldLogs(in: directory)
     }
 
-    /// Removes rotated logs beyond ``rotationDepth``.
+    /// Removes rotated logs beyond ``rotationDepth``, plus any other file
+    /// whose name starts with `wolfwave.log` but is not the live log or a kept
+    /// backup (e.g. leftovers from an older naming scheme).
     nonisolated private static func cleanupOldLogs(in directory: URL) {
         let fileManager = FileManager.default
         guard let files = try? fileManager.contentsOfDirectory(
@@ -450,9 +480,10 @@ enum Log {
     /// Writes a log line at the given level. Prefer the convenience entry
     /// points (`debug`, `info`, `warn`, `error`) over calling `log` directly.
     ///
-    /// The message and every field value are run through `redactSensitiveInfo`
-    /// before either sink receives them; OSLog entries are marked `.public`
-    /// because PII redaction has already happened.
+    /// The message is run through `redactSensitiveInfo` and every field value
+    /// through `redactFieldValue` (key-aware) before either sink receives
+    /// them; OSLog entries are marked `.public` because PII redaction has
+    /// already happened.
     ///
     /// - Parameters:
     ///   - message: Free-form message body.
@@ -542,8 +573,9 @@ enum Log {
         log(message, level: .warn, category: category, fields: fields, file: file, line: line)
     }
 
-    /// Convenience entry point for `.error` logs. Schedules a flush so the
-    /// entry survives a crash that follows the call site.
+    /// Convenience entry point for `.error` logs. Schedules an asynchronous
+    /// flush (see ``scheduleFlush()``) so the entry is synced soon after it is
+    /// written. Call ``flush()`` when the line must be on disk before returning.
     nonisolated static func error(
         _ message: String,
         category: LogCategory = .app,
@@ -597,7 +629,8 @@ enum Log {
         return "\(timestamp)  \(level)  \(category)  \(location)  \(redactedMessage)\(renderedFields)"
     }
 
-    /// Convenience overload taking unrendered fields.
+    /// Convenience overload taking unrendered fields; renders (and redacts)
+    /// them via ``renderFields(_:)``.
     nonisolated private static func formatFileLine(
         _ redactedMessage: String,
         level: LogLevel,
@@ -644,7 +677,8 @@ enum Log {
         return "\"\(escaped)\""
     }
 
-    /// Formats `#fileID` + `#line` as `Module/File.swift:42` (just `File.swift:42` if no module prefix).
+    /// Formats `#fileID` + `#line` as `File.swift:42`. The `Module/` prefix of
+    /// `#fileID` is dropped to keep the column narrow.
     nonisolated private static func sourceLocation(file: StaticString, line: UInt) -> String {
         let full = "\(file)"
         let name = full.split(separator: "/").last.map(String.init) ?? full
@@ -681,7 +715,8 @@ enum Log {
 
     // MARK: - PII Redaction
 
-    /// Field keys whose value is always replaced wholesale.
+    /// Field keys whose value is always replaced wholesale. Matched against the
+    /// lowercased key.
     nonisolated private static let sensitiveFieldKeys: Set<String> = [
         "token", "accesstoken", "refreshtoken", "secret", "password", "passwd",
         "auth", "authorization", "apikey", "clientsecret", "credential",
@@ -702,7 +737,9 @@ enum Log {
         "offset", "limit", "remaining", "index", "position", "epoch", "timestamp"
     ]
 
-    /// Redacts sensitive information from a free-form message body.
+    /// Redacts sensitive information from a free-form message body: the base
+    /// rules, then any bare run of 9+ digits (such as a Twitch user ID) as
+    /// `[USER_ID_REDACTED]`.
     nonisolated private static func redactSensitiveInfo(_ message: String) -> String {
         applyBaseRedactions(message)
             .replacing(#/\b\d{9,}\b/#, with: "[USER_ID_REDACTED]")
@@ -822,9 +859,11 @@ enum Log {
 
     // MARK: - Export
 
-    /// Returns the URL of the current log file for export/sharing.
+    /// Returns the URL of the current log file for export/sharing, after
+    /// syncing pending writes to disk. Blocks on `fileQueue`.
     ///
-    /// - Returns: The log file URL, or nil if logs directory could not be created.
+    /// - Returns: The log file URL, or nil if the file does not exist (e.g. the
+    ///   logs directory could not be created).
     nonisolated static func exportLogFile() -> URL? {
         fileQueue.sync {
             let url = logFileURL
@@ -849,6 +888,8 @@ enum Log {
     // MARK: - Diagnostics
 
     /// Returns the byte size of the current log file, or 0 if unavailable.
+    /// Syncs pending writes first; blocks on `fileQueue`. Rotated backups are
+    /// not counted.
     nonisolated static func logFileSize() -> Int64 {
         fileQueue.sync {
             let url = logFileURL
@@ -865,6 +906,9 @@ enum Log {
     /// result against the file's size and modification date. Settings panes
     /// poll this, and rescanning 5 MB on every refresh was the reason two call
     /// sites had to hop off the main thread to stay responsive.
+    ///
+    /// Blocks on `fileQueue`, so the scan (on a cache miss) also delays queued
+    /// log writes. Returns 0 if the file cannot be opened.
     nonisolated static func logLineCount() -> Int {
         fileQueue.sync {
             let url = logFileURL
@@ -894,7 +938,9 @@ enum Log {
         }
     }
 
-    /// Truncates the current log file in place and writes a single header line.
+    /// Replaces the current log file with a single header line (atomic
+    /// whole-file write, not an in-place truncate; see the comment in the body)
+    /// and deletes every rotated backup. Blocks on `fileQueue`.
     ///
     /// The header goes through the same builder as every other record, so the
     /// file never contains a second, incompatible line shape for a parser to
@@ -938,7 +984,9 @@ enum Log {
 
     // MARK: - Cleanup
 
-    /// Closes the log file handle. Called automatically at app termination.
+    /// Syncs and closes the log file handle. Called from
+    /// `applicationWillTerminate`. A log call after this simply reopens the
+    /// file on its next write.
     nonisolated static func shutdown() {
         fileQueue.sync {
             try? fileHandle?.synchronize()

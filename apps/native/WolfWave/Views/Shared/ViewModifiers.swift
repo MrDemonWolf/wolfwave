@@ -22,8 +22,6 @@ extension View {
     }
 }
 
-// MARK: - Interactive Row Style
-
 // MARK: - Card Style (macOS default surface)
 
 /// Standard macOS card styling on an opaque grouped-content surface.
@@ -35,6 +33,8 @@ extension View {
 /// surface is the same color everywhere and adapts to light and dark on its
 /// own. Apply last in the chain: padding goes inside, frame/layout outside.
 struct CardModifier: ViewModifier {
+    /// When `true`, insets the content by `AppConstants.SettingsUI.cardPadding`
+    /// before drawing the surface. `false` is for rows that pad themselves.
     var padded: Bool = true
 
     func body(content: Content) -> some View {
@@ -78,6 +78,7 @@ extension View {
 /// Adds no padding; callers own their internal padding. Defaults to the
 /// settings-card radius; onboarding-language cards pass `DSRadius.lg2`.
 struct SubtleCardShellModifier: ViewModifier {
+    /// Corner radius of the continuous rounded rectangle, in points.
     var cornerRadius: CGFloat = AppConstants.SettingsUI.cardCornerRadius
 
     func body(content: Content) -> some View {
@@ -257,6 +258,7 @@ extension View {
 /// `isLoading` is true. Use instead of swapping in custom shimmer rows. The
 /// system handles VoiceOver suppression and respects Reduce Motion.
 struct SkeletonModifier: ViewModifier {
+    /// `true` while the real data is still loading.
     let isLoading: Bool
 
     func body(content: Content) -> some View {
@@ -287,9 +289,12 @@ extension View {
 /// Reads `accessibilityReduceMotion` from the environment so every call site
 /// gets the gate without declaring its own `@Environment` property and ternary.
 struct MotionSafeAnimationModifier<Value: Equatable>: ViewModifier {
+    /// The animation to use when Reduce Motion is off. `nil` means none.
     let animation: Animation?
+    /// The value whose changes trigger the animation.
     let value: Value
 
+    /// System Reduce Motion setting; when `true` the animation is dropped.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
@@ -351,6 +356,11 @@ extension View {
 
 extension Color {
     /// Creates a Color from a hex string (e.g. "#FF0000" or "FF0000").
+    ///
+    /// Accepts exactly six hex digits after trimming whitespace and one optional
+    /// leading `#`. Three-digit shorthand and eight-digit alpha forms return
+    /// `nil`. The result is opaque, in the sRGB space.
+    ///
     /// `nonisolated`: a pure parser with no main-actor state, so non-UI code
     /// (e.g. the widget theme resolver) can call it off the main actor.
     nonisolated init?(hex: String) {

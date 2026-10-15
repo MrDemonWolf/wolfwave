@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 
+// Next core-web-vitals rules; generated/build output is ignored.
 const eslintConfig = defineConfig([
   ...nextVitals,
   globalIgnores([

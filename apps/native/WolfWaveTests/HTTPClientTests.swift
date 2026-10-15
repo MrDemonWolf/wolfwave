@@ -32,6 +32,7 @@ final class HTTPClientTests: XCTestCase {
         try await super.tearDown()
     }
 
+    /// JSON body decoded by the client tests.
     private struct Payload: Decodable, Equatable {
         let name: String
         let count: Int

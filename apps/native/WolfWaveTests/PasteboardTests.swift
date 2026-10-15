@@ -10,6 +10,8 @@ import AppKit
 import XCTest
 @testable import WolfWave
 
+/// Sensitive-copy cleanup: the clipboard is cleared only while it still holds the copied value,
+/// never over newer contents.
 @MainActor
 final class PasteboardTests: XCTestCase {
 

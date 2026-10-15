@@ -32,7 +32,11 @@ struct SettingsSceneBridge: View {
     /// Settings-window front search.
     static let windowID = "settings-bridge"
 
+    /// The scene-open action. Only valid because this view lives in a real
+    /// `Window` scene (see the type doc); never capture it into AppKit code.
     @Environment(\.openWindow) private var openWindow
+
+    // MARK: - Body
 
     var body: some View {
         BridgeWindowNeutralizer()
@@ -56,8 +60,9 @@ struct SettingsSceneBridge: View {
         NSApp.activate()
         openWindow(id: WolfWaveApp.settingsWindowID)
 
-        // SwiftUI creates/reuses the Settings window during `openSettings()`, so
-        // it exists by the time this fires. Fronting it is a best-effort polish
+        // SwiftUI creates/reuses the Settings window during `openWindow(id:)`,
+        // so it usually exists by the time this fires (the short sleep gives
+        // SwiftUI a tick to realize it). Fronting it is a best-effort polish
         // step; `openSettings()` + `NSApp.activate` already surface it.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(50))
@@ -71,6 +76,8 @@ struct SettingsSceneBridge: View {
     /// take the frontmost normal, key-capable, titled window that is neither the
     /// hidden bridge window nor an AppDelegate-owned window (onboarding uses
     /// `.fullSizeContentView`; What's New is excluded by reference).
+    ///
+    /// - Returns: The topmost matching window, or `nil` if Settings is not open.
     @MainActor
     static func settingsWindow() -> NSWindow? {
         let delegate = NSApp.delegate as? AppDelegate
@@ -102,6 +109,8 @@ struct SettingsSceneBridge: View {
 /// enough to keep it off the dock-visibility probe and out of sight.
 private struct BridgeWindowNeutralizer: NSViewRepresentable {
 
+    /// Returns a zero-size placeholder view and schedules the first neutralize
+    /// pass once the view is attached to its window.
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         // The window isn't attached during `makeNSView`; defer one runloop tick
@@ -112,11 +121,15 @@ private struct BridgeWindowNeutralizer: NSViewRepresentable {
         return view
     }
 
+    /// Re-runs `neutralize` on every SwiftUI update. Idempotent.
     func updateNSView(_ nsView: NSView, context: Context) {
         // Re-assert in case SwiftUI re-realizes the window.
         neutralize(nsView.window)
     }
 
+    /// Tags the host window with `SettingsSceneBridge.windowID`, drops it below
+    /// `.normal` level, makes it transparent, click-through, unrestorable, and
+    /// parks it offscreen ordered out. A `nil` window (not yet attached) is a no-op.
     @MainActor
     private func neutralize(_ window: NSWindow?) {
         guard let window else { return }

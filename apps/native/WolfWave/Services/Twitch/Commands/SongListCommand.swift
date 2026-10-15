@@ -28,10 +28,13 @@ final class SongListCommand: BotCommand {
 
     // MARK: - BotCommand
 
+    /// Default trigger. `!songlist` is taken by ``QueueCommand``.
     var triggers: [String] { ["!playlist"] }
 
+    /// Human-readable description (informational).
     var description: String { "Links the song request playlist" }
 
+    /// UserDefaults key holding custom trigger aliases.
     var aliasesKey: String? { AppConstants.UserDefaults.songListCommandAliases }
 
     // MARK: - Execute

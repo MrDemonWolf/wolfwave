@@ -9,6 +9,10 @@
 import XCTest
 @testable import WolfWave
 
+/// `BotCommandDispatcher` routing, length and whitespace guards, shared
+/// global/per-user cooldowns (a refused viewer must never claim the cooldown the
+/// allowed viewers share), preflight denial reply throttling, and reply delivery.
+/// Subclasses `WolfWaveTestCase` for the shared settings lock.
 @MainActor
 final class BotCommandDispatcherTests: WolfWaveTestCase {
     var dispatcher: BotCommandDispatcher!
@@ -131,6 +135,8 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
         XCTAssertEqual(result, "awaited response")
     }
 
+    /// A non-privileged viewer's attempt at a command with 60 s cooldowns returns nil without
+    /// running it, and the privileged caller who follows still runs it (`executionCount == 1`).
     func testDeniedServiceCommandDoesNotConsumeCooldown() async {
         let command = PrivilegedCooldownTestCommand()
         dispatcher.register(command)
@@ -167,6 +173,7 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
 
     // MARK: - Song Request Preflight
 
+    /// Chat context for a plain viewer (optionally a subscriber). The username equals `userID`.
     private func chatContext(
         userID: String,
         subscriber: Bool = false
@@ -486,6 +493,8 @@ final class BotCommandDispatcherTests: WolfWaveTestCase {
 
 }
 
+/// Async command that yields once before answering; proves the dispatcher awaits it and returns its
+/// reply.
 @MainActor
 private final class AwaitedTestCommand: @MainActor AsyncBotCommand {
     let triggers = ["!awaited"]
@@ -501,6 +510,8 @@ private final class AwaitedTestCommand: @MainActor AsyncBotCommand {
     }
 }
 
+/// Command with 60 s cooldowns that returns nil for non-privileged callers inside
+/// `execute`. `executionCount` counts only runs that got past that check.
 @MainActor
 private final class PrivilegedCooldownTestCommand: @MainActor ServiceBoundCommand {
     let triggers = ["!privileged-cooldown"]

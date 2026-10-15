@@ -129,6 +129,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         )
     }
 
+    /// A failed lookup (timeout) is remembered for 60 s: the second call makes no request and
+    /// returns nothing. After the injected clock moves 61 s, a retry hits the network and succeeds.
     func testTransientFailureNegativelyCachedFor60s() async {
         let clock = ThreadSafeBox(Date())
         service = ArtworkService(
@@ -196,6 +198,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         )
     }
 
+    /// Track "C" by "A|B" and track "B|C" by "A" would collide under a naive `track|artist`
+    /// key. They must be two cache entries from two requests.
     func testStructuredCacheKeysKeepDelimiterContainingTracksDistinct() async {
         let counter = ThreadSafeBox(0)
         handlerStore.handler = { request in
@@ -247,6 +251,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(counter.value, 1, "A recent miss must not re-hit the network")
     }
 
+    /// A fetched entry is written to the persistence file, and a new `ArtworkService` on
+    /// the same file serves it from cache without a network call.
     func testCachePersistsAcrossInstancesViaDisk() async {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
@@ -279,6 +285,7 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(cached.artworkURL, "https://cdn.example/512x512.jpg")
     }
 
+    /// `clearCache()` empties the in-memory cache and deletes the persistence file.
     func testClearCacheEmptiesMemoryAndDisk() async {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
@@ -305,6 +312,8 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
+    /// A fetch right after `clearCache()` must still persist: the clear's file deletion has to
+    /// run before the new generation's write, so a reload sees only the fresh entry.
     func testFreshGenerationPersistsWhenFetchedImmediatelyAfterClear() async {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
@@ -359,6 +368,9 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         )
     }
 
+    /// A response that was in flight when the cache was cleared still reaches its original
+    /// caller but is not cached and does not mark the track as attempted; a later fetch starts
+    /// clean.
     func testClearCacheRejectsOldResponseAndStartsFreshGeneration() async {
         let gate = ArtworkRequestGate()
         defer { gate.releaseAll() }

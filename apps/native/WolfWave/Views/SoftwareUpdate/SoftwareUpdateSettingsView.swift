@@ -18,29 +18,47 @@ import SwiftUI
 struct SoftwareUpdateSettingsView: View {
     // MARK: - Environment
 
+    /// Drops the card's state-change animations when Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - State
 
+    /// True when the last `updateStateChanged` reported a newer build that the
+    /// user hasn't skipped.
     @State private var updateAvailable = false
+    /// Newest version Sparkle reported, `nil` until the first result this session.
     @State private var latestVersion: String?
 
+    /// Version the user chose to skip in Sparkle's dialog; an update matching
+    /// it is not shown as available.
     @AppStorage(AppConstants.UserDefaults.updateSkippedVersion)
     private var skippedVersion: String = ""
 
+    /// Mirror of the automatic-check preference, used only for the header chip
+    /// and the callouts. The toggle itself writes through `SparkleUpdaterService`.
     @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
     private var updateCheckEnabled = AppConstants.UserDefaults.Defaults.updateCheckEnabled
 
+    /// Persisted `UpdateChannel` raw value. Read through `UpdateChannel.from`
+    /// so an unknown stored string falls back safely.
     @AppStorage(AppConstants.UserDefaults.updateChannel)
     private var storedChannel = UpdateChannel.stable.rawValue
 
+    /// True from a "Check Now" tap until the next `updateStateChanged`.
     @State private var isCheckingForUpdates = false
+    /// Set on "Check Now" and cleared on the next result. Currently not read
+    /// anywhere else in this view.
     @State private var isManualCheck = false
+    /// Homebrew-managed install: Sparkle is disabled and the pane shows the
+    /// `brew upgrade` card instead. Resolved on appear.
     @State private var isHomebrewInstall = false
+    /// Presents the confirm-before-Nightly alert.
     @State private var showNightlyWarning = false
 
+    /// The running app delegate (`nil` in previews); owns `sparkleUpdater`.
     private var appDelegate: AppDelegate? { AppDelegate.shared }
 
+    /// Marketing version of the running build.
     private var currentVersion: String { AppConstants.AppInfo.shortVersion }
 
     /// The channel currently persisted, used to drive the picker and banner.
@@ -121,6 +139,8 @@ struct SoftwareUpdateSettingsView: View {
 
     // MARK: - Software Update Card
 
+    /// Homebrew installs get the `brew upgrade` card; everything else the
+    /// Sparkle card.
     @ViewBuilder
     private var softwareUpdateCard: some View {
         if isHomebrewInstall {
@@ -130,6 +150,8 @@ struct SoftwareUpdateSettingsView: View {
         }
     }
 
+    /// Version line, a "managed by Homebrew" callout, and a copyable
+    /// `brew upgrade wolfwave` command.
     @ViewBuilder
     private var homebrewUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -163,6 +185,9 @@ struct SoftwareUpdateSettingsView: View {
         .cardStyle()
     }
 
+    /// Version + availability, channel picker (Nightly behind a confirm alert),
+    /// the automatic-check toggle, and Check Now. In DEBUG builds the picker,
+    /// toggle, and Check Now are disabled.
     @ViewBuilder
     private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {

@@ -19,7 +19,14 @@
 /// - Wraps Sparkle's `SPUStandardUpdaterController`
 /// - Provides a simplified API for the app to trigger manual checks
 /// - Respects user preferences for automatic checking
-/// - Posts notifications to keep UI in sync
+/// - Posts `updateStateChanged` (via `postUpdateState`) to keep the Software
+///   Update pane in sync
+/// - Never downloads before the user clicks Install
+///   (`automaticallyDownloadsUpdates = false`)
+///
+/// Homebrew installs:
+/// - Sparkle is never created; every check is a logged no-op because the
+///   cask manages updates.
 ///
 /// Thread Safety:
 /// - The class is `@MainActor` (matches `SPUUpdaterDelegate`'s `NS_SWIFT_UI_ACTOR`).
@@ -38,11 +45,14 @@ import Sparkle
 
 // MARK: - SparkleUpdaterService
 
+/// Sparkle wrapper owned by `AppDelegate`; see the overview at the top of
+/// this file for behavior, threading, Homebrew, and DEBUG rules.
 @MainActor
 final class SparkleUpdaterService: NSObject {
     // MARK: - Properties
 
-    /// Sparkle's updater controller (manages the update process)
+    /// Sparkle's updater controller (manages the update process). `nil` for
+    /// Homebrew installs, where Sparkle is never set up.
     private var updaterController: SPUStandardUpdaterController?
 
     /// Whether the current update cycle already surfaced a found update.
@@ -52,12 +62,19 @@ final class SparkleUpdaterService: NSObject {
     /// already-announced update from the settings pane.
     private var didSurfaceUpdateThisCycle = false
 
-    /// The updater instance (for manual checks and configuration)
+    /// The updater instance (for manual checks and configuration); `nil`
+    /// whenever ``updaterController`` is.
     private var updater: SPUUpdater? {
         updaterController?.updater
     }
 
-    /// Whether automatic update checking is enabled
+    /// Whether automatic update checking is enabled.
+    ///
+    /// Reads Sparkle's live value, reporting `true` when there is no updater
+    /// (Homebrew). Setting it updates Sparkle and persists the choice under
+    /// `AppConstants.UserDefaults.updateCheckEnabled`, which ``setupSparkle()``
+    /// reads on the next launch. Without an updater the write is dropped and
+    /// logged, and nothing is persisted.
     var automaticCheckEnabled: Bool {
         get {
             updater?.automaticallyChecksForUpdates ?? true
@@ -100,11 +117,14 @@ final class SparkleUpdaterService: NSObject {
         checkForUpdatesInBackground()
     }
 
-    /// Whether the app was installed via Homebrew (Sparkle should be disabled in this case)
+    /// Whether the app was installed via Homebrew. Fixed at init; when true,
+    /// Sparkle is never created and every check is a no-op.
     private let isHomebrewInstall: Bool
 
     // MARK: - Initialization
 
+    /// Detects the install method and, unless it is Homebrew, creates and
+    /// configures Sparkle (which starts the update cycle in Release).
     override init() {
         // Detect install method before initializing Sparkle
         self.isHomebrewInstall = Bundle.main.isHomebrewInstall
@@ -213,8 +233,10 @@ final class SparkleUpdaterService: NSObject {
 
     /// Checks for updates silently in the background.
     ///
-    /// If an update is available, Sparkle will download it and notify the user.
-    /// No dialog is shown if the app is already up to date.
+    /// If an update is available, Sparkle notifies the user; it does not
+    /// download until they choose Install (`automaticallyDownloadsUpdates` is
+    /// off). No dialog is shown if the app is already up to date. No-op for
+    /// Homebrew installs and in DEBUG builds.
     func checkForUpdatesInBackground() {
         guard !isHomebrewInstall else { return }
 
@@ -291,6 +313,10 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
     }
 
     /// Called when an update check finds a newer version.
+    ///
+    /// Marks the cycle as having surfaced an update (see
+    /// ``didSurfaceUpdateThisCycle``) and posts the update state with the
+    /// item's info URL (empty when the appcast has none).
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         let version = item.displayVersionString
         Log.info("SparkleUpdaterService: Update found", category: .update, fields: ["version": version])
@@ -354,10 +380,11 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
         Log.info("SparkleUpdaterService: Installing update", category: .update, fields: ["version": version])
     }
 
-    /// Determines whether Sparkle should postpone an update that's ready to install.
+    /// Determines whether Sparkle should postpone the relaunch for an update
+    /// that's ready to install.
     ///
-    /// Return true to delay installation (e.g., if user is in the middle of something).
-    /// Return false to allow installation to proceed.
+    /// Always returns `false`: the relaunch proceeds immediately and
+    /// `installHandler` is never retained.
     func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem, untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
         return false
     }
@@ -369,8 +396,8 @@ extension SparkleUpdaterService: SPUUpdaterDelegate {
 
     /// Allows customization of update permission prompts.
     ///
-    /// Return false. `SUEnableAutomaticChecks` in Info.plist provides the
-    /// answer, and onboarding handles user consent explicitly.
+    /// Returns `false`. `SUEnableAutomaticChecks` (`true`) in Info.plist
+    /// provides the answer, and onboarding handles user consent explicitly.
     func updaterShouldPromptForPermissionToCheck(forUpdates updater: SPUUpdater) -> Bool {
         return false
     }

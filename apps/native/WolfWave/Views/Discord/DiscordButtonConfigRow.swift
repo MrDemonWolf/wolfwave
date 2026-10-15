@@ -19,12 +19,15 @@ struct DiscordButtonConfigRow: View {
     let title: String
 
     /// URL that the service would send for this button, or nil if unavailable.
-    /// Displayed in monospaced gray below the toggle; "(no track playing)" when nil.
+    /// Displayed in small monospaced tertiary text below the toggle; a
+    /// "(no track playing…)" placeholder when nil or empty.
     let resolvedURL: String?
 
-    /// User-visible accessibility identifier prefix (e.g. "discordButton1").
+    /// Accessibility identifier prefix (e.g. "discordButton1"); the toggle and
+    /// link get `<prefix>Toggle` / `<prefix>Link`.
     let accessibilityPrefix: String
 
+    /// Whether this button is included in the presence payload.
     @Binding var isEnabled: Bool
 
     // MARK: - Body
@@ -64,6 +67,8 @@ struct DiscordButtonConfigRow: View {
         }
     }
 
+    /// Single-line, middle-truncated URL text; the full URL is in the tooltip.
+    /// Dimmed while the button is disabled.
     private func urlText(_ text: String) -> some View {
         Text(text)
             .font(.system(size: DSFont.Size.xs, design: .monospaced))

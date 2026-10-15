@@ -10,6 +10,11 @@ import Foundation
 import XCTest
 @testable import WolfWave
 
+/// `AppleMusicSource` without a running Music.app: the bridge error delegate and
+/// status mapping, monotonic interval timing, stale-probe suppression (a probe that
+/// finishes after stop or restart must not publish), overlap coalescing, and the
+/// tolerant `playerState` parsing. The `testExtractPlayerState*` cases lock in the
+/// parser contract documented in CLAUDE.md; do not narrow them.
 @MainActor
 final class AppleMusicSourceTests: XCTestCase {
     var monitor: AppleMusicSource!
@@ -121,6 +126,9 @@ final class AppleMusicSourceTests: XCTestCase {
 
     // MARK: - Tracking lifecycle
 
+    /// The fallback poll interval is clamped to at least 1 s (0.25 becomes 1.0). Changing it
+    /// while stopped schedules nothing and is applied on the next `startTracking()`; changing
+    /// it while running reschedules immediately.
     func testIntervalUpdatedWhileStoppedIsClampedAndUsedOnNextStart() {
         let scheduledIntervals = ThreadSafeBox<[TimeInterval]>([])
         monitor = AppleMusicSource(
@@ -171,6 +179,8 @@ final class AppleMusicSourceTests: XCTestCase {
         XCTAssertEqual(capture.statuses, [])
     }
 
+    /// A probe started before a stop/start restart belongs to an old generation. When it
+    /// finally returns it is discarded: only the restarted probe publishes (one status).
     func testProbeFromPreviousGenerationCannotPublishAfterRestart() async {
         let probe = SuspendedAppleMusicProbe()
         let completedChecks = ThreadSafeBox(0)
@@ -391,6 +401,8 @@ final class AppleMusicSourceTests: XCTestCase {
     }
 }
 
+/// Probe stub: the first `next()` call parks until `releaseFirst(with:)`; later calls
+/// return "NOT_RUNNING". Used to finish a probe after stop or restart and check it cannot publish.
 private actor SuspendedAppleMusicProbe {
     private(set) var callCount = 0
     private var firstContinuation: CheckedContinuation<String, Never>?
@@ -409,6 +421,7 @@ private actor SuspendedAppleMusicProbe {
     }
 }
 
+/// Records the status strings `AppleMusicSource` reports so tests can assert what was published.
 @MainActor
 private final class AppleMusicSourceCaptureDelegate: PlaybackSourceDelegate {
     private(set) var statuses: [String] = []

@@ -21,7 +21,7 @@ final class VoteSkipCommand: AsyncBotCommand {
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!voteskip", "!vs"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Vote to skip the current song" }
 
     /// No global cooldown. `SkipVoteManager` governs vote pacing.
@@ -49,7 +49,7 @@ final class VoteSkipCommand: AsyncBotCommand {
     /// - Parameters:
     ///   - message: Raw chat message (unused).
     ///   - context: Sender context, used for per-user vote deduplication.
-    ///   - Returns: The formatted vote response, or nil to stay silent.
+    /// - Returns: The formatted vote response, or nil to stay silent.
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard !Task.isCancelled else { return nil }
         guard let manager = skipVoteManager?() else { return nil }
@@ -62,7 +62,8 @@ final class VoteSkipCommand: AsyncBotCommand {
     // MARK: - Reply Formatting
 
     /// Converts a `VoteOutcome` into a chat reply, or `nil` when the command
-    /// should stay silent (feature disabled).
+    /// should stay silent (feature disabled, or the vote/poll request was
+    /// cancelled). Static and pure so tests can pin every reply string.
     static func format(_ outcome: SkipVoteManager.VoteOutcome) -> String? {
         switch outcome {
         case .cancelled, .disabled:

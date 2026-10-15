@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { SAMPLE_TRACKS } from "../../(home)/_widgets/sample-tracks";
 
 // ── Palette (Apple-dark, brand blue) ──────────────────────────
+// Palette mirrors the site's dark brand tokens as literal hex; Satori cannot resolve CSS variables.
 const BG = "#000000";
 const BG_RAISED = "#0E0E11";
 const SURFACE = "#1C1C1E";
@@ -134,6 +135,7 @@ function Frame({ tag, children }: { tag: string; children: ReactNode }): ReactEl
 }
 
 // ── Eyebrow pill ──────────────────────────────────────────────
+/** Pill label above the headline. */
 function Eyebrow({ text }: { text: string }): ReactElement {
   return (
     <div
@@ -170,6 +172,7 @@ function DestChip({ color, label }: { color: string; label: string }): ReactElem
   );
 }
 
+/** Decorative now-playing tile drawn with plain flex boxes (Satori supports only a CSS subset). */
 function NowPlayingTile(): ReactElement {
   return (
     <div
@@ -243,6 +246,7 @@ function NowPlayingTile(): ReactElement {
 }
 
 // ── Title with accent word ────────────────────────────────────
+/** Splits `title` around the first case-insensitive match of `accentWord`; returns the whole title as the first part when there is no match. */
 function splitAccent(title: string, accentWord?: string): [string, string, string] {
   if (!accentWord) return [title, "", ""];
   const idx = title.toLowerCase().indexOf(accentWord.toLowerCase());
@@ -250,6 +254,7 @@ function splitAccent(title: string, accentWord?: string): [string, string, strin
   return [title.slice(0, idx), title.slice(idx, idx + accentWord.length), title.slice(idx + accentWord.length)];
 }
 
+/** Props for {@link OgCard}; only `title` is required. */
 export interface OgCardProps {
   title: string;
   description?: string;
@@ -351,6 +356,7 @@ export function OgCard({ title, description, eyebrow, chips, accentWord }: OgCar
   );
 }
 
+/** Props for {@link ChangelogOgCard}; `date` is shown as given, `highlights` is truncated to three. */
 export interface ChangelogOgCardProps {
   version: string;
   date: string;
@@ -386,9 +392,16 @@ export function ChangelogOgCard({ version, date, highlights }: ChangelogOgCardPr
   );
 }
 
+/** Card dimensions in px (1.91:1). Do not change; every platform crops against this size. */
 export const OG_SIZE = { width: 1200, height: 630 } as const;
+/** Content type for the generated image routes. */
 export const OG_CONTENT_TYPE = "image/png" as const;
 
+/**
+ * Downloads one family's TTF/WOFF data for the given weights from Google Fonts at
+ * build time. Weights whose CSS has no matching `src` are skipped silently, and
+ * a failed fetch throws (failing the build).
+ */
 async function loadFont(family: string, weights: number[], italic = false): Promise<{ name: string; data: ArrayBuffer; weight: number; style: "normal" | "italic" }[]> {
   const results: { name: string; data: ArrayBuffer; weight: number; style: "normal" | "italic" }[] = [];
   for (const weight of weights) {

@@ -37,6 +37,7 @@ export const metadata: Metadata = {
   },
 };
 
+/** Download page: latest DMG (resolved at build time) plus the Homebrew command. */
 export default async function DownloadPage() {
   const downloadUrl = await getLatestDmgUrl();
 

@@ -10,15 +10,20 @@ import Foundation
 
 /// Handles `!sr` / `!request` / `!songrequest`. Searches and queues a song.
 ///
-/// Accepts plain text queries, Spotify links, and YouTube links.
-/// Returns an immediate acknowledgment, then resolves asynchronously.
+/// Accepts plain text queries and Apple Music, Spotify, and YouTube links
+/// (resolved by `SongRequestService` / `LinkResolverService`). The dispatcher
+/// awaits the whole lookup, so chat gets exactly one reply describing the
+/// outcome; there is no separate "searching..." acknowledgment.
+///
+/// Conforms to ``PreflightCheckedCommand`` so a viewer refused by the audience
+/// gate or the feature switch never starts the shared `!sr` cooldown.
 final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!sr", "!request", "!songrequest"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Request a song by name or Spotify/YouTube link" }
 
     /// Channel-wide cooldown between invocations, in seconds.
@@ -84,8 +89,10 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
     ///
     /// - Parameters:
     ///   - message: Raw chat message; trigger prefix is stripped to recover the query.
-    ///   - context: Sender context; `username` is recorded with the queued item.
-    ///   - Returns: The eventual chat response, or nil to stay silent.
+    ///   - context: Sender context. The service keys queue ownership on
+    ///     `requesterLogin` and checks the requester blocklist against both
+    ///     the login and the display name.
+    /// - Returns: The eventual chat response, or nil to stay silent.
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard !Task.isCancelled else { return nil }
         // Master feature gate. When song requests are off, the empty-query
@@ -120,6 +127,8 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
 
         let response: String
         switch result {
+        // The task was torn down mid-request; say nothing rather than reply
+        // into a session that is going away.
         case .cancelled:
             return nil
         case .added(let item, let position):
@@ -153,6 +162,7 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
         case .featureDisabled:
             response = Self.disabledReply
 
+        // Already chat-ready text from the service (e.g. the audience denial).
         case .error(let message):
             response = message
         }

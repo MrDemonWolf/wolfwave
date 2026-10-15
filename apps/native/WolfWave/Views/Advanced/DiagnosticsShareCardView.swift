@@ -18,10 +18,17 @@ struct DiagnosticsShareCardView: View {
 
     // MARK: - State
 
+    /// Opt-in flag. The toggle also calls `DiagnosticsService.setEnabled(_:)`,
+    /// which subscribes to MetricKit, or unsubscribes and deletes the stored
+    /// payloads when turned off.
     @AppStorage(AppConstants.UserDefaults.shareDiagnosticsEnabled)
     private var shareEnabled = false
 
+    /// Launch count snapshotted when the view is created; not refreshed while
+    /// the card stays on screen.
     @State private var launchCount = DiagnosticsService.shared.launchCount
+    /// Latest stored diagnostic summary, snapshotted at creation. `nil` hides
+    /// the "Last diagnostics" row.
     @State private var summary = DiagnosticsService.shared.diagnosticSummary
 
     // MARK: - Body
@@ -71,6 +78,7 @@ struct DiagnosticsShareCardView: View {
 
     // MARK: - Helpers
 
+    /// A label / value line, combined into one VoiceOver element.
     private func metricRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)

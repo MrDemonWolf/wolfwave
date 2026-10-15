@@ -11,6 +11,7 @@ import SwiftUI
 import AppKit
 @testable import WolfWave
 
+/// The `.sectionEyebrow()` view modifier renders and composes with other modifiers.
 @MainActor
 final class SectionEyebrowTests: XCTestCase {
 

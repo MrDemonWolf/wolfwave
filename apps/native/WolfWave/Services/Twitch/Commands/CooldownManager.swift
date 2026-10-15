@@ -164,6 +164,8 @@ final class CooldownManager {
 
     /// Records a command use for cooldown tracking.
     ///
+    /// Non-atomic with `isOnCooldown`; the dispatcher uses `tryClaim` instead.
+    ///
     /// - Parameters:
     ///   - trigger: The command trigger string.
     ///   - userID: The Twitch user ID of the caller.
@@ -207,7 +209,12 @@ final class CooldownManager {
     /// Prunes per-user cooldown entries to prevent unbounded memory growth.
     ///
     /// Two-pass strategy (must be called while holding `lock`):
+    /// Runs only once there are more than 100 per-user entries, so short
+    /// streams never pay for the filter.
     /// 1. Remove entries older than 5 minutes (the maximum cooldown window).
+    ///    This assumes no configured cooldown exceeds 300 s; the settings
+    ///    sliders stop well below that. A longer cooldown would be forgotten
+    ///    early once pruning kicks in. Global entries are pruned the same way.
     /// 2. If the dictionary still exceeds `maxUserCooldownEntries` after the
     ///    time-based pass (i.e. many chatters are still within their cooldown
     ///    window), evict the oldest half so the dictionary cannot grow without

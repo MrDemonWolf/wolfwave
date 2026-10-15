@@ -21,6 +21,11 @@ import Foundation
 //  rename can't silently desync the two sides.
 
 /// String keys used inside notification `userInfo` dictionaries.
+///
+/// Keys are shared across notifications: `state` carries both the Discord and
+/// the WebSocket server lifecycle raw values, and `error` carries both the
+/// Twitch connection error and the Discord failure reason. Which one a payload
+/// holds is determined by the notification name, not the key.
 enum NotificationKeys {
     nonisolated static let track = "track"
     nonisolated static let artist = "artist"
@@ -46,6 +51,9 @@ enum NotificationKeys {
 
 // MARK: - Typed Posters
 
+/// Typed `post…` helpers. Every one posts synchronously with a `nil` object, so
+/// observers registered without a queue run on the posting thread before the
+/// call returns.
 extension NotificationCenter {
 
     /// Posts `.nowPlayingChanged` with the current track metadata. Omitted
@@ -160,6 +168,8 @@ extension NotificationCenter {
 
 // MARK: - Typed Decoders
 
+/// Typed readers for the payloads above. Each returns `nil` (or the stated
+/// fallback) when the key is missing or holds the wrong type, never traps.
 extension Notification {
 
     /// Now-playing metadata from `.nowPlayingChanged`.

@@ -14,6 +14,7 @@ import Testing
 /// distinguishable from "disconnected".
 @Suite("Health payload")
 struct HealthPayloadTests {
+    /// Builds the `health` payload and returns its `data` object (also checks `type == "health"`).
     private func data(discord: Bool, discordState: String) -> [String: Any] {
         let payload = WebSocketServerService.healthPayload(
             music: true, twitch: false, discord: discord,

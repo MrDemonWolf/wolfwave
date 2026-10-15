@@ -27,12 +27,17 @@ struct StatusChip: View {
 
     // MARK: - Properties
 
+    /// Visible state label. Also the VoiceOver label and the identifier suffix
+    /// (`statusChip.<text>`), and changing it cross-fades the label.
     let text: String
+    /// State tint for the wash and (via `glyphColor`) the glyph. Use a `DSColor`
+    /// semantic token for status; a raw color is only for category tags.
     let color: Color
     /// Optional leading SF Symbol. When set, the symbol replaces the colored
     /// dot so state is conveyed by shape and color together, not color alone.
     var systemImage: String? = nil
 
+    /// Picks the light- or dark-appearance glyph color.
     @Environment(\.colorScheme) private var colorScheme
 
     /// Contrast-safe color for the leading glyph or dot.

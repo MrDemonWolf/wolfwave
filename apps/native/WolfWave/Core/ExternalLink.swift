@@ -12,7 +12,7 @@ import AppKit
 enum ExternalLink {
 
     /// Opens a URL string in the default browser. Returns `false` (without throwing) when
-    /// the string is not a valid URL.
+    /// the string is not a valid URL, or when `NSWorkspace` could not open it.
     ///
     /// Centralizes the `URL(string:)` guard plus `NSWorkspace.shared.open` that was
     /// duplicated across settings, onboarding, and menu-bar code, removing the silent

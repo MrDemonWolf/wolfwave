@@ -165,6 +165,15 @@ enum MonthlyWrap {
     /// Builds an emotional one-liner that frames the headline play count, the way
     /// Wrapped reads "788 hours finding yourself" instead of a raw minute count.
     /// Deterministic and ordered so it's unit-testable. `nil` for empty months.
+    ///
+    /// The first matching rule wins: 20+ hours, 8+ hours, 10+ plays per active
+    /// day, 100+ plays, then a generic line.
+    ///
+    /// - Parameters:
+    ///   - plays: Plays in the month.
+    ///   - seconds: Listening time in the month, in seconds.
+    ///   - activeDays: Days with at least one play. Zero falls back to `plays`
+    ///     as the per-day rate.
     static func framingLine(plays: Int, seconds: TimeInterval, activeDays: Int) -> String? {
         guard plays > 0 else { return nil }
         let hours = seconds / 3600
@@ -188,6 +197,17 @@ enum MonthlyWrap {
     /// Decides whether this month stands out against the user's own recorded
     /// history. Returns `nil` when there's only one month of data (nothing to
     /// beat) or the month is empty. Pure: buckets all records by month start.
+    ///
+    /// Plays are checked before listening time, so a month that beats both
+    /// reports ``MonthlyMilestone/bestMonthYet``. Ties never count.
+    ///
+    /// - Parameters:
+    ///   - allRecords: Every recorded play, including the viewed month's.
+    ///   - monthStart: Start of the viewed month; must match the
+    ///     `calendar.dateInterval(of: .month, …)` start used for bucketing.
+    ///   - thisMonthPlays: Plays in the viewed month.
+    ///   - thisMonthSeconds: Listening seconds in the viewed month.
+    ///   - calendar: Calendar for month bucketing.
     static func milestone(
         allRecords: [PlayRecord],
         monthStart: Date,
@@ -229,6 +249,9 @@ enum MonthlyWrap {
         return nil
     }
 
+    /// Fixed `LLLL yyyy` pattern ("May 2026"). The month name follows the
+    /// user's locale, but the field order does not, and the formatter uses the
+    /// current calendar rather than the one passed to ``data(from:month:calendar:)``.
     private static let monthLabelFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "LLLL yyyy"

@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `TwitchDeviceAuthError` user-facing descriptions and edge-case
+/// `DeviceCodeResponse` decoding (zero expiry, minimal interval, empty user code).
 @MainActor
 final class TwitchDeviceAuthErrorTests: XCTestCase {
 

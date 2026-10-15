@@ -9,6 +9,8 @@
 import XCTest
 @testable import WolfWave
 
+/// `AppContainer` path composition under Application Support and the fallback policy; pins that
+/// resolving a path does not create the directory.
 @MainActor
 final class AppContainerTests: XCTestCase {
 

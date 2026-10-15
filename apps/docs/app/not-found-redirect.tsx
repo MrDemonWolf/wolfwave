@@ -14,6 +14,10 @@ const MOVED: Record<string, string> = {
   "/docs/appearance": "/docs/settings",
 };
 
+/**
+ * Renders nothing; on mount, forwards a moved docs URL (keeping the hash) to
+ * its new location. Unknown paths are left alone so the 404 page shows.
+ */
 export function NotFoundRedirect() {
   useEffect(() => {
     const { pathname, hash } = window.location;

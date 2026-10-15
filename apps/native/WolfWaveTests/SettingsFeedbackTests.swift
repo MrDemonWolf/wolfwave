@@ -10,6 +10,8 @@ import AppKit
 import XCTest
 @testable import WolfWave
 
+/// Settings feedback paths: Music permission copy, aborted or incomplete factory reset, login-item
+/// failure, and share temp-file cleanup.
 @MainActor
 final class SettingsFeedbackTests: XCTestCase {
     func testSongRequestPermissionTargetIsSeparateFromAutomation() {

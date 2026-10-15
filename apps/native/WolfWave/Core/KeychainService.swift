@@ -11,15 +11,19 @@ import Foundation
 /// Secure credential storage using the macOS Keychain.
 ///
 /// Provides a type-safe interface for storing and retrieving sensitive credentials.
-/// All items use `kSecAttrAccessibleAfterFirstUnlock` accessibility for persistence after unlock.
+/// With the system backend, all items use `kSecAttrAccessibleAfterFirstUnlock`
+/// accessibility for persistence after unlock. Storage goes through
+/// ``backend``: the Security framework in the app, process-local memory under
+/// any test harness.
 ///
 /// Stored Credentials:
 /// - **Overlay Auth Token**: Read-only WebSocket credential used by OBS widgets
 /// - **Control Auth Token**: Same-Mac WebSocket credential used by Stream Deck
-/// - **Twitch OAuth Token**: User's OAuth token for Twitch API and chat
-/// - **Twitch Username**: Bot account username for display and identification
-/// - **Twitch User ID**: Bot account user ID for EventSub subscriptions
-/// - **Twitch Channel Login**: Normalized public channel name for bot commands
+/// - **Twitch account** (one item, ``TwitchCredentialGrant``): access token,
+///   refresh token, bot username, bot user ID, and the normalized channel
+///   login, written together so a crash can never pair fields from two
+///   different accounts. Older installs kept these as separate items (and a v1
+///   grant without the channel); they are migrated copy-then-delete on read.
 ///
 /// Error Handling:
 /// - All save operations throw `KeychainError` on failure
@@ -28,7 +32,10 @@ import Foundation
 ///
 /// Thread Safety:
 /// - Keychain operations are thread-safe (backed by Security framework)
-/// - Safe to call from any thread
+/// - Twitch grant reads, writes, migration, and the factory reset are
+///   serialized by one `NSLock`, so a read-modify-write cannot interleave
+/// - Safe to call from any thread, but every call is synchronous Keychain I/O:
+///   keep it off the main thread where latency matters (e.g. menu tracking)
 ///
 /// Usage Example:
 /// ```swift
@@ -43,16 +50,25 @@ nonisolated enum KeychainService {
     /// One crash-atomic Twitch account record. Keeping access, refresh, resolved
     /// identity, and the configured channel in one Keychain item prevents
     /// force-quit windows from cross-pairing different account configurations.
+    ///
+    /// Stored as JSON in one generic-password item. Every non-nil field must be
+    /// non-empty; a record that breaks that rule is treated as malformed.
     nonisolated struct TwitchCredentialGrant: Codable, Equatable, Sendable {
+        /// OAuth access token for Helix and EventSub.
         var accessToken: String?
+        /// OAuth refresh token, used to renew ``accessToken``.
         var refreshToken: String?
+        /// Bot account login, resolved from the token.
         var username: String?
+        /// Bot account numeric user ID, resolved from the token.
         var userID: String?
         /// Legacy field name; stores a normalized channel login, not a numeric Helix ID.
         var channelID: String?
 
+        /// No account. Saving it deletes the record.
         static let empty = TwitchCredentialGrant()
 
+        /// Whether every field is nil.
         var isEmpty: Bool {
             accessToken == nil
                 && refreshToken == nil
@@ -61,6 +77,7 @@ nonisolated enum KeychainService {
                 && channelID == nil
         }
 
+        /// Memberwise init with every field defaulting to nil.
         init(
             accessToken: String? = nil,
             refreshToken: String? = nil,
@@ -129,8 +146,11 @@ nonisolated enum KeychainService {
 
     /// Precedence-preserving result of reading the pre-v2 Twitch accounts.
     private enum LegacyTwitchCredentialSource {
+        /// No v1 record and no per-field items.
         case absent
+        /// A complete, valid account to migrate.
         case valid(TwitchCredentialGrant)
+        /// Undecodable v1, or a field stored as an empty string.
         case malformed
     }
 
@@ -153,6 +173,8 @@ nonisolated enum KeychainService {
         /// Invalid or corrupted data read from Keychain.
         case invalidData
 
+        /// Short description for logs. Says "token" for every account, even
+        /// non-token items, for historical reasons.
         var errorDescription: String? {
             switch self {
             case .saveFailed(let status):
@@ -188,6 +210,9 @@ nonisolated enum KeychainService {
 
     /// Status-bearing read for credential lifecycle code that must distinguish
     /// confirmed absence from a temporarily unavailable Keychain.
+    ///
+    /// - Throws: The backend's error (`loadFailed` / `invalidData`); `nil`
+    ///   means confirmed absent.
     static func loadTokenChecked() throws -> String? {
         try backend.load(account: websocketAuthToken)
     }
@@ -221,14 +246,19 @@ nonisolated enum KeychainService {
 
     // MARK: - Public Methods - Twitch Credential Reads
 
+    /// Twitch access token from the current grant, or nil when absent or
+    /// unreadable. Each call reads the whole grant; use
+    /// ``loadTwitchCredentialGrant()`` when you need more than one field.
     static func loadTwitchToken() -> String? {
         loadTwitchCredentialGrant().accessToken
     }
 
+    /// Bot account login from the current grant. See ``loadTwitchToken()``.
     static func loadTwitchUsername() -> String? {
         loadTwitchCredentialGrant().username
     }
 
+    /// Bot account user ID from the current grant. See ``loadTwitchToken()``.
     static func loadTwitchBotUserID() -> String? {
         loadTwitchCredentialGrant().userID
     }
@@ -236,7 +266,12 @@ nonisolated enum KeychainService {
     // MARK: - Atomic Twitch Grant
 
     /// Loads one internally consistent Twitch account snapshot. Read failures
-    /// fail closed and never fall through to legacy migration.
+    /// fail closed (logged, returned as ``TwitchCredentialGrant/empty``) and
+    /// never fall through to legacy migration.
+    ///
+    /// May write: the first read on an upgraded install migrates legacy items
+    /// into the v2 record, and a malformed record raises the Twitch re-auth
+    /// flag (and posts `twitchReauthNeededChanged` on the main actor).
     static func loadTwitchCredentialGrant() -> TwitchCredentialGrant {
         do {
             return try loadTwitchCredentialGrantChecked()
@@ -257,6 +292,13 @@ nonisolated enum KeychainService {
     }
 
     /// Replaces the complete Twitch account in one atomic backend write.
+    ///
+    /// Saving ``TwitchCredentialGrant/empty`` deletes the account instead (see
+    /// ``deleteTwitchCredentialGrant()``). After a non-empty save, leftover
+    /// legacy items are removed best effort.
+    ///
+    /// - Throws: `invalidData` if any present field is empty, or the backend's
+    ///   save/delete error.
     static func saveTwitchCredentialGrant(_ grant: TwitchCredentialGrant) throws {
         try validateTwitchCredentialGrant(grant)
         try twitchCredentialLock.withLock {
@@ -279,6 +321,14 @@ nonisolated enum KeychainService {
     /// Twitch record while holding one Keychain lock. Credential-store CAS paths
     /// use this so a concurrent channel edit can never be overwritten by a stale
     /// snapshot captured before the edit.
+    ///
+    /// - Parameter mutation: Edits the current grant in place and returns
+    ///   whether anything should be written. Runs while holding the Twitch
+    ///   lock, which is not re-entrant: calling another grant API from inside
+    ///   it deadlocks.
+    /// - Returns: `true` when the mutation asked to save and the save succeeded.
+    /// - Throws: Load errors, errors thrown by `mutation`, `invalidData` for an
+    ///   invalid result, or the backend's save error.
     @discardableResult
     static func mutateTwitchCredentialGrant(
         _ mutation: (inout TwitchCredentialGrant) throws -> Bool
@@ -295,6 +345,11 @@ nonisolated enum KeychainService {
         }
     }
 
+    /// Read path behind every grant load. Caller holds ``twitchCredentialLock``.
+    ///
+    /// Order: the v2 record wins whenever it exists; otherwise the legacy
+    /// sources are read and, when valid, migrated (best effort) before being
+    /// returned.
     private static func loadTwitchCredentialGrantLocked() throws -> TwitchCredentialGrant {
         // A backend error is not "not found": return it without inspecting or
         // mutating legacy fields, which might belong to an older account.
@@ -353,6 +408,8 @@ nonisolated enum KeychainService {
         return .valid(legacy)
     }
 
+    /// Decodes a stored v2 record. An undecodable or invalid record raises the
+    /// re-auth flag and reads as empty, leaving the stored bytes untouched.
     private static func decodeCurrentTwitchCredentialGrantOrFailClosed(
         _ encoded: String
     ) -> TwitchCredentialGrant {
@@ -370,6 +427,8 @@ nonisolated enum KeychainService {
         return decoded
     }
 
+    /// Copies a legacy account into the v2 record, then deletes the legacy
+    /// items. A failed save is logged and left for the next read to retry.
     private static func migrateTwitchCredentialGrantBestEffortLocked(
         _ grant: TwitchCredentialGrant
     ) {
@@ -386,6 +445,8 @@ nonisolated enum KeychainService {
         }
     }
 
+    /// Asks the user to sign in to Twitch again without touching the malformed
+    /// source. Runs on every read that hits it, so the flag stays raised.
     private static func markMalformedTwitchCredentialsForReauthentication() {
         // Retain the malformed authoritative source unchanged. Partially deleting
         // v1/per-field sources could expose a valid-looking stale fragment on the
@@ -393,6 +454,8 @@ nonisolated enum KeychainService {
         requireTwitchReauthentication()
     }
 
+    /// Saves a grant, routing an empty one to a full delete so "no account"
+    /// never leaves an empty-but-present record behind. Caller holds the lock.
     private static func saveTwitchCredentialGrantLocked(
         _ grant: TwitchCredentialGrant
     ) throws {
@@ -416,6 +479,9 @@ nonisolated enum KeychainService {
         try backend.save(account: twitchCredentialGrantAccount, value: encoded)
     }
 
+    /// Rejects a grant with any field set to an empty string. Nil fields pass.
+    ///
+    /// - Throws: `KeychainError.invalidData`.
     private static func validateTwitchCredentialGrant(
         _ grant: TwitchCredentialGrant
     ) throws {
@@ -431,6 +497,7 @@ nonisolated enum KeychainService {
         }
     }
 
+    /// Every pre-v2 account: the v1 grant plus the five per-field items.
     private static var legacyTwitchCredentialAccounts: [String] {
         [
             legacyTwitchCredentialGrantAccount,
@@ -442,6 +509,13 @@ nonisolated enum KeychainService {
         ]
     }
 
+    /// Deletes the Twitch account across every storage generation. Caller
+    /// holds the lock.
+    ///
+    /// When no v2 record exists yet, one is written first (the legacy account,
+    /// or an empty tombstone for malformed input) so that if a later delete
+    /// fails, the next read sees the v2 record instead of a half-deleted
+    /// legacy set. Legacy items go before the v2 record for the same reason.
     private static func deleteTwitchCredentialGrantLocked() throws {
         if try backend.load(account: twitchCredentialGrantAccount) == nil {
             switch try loadLegacyTwitchCredentialSourceLocked() {
@@ -479,6 +553,9 @@ nonisolated enum KeychainService {
         }
     }
 
+    /// Sets the persisted re-auth flag synchronously, then posts
+    /// `twitchReauthNeededChanged` from a main-actor task (so observers run
+    /// later, on main, not inside the Keychain lock).
     private static func requireTwitchReauthentication() {
         Preferences.setTwitchReauthNeeded(true)
         Task { @MainActor in
@@ -489,6 +566,8 @@ nonisolated enum KeychainService {
         }
     }
 
+    /// Configured channel login (not a numeric ID, despite the name) from the
+    /// current grant. See ``loadTwitchToken()``.
     static func loadTwitchChannelID() -> String? {
         loadTwitchCredentialGrant().channelID
     }
@@ -501,6 +580,7 @@ nonisolated enum KeychainService {
     /// covers both WebSocket tokens, all Twitch tokens, and any credential
     /// added later without needing a per-account call. Used by the factory
     /// reset. Succeeds silently if nothing is stored and throws on failure.
+    /// Takes the Twitch lock so it cannot interleave with a grant transaction.
     static func deleteAll() throws {
         try twitchCredentialLock.withLock {
             try backend.deleteAll()
@@ -511,12 +591,18 @@ nonisolated enum KeychainService {
 
     /// Mutable holder so a scoped backend can be swapped in place without
     /// leaving the task tree that owns it.
+    ///
+    /// `@unchecked Sendable`: ``stored`` is only touched under ``lock``.
     nonisolated final class BackendBox: @unchecked Sendable {
+        /// Guards ``stored``.
         private let lock = NSLock()
+        /// The scoped backend.
         private var stored: KeychainBackend
 
+        /// Wraps `backend` for binding to ``KeychainService/backendBox``.
         init(_ backend: KeychainBackend) { stored = backend }
 
+        /// Lock-guarded access to the scoped backend.
         var backend: KeychainBackend {
             get { lock.withLock { stored } }
             set { lock.withLock { stored = newValue } }
@@ -534,7 +620,8 @@ nonisolated enum KeychainService {
     @TaskLocal static var backendBox: BackendBox?
 
     /// Process-wide fallback used by the app and by XCTest suites, which have no
-    /// task scope to bind.
+    /// task scope to bind. Initialized lazily on first access, as in-memory under
+    /// any test harness (hosted unit tests or a UI-test launch).
     nonisolated(unsafe) private static var processBackend: KeychainBackend = makeDefaultBackend(
         isRunningTests: UITestMode.isUnderTestHarness
     )
@@ -556,7 +643,9 @@ nonisolated enum KeychainService {
         }
     }
 
-    /// Kept internal so the test suite can pin the security-sensitive branch.
+    /// Chooses the default backend: in-memory under a test harness, otherwise
+    /// the Security framework scoped to ``service``. Kept internal so the test
+    /// suite can pin the security-sensitive branch.
     static func makeDefaultBackend(isRunningTests: Bool) -> KeychainBackend {
         if isRunningTests {
             return InMemoryKeychainBackend()
@@ -579,6 +668,8 @@ nonisolated enum KeychainService {
     }
 
     /// Loads a string value for the given account via the active backend.
+    /// Errors are logged and collapse to nil, so callers that must tell
+    /// "absent" from "unavailable" use the backend directly (`…Checked`).
     private static func loadItem(account: String) -> String? {
         do {
             return try backend.load(account: account)

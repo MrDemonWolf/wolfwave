@@ -15,7 +15,7 @@ final class MyQueueCommand: AsyncBotCommand {
     /// Chat triggers that invoke this command.
     var triggers: [String] { ["!myqueue", "!mysongs"] }
 
-    /// Human-readable description shown in the `!commands` listing.
+    /// Human-readable description (informational; no chat command lists it).
     var description: String { "Show your requested songs and positions in queue" }
 
     /// Channel-wide cooldown between invocations, in seconds.
@@ -39,11 +39,13 @@ final class MyQueueCommand: AsyncBotCommand {
     // MARK: - AsyncBotCommand
 
     /// Looks up the sender's queued songs and returns their positions.
+    /// Read-only; any viewer may run it.
     ///
     /// - Parameters:
     ///   - message: Raw chat message (unused).
-    ///   - context: Sender context; `username` is matched against queue entries.
-    ///   - Returns: The formatted queue response, or nil when unavailable.
+    ///   - context: Sender context; `requesterLogin` is matched against queue
+    ///     entries (the same identity `!sr` stores).
+    /// - Returns: The formatted queue response, or nil when unavailable.
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard let queue = getQueue?() else { return nil }
 

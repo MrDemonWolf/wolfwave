@@ -35,10 +35,10 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// Open write handle, positioned at end of file. Only touched on `ioQueue`.
     private var fileHandle: FileHandle?
 
-    /// Shared default coders. `PlayRecord` has explicit `CodingKeys` and
-    /// its `Date` properties use the default `deferredToDate` strategy, so the
-    /// strategy-free `JSONCoders.default` / `.defaultEncoder` match the
-    /// on-disk format exactly.
+    /// Shared default coders. `PlayRecord` hand-writes its `Codable` with
+    /// explicit short `CodingKeys` and stores its timestamp as a plain epoch
+    /// number, so no key or date strategy applies and the strategy-free
+    /// `JSONCoders.default` / `.defaultEncoder` match the on-disk format exactly.
     private let encoder = JSONCoders.defaultEncoder
     private let decoder = JSONCoders.default
 
@@ -51,8 +51,11 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// Creates a store writing to `directory`, or to
     /// `Application Support/WolfWave/History` when `directory` is `nil`.
     ///
-    /// - Parameter directory: Override directory, primarily for tests. The
-    ///   directory is created lazily on first write.
+    /// - Parameters:
+    ///   - directory: Override directory, primarily for tests. The
+    ///     directory is created lazily on first write.
+    ///   - replaceAllOverride: Test-only stand-in for the rewrite; its return
+    ///     value becomes `replaceAll`'s result and the file is left untouched.
     init(
         directory: URL? = nil,
         replaceAllOverride: (@Sendable ([PlayRecord]) -> Bool)? = nil
@@ -87,7 +90,12 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     /// Rewrites the log so it contains exactly `records`. Used for compaction
     /// and retention trimming. The only operation that rewrites the file.
     ///
+    /// Synchronous: blocks the caller until the rewrite on `ioQueue` finishes,
+    /// and orders after any appends already queued.
+    ///
     /// - Parameter records: The records the log should contain afterwards.
+    /// - Returns: `false` when the atomic write failed; the old file is then
+    ///   left intact.
     @discardableResult
     func replaceAll(with records: [PlayRecord]) -> Bool {
         ioQueue.sync {
@@ -104,11 +112,14 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
         replaceAll(with: [])
     }
 
-    /// Flushes buffered data to disk. Call before the app terminates.
+    /// Flushes buffered data to disk (`fsync` via `synchronize()`). Call before
+    /// the app terminates. Synchronous, so it also waits out queued appends.
     func flush() {
         ioQueue.sync { try? fileHandle?.synchronize() }
     }
 
+    /// Closes the write handle. Not routed through `ioQueue`: no other
+    /// reference can exist at deinit, and queued blocks hold `self` weakly.
     deinit { try? fileHandle?.close() }
 
     // MARK: - Private (must run on ioQueue)
@@ -155,6 +166,11 @@ nonisolated final class PlayLogStore: @unchecked Sendable {
     }
 
     /// Rewrites the file with exactly `records`. Runs on `ioQueue`.
+    ///
+    /// Closes the append handle first: the atomic write replaces the inode, so
+    /// the old handle would keep writing to the unlinked file. The next append
+    /// reopens. A record that fails to encode is dropped without failing the
+    /// rewrite.
     private func replaceSync(_ records: [PlayRecord]) -> Bool {
         try? fileHandle?.close()
         fileHandle = nil

@@ -14,16 +14,29 @@ struct ToggleSettingRow: View {
 
     // MARK: - Properties
 
+    /// Row title.
     let title: String
+    /// One-line description under the title.
     let subtitle: String
+    /// The setting being toggled.
     @Binding var isOn: Bool
+    /// Switch size; small by default to match settings rows.
     var controlSize: ControlSize = .small
+    /// Disables the switch and dims the whole row.
     var isDisabled: Bool = false
+    /// VoiceOver label for the switch (the visible title is not attached to it).
     var accessibilityLabel: String
+    /// UI-test identifier for the switch.
     var accessibilityIdentifier: String
+    /// Optional VoiceOver hint; omitted entirely when `nil`.
     var accessibilityHint: String? = nil
+    /// Called with the new value whenever `isOn` changes. Fires for any change
+    /// to the binding, not only a click on this switch, so a write from
+    /// elsewhere (another view, a defaults change) triggers it too.
     var onChange: ((Bool) -> Void)? = nil
 
+    /// Inherited enabled state. The row dims when either this or `isDisabled`
+    /// turns it off, so a `.disabled(_:)` on an ancestor dims it too.
     @Environment(\.isEnabled) private var isEnabled
 
     // MARK: - Body
@@ -45,6 +58,7 @@ struct ToggleSettingRow: View {
 
     // MARK: - Private Views
 
+    /// The label-hidden switch carrying the accessibility contract.
     @ViewBuilder
     private var toggle: some View {
         let base = Toggle("", isOn: $isOn)

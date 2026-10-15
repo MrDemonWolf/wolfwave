@@ -72,17 +72,29 @@ struct CalloutBanner: View {
 
     // MARK: - Properties
 
+    /// Body text; inline Markdown is rendered. Drawn one size smaller when a
+    /// `title` is present, so the title leads.
     let message: String
+    /// Optional bold lead line above the message.
     var title: String?
+    /// Semantic intent. Defaults to `.warning`.
     var style: Style = .warning
     /// Overrides the style's default SF Symbol when non-nil.
     var systemImage: String?
+    /// Adds a thin tint-colored border around the box.
     var strokeVisible: Bool = false
 
+    /// Picks the light- or dark-appearance glyph color.
     @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Init
 
+    /// - Parameters:
+    ///   - message: Body text; inline Markdown is rendered.
+    ///   - title: Optional bold lead line.
+    ///   - style: Semantic intent; `.warning` by default.
+    ///   - systemImage: Custom SF Symbol; `nil` uses the style's default.
+    ///   - strokeVisible: Draws a tinted border.
     init(
         _ message: String,
         title: String? = nil,
@@ -99,7 +111,9 @@ struct CalloutBanner: View {
 
     // MARK: - Private Helpers
 
+    /// Shorthand for the style's tint (wash and stroke).
     private var tint: Color { style.tint }
+    /// The caller's symbol, or the style's default.
     private var symbol: String { systemImage ?? style.defaultSymbol }
 
     // MARK: - Body
@@ -134,6 +148,8 @@ struct CalloutBanner: View {
                     .stroke(tint.opacity(0.25), lineWidth: 1)
             }
         }
+        // One VoiceOver element: title then message. The icon is hidden, so the
+        // severity is not spoken; put it in the words when it matters.
         .accessibilityElement(children: .combine)
     }
 }

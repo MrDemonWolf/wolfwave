@@ -8,8 +8,8 @@ import { useCyclingTrack, cyclingPauseHandlers, demoVisibilityRef } from "./useC
  * Discord "Listening to <app>" Rich Presence card recreation.
  *
  * Mirrors the payload built in
- * `apps/native/WolfWave/Services/Discord/DiscordRPCService.swift`
- * `buildActivity(...)`:
+ * `apps/native/WolfWave/Services/Discord/DiscordPresenceBuilder.swift`
+ * `buildActivity(...)` (called from `DiscordRPCService.swift`):
  *   - `details`  → bold title
  *   - `state`    → artist
  *   - `large_text` (album) → subtitle italic
@@ -240,6 +240,7 @@ export function DiscordPresenceCard() {
   );
 }
 
+/** Small status dot; when `active`, a ring pulses outward via the inline keyframes below (the page's reduced-motion handling is not applied here). */
 function PulsingDot({ color, active }: { color: string; active: boolean }) {
   return (
     <span
@@ -282,6 +283,7 @@ function PulsingDot({ color, active }: { color: string; active: boolean }) {
   );
 }
 
+/** Inert stand-in for a Rich Presence button: looks clickable, is aria-disabled, and ignores clicks. */
 function DiscordButton({
   label,
   palette,
@@ -323,6 +325,7 @@ function DiscordButton({
   );
 }
 
+/** Decorative note glyph for the Apple Music corner badge. */
 function AppleMusicGlyph() {
   // Simplified eighth-note glyph, white on the red gradient badge.
   return (

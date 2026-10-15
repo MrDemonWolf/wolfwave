@@ -11,15 +11,25 @@ import {
 } from '../../_components/og-card';
 import { presetForSlug } from '../../_components/og-presets';
 
+// Static export: every card is rendered at build time via generateStaticParams.
 export const revalidate = false;
 export const dynamic = 'force-static';
 
+/** Fields the changelog card shows: newest version, its date text, and up to three bold bullet leads. */
 interface ChangelogInfo {
   version: string;
   date: string;
   highlights: string[];
 }
 
+/**
+ * Reads `content/docs/changelog.mdx` (relative to the docs package cwd) and
+ * extracts the first `## vX.Y.Z` heading, its date, and the first three bullets
+ * that start with a bold lead (`- **Title** ...`).
+ * Returns null on any read/parse failure or when no bold bullets exist, in which
+ * case the caller falls back to the generic card.
+ * Note: the heading regex requires a dash or en dash between version and date.
+ */
 function parseLatestChangelog(): ChangelogInfo | null {
   try {
     const filePath = path.join(process.cwd(), 'content/docs/changelog.mdx');
@@ -46,6 +56,11 @@ function parseLatestChangelog(): ChangelogInfo | null {
   }
 }
 
+/**
+ * Renders one docs page's social card as a PNG. The last URL segment is the
+ * `image.png` filename (see `getPageImage`), so it is dropped to recover the
+ * page slug. Frontmatter `og*` fields win over the section preset.
+ */
 export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...slug]'>) {
   const { slug } = await params;
   const pageSlug = slug.slice(0, -1);
@@ -88,6 +103,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
   );
 }
 
+/** One param set per docs page so the static export emits every card. */
 export function generateStaticParams() {
   return source.getPages().map((page) => ({
     lang: page.locale,

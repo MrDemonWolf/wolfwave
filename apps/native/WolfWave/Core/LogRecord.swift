@@ -34,7 +34,10 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
 
     /// One `key=value` pair from a line's structured tail.
     struct Field: Equatable, Sendable {
+        /// Field name, e.g. `status`. Letters, digits, `_`, and `.`.
         let key: String
+        /// Unquoted value: surrounding quotes removed and `\n`, `\t`, `\r`,
+        /// `\"`, `\\` escapes decoded.
         let value: String
     }
 
@@ -54,7 +57,8 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
     /// `File.swift:42` source location of the call site.
     let location: String
 
-    /// Free-form message body, with continuation lines folded back in.
+    /// Free-form message body, with continuation lines folded back in
+    /// (newline-joined). Structured fields are parsed from the first line only.
     let message: String
 
     /// Ordered structured fields parsed off the tail of the message.
@@ -73,6 +77,9 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
     /// Written in extended (multi-line) form, where literal whitespace is
     /// ignored even inside a character class. Field separators are therefore
     /// spelled `\x20`, not a space in brackets.
+    ///
+    /// `nonisolated(unsafe)` because `Regex` is not `Sendable`; the value is
+    /// immutable and only ever matched against.
     nonisolated(unsafe) private static let headerPattern = #/
         ^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(?:[+-]\d{2}:\d{2}|Z))
         \x20{2,}(\S+)
@@ -89,6 +96,7 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
     /// - Returns: The record, or `nil` when `line` is a continuation, a blank
     ///   line, or otherwise not a well-formed record start. A malformed line
     ///   never yields a partially populated record.
+    /// An unknown level token or an unparseable timestamp also returns `nil`.
     static func parse(_ line: String, id: Int = 0) -> LogRecord? {
         guard let match = try? headerPattern.wholeMatch(in: line) else { return nil }
 
@@ -124,6 +132,8 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
         var records: [LogRecord] = []
         var pendingContinuations: [String] = []
 
+        // Folds any buffered continuation lines into the last record (message
+        // and raw), or discards them when there is no record to attach to.
         func flush() {
             guard !pendingContinuations.isEmpty, let last = records.popLast() else {
                 pendingContinuations.removeAll()
@@ -192,6 +202,11 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
     }
 
     /// Splits on spaces that sit outside a quoted value.
+    ///
+    /// - Returns: Each token with the index where it starts in `text`, so the
+    ///   caller can cut the message at the first field without re-searching.
+    ///   Quotes and backslashes are kept in the token text; ``unquote(_:)``
+    ///   removes them later.
     private static func tokenize(_ text: String) -> [(start: String.Index, text: String)] {
         var tokens: [(start: String.Index, text: String)] = []
         var current = ""
@@ -231,7 +246,10 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
         return tokens
     }
 
-    /// Matches a bare `key=value` token.
+    /// Matches a bare `key=value` token. The key must start with a letter or
+    /// `_`, which keeps a message word such as `1+1=2` or `=x` from being taken
+    /// as a field. `nonisolated(unsafe)` for the same reason as
+    /// ``headerPattern``.
     nonisolated(unsafe) private static let fieldPattern =
         #/^([A-Za-z_][A-Za-z0-9_.]*)=(.*)$/#
 
@@ -241,7 +259,8 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
         return Field(key: String(match.output.1), value: unquote(String(match.output.2)))
     }
 
-    /// Reverses ``Log``'s value quoting.
+    /// Reverses ``Log``'s value quoting. An unquoted value is returned as is;
+    /// an unknown escape keeps the escaped character (`\x` becomes `x`).
     private static func unquote(_ value: String) -> String {
         guard value.count >= 2, value.hasPrefix("\""), value.hasSuffix("\"") else { return value }
         let inner = value.dropFirst().dropLast()

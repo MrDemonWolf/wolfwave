@@ -59,6 +59,9 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Request Policy Tests
 
+    /// The overlay token is injected only for a loopback peer whose Host header is a literal
+    /// loopback address (`localhost`, any 127.x, `[::1]`). A hostile DNS name, a forged Host
+    /// from a LAN peer, a lookalike hostname, and a missing Host all get no credential.
     func testTokenInjectionRequiresLoopbackPeerAndLiteralLocalHost() {
         XCTAssertTrue(
             WidgetHTTPService.shouldInjectToken(
@@ -161,6 +164,9 @@ final class WidgetHTTPServiceTests: XCTestCase {
         return (body, httpResponse)
     }
 
+    /// Serves the real bundled `widget.html` from a bound server and checks it is the
+    /// self-contained build (inlined `WW_TOKENS`, no external tokens script, placeholder
+    /// copy) and is served with the `no-referrer` policy in both header and meta tag.
     func testPublicWidgetResponseContainsShippedAssetAndPrivacyPolicy() async throws {
         guard let (service, port) = await startBoundService() else { return }
         defer { service.stop() }
@@ -254,6 +260,9 @@ final class WidgetHTTPServiceTests: XCTestCase {
 
     // MARK: - Connection Lifecycle Tests
 
+    /// Admission policy: remote peers are refused once active connections reach the last 4 slots
+    /// of the cap (28 of 32), which stay reserved for loopback, and one remote peer is capped at 4
+    /// connections.
     func testConnectionAdmissionReservesLoopbackCapacityAndCapsRemotePeers() {
         XCTAssertTrue(WidgetHTTPService.shouldAcceptConnection(
             activeCount: 0,
@@ -328,6 +337,7 @@ final class WidgetHTTPServiceTests: XCTestCase {
         await fulfillment(of: [closed], timeout: 5)
     }
 
+    /// With a cap of 2, a third connection is cancelled at once and never counted as active.
     func testConnectionCapRefusesExtraConnections() async throws {
         // Tiny cap so the test doesn't need 32 sockets; production default is 32.
         // Owns its port for the same reason as `testStopCancelsAcceptedIdleConnections`.

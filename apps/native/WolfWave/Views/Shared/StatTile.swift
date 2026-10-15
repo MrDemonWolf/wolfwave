@@ -14,15 +14,19 @@ import SwiftUI
 /// number + ALL-CAPS label by hand.
 ///
 /// Replaces the ad-hoc `summaryStat(value:unit:label:)` helper. Combines all
-/// three text rows into a single accessibility element so VoiceOver reads
-/// "129, 27 minutes, This week" as one stat.
+/// three text rows into a single accessibility element with a caption-first
+/// label, so VoiceOver reads "This week: 129, 27m" as one stat.
 struct StatTile: View {
 
     // MARK: - Properties
 
+    /// The large primary value, already formatted.
     let value: String
+    /// Optional smaller line under the value (for example a duration).
     var secondary: String? = nil
+    /// Sentence-case label under the value(s).
     let caption: String
+    /// UI-test identifier. Defaults to `statTile.<caption>`.
     var accessibilityIdentifier: String? = nil
 
     // MARK: - Body
@@ -50,6 +54,7 @@ struct StatTile: View {
         .accessibilityIdentifier(accessibilityIdentifier ?? "statTile.\(caption)")
     }
 
+    /// Caption first, then value, then the secondary line if present.
     private var accessibilityLabel: String {
         if let secondary {
             return "\(caption): \(value), \(secondary)"

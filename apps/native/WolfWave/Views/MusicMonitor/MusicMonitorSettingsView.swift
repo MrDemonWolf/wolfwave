@@ -9,50 +9,76 @@
 import SwiftUI
 import AppKit
 
-/// Music Sync (General tab). Hero now-playing card + integration dashboard.
+/// Music Sync section at the top of the General pane: the "Sync Music" master
+/// toggle, the Music Automation permission row, the hero now-playing card, and
+/// the integrations dashboard (whose Configure rows call `configure`).
 ///
-/// This is the home tab of the redesigned Settings (Screen B in the
-/// `WolfWave Redesign.html` design bundle). When Apple Events automation has
-/// been denied for `com.apple.Music` we surface `PermissionDeniedBanner`
-/// instead of the unified panel and route Configure rows to the right
-/// settings pane.
+/// When Apple Events automation has been denied for `com.apple.Music`, the
+/// view adds `PermissionDeniedBanner` above the toggle, swaps the hero card
+/// for `PermissionPausedNowPlayingCard`, and hides the inline permission row.
+///
+/// State is fed by notifications (now playing, Twitch / Discord / WebSocket
+/// state, `musicPermissionDenied`) after an initial snapshot from
+/// `AppDelegate.shared`; the permission is re-probed whenever the app becomes
+/// active.
 struct MusicMonitorSettingsView: View {
 
     // MARK: - Environment
 
+    /// Drops the state-change animations when Reduce Motion is on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - User Settings
 
+    /// Master music-tracking switch. Changes also post `trackingSettingChanged`
+    /// so the playback monitor starts or stops.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
     // MARK: - Music permission
 
+    /// Last resolved Automation grant for Music. Starts `.unknown` until the
+    /// first probe (or the session cache) answers.
     @State private var permissionState: MusicPermissionState = .unknown
+    /// Presents `PermissionInstructionSheet`.
     @State private var showInstructionSheet = false
+    /// Keeps the recovery banner up after a denial even if a later recheck
+    /// lands on `.unknown` (for example Music closed), so the "Try again"
+    /// feedback isn't yanked away. Cleared only by `.granted`.
     @State private var showPermissionRecovery = false
+    /// True while the system Automation prompt is in flight ("Allow" spinner).
     @State private var isRequesting = false
+    /// True while the granted-state "Recheck" probe runs.
     @State private var isRechecking = false
+    /// Briefly true after a recheck that confirmed the grant (shows "Checked").
     @State private var recheckConfirmed = false
 
     // MARK: - Now playing
 
+    /// Now-playing snapshot for the hero card. `nil` track means nothing is
+    /// playing (or Music is closed).
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
+    /// Artwork resolved by `ArtworkService`; reset to `nil` only on a track
+    /// identity change so a pause flip doesn't restart the image fetch.
     @State private var currentArtworkURL: URL?
     @State private var currentIsPaused: Bool = false
 
     // MARK: - Integration status
 
+    /// Dashboard chip inputs. Seeded by `loadIntegrationStatuses()`, then kept
+    /// current by the service state notifications.
     @State private var twitchConnected = false
     @State private var twitchChannel: String?
     @State private var discordActive = false
+    /// True when the WebSocket server reports `.listening`.
     @State private var widgetRunning = false
 
     // MARK: - Inputs
 
+    /// Routes a dashboard "Configure" row to its settings pane (supplied by
+    /// `SettingsView` through `GeneralSettingsView`).
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
 
     // MARK: - Body
@@ -215,6 +241,8 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Permission status row
 
+    /// Icon, title, and optional subtitle describing the grant, plus the
+    /// state-specific trailing control. Hidden by `body` while denied.
     @ViewBuilder
     private var permissionStatusRow: some View {
         HStack(spacing: DSSpace.s4) {
@@ -240,6 +268,8 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Granted: a quiet Recheck. Denied: Open System Settings. Unknown: Allow
+    /// (triggers the system prompt) plus a manual Open Settings fallback.
     @ViewBuilder
     private var permissionTrailingControl: some View {
         switch permissionState {
@@ -288,6 +318,8 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Recheck button that cycles spinner → "Checked" → button, driven by
+    /// `isRechecking` / `recheckConfirmed` (see `recheckTapped()`).
     @ViewBuilder
     private var grantedRecheckControl: some View {
         if isRechecking {
@@ -311,6 +343,7 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// SF Symbol for the permission row; a lock only when denied.
     private var permissionIconName: String {
         switch permissionState {
         case .granted: return "music.note"
@@ -319,6 +352,7 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Tint for the permission row icon.
     private var permissionIconColor: Color {
         switch permissionState {
         case .granted: return AppConstants.Brand.appleMusicGradientEnd
@@ -327,6 +361,7 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Headline for the permission row.
     private var permissionTitle: String {
         switch permissionState {
         case .granted: return "Music access on"
@@ -335,6 +370,7 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
+    /// Supporting line for the permission row; `nil` when granted (nothing to say).
     private var permissionSubtitle: String? {
         switch permissionState {
         case .granted: return nil
@@ -345,6 +381,7 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Helpers
 
+    /// Widget HTTP port (validated and clamped) used for the dashboard's overlay URL.
     private var widgetPort: UInt16 { Preferences.resolvedWidgetPort }
 
     /// Convenience wrapper around `NotificationCenter.default.publisher(for:)`
@@ -359,6 +396,8 @@ struct MusicMonitorSettingsView: View {
     /// Button-driven recheck. Wraps the off-main probe with a brief spinner
     /// + checkmark so the user gets unambiguous feedback even when the
     /// permission state doesn't change (the common already-granted case).
+    /// The checkmark clears itself about 1.2 seconds later. Re-entrant taps
+    /// are ignored while a probe is running.
     private func recheckTapped() {
         guard !isRechecking else { return }
         withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
@@ -487,22 +526,29 @@ struct MusicMonitorSettingsView: View {
 /// `MusicPermissionChecker.currentState()` issues an Apple Events probe that can take tens of
 /// milliseconds, measurable when switching back to the General settings pane. Cache the result
 /// for a short window so re-entering the pane within the same session is instant. The cache is
-/// invalidated by `NSApplication.didBecomeActiveNotification` and by explicit refresh calls.
-// MainActor-isolated (module default). Every caller already runs on main, so
-// this is race-free and turns any future off-main use into a compile error
-// instead of a silent data race on the `value`/`storedAt` pair (the previous
-// `nonisolated(unsafe)` markers disabled the compiler's race checking).
+/// refreshed (overwritten) on `NSApplication.didBecomeActiveNotification`, by explicit
+/// rechecks, and by the `musicPermissionDenied` signal.
+///
+/// MainActor-isolated (module default). Every caller already runs on main, so
+/// this is race-free and turns any future off-main use into a compile error
+/// instead of a silent data race on the `value`/`storedAt` pair (the previous
+/// `nonisolated(unsafe)` markers disabled the compiler's race checking).
 @MainActor
 enum MusicPermissionCache {
+    /// Freshness window, in seconds.
     private static let ttl: TimeInterval = 30
+    /// Cached state; meaningful only alongside `storedAt`.
     private static var value: MusicPermissionState?
+    /// When `value` was written.
     private static var storedAt: Date?
 
+    /// The cached state, or `nil` if nothing was written or it is older than `ttl`.
     static func read() -> MusicPermissionState? {
         guard let value, let storedAt, Date().timeIntervalSince(storedAt) < ttl else { return nil }
         return value
     }
 
+    /// Stores `state` and restarts the freshness window.
     static func write(_ state: MusicPermissionState) {
         value = state
         storedAt = Date()

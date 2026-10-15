@@ -10,8 +10,15 @@ import Foundation
 
 /// Resolves Spotify, YouTube, and Apple Music links to song metadata.
 ///
-/// Uses free oEmbed APIs (no auth, no rate limits) for Spotify and YouTube.
+/// Uses the public oEmbed endpoints (no auth or API key) for Spotify and YouTube.
 /// Apple Music links are returned directly for MusicKit resolution.
+///
+/// `nonisolated` (opting out of the module's default `MainActor`) because it
+/// holds only an immutable `HTTPClient` and does pure parsing plus one network
+/// call, so it can run off the main thread.
+///
+/// Chat text is untrusted: only `https` URLs on an exact host allow-list with a
+/// service-specific path shape ever reach MusicKit or an outbound oEmbed request.
 nonisolated final class LinkResolverService {
     // MARK: - Types
 
@@ -20,8 +27,11 @@ nonisolated final class LinkResolverService {
     /// Internal (not private) only so tests can assert per-service detection
     /// through ``service(for:)``.
     enum MusicService: Equatable, Sendable {
+        /// `open.spotify.com/track/…` (optionally `intl-xx/` prefixed) or a `spotify.link` short link.
         case spotify
+        /// `youtube.com/watch?v=…` on the www / m / music hosts, or a `youtu.be` short link.
         case youtube
+        /// A `music.apple.com` song link, or an album link pinned to a track with `?i=`.
         case appleMusic
     }
 
@@ -36,7 +46,8 @@ nonisolated final class LinkResolverService {
         /// Could not extract metadata from the link.
         case notFound
 
-        /// An error occurred.
+        /// The oEmbed request failed (non-404 HTTP status, undecodable body, or
+        /// transport error). The message is short and shown in chat.
         case error(String)
     }
 
@@ -48,10 +59,12 @@ nonisolated final class LinkResolverService {
 
     // MARK: - Properties
 
+    /// HTTP client with a snake-case decoder so `author_name` maps to `authorName`.
     private let http: HTTPClient
 
     // MARK: - Init
 
+    /// - Parameter session: Session for oEmbed requests; tests inject a stubbed one.
     init(session: URLSession = .shared) {
         // Use a dedicated HTTPClient configured to decode `author_name` → `authorName`.
         self.http = HTTPClient(session: session, decoder: JSONCoders.snakeCase)
@@ -60,6 +73,12 @@ nonisolated final class LinkResolverService {
     // MARK: - Link Detection
 
     /// Extract the first supported music URL from a chat message.
+    ///
+    /// Unsupported links earlier in the message are skipped, so
+    /// "check this https://example.com then https://open.spotify.com/track/…" still resolves.
+    ///
+    /// - Parameter text: Raw chat text.
+    /// - Returns: The first URL that passes ``service(for:)``, or `nil` if none does.
     static func extractURL(from text: String) -> String? {
         detectedURLs(in: text)
             .first { service(for: $0) != nil }?
@@ -72,6 +91,8 @@ nonisolated final class LinkResolverService {
     ///
     /// - Parameter url: The music service URL to resolve.
     /// - Returns: The resolution result with title/artist or Apple Music URL.
+    ///   `.notFound` for a string that is not a supported URL; this re-validates
+    ///   even when the caller already went through ``extractURL(from:)``.
     func resolve(url: String) async -> ResolveResult {
         guard let sourceURL = URL(string: url),
               let service = Self.service(for: sourceURL)
@@ -154,6 +175,9 @@ nonisolated final class LinkResolverService {
     }
 
     /// Spotify emits both canonical track links and locale-prefixed web links.
+    ///
+    /// Accepts `track/<id>` and `intl-<locale>/track/<id>`. Albums, playlists,
+    /// and podcasts are rejected because they don't name a single song.
     private static func isSpotifyTrackPath(_ path: [String]) -> Bool {
         if path.count == 2 {
             return path[0] == "track"
@@ -168,6 +192,10 @@ nonisolated final class LinkResolverService {
     /// Apple Music share links use:
     /// /<storefront>/(album|song)/<slug>/<numeric catalog id>
     /// Song links may also drop the slug: /<storefront>/song/<numeric catalog id>
+    ///
+    /// The storefront must be two lowercase ASCII letters. An album link only
+    /// counts when its `?i=<numeric id>` query names the track inside the album,
+    /// since a bare album isn't a single song.
     private static func isAppleMusicTrackPath(_ path: [String], url: URL) -> Bool {
         guard path.count >= 3,
               path[0].utf8.count == 2,
@@ -188,6 +216,13 @@ nonisolated final class LinkResolverService {
     }
 
     /// Resolve a link via an oEmbed endpoint.
+    ///
+    /// - Parameters:
+    ///   - base: oEmbed endpoint (`AppConstants.API.spotifyOEmbed` / `youtubeOEmbed`).
+    ///   - sourceURL: The validated share URL, sent as the `url` query item.
+    ///   - includeFormat: Adds `format=json` (sent for YouTube only).
+    /// - Returns: `.found` with the oEmbed `title` and `author_name`; `.notFound`
+    ///   for a 404 or an empty title (deleted / private item); `.error` otherwise.
     private func resolveViaOEmbed(base: String, sourceURL: String, includeFormat: Bool) async -> ResolveResult {
         guard var components = URLComponents(string: base) else {
             return .error("Invalid oEmbed URL")

@@ -25,6 +25,8 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         )
     }
 
+    /// A queue with one request per entry in `users`, in order. Fair-share is turned off so
+    /// positions follow insertion order.
     private func makeQueueWith(users: [String]) -> SongRequestQueue {
         // Pin FIFO so positions are deterministic; this suite tests MyQueueCommand
         // reply formatting, not fair-share reordering.

@@ -16,6 +16,8 @@ extension TwitchChatService {
     /// reset when saturated. Lives in its own isolation domain so heavy API
     /// usage doesn't block the chat-message receive loop.
     actor RateLimiter {
+        /// Last known bucket per endpoint path. Process-local; starts empty,
+        /// so the first request to an endpoint never waits.
         private var states: [String: RateLimitState] = [:]
 
         /// Returns the seconds to wait before retrying when the local accountant

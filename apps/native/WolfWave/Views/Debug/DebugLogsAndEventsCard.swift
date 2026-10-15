@@ -13,10 +13,18 @@ import SwiftUI
 /// DEBUG-only card combining log file utilities with a notification firehose for
 /// manually posting any app-internal `NotificationCenter` event.
 struct DebugLogsAndEventsCard: View {
+
+    // MARK: - Properties
+
+    /// Notification name to post. Picked from `AppConstants.Notifications.allNames`.
     @State private var selectedNotification: String =
         AppConstants.Notifications.allNames.first ?? ""
+    /// Raw JSON typed by the user. An empty or `{}` body posts with no userInfo.
     @State private var userInfoJSON: String = "{}"
+    /// Result line under the Post button. Its color keys off the "Posted" prefix,
+    /// so keep that prefix on the success message.
     @State private var postStatus: String?
+    /// Bumped (wrapping) to re-run the stats `.task`; refresh and Clear Log both bump it.
     @State private var refreshTick = 0
 
     /// Log file stats, loaded off-main via `.task(id: refreshTick)` so the
@@ -56,6 +64,8 @@ struct DebugLogsAndEventsCard: View {
 
     // MARK: - Logs
 
+    /// Log file path and size, Reveal / Copy Path / Clear, and buttons that write
+    /// one test line at each level (category `devTools`).
     private var logsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Log file")
@@ -111,6 +121,8 @@ struct DebugLogsAndEventsCard: View {
                 .pointerCursor()
                 .disabled(logURL == nil)
 
+                // No confirmation: this is a DEBUG tool. Truncates the live log in
+                // place (rotated logs are untouched), then refreshes the stats.
                 Button(role: .destructive) {
                     Log.clearLogFile()
                     refreshTick &+= 1
@@ -149,6 +161,8 @@ struct DebugLogsAndEventsCard: View {
 
     // MARK: - Notification Firehose
 
+    /// Picker of every app notification name, a JSON editor for userInfo, and
+    /// Post / Reset buttons.
     private var firehoseSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
             Text("Notification firehose")
@@ -208,6 +222,13 @@ struct DebugLogsAndEventsCard: View {
         }
     }
 
+    /// Posts `selectedNotification` on `NotificationCenter.default` with the parsed
+    /// userInfo, and records the outcome in `postStatus`.
+    ///
+    /// The JSON must decode to an object (`[String: Any]`); an array or scalar is
+    /// reported as "Invalid JSON" and nothing is posted. Observers receive raw
+    /// JSON types (`NSNumber`, `String`, ...), so a handler that casts its
+    /// userInfo to a richer type will see the cast fail rather than crash.
     private func post() {
         let trimmed = userInfoJSON.trimmingCharacters(in: .whitespacesAndNewlines)
         var userInfo: [AnyHashable: Any] = [:]

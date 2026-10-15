@@ -44,6 +44,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         try await super.tearDown()
     }
 
+    /// Removes the Song Request and managed-reward keys these tests write, so each test starts from
+    /// defaults.
     nonisolated private static func resetRedemptionDefaults() {
         let defaults = DefaultsStore.store
         [
@@ -57,6 +59,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 
+    /// Records `rewardID` as the managed "Request a Song" reward for `broadcasterID` through
+    /// `TwitchManagedRewardStore`.
     private func storeManagedRewardIdentity(
         rewardID: String,
         broadcasterID: String = "broadcaster"
@@ -69,6 +73,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 replacing: TwitchManagedRewardStore.snapshot()))
     }
 
+    /// Turns on Song Requests and channel-point redemptions (Bits off) and stores `rewardID`, so
+    /// `subscribeToRedemptionsIfEnabled()` has a managed reward to reconcile.
     private func enableManagedReward(rewardID: String) {
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         DefaultsStore.store.set(
@@ -80,6 +86,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         storeManagedRewardIdentity(rewardID: rewardID)
     }
 
+    /// Canned empty page for the "list unfulfilled redemptions" GET, or nil for any other request,
+    /// so a handler can answer that fetch and handle only the call it cares about itself.
     nonisolated private static func emptyUnfulfilledRedemptionsResponse(
         for request: URLRequest
     ) -> (HTTPURLResponse, Data)? {
@@ -92,6 +100,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             Data(#"{"data":[],"pagination":{}}"#.utf8))
     }
 
+    /// A `TwitchDeviceAuth` whose HTTP goes through `handlerStore`'s mock handler.
     private func makeAuth(clientID: String = "test-client") -> TwitchDeviceAuth {
         TwitchDeviceAuth(
             clientID: clientID,
@@ -168,6 +177,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         return String(data: buffer, encoding: .utf8) ?? ""
     }
 
+    /// First query-string value named `name` in the request URL, or nil.
     nonisolated private static func queryValue(
         _ name: String,
         in request: URLRequest
@@ -253,6 +263,11 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
 
     // MARK: - Fresh EventSub managed-redemption reconciliation
 
+    /// On a fresh EventSub session, redemptions missed while offline are recovered before
+    /// the reward goes live again. The outbox already holds `missed-1`; Helix lists
+    /// `missed-1` (twice) and `missed-2`. Each is canceled exactly once, and the order must be
+    /// fetch, then cancels, then EventSub subscribe, then unpause (a viewer must not be able to
+    /// redeem into a session that is not yet listening).
     func testFreshEventSubRecoversDuplicateMissedRedemptionsBeforeSubscribeAndUnpause()
         async throws {
         enableManagedReward(rewardID: "reward")
@@ -344,6 +359,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertLessThan(subscribeIndex, unpauseIndex)
     }
 
+    /// If the outbox cannot be written while recording missed redemptions (the second write
+    /// fails), the reward stays paused, no EventSub subscription is made, nothing is canceled,
+    /// and the status becomes `.storageUnavailable`.
     func testFreshEventSubStorageFailureKeepsRewardPausedAndSkipsSubscription()
         async throws {
         enum InjectedFailure: Error {
@@ -424,6 +442,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .storageUnavailable)
     }
 
+    /// If listing unfulfilled redemptions fails (503), the reward stays paused, no
+    /// subscription is made, and the status becomes `.subscribeFailed`. Storage is not blamed.
     func testFreshEventSubRecoveryAPIFailureKeepsRewardPausedAndSkipsSubscription()
         async throws {
         enableManagedReward(rewardID: "reward")
@@ -487,6 +507,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             .subscribeFailed)
     }
 
+    /// When the stored reward was deleted on Twitch (pause returns 404), a new one is
+    /// created disabled, paused, fetched, subscribed, and only then unpaused, with the new id
+    /// stored. The ordering assertions pin that the reward is never live before it is ready.
     func testFreshEventSubClearsDeletedStoredRewardAndRecreatesItHeld()
         async throws {
         enableManagedReward(rewardID: "stale-reward")
@@ -575,6 +598,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertLessThan(subscribe, unpause)
     }
 
+    /// A corrupt outbox file flags "opaque recovery risk"; a successful reconciliation
+    /// clears that flag.
     func testHeldReconciliationClearsPersistentOpaqueRecoveryRisk() async throws {
         enableManagedReward(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -628,6 +653,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(leftChannel)
     }
 
+    /// Signing out first pauses the managed reward on Twitch (a PATCH with `is_paused:true`
+    /// and a 5 s timeout, using the old token). The Keychain token must still exist while that
+    /// request is in flight and only be removed after it completes.
     func testCredentialClearWaitsForManagedRewardPauseBeforeDeletingKeychain()
         async throws {
         enableManagedReward(rewardID: "reward")
@@ -692,6 +720,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(Self.bodyString(of: request).contains(#""is_paused":true"#))
     }
 
+    /// If the reward pause fails (503), sign-out is refused: credentials and the service's
+    /// identity stay, a sign-out-disconnect error shows, and token validation restarts.
     func testCredentialClearRefusesFailedRewardPauseAndRestartsValidation() async throws {
         enableManagedReward(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -746,6 +776,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(Self.bodyString(of: request).contains(#""is_paused":true"#))
     }
 
+    /// With no Twitch service to pause the reward, sign-out is refused and the stored
+    /// grant and reward id are kept rather than orphaning a live reward.
     func testCredentialClearWithoutServicePreservesManagedRewardOwner() async throws {
         enableManagedReward(rewardID: "reward")
         let grant = KeychainService.TwitchCredentialGrant(
@@ -774,6 +806,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.connectionError?.id, "twitch.signOutDisconnectFailed")
     }
 
+    /// A service that is not connected still pauses the reward before sign-out, using the
+    /// stored grant's token and the stored client id.
     func testDisconnectedServiceUsesStoredBroadcasterGrantToPauseBeforeClear()
         async throws {
         enableManagedReward(rewardID: "reward")
@@ -821,6 +855,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(Self.bodyString(of: request).contains(#""is_paused":true"#))
     }
 
+    /// A 404 on the pause means the reward is already gone, so sign-out proceeds and
+    /// the stored reward id is cleared.
     func testMissingManagedRewardIsSafeToClearAndForgetsStoredID() async throws {
         enableManagedReward(rewardID: "missing-reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -856,6 +892,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 forKey: AppConstants.UserDefaults.songRequestChannelPointsRewardID))
     }
 
+    /// A sign-out that loses channel ownership mid-pause (a newer session took over) must
+    /// not delete the Keychain grant: the newer owner keeps its identity and token, and a
+    /// sign-out-disconnect error is reported.
     func testSupersededLeavePreservesKeychainAndNewerSameAccountOwner() async throws {
         enableManagedReward(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -912,6 +951,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(state.clientID, "client")
     }
 
+    /// `leaveChannel()` is superseded while its pause request is parked. When the stale
+    /// pause finishes, the new live session is repaired: the reward is resubscribed and
+    /// unpaused (in that order), and the stale leave reports failure while still connected.
     func testSupersededLeaveReconcilesAfterItsStalePauseCompletes() async throws {
         enableManagedReward(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1013,6 +1055,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         await service.leaveChannel()
     }
 
+    /// An outbox item belonging to another broadcaster blocks sign-out even with no
+    /// reward stored: credentials stay, the item stays pending, and no request is sent.
     func testNoRewardForeignBroadcasterOutboxBlocksCredentialClear() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1054,6 +1098,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(requests.value, 0)
     }
 
+    /// A persisted refund that is still retrying (Helix keeps returning 503, the retry sleep
+    /// is cancelled) blocks sign-out and stays in the outbox.
     func testRetryingPersistedRedemptionBlocksCredentialClear() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1099,6 +1145,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(outbox.pendingItems().count, 1)
     }
 
+    /// Sign-out waits for an in-flight live intake task to settle, then drains the
+    /// resulting refund before deleting credentials. Checked by holding the intake open
+    /// and confirming the clear has not finished.
     func testLiveRedemptionIntakeSettlesAndDrainsBeforeCredentialClear() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1164,6 +1213,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         })
     }
 
+    /// A setup-time unpause still in flight must finish before the teardown pause is sent
+    /// (operations are exactly `["unpause", "pause"]`), so the reward cannot end up unpaused after
+    /// sign-out.
     func testDelayedSetupUnpauseCompletesBeforeFinalTeardownPause() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1233,6 +1285,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertNil(KeychainService.loadTwitchToken())
     }
 
+    /// A redemption whose first outbox write failed and whose refund call fails is held in
+    /// memory and retried; sign-out is refused until that retry succeeds, then allowed.
     func testFailedUnpersistedRefundBlocksClearUntilRetrySettles() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1311,6 +1365,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertNil(KeychainService.loadTwitchToken())
     }
 
+    /// A corrupt outbox that cannot be quarantined blocks a normal sign-out (the reward is still
+    /// paused), but a factory reset (`discardOpaqueRedemptionRecovery: true`) may discard it.
     func testOpaqueOutboxRiskBlocksNormalClearButFactoryOverrideCanDiscard()
         async throws {
         storeManagedRewardIdentity(rewardID: "reward")
@@ -1367,6 +1423,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(pauses.value, 2)
     }
 
+    /// With no credentials and no reward, an unquarantinable corrupt outbox must still not
+    /// be reported safe to tear down.
     func testCredentiallessNoRewardOpaqueOutboxCannotReportSafe() async throws {
         enum InjectedFailure: Error {
             case quarantine
@@ -1387,6 +1445,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
 
     // MARK: - Durable redemption resolution replay
 
+    /// An intake record with no known outcome (the app died before deciding) is refunded
+    /// (`CANCELED`) on startup replay and drained from the outbox.
     func testUnknownPersistedRedemptionIntakeRefundsOnStartupAndDrains() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1426,6 +1486,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(Self.bodyString(of: request).contains("CANCELED"))
     }
 
+    /// A 404 on a persisted resolution counts as already-handled and drains the item, but only
+    /// when the item's broadcaster and reward match the stored managed reward owner.
     func testPersistedRedemption404DrainsOnlyForExactManagedOwner() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1460,6 +1522,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(outbox.pendingItems().isEmpty)
     }
 
+    /// A 404 only drains an outbox item while the managed reward owner is still the one that
+    /// queued it. If the owner changes while the PATCH is in flight (reward removed, a
+    /// different account's reward stored), the item stays pending.
     func testPersistedRedemption404StaysPendingAfterManagedOwnerChanges()
         async throws {
         storeManagedRewardIdentity(rewardID: "reward")
@@ -1522,6 +1587,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                     broadcasterID: "other-account")))
     }
 
+    /// A 409 on the PATCH is checked with a follow-up GET; if Twitch already shows the
+    /// redemption as `CANCELED`, the item is acknowledged (requests are PATCH then GET).
     func testPatch409WithResolvedStatusAcknowledgesOutboxItem() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1558,6 +1625,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(requests.value.map(\.httpMethod), ["PATCH", "GET"])
     }
 
+    /// A redemption that keeps failing (400) while Twitch still shows it `UNFULFILLED` is
+    /// dead-lettered after 5 attempts and flags `.resolutionStuck`. Acknowledging the
+    /// dead letter returns the status to `.ok`.
     func testPatch400StillUnfulfilledDeadLettersAfterFiveAttempts() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1614,6 +1684,11 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         try await assertPersistedRedemptionAdoptsRotatedToken(status: 403)
     }
 
+    /// Shared body for the 401 and 403 cases. The first PATCH is rejected with
+    /// `unauthorizedStatus`; the injected reactive refresh commits a rotated token, which the
+    /// service adopts (actor token and reconnect token, stale reconnect cancelled, new one
+    /// scheduled).
+    /// The retry must go out with `Bearer NEW_ACCESS` and drain the outbox.
     private func assertPersistedRedemptionAdoptsRotatedToken(status unauthorizedStatus: Int) async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1695,6 +1770,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(outbox.pendingItems().isEmpty)
     }
 
+    /// A 429 with `Retry-After: 12` makes replay wait 12 s (recorded by the injected sleeper,
+    /// not slept) and retry, after which the item drains.
     func testPersistedRedemptionReplayHonorsRetryAfterAndDrains() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1760,6 +1837,8 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(first.value(forHTTPHeaderField: "Authorization"), "Bearer ACCESS")
     }
 
+    /// Four straight 503s do not give up: replay backs off 1, 2, 4, 8 s and succeeds on the fifth
+    /// attempt.
     func testPersistedRedemptionKeepsRetryingAfterInitialTransientBurst() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         try KeychainService.saveTwitchCredentialGrant(
@@ -1809,6 +1888,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertTrue(outbox.pendingItems().isEmpty)
     }
 
+    /// A 401 for account A that arrives after the user signed in as account B must not
+    /// refresh B's tokens or raise the re-auth flag. The item stays pending, and only one request
+    /// was made.
     func testRedemption401CannotRefreshOrExpireReplacementAccount() async throws {
         storeManagedRewardIdentity(rewardID: "reward")
         await TwitchTokenRefresher.invalidateSession()
@@ -1888,6 +1970,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(outbox.pendingItems().count, 1)
     }
 
+    /// Clearing credentials while the channel lookup is in flight makes `connectToChannel`
+    /// throw `CancellationError` before any socket is opened; the service is not connected and
+    /// keeps no reconnect channel.
     func testClearingCredentialsDuringChannelLookupCancelsJoinBeforeSocket() async throws {
         try KeychainService.saveTwitchCredentialGrant(
             .init(
@@ -1952,6 +2037,9 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
 
     // MARK: - Keychain accessor round-trip
 
+    /// If the Keychain write for the rotated grant fails once, the commit is retried
+    /// locally: the refresh succeeds with a single network call, and the new refresh token is
+    /// stored.
     func testRefreshCommitRetriesOnKeychainFailure() async throws {
         await TwitchTokenRefresher.invalidateSession()
         let failingBackend = InspectableKeychainBackend()
@@ -1973,6 +2061,10 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
         XCTAssertEqual(calls.value, 1)
     }
 
+    /// Refresh tokens are single-use, so a rotated pair that could not be stored is kept in
+    /// memory. After a refresh reports `.temporarilyUnavailable`, the next call commits the held
+    /// tokens without another network request (one call total) instead of spending the dead old
+    /// token.
     func testHeldRotatedTokenCommittedBeforeNextRefresh() async throws {
         await TwitchTokenRefresher.invalidateSession()
         let failingBackend = InspectableKeychainBackend()
@@ -2011,11 +2103,14 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
     }
 }
 
+/// The actor's active and reconnect tokens, read through `refreshActorStateForTesting()`.
 nonisolated struct TwitchRefreshActorSnapshot: Sendable {
     let oauthToken: String?
     let reconnectToken: String?
 }
 
+/// The identity fields the managed-redemption flow runs under, read through
+/// `managedRedemptionIdentityForTesting()`.
 nonisolated struct ManagedRedemptionIdentitySnapshot: Sendable {
     let broadcasterID: String?
     let botID: String?
@@ -2023,13 +2118,20 @@ nonisolated struct ManagedRedemptionIdentitySnapshot: Sendable {
     let clientID: String?
 }
 
+/// Which of two EventSub sockets is the live one, and whether a reconnect task is pending.
 nonisolated struct EventSubTransportSnapshot: Sendable {
     let sourceIsCurrent: Bool
     let targetIsCurrent: Bool
     let hasReconnectTask: Bool
 }
 
+/// Test-only seams on `TwitchChatService` (same-module access to actor state) for the
+/// redemption teardown gate: run a reward unpause under a setup lease, install a fake
+/// live intake task, and await paid-redemption tasks.
 extension TwitchChatService {
+    /// Unpauses `rewardID` while holding a `TwitchRedemptionTeardownGate` setup lease, the way
+    /// setup does, so a teardown must wait for it. Throws `CancellationError` if the service has no
+    /// identity yet.
     func runManagedRewardUnpauseUnderSetupLeaseForTesting(
         rewardID: String
     ) async throws {
@@ -2052,6 +2154,8 @@ extension TwitchChatService {
             paused: false)
     }
 
+    /// Registers `operation` as the in-flight live intake task for `item`, removed again when it
+    /// finishes.
     func installTeardownLiveIntakeForTesting(
         item: TwitchRedemptionResolutionOutbox.Item,
         operation: @escaping @Sendable () async -> Void
@@ -2066,6 +2170,7 @@ extension TwitchChatService {
         redemptionTasks[id] = nil
     }
 
+    /// Waits for every task in `paidRedemptionTasks`.
     func awaitPaidRedemptionTasksForTeardownTesting() async {
         let tasks = Array(paidRedemptionTasks.values)
         for task in tasks {
@@ -2073,6 +2178,7 @@ extension TwitchChatService {
         }
     }
 
+    /// Waits for every fulfill/refund worker task, so assertions run after replay has settled.
     func awaitRedemptionResolutionWorkersForTesting() async {
         let workers = Array(redemptionResolutionTasks.values)
         for worker in workers {
@@ -2080,6 +2186,8 @@ extension TwitchChatService {
         }
     }
 
+    /// Starts a connection attempt and sets the identity (broadcaster doubles as bot), token,
+    /// client id, and EventSub session id that managed-reward setup reads.
     func configureManagedRedemptionSessionForTesting(
         broadcasterID: String = "broadcaster",
         token: String = "ACCESS",
@@ -2106,6 +2214,8 @@ extension TwitchChatService {
         reconnectChannelName
     }
 
+    /// Sets the active and reconnect token to `token`. If `staleReconnectCancelled` is given, also
+    /// parks a reconnect task that sets it when it is cancelled (proving adoption replaced it).
     func installRefreshAdoptionStateForTesting(
         token: String,
         staleReconnectCancelled: ThreadSafeBox<Bool>? = nil
@@ -2143,10 +2253,14 @@ extension TwitchChatService {
         reconnectTask != nil
     }
 
+    /// Bumps the channel-ownership generation, as a newer join or leave would, so in-flight work
+    /// becomes stale.
     func supersedeChannelOwnershipForTesting() {
         channelOwnershipGeneration &+= 1
     }
 
+    /// Installs `source` as a connected, welcomed chat session with the given identity and a
+    /// reconnect channel. Returns its receive context.
     func installLiveChatSessionForTesting(
         _ source: URLSessionWebSocketTask,
         actorToken: String = "OLD_AT",
@@ -2183,6 +2297,9 @@ extension TwitchChatService {
     }
 }
 
+/// Parks the caller in `suspend()` until the test calls `resume()`, so a test can hold
+/// an OAuth identity step open and change state at that actor-reentrancy point.
+/// `suspended` flips true once the caller has parked.
 actor OAuthIdentityGate {
     private(set) var suspended = false
     private var released = false

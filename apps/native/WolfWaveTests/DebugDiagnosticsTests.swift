@@ -10,6 +10,9 @@
 import XCTest
 @testable import WolfWave
 
+/// The Markdown diagnostics snapshot from `DebugDiagnostics`: headings, environment fields, log
+/// size, and that Connections and Preferences stay separate tables (a preference being on is not
+/// evidence a service connected).
 @MainActor
 final class DebugDiagnosticsTests: XCTestCase {
 
