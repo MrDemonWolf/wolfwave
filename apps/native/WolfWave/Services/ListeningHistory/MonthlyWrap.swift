@@ -82,7 +82,7 @@ enum MonthlyWrap {
     ) -> MonthlyWrapData {
         let interval = calendar.dateInterval(of: .month, for: month)
         let monthStart = interval?.start ?? calendar.startOfDay(for: month)
-        let label = monthLabel(for: monthStart)
+        let label = monthLabel(for: monthStart, calendar: calendar)
 
         let monthRecords: [PlayRecord]
         if let interval {
@@ -249,17 +249,15 @@ enum MonthlyWrap {
         return nil
     }
 
-    /// Fixed `LLLL yyyy` pattern ("May 2026"). The month name follows the
-    /// user's locale, but the field order does not, and the formatter uses the
-    /// current calendar rather than the one passed to ``data(from:month:calendar:)``.
-    private static let monthLabelFormatter: DateFormatter = {
+    /// Formats a "Month Year" label for the given date with a fixed `LLLL yyyy`
+    /// pattern ("May 2026"). The month name follows the user's locale, but the
+    /// field order does not. The formatter uses `calendar` and its time zone,
+    /// so the label names the same month the records were bucketed into.
+    private static func monthLabel(for date: Date, calendar: Calendar) -> String {
         let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
         formatter.dateFormat = "LLLL yyyy"
-        return formatter
-    }()
-
-    /// Formats a "Month Year" label for the given date.
-    private static func monthLabel(for date: Date) -> String {
-        monthLabelFormatter.string(from: date)
+        return formatter.string(from: date)
     }
 }

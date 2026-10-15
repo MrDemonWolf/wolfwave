@@ -36,18 +36,27 @@ final class WidgetHTTPServiceTests: XCTestCase {
         })
         defer { service.stop() }
         service.start()
-        do {
-            try await service.ready()
-            XCTFail("Injected failure must fail its first bind")
-        } catch WidgetHTTPService.ReadyError.listenerFailed {
-        }
-        let recovered = await waitUntil(timeout: .seconds(5)) {
-            do { try await service.ready(); return true }
-            catch { return false }
-        }
-        XCTAssertTrue(recovered)
+        // A failed first bind with a retry pending is not final: `ready()` keeps
+        // waiting and resolves once the retry binds.
+        try await service.ready()
         XCTAssertNotNil(service.boundPort)
         XCTAssertEqual(attempts.value, 2)
+    }
+
+    func testReadyThrowsListenerFailedOnceRetriesAreSpent() async {
+        let attempts = ThreadSafeBox(0)
+        let service = WidgetHTTPService(port: 0, retryBaseDelay: 0.01, makeListener: { _, _ in
+            attempts.mutate { $0 += 1 }
+            throw NWError.posix(.EADDRINUSE)
+        })
+        defer { service.stop() }
+        service.start()
+        do {
+            try await service.ready()
+            XCTFail("A bind that never succeeds must end in listenerFailed")
+        } catch WidgetHTTPService.ReadyError.listenerFailed {
+        } catch { XCTFail("Unexpected readiness error: \(error)") }
+        XCTAssertEqual(attempts.value, 6, "One initial bind plus five retries")
     }
 
     func testFaviconEncodedOnce() {
@@ -288,6 +297,24 @@ final class WidgetHTTPServiceTests: XCTestCase {
             isLoopback: false,
             peerConnectionCount: 4
         ))
+    }
+
+    func testConnectionRefusalNamesTheLimitThatHit() {
+        XCTAssertNil(WidgetHTTPService.connectionRefusal(
+            activeCount: 0, maximumCount: 32, isLoopback: false, peerConnectionCount: 0))
+        XCTAssertEqual(WidgetHTTPService.connectionRefusal(
+            activeCount: 32, maximumCount: 32, isLoopback: true, peerConnectionCount: 0), .totalLimit)
+        XCTAssertEqual(WidgetHTTPService.connectionRefusal(
+            activeCount: 28, maximumCount: 32, isLoopback: false, peerConnectionCount: 0), .loopbackReserve)
+        XCTAssertEqual(WidgetHTTPService.connectionRefusal(
+            activeCount: 1, maximumCount: 32, isLoopback: false, peerConnectionCount: 4), .perHostLimit)
+        XCTAssertEqual(WidgetHTTPService.connectionRefusal(
+            activeCount: -1, maximumCount: 32, isLoopback: false, peerConnectionCount: 0), .invalidCounts)
+
+        let perHost = WidgetHTTPService.ConnectionRefusal.perHostLimit.logDescription(maximumCount: 32)
+        XCTAssertFalse(perHost.contains("already active"), "A per-host refusal must not claim the total cap")
+        XCTAssertTrue(WidgetHTTPService.ConnectionRefusal.totalLimit
+            .logDescription(maximumCount: 32).contains("32 already active"))
     }
 
     func testStopCancelsAcceptedIdleConnections() async throws {

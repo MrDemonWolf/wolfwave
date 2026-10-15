@@ -88,9 +88,8 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// always gets a fresh attempt. Bounded to `cacheMaxEntries`.
     private var transientMisses: [CacheKey: TransientMiss] = [:]
 
-    /// Clock for the transient-miss back-off. Injectable so tests can step time.
-    ///
-    /// Note: the TTL checks on `resolvedAt` use `Date()` directly, not this clock.
+    /// Clock for the transient-miss back-off and the lookup TTL. Injectable so
+    /// tests can step time.
     private let now: @Sendable () -> Date
 
     /// Insertion-ordered keys. Used to evict the oldest entry when caches are full.
@@ -138,7 +137,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   - persistenceURL: File backing the links cache. Defaults to the app's
     ///     Application Support directory. Pass nil to disable disk persistence
     ///     (used by tests).
-    ///   - now: Clock for transient-failure back-off. Defaults to `Date()`.
+    ///   - now: Clock for transient-failure back-off and the lookup TTL. Defaults to `Date()`.
     ///
     /// Loads the persisted cache synchronously, so the first lookup after launch
     /// can be served from disk without a network call.
@@ -234,7 +233,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             // Recently resolved (even to an empty result), serve the cached value
             // without re-querying. Stops repeat lookups for tracks not on iTunes.
             if let resolved = resolvedAt[cacheKey],
-               Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL {
+               now().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL {
                 return .hit(cached)
             }
             let inFlightKey = InFlightKey(cacheKey: cacheKey, generation: cacheGeneration)
@@ -367,7 +366,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         if resolvedAt[cacheKey] == nil {
             cacheKeyOrder.append(cacheKey)
         }
-        resolvedAt[cacheKey] = Date()
+        resolvedAt[cacheKey] = now()
         while cacheKeyOrder.count > cacheMaxEntries {
             let evicted = cacheKeyOrder.removeFirst()
             cache.removeValue(forKey: evicted)
@@ -449,7 +448,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             // showing "No link found" forever past the lookup TTL.
             if let miss = transientMisses[cacheKey], now() < miss.retryAt { return true }
             guard let resolved = resolvedAt[cacheKey] else { return false }
-            return Date().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL
+            return now().timeIntervalSince(resolved) < AppConstants.API.artworkLookupTTL
         }
     }
 
@@ -530,9 +529,9 @@ nonisolated final class ArtworkService: @unchecked Sendable {
               let snapshot = try? JSONCoders.default.decode(PersistedCache.self, from: data)
         else { return }
 
-        let now = Date()
+        let loadTime = now()
         for entry in snapshot.entries {
-            if now.timeIntervalSince(entry.resolvedAt) >= AppConstants.API.artworkLookupTTL { continue }
+            if loadTime.timeIntervalSince(entry.resolvedAt) >= AppConstants.API.artworkLookupTTL { continue }
             let key = entry.key
             if let artworkURL = entry.artworkURL { cache[key] = artworkURL }
             if let trackViewURL = entry.trackViewURL { trackViewURLCache[key] = trackViewURL }

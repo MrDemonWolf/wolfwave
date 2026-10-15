@@ -40,6 +40,19 @@ struct StreamDeckCommandTests {
         #expect(result == .command(StreamDeckCommand(action: .skip, args: ["reason": "boring"])))
     }
 
+    @Test func nonStringArgDropsOnlyThatKey() {
+        let version = StreamDeckControl.protocolVersion
+        let text = #"{"type":"command","action":"skip","protocol":\#(version),"args":{"reason":"boring","count":3,"flag":true,"nested":{}}}"#
+        let result = StreamDeckControl.parse(text)
+        #expect(result == .command(StreamDeckCommand(action: .skip, args: ["reason": "boring"])))
+    }
+
+    @Test func nonObjectArgsDecodeAsEmpty() {
+        let version = StreamDeckControl.protocolVersion
+        let text = #"{"type":"command","action":"skip","protocol":\#(version),"args":["boring"]}"#
+        #expect(StreamDeckControl.parse(text) == .command(StreamDeckCommand(action: .skip, args: [:])))
+    }
+
     @Test func unknownActionRejected() {
         let result = StreamDeckControl.parse(frame("teleport"))
         #expect(result == .reject(.failure("teleport", "unknown_action")))

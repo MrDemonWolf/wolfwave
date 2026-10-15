@@ -56,6 +56,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 - **An expired Twitch sign-in has a Reconnect button wherever it shows up.** The notices in Bot Commands, Custom Commands, Song Requests, and the `!stats` card now say what stopped and offer **Reconnect with Twitch**, which jumps to the Twitch page and starts signing in.
 
 ### Fixed
+- **Discord connects when Discord was launched with an empty or non-UTF-8 argument.** WolfWave misread where Discord's environment starts and could miss its temp folder, so Rich Presence never found the socket.
 - When Twitch permanently cuts off WolfWave's chat connection (the account was removed, a permission was lost, or WolfWave needs an update), waking your Mac or getting your network back no longer quietly reconnects it. Connect again from Settings → Twitch once you've fixed the cause.
 - **Homebrew installs no longer run Sparkle too.** A cask installed to Applications (the Homebrew default) was taken for a DMG install, so WolfWave offered its own updates alongside `brew upgrade`. It now spots the cask and leaves updates to Homebrew.
 - **Turning History off and back on mid-song no longer counts the song twice.** Quitting on that same track recorded the play a second time.

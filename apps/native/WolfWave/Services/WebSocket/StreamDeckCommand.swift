@@ -43,7 +43,8 @@ nonisolated struct StreamDeckCommand: Sendable, Equatable {
     let action: StreamDeckAction
     /// Optional string args from the envelope (unused by the v3 actions; carried
     /// so a future action can take a parameter without a protocol bump).
-    /// A missing `args`, or one holding any non-string value, decodes as empty.
+    /// A missing or non-object `args` decodes as empty; within an object, each
+    /// string entry is kept and any non-string entry is dropped on its own.
     let args: [String: String]
 }
 
@@ -139,7 +140,9 @@ nonisolated enum StreamDeckControl {
             return .reject(.failure(actionToken, "unknown_action"))
         }
 
-        let args = (obj["args"] as? [String: String]) ?? [:]
+        // Keep each string entry; a non-string value drops only that key.
+        let rawArgs = (obj["args"] as? [String: Any]) ?? [:]
+        let args = rawArgs.compactMapValues { $0 as? String }
         return .command(StreamDeckCommand(action: action, args: args))
     }
 }

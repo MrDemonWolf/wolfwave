@@ -58,6 +58,24 @@ struct MonthlyWrapTests {
         #expect(wrap.monthLabel.contains("2026"))
     }
 
+    @Test("The month label follows the passed calendar's time zone, not the host's")
+    func testMonthLabelHonorsCalendarTimeZone() throws {
+        // At UTC+14 the start of June is 10:00 UTC on May 31, so a formatter on any
+        // other host time zone would label this wrap "May".
+        var kiritimati = Calendar(identifier: .gregorian)
+        kiritimati.timeZone = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+        var components = DateComponents()
+        components.year = 2026
+        components.month = 6
+        components.day = 15
+        let june = try #require(kiritimati.date(from: components))
+
+        let wrap = MonthlyWrap.data(from: [], month: june, calendar: kiritimati)
+        let juneName = DateFormatter().standaloneMonthSymbols[5]
+        #expect(wrap.monthLabel.contains(juneName))
+        #expect(wrap.monthLabel.contains("2026"))
+    }
+
     @Test("A month with no plays has no data")
     func testEmptyMonth() {
         let records = [record(track: "April", artist: "X", at: date(2026, 4, 10))]

@@ -1030,49 +1030,51 @@ actor DiscordRPCService {
             return nil
         }
 
-        // KERN_PROCARGS2 layout:
-        //   [argc: Int32][exec_path\0][padding\0...][argv[0]\0]...[argv[n]\0][env[0]\0]...
-        guard size > MemoryLayout<Int32>.size else { return nil }
-        let argc = buffer.withUnsafeBufferPointer { buf -> Int32 in
-            guard let baseAddress = buf.baseAddress else { return 0 }
-            return baseAddress.withMemoryRebound(to: Int32.self, capacity: 1) { $0.pointee }
-        }
+        guard let value = Self.tmpDir(fromProcArgs2: Array(buffer.prefix(size))) else { return nil }
+        Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: .discord)
+        return value
+    }
 
-        // Collect all null-terminated strings after the header. Runs of NULs
-        // (the exec-path padding) are skipped. An empty or non-UTF-8 argv entry
-        // is dropped too, which shifts `envStart` past the first environment
-        // entry(s); TMPDIR would be missed only if it sat in that slot.
-        var strings: [String] = []
-        var current: [UInt8] = []
-        for i in MemoryLayout<Int32>.size..<size {
-            let byte = buffer[i]
-            if byte == 0 {
-                if !current.isEmpty {
-                    if let str = String(bytes: current, encoding: .utf8) {
-                        strings.append(str)
-                    }
-                    current = []
-                }
-            } else {
-                current.append(byte)
-            }
-        }
-
-        // strings[0] = exec path, strings[1..argc] = argv, rest = environment.
-        // `argc >= 0` guards the `strings[i]` subscript below: a malformed
-        // negative argc would otherwise produce a negative lower bound.
+    /// Extracts `TMPDIR` from a `KERN_PROCARGS2` buffer.
+    ///
+    /// Layout: `[argc: Int32][exec_path\0][\0 padding...][argv[0]\0]...[argv[argc-1]\0][env[0]\0]...[\0]`.
+    /// Exactly `argc` argv strings are skipped, including empty or non-UTF-8 ones,
+    /// so the environment always starts at the right entry. The environment ends
+    /// at the first empty string or the end of the buffer.
+    ///
+    /// - Parameter buffer: The raw sysctl result, trimmed to the returned size.
+    /// - Returns: The `TMPDIR` value, or nil when the buffer is malformed or has none.
+    nonisolated static func tmpDir(fromProcArgs2 buffer: [UInt8]) -> String? {
+        let header = MemoryLayout<Int32>.size
+        guard buffer.count > header else { return nil }
+        let argc = buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
         guard argc >= 0 else { return nil }
-        let envStart = 1 + Int(argc)
-        guard envStart >= 0, envStart < strings.count else { return nil }
 
-        for i in envStart..<strings.count {
-            if strings[i].hasPrefix("TMPDIR=") {
-                let value = String(strings[i].dropFirst(7))
-                Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: .discord)
-                return value
-            }
+        var index = header
+        // exec_path
+        while index < buffer.count, buffer[index] != 0 { index += 1 }
+        // NUL padding before argv[0]
+        while index < buffer.count, buffer[index] == 0 { index += 1 }
+
+        // Skip exactly argc argv strings, empty ones included.
+        for _ in 0..<argc {
+            guard index < buffer.count else { return nil }
+            while index < buffer.count, buffer[index] != 0 { index += 1 }
+            index += 1
         }
 
+        // Environment: NUL-terminated strings until an empty one.
+        let prefix = Array("TMPDIR=".utf8)
+        while index < buffer.count {
+            let entryStart = index
+            while index < buffer.count, buffer[index] != 0 { index += 1 }
+            let entry = buffer[entryStart..<index]
+            index += 1
+            if entry.isEmpty { break }
+            if entry.starts(with: prefix) {
+                return String(bytes: entry.dropFirst(prefix.count), encoding: .utf8)
+            }
+        }
         return nil
     }
 

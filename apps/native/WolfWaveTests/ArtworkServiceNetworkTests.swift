@@ -251,6 +251,57 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(counter.value, 1, "A recent miss must not re-hit the network")
     }
 
+    /// The lookup TTL runs on the injected clock: a miss is served from cache just
+    /// before the TTL and re-queried once the clock passes it.
+    func testMissExpiresOnInjectedClockAfterTTL() async {
+        let clock = ThreadSafeBox(Date())
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore), persistenceURL: nil,
+            now: { clock.value })
+        let counter = ThreadSafeBox(0)
+        handlerStore.handler = { request in
+            counter.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+
+        _ = await fetchLinks(track: "Missing", artist: "Nobody")
+        clock.mutate { $0.addTimeInterval(AppConstants.API.artworkLookupTTL - 1) }
+        _ = await fetchLinks(track: "Missing", artist: "Nobody")
+        XCTAssertEqual(counter.value, 1, "A miss inside the TTL must not re-hit the network")
+        XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Missing", artist: "Nobody"))
+
+        clock.mutate { $0.addTimeInterval(2) }
+        XCTAssertFalse(service.hasAttemptedTrackLinks(track: "Missing", artist: "Nobody"))
+        _ = await fetchLinks(track: "Missing", artist: "Nobody")
+        XCTAssertEqual(counter.value, 2, "A miss past the TTL must re-query")
+    }
+
+    /// Entries loaded from disk are pruned against the injected clock, not wall time.
+    func testDiskLoadPrunesExpiredEntriesOnInjectedClock() async {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artwork-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        handlerStore.handler = { request in
+            let json = #"{"results":[{"trackName":"Persisted","artistName":"Artist","artworkUrl100":"https://cdn.example/100x100.jpg","trackId":7}]}"#
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+        let start = Date()
+        let first = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url, now: { start })
+        _ = await withCheckedContinuation { (cont: CheckedContinuation<TrackLinks, Never>) in
+            first.fetchTrackLinks(track: "Persisted", artist: "Artist") { cont.resume(returning: $0) }
+        }
+        let wrote = await waitUntil { FileManager.default.fileExists(atPath: url.path) }
+        XCTAssertTrue(wrote, "Cache file should be written within the timeout")
+
+        let later = start.addingTimeInterval(AppConstants.API.artworkLookupTTL + 1)
+        let second = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: url, now: { later })
+        XCTAssertNil(second.cachedTrackLinks(track: "Persisted", artist: "Artist").artworkURL)
+    }
+
     /// A fetched entry is written to the persistence file, and a new `ArtworkService` on
     /// the same file serves it from cache without a network call.
     func testCachePersistsAcrossInstancesViaDisk() async {

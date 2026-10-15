@@ -35,6 +35,31 @@ final class SparkleUpdaterServiceTests: WolfWaveTestCase {
         XCTAssertTrue(service.automaticCheckEnabled, "automaticCheckEnabled getter should default to true when updater is nil")
     }
 
+    func testSparkleAutomaticChecksPolicyKeepsDebugOff() {
+        XCTAssertFalse(SparkleUpdaterService.sparkleAutomaticChecks(preference: true, isDebug: true))
+        XCTAssertFalse(SparkleUpdaterService.sparkleAutomaticChecks(preference: false, isDebug: true))
+        XCTAssertTrue(SparkleUpdaterService.sparkleAutomaticChecks(preference: true, isDebug: false))
+        XCTAssertFalse(SparkleUpdaterService.sparkleAutomaticChecks(preference: false, isDebug: false))
+    }
+
+    #if DEBUG
+    func testEnablingAutomaticChecksInDebugPersistsButLeavesSparkleOff() throws {
+        let service = SparkleUpdaterService()
+        try XCTSkipIf(service.sparkleAutomaticallyChecksForUpdates == nil, "No Sparkle updater (Homebrew host)")
+
+        service.automaticCheckEnabled = true
+
+        XCTAssertEqual(service.sparkleAutomaticallyChecksForUpdates, false,
+                       "DEBUG must never turn on Sparkle background checks")
+        XCTAssertTrue(service.automaticCheckEnabled, "The toggle reflects the stored preference")
+        XCTAssertTrue(DefaultsStore.store.bool(forKey: AppConstants.UserDefaults.updateCheckEnabled))
+
+        service.automaticCheckEnabled = false
+        XCTAssertFalse(service.automaticCheckEnabled)
+        XCTAssertEqual(service.sparkleAutomaticallyChecksForUpdates, false)
+    }
+    #endif
+
     // MARK: - Feed Resolver Tests (channel selection)
 
     private let nightlyURL = "https://example.com/appcast-nightly.xml"
