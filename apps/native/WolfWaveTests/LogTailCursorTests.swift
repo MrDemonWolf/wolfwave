@@ -137,6 +137,50 @@ struct LogTailCursorTests {
         #expect(cursor.carry == "still writing")
     }
 
+    // MARK: - Byte Decoding
+
+    @Test("A priming window that starts inside a character still yields its lines")
+    func testWindowStartingMidCharacterDecodes() {
+        var cursor = LogTailCursor()
+        // "é" is C3 A9. A window starting on A9 used to fail strict decoding and
+        // drop the whole chunk.
+        let file = Data("café\nnext line\n".utf8)
+        let window = file.dropFirst(4) // starts on the A9 continuation byte
+        _ = cursor.planRead(fileSize: UInt64(file.count), primingBytes: UInt64(window.count))
+
+        let lines = cursor.consume(bytes: Data(window))
+
+        #expect(lines == ["", "next line"])
+        #expect(cursor.offset == UInt64(file.count))
+    }
+
+    @Test("A character cut at the end of a read is held back and finished next read")
+    func testTrailingPartialCharacterHeldBack() {
+        var cursor = LogTailCursor()
+        // "wolf " is 5 bytes, the emoji 4 (F0 9F 90 BA), then the newline: 10.
+        let full = Data("wolf 🐺\n".utf8)
+        let firstRead = full.prefix(7) // "wolf " plus the emoji's first two bytes
+        _ = cursor.planRead(fileSize: 7, primingBytes: Self.priming)
+
+        #expect(cursor.consume(bytes: Data(firstRead)).isEmpty)
+        #expect(cursor.carry == "wolf ")
+        #expect(cursor.offset == 5, "The emoji's bytes must be re-read, not skipped")
+
+        let range = cursor.planRead(fileSize: 10, primingBytes: Self.priming)
+        #expect(range == 5..<10)
+        #expect(cursor.consume(bytes: Data(full.suffix(5))) == ["wolf 🐺"])
+    }
+
+    @Test("A corrupt byte mid-chunk decodes as a replacement, not a skipped chunk")
+    func testInvalidByteDoesNotWedge() {
+        var cursor = LogTailCursor()
+        var bytes = Data("bad ".utf8)
+        bytes.append(0xFF)
+        bytes.append(contentsOf: Data(" byte\n".utf8))
+
+        #expect(cursor.consume(bytes: bytes) == ["bad \u{FFFD} byte"])
+    }
+
     // MARK: - End to End
 
     @Test("A realistic append sequence yields each record exactly once")

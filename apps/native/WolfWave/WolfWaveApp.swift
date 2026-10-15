@@ -435,6 +435,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// log is shut down last so every earlier step can still log.
     func applicationWillTerminate(_ notification: Notification) {
         cancelTwitchBootValidation()
+        discordStateConsumer?.cancel()
+        discordStateConsumer = nil
+        discordArtworkConsumer?.cancel()
+        discordArtworkConsumer = nil
         finalizeHistoryForTermination()
         settingsSyncService?.flush()
         NotificationCenter.default.removeObserver(self)

@@ -16,7 +16,7 @@ import AppKit
 final class ActionGridTests: XCTestCase {
 
     func testGridHasNonzeroIntrinsicSize() {
-        let view = ActionGrid(columns: 2) {
+        let view = ActionGrid {
             GridRow {
                 ActionGridButton(title: "One", systemImage: "1.circle", action: {})
                 ActionGridButton(title: "Two", systemImage: "2.circle", action: {})

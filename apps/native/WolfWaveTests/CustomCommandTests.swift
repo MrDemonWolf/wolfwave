@@ -341,9 +341,9 @@ struct CustomCommandStoreTests {
     @Test("enabledCommands drops disabled and triggerless entries")
     func enabledFilter() {
         let (store, _) = makeStore()
-        store.add(CustomCommand(trigger: "on", enabled: true))
-        store.add(CustomCommand(trigger: "off", enabled: false))
-        store.add(CustomCommand(trigger: "", enabled: true))
+        store.add(CustomCommand(trigger: "on", response: "x", enabled: true))
+        store.add(CustomCommand(trigger: "off", response: "x", enabled: false))
+        store.add(CustomCommand(trigger: "", response: "x", enabled: true))
         #expect(store.enabledCommands.map(\.normalizedTrigger) == ["!on"])
     }
 
@@ -447,15 +447,58 @@ struct CustomCommandStoreTests {
     @Test("direct mutations reject invalid or overlapping command definitions")
     func rejectsInvalidMutations() {
         let (store, _) = makeStore()
-        let existing = CustomCommand(trigger: "!hug", aliases: "embrace")
+        let existing = CustomCommand(trigger: "!hug", response: "hi", aliases: "embrace")
         store.add(existing)
-        store.add(CustomCommand(trigger: "wave", aliases: "embrace"))
+        store.add(CustomCommand(trigger: "wave", response: "hi", aliases: "embrace"))
         #expect(store.commands == [existing])
 
         var invalidUpdate = existing
         invalidUpdate.aliases = "wave, wave"
         store.update(invalidUpdate)
         #expect(store.commands == [existing])
+    }
+
+    @Test("add and update refuse an empty or too-long reply, not just the editor")
+    func mutationsCheckReply() {
+        let (store, _) = makeStore()
+        let limit = AppConstants.Twitch.maxMessageLength
+        #expect(!store.add(CustomCommand(trigger: "blank", response: "  ")))
+        #expect(!store.add(CustomCommand(
+            trigger: "long", response: String(repeating: "a", count: limit + 1))))
+        #expect(store.commands.isEmpty)
+
+        let hug = CustomCommand(trigger: "hug", response: "hi")
+        #expect(store.add(hug))
+        var emptied = hug
+        emptied.response = ""
+        #expect(!store.update(emptied))
+        var flags = hug
+        flags.response = String(repeating: "\u{1F1FA}\u{1F1F8}", count: limit / 2 + 1)
+        #expect(!store.update(flags))
+        #expect(store.commands.map(\.response) == ["hi"])
+    }
+
+    /// A stored command can already fail validation (old storage, an import).
+    /// The list toggle must still switch it off, but not back on.
+    @Test("an invalid stored command can still be turned off, but not on")
+    func invalidStoredCommandCanBeDisabled() throws {
+        let (_, defaults) = makeStore()
+        let legacy = CustomCommand(trigger: "blank", response: "")
+        let raw = try JSONCoders.defaultEncoder.encode([legacy])
+        defaults.set(raw, forKey: AppConstants.UserDefaults.customCommands)
+        let store = CustomCommandStore(defaults: defaults)
+        let stored = try #require(store.commands.first)
+        try #require(stored.enabled)
+
+        var off = stored
+        off.enabled = false
+        #expect(store.update(off))
+        #expect(store.commands.first?.enabled == false)
+
+        var reenabled = off
+        reenabled.enabled = true
+        #expect(!store.update(reenabled))
+        #expect(store.commands.first?.enabled == false)
     }
 
     @Test("load migrates shadowed legacy aliases without dropping commands")

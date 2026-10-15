@@ -429,7 +429,7 @@ struct AdvancedSettingsView: View {
             // Uniform 2-up action grid keeps the read actions visually quiet
             // and aligned, instead of one bright full-width bar plus two
             // smaller ones at mixed control sizes.
-            ActionGrid(columns: 2) {
+            ActionGrid {
                 GridRow {
                     ActionGridButton(
                         title: "Export Logs",
@@ -501,7 +501,7 @@ struct AdvancedSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            ActionGrid(columns: 2) {
+            ActionGrid {
                 GridRow {
                     ActionGridButton(
                         title: "Clear Artwork Cache",
@@ -574,7 +574,7 @@ struct AdvancedSettingsView: View {
                 }
             )
 
-            ActionGrid(columns: 2) {
+            ActionGrid {
                 GridRow {
                     ActionGridButton(
                         title: "Export Settings",

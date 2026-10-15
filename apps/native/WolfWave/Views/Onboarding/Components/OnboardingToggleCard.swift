@@ -113,8 +113,7 @@ struct OnboardingTintedToggleShell: ViewModifier {
     let glowYOffset: CGFloat
 
     /// Pads the content, then layers fill, hairline stroke, and glow. The on/off
-    /// change animates with a plain ease-in-out that does not check Reduce Motion
-    /// (it only fades color and shadow; nothing moves).
+    /// change fades through `.motionSafe`, so it snaps under Reduce Motion.
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: DSRadius.lg2, style: .continuous)
         return content
@@ -136,7 +135,7 @@ struct OnboardingTintedToggleShell: ViewModifier {
                 color: isOn ? tint.opacity(glowOpacity) : .clear,
                 radius: glowRadius, x: 0, y: glowYOffset
             )
-            .animation(.easeInOut(duration: DSMotion.Duration.base), value: isOn)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: isOn)
     }
 }
 

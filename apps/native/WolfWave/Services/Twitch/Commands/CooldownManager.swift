@@ -51,8 +51,23 @@ final class CooldownManager {
     /// Per-user cooldowns: key = "userID:trigger", value = last use timestamp.
     private var userCooldowns: [String: Date] = [:]
 
+    /// Longest cooldown window (seconds) any caller has asked about so far.
+    /// Pruning keeps every entry younger than this, so an entry is only
+    /// forgotten once no cooldown in force could still need it.
+    private var longestCooldownInForce: TimeInterval = 0
+
     /// Lock protecting all cooldown state.
     private let lock = NSLock()
+
+    /// Clock seam; tests inject a controllable one.
+    private let now: () -> Date
+
+    // MARK: - Initialization
+
+    /// - Parameter now: Current-time source. Defaults to the system clock.
+    init(now: @escaping () -> Date = Date.init) {
+        self.now = now
+    }
 
     // MARK: - Public API
 
@@ -78,10 +93,11 @@ final class CooldownManager {
         // Moderators and perk-bypassers skip all cooldowns
         if isModerator || bypassesCooldown { return false }
 
-        let now = Date()
+        let now = self.now()
 
         return lock.withLock {
-            isCoolingDownLocked(
+            noteCooldownsLocked(globalCooldown, userCooldown)
+            return isCoolingDownLocked(
                 trigger: trigger,
                 userKey: Self.userKey(userID: userID, trigger: trigger),
                 globalCooldown: globalCooldown,
@@ -116,11 +132,12 @@ final class CooldownManager {
         globalCooldown: TimeInterval,
         userCooldown: TimeInterval
     ) -> CooldownClaim? {
-        let now = Date()
+        let now = self.now()
         let userKey = Self.userKey(userID: userID, trigger: trigger)
         let bypass = isModerator || bypassesCooldown
 
         return lock.withLock {
+            noteCooldownsLocked(globalCooldown, userCooldown)
             if !bypass, isCoolingDownLocked(
                 trigger: trigger,
                 userKey: userKey,
@@ -170,7 +187,7 @@ final class CooldownManager {
     ///   - trigger: The command trigger string.
     ///   - userID: The Twitch user ID of the caller.
     func recordUse(trigger: String, userID: String) {
-        let now = Date()
+        let now = self.now()
         let userKey = Self.userKey(userID: userID, trigger: trigger)
 
         lock.withLock {
@@ -185,6 +202,14 @@ final class CooldownManager {
     /// Per-user cooldown dictionary key.
     private static func userKey(userID: String, trigger: String) -> String {
         "\(userID):\(trigger)"
+    }
+
+    /// Raises ``longestCooldownInForce`` to cover the given windows. Must be
+    /// called while holding `lock`. Non-finite values are ignored.
+    private func noteCooldownsLocked(_ windows: TimeInterval...) {
+        for window in windows where window.isFinite && window > longestCooldownInForce {
+            longestCooldownInForce = window
+        }
     }
 
     /// Whether either cooldown window is still open. Must be called while holding `lock`.
@@ -211,18 +236,16 @@ final class CooldownManager {
     /// Two-pass strategy (must be called while holding `lock`):
     /// Runs only once there are more than 100 per-user entries, so short
     /// streams never pay for the filter.
-    /// 1. Remove entries older than 5 minutes (the maximum cooldown window).
-    ///    This assumes no configured cooldown exceeds 300 s; the settings
-    ///    sliders stop well below that. A longer cooldown would be forgotten
-    ///    early once pruning kicks in. Global entries are pruned the same way.
+    /// 1. Remove entries older than ``longestCooldownInForce``, the longest
+    ///    cooldown any caller has checked against. No such entry can still
+    ///    block a command. Global entries are pruned the same way.
     /// 2. If the dictionary still exceeds `maxUserCooldownEntries` after the
     ///    time-based pass (i.e. many chatters are still within their cooldown
     ///    window), evict the oldest half so the dictionary cannot grow without
     ///    bound over a long stream.
     private func pruneExpiredCooldownsIfNeeded() {
         guard userCooldowns.count > 100 else { return }
-        let maxAge: TimeInterval = 300  // 5 minutes
-        let cutoff = Date().addingTimeInterval(-maxAge)
+        let cutoff = now().addingTimeInterval(-longestCooldownInForce)
         userCooldowns = userCooldowns.filter { $0.value > cutoff }
         globalCooldowns = globalCooldowns.filter { $0.value > cutoff }
 
@@ -248,7 +271,7 @@ final class CooldownManager {
         globalCooldown: TimeInterval,
         userCooldown: TimeInterval
     ) -> (global: TimeInterval, perUser: TimeInterval) {
-        let now = Date()
+        let now = self.now()
         return lock.withLock {
             let globalRemaining: TimeInterval
             if globalCooldown > 0, let lastGlobal = globalCooldowns[trigger] {

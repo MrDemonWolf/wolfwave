@@ -9,6 +9,17 @@
 import Foundation
 import MetricKit
 
+// MARK: - MetricKit Seam
+
+/// The two `MXMetricManager` calls `DiagnosticsService` makes. A seam so a
+/// test can count registrations without a process-wide MetricKit subscription.
+nonisolated protocol MetricKitRegistering: AnyObject {
+    func add(_ subscriber: any MXMetricManagerSubscriber)
+    func remove(_ subscriber: any MXMetricManagerSubscriber)
+}
+
+nonisolated extension MXMetricManager: MetricKitRegistering {}
+
 // MARK: - Diagnostics Service
 
 /// Privacy-preserving, on-device diagnostics using Apple's MetricKit.
@@ -48,8 +59,14 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
     private let maxStoredPayloads: Int
     /// Age cutoff for payload files, in seconds.
     private let maxPayloadAge: TimeInterval
+    /// Where the subscriber is registered. `MXMetricManager.shared` in production.
+    private let metricManager: any MetricKitRegistering
     /// Guards ``isSubscribed`` and ``lastDiagnosticSummary``.
     private let lock = NSLock()
+    /// Serializes `setEnabled`, so the subscription check, the MetricKit
+    /// call, and the flag update happen as one step. Separate from `lock`
+    /// so a MetricKit callback can never wait behind a registration.
+    private let subscriptionLock = NSLock()
     /// Whether `self` is currently registered with `MXMetricManager`.
     private var isSubscribed = false
     /// Summary of the latest diagnostic batch; in memory only, so it resets
@@ -68,12 +85,15 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
     ///   - maxStoredPayloads: Newest payload files kept after each write.
     ///   - maxPayloadAge: Payload files older than this are deleted after each
     ///     write.
+    ///   - metricManager: Where the subscriber registers. Tests inject a fake.
     init(
         defaults: UserDefaults = DefaultsStore.store,
         payloadDirectory: URL? = nil,
         maxStoredPayloads: Int = 50,
-        maxPayloadAge: TimeInterval = 30 * 24 * 60 * 60
+        maxPayloadAge: TimeInterval = 30 * 24 * 60 * 60,
+        metricManager: any MetricKitRegistering = MXMetricManager.shared
     ) {
+        self.metricManager = metricManager
         self.defaults = defaults
         self.payloadDirectoryOverride = payloadDirectory
         self.maxStoredPayloads = max(0, maxStoredPayloads)
@@ -111,16 +131,20 @@ nonisolated final class DiagnosticsService: NSObject, MXMetricManagerSubscriber,
             deleteStoredPayloads()
         }
 
-        let alreadySubscribed = lock.withLock { isSubscribed }
+        // Check, register, and record under one lock so two concurrent
+        // calls can't both see "not subscribed" and register twice.
+        subscriptionLock.withLock {
+            let alreadySubscribed = lock.withLock { isSubscribed }
 
-        if enabled, !alreadySubscribed {
-            MXMetricManager.shared.add(self)
-            lock.withLock { isSubscribed = true }
-            Log.info("DiagnosticsService: MetricKit subscriber registered (opt-in on)", category: .diagnostics)
-        } else if !enabled, alreadySubscribed {
-            MXMetricManager.shared.remove(self)
-            lock.withLock { isSubscribed = false }
-            Log.info("DiagnosticsService: MetricKit subscriber removed (opt-in off)", category: .diagnostics)
+            if enabled, !alreadySubscribed {
+                metricManager.add(self)
+                lock.withLock { isSubscribed = true }
+                Log.info("DiagnosticsService: MetricKit subscriber registered (opt-in on)", category: .diagnostics)
+            } else if !enabled, alreadySubscribed {
+                metricManager.remove(self)
+                lock.withLock { isSubscribed = false }
+                Log.info("DiagnosticsService: MetricKit subscriber removed (opt-in off)", category: .diagnostics)
+            }
         }
     }
 

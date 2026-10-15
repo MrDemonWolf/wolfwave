@@ -292,7 +292,7 @@ struct DebugInspectorsCard: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(maxWidth: 200, alignment: .leading)
-            Text(formatValue(value))
+            Text(Self.formatValue(value))
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(value == nil ? .secondary : .primary)
                 .lineLimit(1)
@@ -348,16 +348,21 @@ struct DebugInspectorsCard: View {
     }
 
     /// Renders a defaults value for display: `<unset>` for nil, strings quoted,
-    /// numbers via `stringValue`, anything else via `String(describing:)`.
+    /// booleans as `true` / `false`, other numbers via `stringValue`, anything
+    /// else via `String(describing:)`.
     ///
-    /// The `Bool` case runs first, and an `NSNumber` holding 0 or 1 bridges to
-    /// `Bool`, so an integer key stored as 0 or 1 shows as false / true.
-    private func formatValue(_ value: Any?) -> String {
+    /// Defaults hands every number back as an `NSNumber`, and an `as Bool` cast
+    /// succeeds for any `NSNumber` holding 0 or 1, so an integer key would read
+    /// as false / true. Only a real `CFBoolean` is shown as a boolean.
+    static func formatValue(_ value: Any?) -> String {
         guard let value else { return "<unset>" }
         switch value {
-        case let bool as Bool: return bool ? "true" : "false"
         case let string as String: return "\"\(string)\""
-        case let number as NSNumber: return number.stringValue
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                return number.boolValue ? "true" : "false"
+            }
+            return number.stringValue
         default: return String(describing: value)
         }
     }

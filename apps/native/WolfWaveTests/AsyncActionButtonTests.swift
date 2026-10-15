@@ -76,6 +76,24 @@ final class AsyncActionButtonTests: XCTestCase {
         XCTAssertGreaterThan(buttonHost.fittingSize.width, spinnerHost.fittingSize.width)
     }
 
+    func testCancelledRunReturnsToIdleEvenWithoutThrowing() {
+        // An action that ignores cancellation and returns normally must not
+        // leave the button parked on the disabled spinner.
+        XCTAssertEqual(
+            AsyncActionButton.completionPhase(threw: false, cancelled: true, showsSuccess: true), .idle)
+        XCTAssertEqual(
+            AsyncActionButton.completionPhase(threw: true, cancelled: true, showsSuccess: true), .idle)
+    }
+
+    func testCompletionPhaseForFinishedRuns() {
+        XCTAssertEqual(
+            AsyncActionButton.completionPhase(threw: false, cancelled: false, showsSuccess: true), .succeeded)
+        XCTAssertEqual(
+            AsyncActionButton.completionPhase(threw: false, cancelled: false, showsSuccess: false), .idle)
+        XCTAssertEqual(
+            AsyncActionButton.completionPhase(threw: true, cancelled: false, showsSuccess: true), .idle)
+    }
+
     // MARK: - Helpers
 
     /// Reference box so the escaping action closure can record a call without

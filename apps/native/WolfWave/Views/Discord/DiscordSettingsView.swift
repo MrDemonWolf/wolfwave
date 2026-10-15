@@ -601,8 +601,7 @@ struct DiscordSettingsView: View {
             playlist: playlist,
             artworkURL: links.artworkURL,
             appleMusicURL: links.trackViewURL,
-            songLinkURL: links.songLinkURL,
-            isLive: true
+            songLinkURL: links.songLinkURL
         )
         withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
             playbackMode = payload.isPaused ? .paused : .playing
@@ -650,9 +649,6 @@ private struct NowPlayingSnapshot {
     let artworkURL: String?
     let appleMusicURL: String?
     let songLinkURL: String?
-    /// `true` for a snapshot built from a real notification. Currently not
-    /// read anywhere.
-    let isLive: Bool
 
     /// Placeholder used before the first track arrives. Invented track with a
     /// wolf-species "artist", like every other demo: never real music metadata.
@@ -663,8 +659,7 @@ private struct NowPlayingSnapshot {
         playlist: "Chill Saturday",
         artworkURL: nil,
         appleMusicURL: nil,
-        songLinkURL: nil,
-        isLive: false
+        songLinkURL: nil
     )
 }
 

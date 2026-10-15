@@ -7,7 +7,7 @@ Standardized grid of bordered icon + label action buttons. Used by the custom Ab
 
 ## API
 ```swift
-ActionGrid(columns: 2) {
+ActionGrid {
     GridRow {
         ActionGridButton(title: "Check for Updates", systemImage: "arrow.down.circle", action: checkForUpdates)
         ActionGridButton(title: "Release Notes",     systemImage: "list.bullet.rectangle", action: openReleaseNotes)
@@ -21,14 +21,13 @@ ActionGrid(columns: 2) {
 
 | Type | Param | Notes |
 |---|---|---|
-| `ActionGrid` | `columns: Int` | Logical column count. Default `2`. |
 | `ActionGrid` | `content` | `@ViewBuilder` of `GridRow` blocks containing `ActionGridButton`s. |
 | `ActionGridButton` | `title: String` | Visible label. |
 | `ActionGridButton` | `systemImage: String` | SF Symbol shown beside the title. |
 | `ActionGridButton` | `action: () -> Void` | Invoked on press. |
 | `ActionGridButton` | `accessibilityIdentifier: String?` | Override for UI tests. Defaults to `"actionGrid.\(title)"`. |
 
-A single button can span extra columns via `.gridCellColumns(_:)`.
+The column count is however many buttons a `GridRow` holds; there is no `columns` parameter. A single button can span extra columns via `.gridCellColumns(_:)`.
 
 ## Tokens used
 - `DSFont.Size.body` (13) / `.medium`
@@ -60,7 +59,7 @@ graph TD
 
 ## Example
 ```swift
-ActionGrid(columns: 2) {
+ActionGrid {
     GridRow {
         ActionGridButton(title: "Website", systemImage: "globe", action: openWebsite)
         ActionGridButton(title: "Send Feedback", systemImage: "envelope", action: sendFeedback)

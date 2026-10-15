@@ -146,16 +146,17 @@ final class AppleMusicSource: @unchecked Sendable {
             static let playerState = "playerState"
             static let currentTrack = "currentTrack"
         }
+    }
 
-        /// User-facing strings sent through
-        /// `PlaybackSourceDelegate.playbackSource(didUpdateStatus:)`.
-        enum DelegateStatus {
-            static let musicNotRunning = "Music not running"
-            static let noTrackInfo = "No track info"
-            static let noTrackPlaying = "No track playing"
-            static let scriptError = "Script error"
-            static let accessDenied = "Music access denied"
-        }
+    /// User-facing strings sent through
+    /// `PlaybackSourceDelegate.playbackSource(didUpdateStatus:)`. Internal so
+    /// the delegate matches these constants rather than repeating the literals.
+    nonisolated enum DelegateStatus {
+        static let musicNotRunning = "Music not running"
+        static let noTrackInfo = "No track info"
+        static let noTrackPlaying = "No track playing"
+        static let scriptError = "Script error"
+        static let accessDenied = "Music access denied"
     }
 
     /// Receives track and status updates, always on the main actor. Weak so
@@ -763,17 +764,17 @@ final class AppleMusicSource: @unchecked Sendable {
         guard isCurrentTrackingGeneration(generation) else { return }
         if trackInfo.hasPrefix(Constants.Status.errorPrefix) {
             logGuardOnce(key: "script-error", message: "AppleMusicSource: ScriptingBridge returned error: \(trackInfo)")
-            notifyDelegate(status: Constants.DelegateStatus.scriptError, generation: generation)
+            notifyDelegate(status: DelegateStatus.scriptError, generation: generation)
         } else if trackInfo == Constants.Status.notRunning {
             logGuardOnce(key: "not-running", message: "AppleMusicSource: Music.app not running")
-            notifyDelegate(status: Constants.DelegateStatus.musicNotRunning, generation: generation)
+            notifyDelegate(status: DelegateStatus.musicNotRunning, generation: generation)
         } else if trackInfo == Constants.Status.accessDenied {
             // Music IS running but ScriptingBridge can't read state. TCC denied.
             logGuardOnce(key: "access-denied", message: "AppleMusicSource: Music.app running but ScriptingBridge read returned nil: Automation permission likely denied")
-            notifyDelegate(status: Constants.DelegateStatus.accessDenied, generation: generation)
+            notifyDelegate(status: DelegateStatus.accessDenied, generation: generation)
         } else if trackInfo == Constants.Status.scriptBridgeNil {
             logGuardOnce(key: "sb-nil", message: "AppleMusicSource: SBApplication(processIdentifier:) returned nil")
-            notifyDelegate(status: Constants.DelegateStatus.noTrackInfo, generation: generation)
+            notifyDelegate(status: DelegateStatus.noTrackInfo, generation: generation)
         } else if trackInfo == Constants.Status.notPlaying {
             handleNotPlayingState(generation: generation)
         } else {
@@ -800,7 +801,7 @@ final class AppleMusicSource: @unchecked Sendable {
     nonisolated private func handleNotPlayingState(generation: UInt64) {
         let lastSeen = stateLock.withLock { lastTrackSeenAt }
         guard let lastSeen else {
-            notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying, generation: generation)
+            notifyDelegate(status: DelegateStatus.noTrackPlaying, generation: generation)
             return
         }
         if lastSeen.duration(to: clock.now) < Constants.idleGraceWindow {
@@ -811,7 +812,7 @@ final class AppleMusicSource: @unchecked Sendable {
             )
             return
         }
-        notifyDelegate(status: Constants.DelegateStatus.noTrackPlaying, generation: generation)
+        notifyDelegate(status: DelegateStatus.noTrackPlaying, generation: generation)
     }
 
     /// Debug-logs "Now Playing" once per distinct title/artist/album, so the

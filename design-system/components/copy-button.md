@@ -19,7 +19,7 @@ CopyButton(text: "ws://localhost:9090", accessibilityLabel: "Copy URL")
 | `isDisabled` | `Bool` | Locks the button. |
 | `accessibilityLabel` | `String` | Required. |
 | `accessibilityIdentifier` | `String?` | Optional UI-test hook. |
-| `feedbackDuration` | `TimeInterval` | Default 2.0s. How long the checkmark stays. |
+| `feedbackDuration` | `TimeInterval` | Default 2.0s. How long the checkmark stays after the latest press; a new press restarts the window. |
 | `isSensitive` | `Bool` | Default false. When true, `Pasteboard.copy(_:sensitive:)` clears the general pasteboard after 30s, but only if the user has not copied anything else since (change count and string both unchanged). Use for tokens and secrets. |
 | `disabledHint` | `String?` | Default nil. While `isDisabled` is on, VoiceOver reads this as the hint instead of "Copies text to clipboard", so a greyed-out button says why (e.g. "Turn off Streamer Mode to copy."). `CopyableURLRow` passes its disabled reason here. |
 | `action` | `(() -> Void)?` | Optional side effect fired right after the copy (e.g. a parent status update). Pasteboard write + checkmark still happen regardless. |

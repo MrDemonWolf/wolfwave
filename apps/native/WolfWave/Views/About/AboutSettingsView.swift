@@ -142,7 +142,7 @@ struct AboutSettingsView: View {
     /// Two-column grid of quick actions. The Sponsor cell is omitted when
     /// sponsor links are turned off, leaving Send Feedback alone in its row.
     private var actionGrid: some View {
-        ActionGrid(columns: 2) {
+        ActionGrid {
             GridRow {
                 ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: openReleaseNotes,
                                  accessibilityIdentifier: "about-settings.action.Release Notes")

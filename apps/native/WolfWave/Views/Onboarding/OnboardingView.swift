@@ -51,7 +51,11 @@ struct OnboardingView: View {
 
     /// Re-read on every step change so the Skip button stays in sync with
     /// permission grants without needing each step view to publish state up.
-    @State private var musicPermissionState: MusicPermissionState = MusicPermissionChecker.currentState()
+    /// Seeded from the last persisted decision (a cheap defaults read) and then
+    /// filled by an off-main probe (see `refreshMusicPermissionState()`), so
+    /// building the view never blocks on the Apple Events check.
+    @State private var musicPermissionState: MusicPermissionState =
+        MusicPermissionChecker.loadPersisted() ?? .unknown
 
     /// Swaps the step slide for a cross-fade when on.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -98,8 +102,8 @@ struct OnboardingView: View {
         )
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: DSMotion.Duration.slow), value: viewModel.showCompletion)
-        .onChange(of: viewModel.currentStep) { _, _ in
-            musicPermissionState = MusicPermissionChecker.currentState()
+        .task(id: viewModel.currentStep) {
+            await refreshMusicPermissionState()
         }
         .onDisappear {
             twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
@@ -124,7 +128,7 @@ struct OnboardingView: View {
                             color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
                             radius: 3, x: 0, y: 1
                         )
-                        .animation(DSMotion.Spring.gentle, value: viewModel.currentStep)
+                        .motionSafe(DSMotion.Spring.gentle, value: viewModel.currentStep)
                 }
                 .frame(width: 12, height: 12)
                 .accessibilityHidden(true)
@@ -291,6 +295,16 @@ struct OnboardingView: View {
         default:
             return false
         }
+    }
+
+    /// Re-probes the Music Automation grant on a detached task, because the
+    /// Apple Events check can take tens of milliseconds, then applies the
+    /// result back on the main actor.
+    private func refreshMusicPermissionState() async {
+        let state = await Task.detached(priority: .userInitiated) {
+            MusicPermissionChecker.currentState()
+        }.value
+        musicPermissionState = state
     }
 
     /// Cancels any in-progress Twitch OAuth polling when leaving the Twitch step.

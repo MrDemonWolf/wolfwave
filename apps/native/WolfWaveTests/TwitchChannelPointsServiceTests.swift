@@ -257,6 +257,28 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         XCTAssertFalse(isStillUnfulfilled)
     }
 
+    /// A Helix failure on the status lookup throws `RedemptionResolutionError`,
+    /// the same type as the ownership check before it.
+    func testRedemptionStatusLookupThrowsResolutionErrorOnHelixFailure() async {
+        storeManagedReward("reward_abc")
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 500), Data("boom".utf8))
+        }
+
+        let service = makeService()
+        do {
+            _ = try await service.isRedemptionUnfulfilled(
+                credentials: creds,
+                rewardID: "reward_abc",
+                redemptionID: "redemption_123")
+            XCTFail("Expected an error")
+        } catch let TwitchChannelPointsService.RedemptionResolutionError.http(status, _, _) {
+            XCTAssertEqual(status, 500)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
     func testUnfulfilledRedemptionsRejectsRepeatedCursor() async {
         storeManagedReward("reward_abc")
         handlerStore.handler = { request in

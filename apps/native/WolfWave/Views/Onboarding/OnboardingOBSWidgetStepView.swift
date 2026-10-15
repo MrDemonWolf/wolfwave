@@ -25,16 +25,21 @@ struct OnboardingOBSWidgetStepView: View {
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled)
     private var widgetHTTPEnabled = false
 
-    /// Widget HTTP port as stored. Not clamped here, unlike the server's own
-    /// resolved port, so an out-of-range stored value would show a URL the
-    /// server does not actually listen on.
+    /// Widget HTTP port as stored. Read through `@AppStorage` so the URL
+    /// updates live; resolved below exactly as the server resolves it.
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
     /// Loopback Browser Source URL for the widget. Carries no token: the widget
-    /// server injects the overlay token itself for loopback requests.
+    /// server injects the overlay token itself for loopback requests. The port
+    /// goes through `Preferences.resolvePort`, the same fallback and clamping
+    /// the server binds with, so the URL always names the port it listens on.
     private var overlayURL: String {
-        "http://localhost:\(String(storedWidgetPort))/"
+        let port = Preferences.resolvePort(
+            storedWidgetPort,
+            default: AppConstants.WebSocketServer.widgetDefaultPort
+        )
+        return "http://localhost:\(String(port))/"
     }
 
     /// Combined state. The step treats the two servers as one user-facing feature,
@@ -69,7 +74,7 @@ struct OnboardingOBSWidgetStepView: View {
                     overlayToggleCard
                     urlReveal
                 }
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
+                .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: overlayEnabled)
             }
         )
     }

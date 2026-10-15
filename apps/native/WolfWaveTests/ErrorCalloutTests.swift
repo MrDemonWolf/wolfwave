@@ -183,6 +183,42 @@ final class ErrorCalloutTests: XCTestCase {
         )
     }
 
+    /// A reappearing view hands back the countdown it already had, so the
+    /// deadline stays where it was instead of restarting at the full delay.
+    func testSameKeyKeepsTheExistingDeadline() throws {
+        let start = ContinuousClock.now
+        let key = ErrorCallout.CountdownKey(errorID: "twitch.rateLimited", waitSeconds: 30)
+        let first = try XCTUnwrap(ErrorCallout.countdown(for: key, existing: nil, now: start))
+
+        let later = start.advanced(by: .seconds(20))
+        let resumed = ErrorCallout.countdown(for: key, existing: first, now: later)
+
+        XCTAssertEqual(resumed?.deadline, first.deadline)
+        XCTAssertEqual(ErrorCallout.remainingSeconds(now: later, deadline: first.deadline), 10)
+    }
+
+    /// The same error id with a different wait is a new rate limit, so it gets
+    /// a new deadline.
+    func testSameIDDifferentWaitStartsANewDeadline() throws {
+        let start = ContinuousClock.now
+        let old = ErrorCallout.CountdownKey(errorID: "twitch.rateLimited", waitSeconds: 30)
+        let first = try XCTUnwrap(ErrorCallout.countdown(for: old, existing: nil, now: start))
+
+        let later = start.advanced(by: .seconds(5))
+        let new = ErrorCallout.CountdownKey(errorID: "twitch.rateLimited", waitSeconds: 60)
+        let next = try XCTUnwrap(ErrorCallout.countdown(for: new, existing: first, now: later))
+
+        XCTAssertEqual(next.deadline, later.advanced(by: .seconds(60)))
+        XCTAssertNotEqual(old, new, "The task key must change, or the countdown never restarts")
+    }
+
+    func testNoWaitMeansNoCountdown() {
+        let key = ErrorCallout.CountdownKey(errorID: "music.automationDenied", waitSeconds: nil)
+        XCTAssertNil(ErrorCallout.countdown(for: key, existing: nil, now: .now))
+        let zero = ErrorCallout.CountdownKey(errorID: "x", waitSeconds: 0)
+        XCTAssertNil(ErrorCallout.countdown(for: zero, existing: nil, now: .now))
+    }
+
     func testPassedDeadlineClampsToZero() {
         let start = ContinuousClock.now
         XCTAssertEqual(

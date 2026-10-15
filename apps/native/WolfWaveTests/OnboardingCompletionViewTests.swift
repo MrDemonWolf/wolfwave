@@ -61,4 +61,19 @@ final class OnboardingCompletionViewTests: XCTestCase {
         XCTAssertNotEqual(completed.message, skipped.message)
         XCTAssertNotEqual(completed.accessibilitySummary, skipped.accessibilitySummary)
     }
+
+    // MARK: - Copyright
+
+    /// The footer names the configured holder, not a hardcoded one, so a fork
+    /// that sets `COPYRIGHT_HOLDER` sees its own name.
+    func testCopyrightLineUsesConfiguredHolder() {
+        XCTAssertEqual(
+            OnboardingCompletionView.copyrightLine(year: 2030, holder: "Fork Co."),
+            "© 2030 Fork Co."
+        )
+        XCTAssertEqual(
+            OnboardingCompletionView.copyrightLine(year: 2030),
+            "© 2030 \(AppConstants.AppInfo.copyrightHolder)"
+        )
+    }
 }

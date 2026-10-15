@@ -14,16 +14,13 @@ import SwiftUI
 /// "Sponsor").
 ///
 /// Wraps `Grid` with shared design-system spacing. Callers lay out their own
-/// `GridRow` blocks (see the preview); `columns` only sets the intended width.
-/// A single button can span extra columns via `.gridCellColumns(_:)` on
-/// `ActionGridButton`.
+/// `GridRow` blocks (see the preview), and the column count is however many
+/// buttons a row holds. A single button can span extra columns via
+/// `.gridCellColumns(_:)` on `ActionGridButton`.
 struct ActionGrid<Content: View>: View {
 
     // MARK: - Properties
 
-    /// Intended column count. Documentation only: the body never reads it, so
-    /// the actual columns come from the caller's `GridRow`s.
-    var columns: Int = 2
     /// The caller's `GridRow` blocks of `ActionGridButton`s.
     @ViewBuilder var content: () -> Content
 
@@ -74,7 +71,7 @@ struct ActionGridButton: View {
 // MARK: - Preview
 
 #Preview {
-    ActionGrid(columns: 2) {
+    ActionGrid {
         GridRow {
             ActionGridButton(title: "Check for Updates", systemImage: "arrow.down.circle", action: {})
             ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: {})

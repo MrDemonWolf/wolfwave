@@ -12,7 +12,7 @@ import XCTest
 
 // MARK: - TwitchTokenRefreshTests
 
-/// Covers the refresh-token resilience added in B3:
+/// Covers refresh-token resilience:
 /// - `TwitchDeviceAuth.parseTokenResponse` (pure parse, with/without refresh).
 /// - `refreshAccessToken` over `grant_type=refresh_token` (success + failure),
 ///   driven by `MockURLProtocol`.

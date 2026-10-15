@@ -103,7 +103,7 @@ struct OnboardingNotificationsStepView: View {
                 .disabled(!isAuthorized)
                 .opacity(isAuthorized ? 1 : 0.5)
         }
-        .animation(.easeInOut(duration: DSMotion.Duration.base), value: notificationsStatus)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: notificationsStatus)
     }
 
     /// The per-alert toggles, rendered as chrome-free rows stacked inside one

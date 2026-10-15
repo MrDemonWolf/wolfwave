@@ -70,14 +70,23 @@ final class SparkleUpdaterService: NSObject {
 
     /// Whether automatic update checking is enabled.
     ///
-    /// Reads Sparkle's live value, reporting `true` when there is no updater
-    /// (Homebrew). Setting it updates Sparkle and persists the choice under
-    /// `AppConstants.UserDefaults.updateCheckEnabled`, which ``setupSparkle()``
-    /// reads on the next launch. Without an updater the write is dropped and
-    /// logged, and nothing is persisted.
+    /// Reports `true` when there is no updater (Homebrew). In Release it reads
+    /// Sparkle's live value; in DEBUG it reads the stored preference, because
+    /// Sparkle's own flag is held off there. Setting it persists the choice
+    /// under `AppConstants.UserDefaults.updateCheckEnabled`, which
+    /// ``setupSparkle()`` reads on the next launch, and hands Sparkle
+    /// ``sparkleAutomaticChecks(preference:isDebug:)``, so DEBUG never starts
+    /// background checks. Without an updater the write is dropped and logged,
+    /// and nothing is persisted.
     var automaticCheckEnabled: Bool {
         get {
-            updater?.automaticallyChecksForUpdates ?? true
+            guard let updater else { return true }
+            if Self.isDebugBuild {
+                return Preferences.bool(
+                    AppConstants.UserDefaults.updateCheckEnabled,
+                    default: AppConstants.UserDefaults.Defaults.updateCheckEnabled)
+            }
+            return updater.automaticallyChecksForUpdates
         }
         set {
             guard let updater else {
@@ -86,7 +95,8 @@ final class SparkleUpdaterService: NSObject {
                     category: .update)
                 return
             }
-            updater.automaticallyChecksForUpdates = newValue
+            updater.automaticallyChecksForUpdates = Self.sparkleAutomaticChecks(
+                preference: newValue, isDebug: Self.isDebugBuild)
             DefaultsStore.store.set(newValue, forKey: AppConstants.UserDefaults.updateCheckEnabled)
             Log.info(
                 "SparkleUpdaterService: Automatic checking \(newValue ? "enabled" : "disabled")",
@@ -165,7 +175,8 @@ final class SparkleUpdaterService: NSObject {
         if let updater = updater {
             // Respect user's update check preference (defaults to true)
             let checkEnabled = Preferences.bool(AppConstants.UserDefaults.updateCheckEnabled, default: AppConstants.UserDefaults.Defaults.updateCheckEnabled)
-            updater.automaticallyChecksForUpdates = checkEnabled
+            updater.automaticallyChecksForUpdates = Self.sparkleAutomaticChecks(
+                preference: checkEnabled, isDebug: Self.isDebugBuild)
 
             // Set check interval (24 hours)
             updater.updateCheckInterval = AppConstants.Update.checkInterval
@@ -251,6 +262,33 @@ final class SparkleUpdaterService: NSObject {
         Log.debug("SparkleUpdaterService: Background update check triggered", category: .update)
         updater.checkForUpdatesInBackground()
         #endif
+    }
+
+    // MARK: - Automatic Check Policy
+
+    /// Whether this is a DEBUG build.
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    /// Sparkle's live `automaticallyChecksForUpdates`, or `nil` without an
+    /// updater. Read-only; exposed so tests can confirm DEBUG keeps it off.
+    var sparkleAutomaticallyChecksForUpdates: Bool? {
+        updater?.automaticallyChecksForUpdates
+    }
+
+    /// The value handed to Sparkle's `automaticallyChecksForUpdates` for a
+    /// given user preference.
+    ///
+    /// DEBUG always returns `false`: background checks stay off there and only
+    /// manual "Check for Updates" runs against the dev appcast. The user's
+    /// choice is still persisted so it carries into a Release build.
+    static func sparkleAutomaticChecks(preference: Bool, isDebug: Bool) -> Bool {
+        isDebug ? false : preference
     }
 
     // MARK: - Feed Resolution

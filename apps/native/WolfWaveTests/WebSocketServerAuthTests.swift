@@ -195,6 +195,25 @@ final class WebSocketServerAuthTests: XCTestCase {
         XCTAssertFalse(WebSocketAuthToken.isValid("0123456789abcdef-"))
     }
 
+    /// A pasted uppercase token is saved in the lowercase form `generate()`
+    /// mints, so the editor's "0-9, a-f" rule and the case-sensitive handshake
+    /// agree on what gets stored.
+    func testNormalizedInputLowercasesAndTrims() {
+        let upper = "  " + String(repeating: "AB", count: 32) + "\n"
+        let normalized = WebSocketAuthToken.normalizedInput(upper)
+        XCTAssertEqual(normalized, String(repeating: "ab", count: 32))
+        XCTAssertTrue(WebSocketAuthToken.isValid(normalized))
+        XCTAssertEqual(
+            WebSocketAuthToken.authenticationRole(
+                overlayToken: normalized,
+                controlToken: nil,
+                offeredSubprotocols: [WebSocketAuthToken.expectedSubprotocol(for: normalized, role: .overlay)]
+            ),
+            .overlay
+        )
+        XCTAssertEqual(WebSocketAuthToken.normalizedInput(overlayToken), overlayToken)
+    }
+
     func testGenerationAndRedaction() {
         let first = WebSocketAuthToken.generate()
         let second = WebSocketAuthToken.generate()

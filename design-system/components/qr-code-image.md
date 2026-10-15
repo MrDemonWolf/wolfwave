@@ -19,6 +19,8 @@ QRCodeImage(string: String, size: CGFloat)
 
 The view is always square (`width == height == size`). If CoreImage cannot encode the string (malformed input), the view degrades to `Color.clear` at the same frame size to keep the surrounding layout stable.
 
+Rendered codes are cached per payload (an `NSCache`, 16 entries) and drawn through one shared `CIContext`, so a body re-evaluation does not re-run the filter chain.
+
 ## Tokens used
 
 None. `QRCodeImage` renders a CoreImage bitmap and does not consume `DSColor`, `DSFont`, `DSSpace`, or `DSRadius` tokens. Size is caller-provided. Typical callers pass a literal or a caller-scope constant (e.g. `120`).

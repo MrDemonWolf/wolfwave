@@ -197,6 +197,28 @@ struct PlayLogStoreTests {
         #expect(!store.replaceAll(with: [sampleRecord(track: "Cannot Write")]))
     }
 
+    @Test("replaceAll refuses a record that cannot encode and keeps the old log")
+    func testReplaceAllUnencodableRecordFails() async throws {
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = PlayLogStore(directory: dir)
+        store.append(sampleRecord(track: "Survivor"))
+        store.flush()
+
+        // JSONEncoder throws on a non-finite Double by default.
+        let unencodable = PlayRecord(
+            timestamp: Date(timeIntervalSince1970: 1_716_000_000),
+            track: "Broken",
+            artist: "Gray Wolf",
+            album: "Den",
+            duration: .nan,
+            playedSeconds: 10
+        )
+
+        #expect(!store.replaceAll(with: [sampleRecord(track: "Kept"), unencodable]))
+        #expect(store.loadAll().map(\.track) == ["Survivor"])
+    }
+
     @Test("clear empties the log")
     func testClear() async throws {
         let dir = makeTempDirectory()

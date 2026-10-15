@@ -104,9 +104,15 @@ struct SharePickerButton: NSViewRepresentable {
     /// Button target plus picker and service delegate.
     ///
     /// One share runs at a time: `sharingLifetime` is set when a share starts and
-    /// cleared by `finishSharing()`, and a click while it is set is ignored. The
-    /// self-reference also keeps the coordinator alive if SwiftUI tears the
-    /// button down mid-share, so `onCompletion` still fires.
+    /// cleared by `finishSharing()`. The self-reference keeps the coordinator
+    /// alive if SwiftUI tears the button down mid-share, so `onCompletion` still
+    /// fires.
+    ///
+    /// Not every sharing service reports back. When one never does, the next
+    /// click ends the stale share (firing its completion) and starts a new one,
+    /// so the button never goes dead and the self-reference never leaks for good.
+    /// A click while the picker is open dismisses the picker first, which ends
+    /// that share through the `nil`-service callback.
     final class Coordinator: NSObject, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
         /// Latest item factory, refreshed by `updateNSView`.
         var makeItems: () -> [Any]?
@@ -129,9 +135,9 @@ struct SharePickerButton: NSViewRepresentable {
         }
 
         /// Button action: builds the items and shows the picker under the button.
-        /// Does nothing while a share is in flight or when there is nothing to share.
+        /// Does nothing when there is nothing to share. A share still pending
+        /// from an earlier click is ended first (see `prepareSharing`).
         @objc func share(_ sender: NSButton) {
-            guard sharingLifetime == nil else { return }
             guard let items = makeItems(), !items.isEmpty else { return }
             prepareSharing(items)
             let picker = NSSharingServicePicker(items: items)
@@ -142,7 +148,11 @@ struct SharePickerButton: NSViewRepresentable {
 
         /// Captures the completion for `items` (using the handler current at
         /// click time) and pins the coordinator alive until the share ends.
+        ///
+        /// A previous share whose service never called back is finished first,
+        /// so its completion (e.g. temp-file cleanup) still runs exactly once.
         func prepareSharing(_ items: [Any]) {
+            if sharingLifetime != nil { finishSharing() }
             let callback = onCompletion
             completion = { callback?(items) }
             sharingLifetime = self

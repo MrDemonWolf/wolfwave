@@ -39,7 +39,7 @@ graph LR
 
 ## Do / Don't
 - ✅ Return a temp file `URL` from `makeItems` for image/file shares. Most services prefer a file over raw `NSImage`.
-- ✅ Give each temporary share file a unique name and remove it in `onCompletion`. The coordinator stays alive until sharing finishes, even if its SwiftUI sheet closes.
+- ✅ Give each temporary share file a unique name and remove it in `onCompletion`. The coordinator stays alive until sharing finishes, even if its SwiftUI sheet closes. If a chosen service never reports back, the next press finishes that share (running its `onCompletion`) before starting a new one.
 - ✅ Gate visibility on "is there anything to share" at the call site (e.g. `if wrap.hasData`).
 - ✅ Wrap with `.fixedSize()` so it sizes to its content.
 - ❌ Don't try to present `NSSharingServicePicker` from a SwiftUI `Button`; it has no `NSView` to anchor to.

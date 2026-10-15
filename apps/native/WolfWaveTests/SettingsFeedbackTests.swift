@@ -96,6 +96,23 @@ final class SettingsFeedbackTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
+    func testNewShareEndsAShareWhoseServiceNeverCalledBack() {
+        var finished: [String] = []
+        let coordinator = SharePickerButton.Coordinator(
+            makeItems: { nil }, onCompletion: { items in finished += items.compactMap { $0 as? String } })
+        coordinator.prepareSharing(["first"])
+        // A service was chosen but never reports success or failure.
+        let service = NSSharingService(title: "Test", image: NSImage(), alternateImage: nil, handler: {})
+        coordinator.sharingServicePicker(NSSharingServicePicker(items: ["first"]), didChoose: service)
+        XCTAssertTrue(finished.isEmpty)
+
+        // The next click must not be ignored: it ends the stale share, then starts.
+        coordinator.prepareSharing(["second"])
+        XCTAssertEqual(finished, ["first"])
+        coordinator.sharingService(service, didShareItems: ["second"])
+        XCTAssertEqual(finished, ["first", "second"])
+    }
+
     func testShareCompletionRunsOnce() {
         var calls = 0
         let coordinator = SharePickerButton.Coordinator(makeItems: { ["wrap"] }, onCompletion: { _ in calls += 1 })

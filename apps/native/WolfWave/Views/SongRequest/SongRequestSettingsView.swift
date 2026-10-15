@@ -1303,7 +1303,8 @@ fileprivate struct SongRequestCommandsCard: View {
                     accessibilityLabel: "Enable clear queue command",
                     accessibilityIdentifier: "clearQueueCommandToggle",
                     aliases: $clearQueueAliases,
-                    aliasPlaceholder: "e.g. wipe, clearsr"
+                    aliasPlaceholder: "e.g. wipe, clearsr",
+                    aliasAccessibilityIdentifier: "clearQueueCommandAliases"
                 )
 
                 CommandSettingRow(
@@ -1328,13 +1329,7 @@ fileprivate struct SongRequestCommandsCard: View {
                     Text("Song list link")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                     Spacer()
-                    StatusChip(
-                        text: songListURL.isEmpty ? "Needs setup" : "Ready",
-                        color: songListURL.isEmpty ? DSColor.neutral : DSColor.success,
-                        systemImage: songListURL.isEmpty
-                            ? StatusChip.StateGlyph.off
-                            : StatusChip.StateGlyph.on
-                    )
+                    songListLinkChip
                     Button("Manage") { onManageLink() }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -1348,6 +1343,21 @@ fileprivate struct SongRequestCommandsCard: View {
             }
 
             HintRow("Cooldowns don't apply to you or your mods.")
+        }
+    }
+
+    /// Song-list link status. "Ready" only for a link `!playlist` will
+    /// actually post: `Preferences.songListURL` drops anything that doesn't
+    /// normalize through `normalizedHTTPSURL`, so this chip does too.
+    @ViewBuilder
+    private var songListLinkChip: some View {
+        let trimmed = songListURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            StatusChip(text: "Needs setup", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
+        } else if Preferences.normalizedHTTPSURL(trimmed) == nil {
+            StatusChip(text: "Invalid link", color: DSColor.warning, systemImage: StatusChip.StateGlyph.error)
+        } else {
+            StatusChip(text: "Ready", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
         }
     }
 }

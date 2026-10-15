@@ -99,7 +99,7 @@ extension DebugComponentGalleryCard {
         }
 
         GalleryEntry(typeName: "ActionGrid") {
-            ActionGrid(columns: 2) {
+            ActionGrid {
                 GridRow {
                     ActionGridButton(title: "Check for Updates", systemImage: "arrow.down.circle", action: {})
                     ActionGridButton(title: "Release Notes", systemImage: "list.bullet.rectangle", action: {})

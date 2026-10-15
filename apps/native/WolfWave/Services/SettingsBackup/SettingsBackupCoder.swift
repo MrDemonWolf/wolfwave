@@ -257,7 +257,7 @@ nonisolated struct SettingsBackupCoder {
                       decoded.count <= 100,
                       decoded.allSatisfy({
                           $0.trigger.count <= 64
-                              && $0.response.count <= AppConstants.Twitch.maxMessageLength
+                              && $0.response.chatLength <= AppConstants.Twitch.maxMessageLength
                               && $0.aliases.count <= 256
                       }),
                       let normalized = normalizingLegacyStorage

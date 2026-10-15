@@ -380,7 +380,7 @@ enum Log {
         return normalized
             .split(separator: "\n", omittingEmptySubsequences: false)
             .enumerated()
-            .map { $0.offset == 0 ? String($0.element) : "  " + $0.element }
+            .map { $0.offset == 0 ? String($0.element) : LogRecord.continuationIndent + $0.element }
             .joined(separator: "\n")
     }
 

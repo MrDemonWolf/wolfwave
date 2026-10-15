@@ -121,8 +121,9 @@ out of the redactor's way (see below).
 ## Continuation lines
 
 A message containing newlines is written with every line after the first
-indented by two spaces. `LogRecord.parse(contents:)` strips that indent and
-folds the lines back into one `message`. Without the frame, a multi-line
+indented by two spaces. `LogRecord.parse(contents:)` strips that indent (up
+to two leading whitespace characters, never message text; anything indented
+deeper keeps the extra) and folds the lines back into one `message`. Without the frame, a multi-line
 `error.localizedDescription` or a crash backtrace would produce orphan lines
 with no timestamp, level, or category.
 

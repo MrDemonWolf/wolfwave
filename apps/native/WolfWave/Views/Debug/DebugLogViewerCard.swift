@@ -128,9 +128,9 @@ struct DebugLogViewerCard: View {
 
     /// The scrolling, filtered record list.
     ///
-    /// Auto-scroll keys off `records.count`. Once the list is at `maxRecords`,
-    /// each poll appends and trims the same number of rows, the count stops
-    /// changing, and Follow no longer scrolls to new lines.
+    /// Auto-scroll keys off the newest record's id, which increases on every
+    /// append. The count would not do: at `maxRecords` each poll appends and
+    /// trims the same number of rows, so it stops changing.
     private var logList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -161,7 +161,7 @@ struct DebugLogViewerCard: View {
                 RoundedRectangle(cornerRadius: DSRadius.sm)
                     .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
             )
-            .onChange(of: records.count) {
+            .onChange(of: records.last?.id) {
                 guard following, let last = filtered.last else { return }
                 withAnimation(.easeOut(duration: DSMotion.Duration.fast)) {
                     proxy.scrollTo(last.id, anchor: .bottom)
@@ -329,31 +329,38 @@ struct DebugLogViewerCard: View {
     /// is called from `Task.detached` precisely so the file read never blocks the
     /// UI.
     ///
-    /// `planRead` advances the cursor's offset before the bytes are read, so a
-    /// failed open, seek, or read, or a chunk that is not valid UTF-8 (for
-    /// example a priming window that starts inside a multi-byte character),
-    /// skips that range for good rather than retrying it.
+    /// The cursor only advances once the bytes are in hand: a failed open,
+    /// seek, or read returns the cursor untouched, so the same range is retried
+    /// on the next poll. Decoding goes through `consume(bytes:)`, which copes
+    /// with a window edge that cuts a multi-byte character.
     ///
     /// - Parameter cursor: The caller's current cursor (a copy).
     /// - Returns: The advanced cursor and the complete lines read; a trailing
     ///   partial line stays in the cursor's carry for the next poll.
-    nonisolated private static func readNewLines(cursor: LogTailCursor) -> (cursor: LogTailCursor, lines: [String]) {
-        var cursor = cursor
+    nonisolated private static func readNewLines(
+        cursor original: LogTailCursor
+    ) -> (cursor: LogTailCursor, lines: [String]) {
+        var cursor = original
         guard let url = Log.exportLogFile(),
               let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber
-        else { return (cursor, []) }
+        else { return (original, []) }
 
-        guard let range = cursor.planRead(fileSize: size.uint64Value, primingBytes: primingBytes),
-              let handle = try? FileHandle(forReadingFrom: url)
-        else { return (cursor, []) }
+        guard let range = cursor.planRead(fileSize: size.uint64Value, primingBytes: primingBytes) else {
+            // Nothing to read, but a first call or a rotation still re-primes.
+            return (cursor, [])
+        }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return (original, []) }
         defer { try? handle.close() }
 
-        try? handle.seek(toOffset: range.lowerBound)
-        guard let data = try? handle.read(upToCount: Int(range.upperBound - range.lowerBound)),
-              let text = String(data: data, encoding: .utf8)
-        else { return (cursor, []) }
-
-        return (cursor, cursor.consume(text))
+        do {
+            try handle.seek(toOffset: range.lowerBound)
+            guard let data = try handle.read(upToCount: Int(range.upperBound - range.lowerBound)) else {
+                return (original, [])
+            }
+            return (cursor, cursor.consume(bytes: data))
+        } catch {
+            return (original, [])
+        }
     }
 }
 

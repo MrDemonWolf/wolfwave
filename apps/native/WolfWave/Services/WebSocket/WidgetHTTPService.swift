@@ -141,8 +141,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// `true` once the current generation's listener reached `.ready`.
     private var isReady = false
     /// Why `ready()` should throw right now, if anything. Set to
-    /// `.listenerFailed` on a bind failure (even while a retry is pending) and
-    /// `.stopped` by `stop()`; cleared when a new listener is installed.
+    /// `.listenerFailed` once a bind failure has no retry left (or the port is
+    /// invalid) and `.stopped` by `stop()`; cleared when a new listener is
+    /// installed.
     private var terminalError: ReadyError?
     /// `true` between `start()` and `stop()`.
     private var isStarted = false
@@ -236,8 +237,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     }
 
     /// Creates and starts one `NWListener` for generation `current`. Also the
-    /// retry entry point. A create or bind failure fails pending `ready()`
-    /// waiters and schedules a retry; an invalid port fails without retrying.
+    /// retry entry point. A create or bind failure schedules a retry (pending
+    /// `ready()` waiters keep waiting); an invalid port fails without retrying.
     private func startListener(generation current: UInt64) {
         guard readyLock.withLock({ isStarted && generation == current }) else { return }
 
@@ -255,8 +256,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             newListener = try makeListener(parameters, nwPort)
         } catch {
             Log.error("WidgetHTTPService: Failed to create listener: \(error)", category: .websocket)
-            failReadyWaiters(with: .listenerFailed, generation: current)
-            scheduleRetry(generation: current)
+            handleListenerFailure(generation: current)
             return
         }
         let installed = readyLock.withLock {
@@ -284,8 +284,7 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
                 self.readyLock.withLock {
                     if self.listener === newListener { self.listener = nil }
                 }
-                self.failReadyWaiters(with: .listenerFailed, generation: current)
-                self.scheduleRetry(generation: current)
+                self.handleListenerFailure(generation: current)
             default:
                 break
             }
@@ -302,10 +301,27 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         newListener.start(queue: queue)
     }
 
+    /// Handles a create or bind failure for generation `current`: clears the
+    /// readiness latch and schedules a retry. `ready()` waiters keep waiting
+    /// while a retry is pending; they fail with `.listenerFailed` only once
+    /// the retries are spent.
+    private func handleListenerFailure(generation current: UInt64) {
+        readyLock.withLock {
+            guard isStarted, generation == current else { return }
+            isReady = false
+        }
+        if !scheduleRetry(generation: current) {
+            failReadyWaiters(with: .listenerFailed, generation: current)
+        }
+    }
+
     /// Schedules `startListener` again with exponential backoff
     /// (`retryBaseDelay * 2^attempt`, capped at 30 s), up to 5 attempts.
     /// After the fifth the service stays down until the next `start()`.
-    private func scheduleRetry(generation current: UInt64) {
+    ///
+    /// - Returns: `true` when a retry was scheduled.
+    @discardableResult
+    private func scheduleRetry(generation current: UInt64) -> Bool {
         let delay = readyLock.withLock { () -> TimeInterval? in
             guard isStarted, generation == current, retryAttempt < 5 else { return nil }
             let delay = min(retryBaseDelay * pow(2, Double(retryAttempt)), 30)
@@ -316,7 +332,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             queue.asyncAfter(deadline: .now() + delay, execute: work)
             return delay
         }
-        if let delay { Log.info("WidgetHTTPService: Retrying in \(delay)s", category: .websocket) }
+        guard let delay else { return false }
+        Log.info("WidgetHTTPService: Retrying in \(delay)s", category: .websocket)
+        return true
     }
 
     /// Cancels the listener and tears down the bound port, then cancels every
@@ -357,11 +375,14 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
     /// is already ready. Use this instead of a fixed `Thread.sleep` so callers
     /// (and tests) wait exactly as long as the bind takes and no longer.
     ///
-    /// - Throws: `ReadyError.listenerFailed` if the bind fails, or
-    ///   `ReadyError.stopped` if `stop()` runs before the listener binds. This
-    ///   guarantees the call always resolves instead of hanging on a listener
-    ///   that will never reach `.ready`. A bind failure throws even while a
-    ///   retry is scheduled; call again after the retry to wait it out.
+    /// A bind failure with a retry pending keeps the caller waiting, so a
+    /// recoverable failure is not reported as final.
+    ///
+    /// - Throws: `ReadyError.listenerFailed` once the bind has failed and no
+    ///   retry remains (or the port is invalid), or `ReadyError.stopped` if
+    ///   `stop()` runs before the listener binds. Retries are bounded (5, with
+    ///   capped backoff), so the call always resolves instead of hanging on a
+    ///   listener that will never reach `.ready`.
     func ready() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let result: Result<Void, ReadyError>? = readyLock.withLock {
@@ -394,7 +415,8 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
 
     /// Resumes any pending `ready()` waiters with the given failure, records it
     /// as `terminalError`, and clears the queue. Invoked when the listener
-    /// cannot be created or fails to bind. (`stop()` resumes waiters itself.)
+    /// cannot be created or bound and no retry remains. (`stop()` resumes
+    /// waiters itself.)
     /// A no-op for a stale generation or a stopped service.
     private func failReadyWaiters(with error: ReadyError, generation current: UInt64) {
         let waiters: [CheckedContinuation<Void, Error>] = readyLock.withLock {
@@ -429,22 +451,23 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         let isLoopback = WebSocketAuthToken.isLoopbackEndpoint(connection.endpoint)
         let peerKey = WebSocketAuthToken.peerKey(connection.endpoint)
 
-        let accepted: Bool = connectionsLock.withLock {
+        let refusal: ConnectionRefusal? = connectionsLock.withLock {
             let peerConnectionCount = activeConnections.values.lazy.filter {
                 WebSocketAuthToken.peerKey($0.connection.endpoint) == peerKey
             }.count
-            guard Self.shouldAcceptConnection(
+            if let refusal = Self.connectionRefusal(
                 activeCount: activeConnections.count,
                 maximumCount: maxConcurrentConnections,
                 isLoopback: isLoopback,
                 peerConnectionCount: peerConnectionCount
-            ) else { return false }
+            ) { return refusal }
             activeConnections[id] = TrackedConnection(connection: connection)
-            return true
+            return nil
         }
-        guard accepted else {
+        if let refusal {
+            let reason = refusal.logDescription(maximumCount: maxConcurrentConnections)
             Log.warn(
-                "WidgetHTTPService: Refusing connection, \(maxConcurrentConnections) already active",
+                "WidgetHTTPService: Refusing connection, \(reason)",
                 category: .websocket
             )
             connection.cancel()
@@ -471,27 +494,70 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
         readRequestHeaders(from: connection, accumulated: Data())
     }
 
+    /// Why a new connection was refused, so the log names the limit that hit.
+    enum ConnectionRefusal: Equatable {
+        /// Negative counts or a non-positive maximum.
+        case invalidCounts
+        /// Every slot is in use.
+        case totalLimit
+        /// Only the slots reserved for loopback (local OBS) are left.
+        case loopbackReserve
+        /// This LAN host already holds its per-host maximum.
+        case perHostLimit
+
+        /// Log text for this refusal.
+        func logDescription(maximumCount: Int) -> String {
+            switch self {
+            case .invalidCounts: "invalid connection counts"
+            case .totalLimit: "\(maximumCount) already active"
+            case .loopbackReserve: "remaining slots are reserved for local connections"
+            case .perHostLimit: "host already has \(WidgetHTTPService.maxConnectionsPerHost) connections"
+            }
+        }
+    }
+
+    /// Concurrent connections one LAN host may hold.
+    static let maxConnectionsPerHost = 4
+
     /// Admission policy for a new connection. Pure, so it is unit-testable.
     ///
     /// Loopback peers may use every slot up to `maximumCount`. LAN peers are
     /// held back from the last `min(4, max(1, maximumCount / 4))` slots, so a
-    /// noisy LAN host can never lock out the local OBS, and are capped at 4
-    /// concurrent connections per host (see `WebSocketAuthToken.peerKey`).
-    /// Negative counts or a non-positive maximum refuse.
+    /// noisy LAN host can never lock out the local OBS, and are capped at
+    /// ``maxConnectionsPerHost`` concurrent connections per host (see
+    /// `WebSocketAuthToken.peerKey`). Negative counts or a non-positive
+    /// maximum refuse.
+    ///
+    /// - Returns: `nil` to accept, or the reason for refusing.
+    nonisolated static func connectionRefusal(
+        activeCount: Int,
+        maximumCount: Int,
+        isLoopback: Bool,
+        peerConnectionCount: Int
+    ) -> ConnectionRefusal? {
+        guard activeCount >= 0, maximumCount > 0, peerConnectionCount >= 0 else { return .invalidCounts }
+        guard activeCount < maximumCount else { return .totalLimit }
+        guard !isLoopback else { return nil }
+        let reservedLoopbackConnections = min(4, max(1, maximumCount / 4))
+        guard activeCount < maximumCount - reservedLoopbackConnections else { return .loopbackReserve }
+        guard peerConnectionCount < maxConnectionsPerHost else { return .perHostLimit }
+        return nil
+    }
+
+    /// Whether ``connectionRefusal(activeCount:maximumCount:isLoopback:peerConnectionCount:)``
+    /// accepts the connection.
     nonisolated static func shouldAcceptConnection(
         activeCount: Int,
         maximumCount: Int,
         isLoopback: Bool,
         peerConnectionCount: Int
     ) -> Bool {
-        guard activeCount >= 0,
-              maximumCount > 0,
-              peerConnectionCount >= 0,
-              activeCount < maximumCount else { return false }
-        guard !isLoopback else { return true }
-        let reservedLoopbackConnections = min(4, max(1, maximumCount / 4))
-        return activeCount < maximumCount - reservedLoopbackConnections
-            && peerConnectionCount < 4
+        connectionRefusal(
+            activeCount: activeCount,
+            maximumCount: maximumCount,
+            isLoopback: isLoopback,
+            peerConnectionCount: peerConnectionCount
+        ) == nil
     }
 
     /// Arms the lifetime timeout for `connection`. Bounds headers and response

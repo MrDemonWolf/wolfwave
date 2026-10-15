@@ -41,6 +41,10 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
         let value: String
     }
 
+    /// The frame `Log` puts in front of every continuation line. Shared with
+    /// the writer so the two cannot drift.
+    static let continuationIndent = "  "
+
     /// Stable identity for SwiftUI lists: byte offset is not available here, so
     /// the parse order index is assigned by ``parse(contents:)``.
     let id: Int
@@ -130,7 +134,9 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
     /// - Returns: Records in file order.
     static func parse(contents: String) -> [LogRecord] {
         var records: [LogRecord] = []
-        var pendingContinuations: [String] = []
+        // Each continuation keeps its raw line (for `raw`) and its text with
+        // the writer's frame removed (for `message`).
+        var pendingContinuations: [(raw: String, text: String)] = []
 
         // Folds any buffered continuation lines into the last record (message
         // and raw), or discards them when there is no record to attach to.
@@ -139,7 +145,7 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
                 pendingContinuations.removeAll()
                 return
             }
-            let folded = ([last.message] + pendingContinuations).joined(separator: "\n")
+            let folded = ([last.message] + pendingContinuations.map(\.text)).joined(separator: "\n")
             records.append(
                 LogRecord(
                     id: last.id,
@@ -149,7 +155,7 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
                     location: last.location,
                     message: folded,
                     fields: last.fields,
-                    raw: ([last.raw] + pendingContinuations.map { "  " + $0 }).joined(separator: "\n")
+                    raw: ([last.raw] + pendingContinuations.map(\.raw)).joined(separator: "\n")
                 )
             )
             pendingContinuations.removeAll()
@@ -161,14 +167,28 @@ nonisolated struct LogRecord: Equatable, Sendable, Identifiable {
                 flush()
                 records.append(record)
             } else if !records.isEmpty, text.first?.isWhitespace == true {
-                // Continuation: strip the two-space frame the writer added.
-                pendingContinuations.append(String(text.dropFirst(2)))
+                pendingContinuations.append((raw: text, text: stripContinuationIndent(text)))
             }
             // Anything else (blank lines, pre-first-record noise) is dropped.
         }
         flush()
 
         return records
+    }
+
+    /// Removes the writer's continuation frame: up to
+    /// ``continuationIndent``'s length of leading whitespace, and never a
+    /// non-whitespace character. A hand-edited line indented by one space or
+    /// a tab keeps all of its text; indentation past the frame is the
+    /// message's own and is kept.
+    static func stripContinuationIndent(_ line: String) -> String {
+        var rest = Substring(line)
+        var stripped = 0
+        while stripped < continuationIndent.count, rest.first?.isWhitespace == true {
+            rest.removeFirst()
+            stripped += 1
+        }
+        return String(rest)
     }
 
     // MARK: - Field Splitting

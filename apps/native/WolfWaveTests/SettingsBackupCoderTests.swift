@@ -591,6 +591,25 @@ extension SettingsBackupCoderTests {
         #expect(commands[1].aliases == "salute")
     }
 
+    /// A reply under 500 Characters but over 500 Unicode scalars (Twitch's
+    /// measure, and the editor's) is refused on import too.
+    @Test func applyPlanMeasuresReplyLengthInScalars() throws {
+        let keys = AppConstants.UserDefaults.self
+        let limit = AppConstants.Twitch.maxMessageLength
+        let flags = String(repeating: "\u{1F1FA}\u{1F1F8}", count: limit / 2 + 1)
+        #expect(flags.count <= limit)
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.customCommands] = .data(
+            try JSONCoders.defaultEncoder.encode([CustomCommand(trigger: "!flags", response: flags)])
+        )
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+        #expect(plan.set[keys.customCommands] == nil)
+    }
+
     /// A command list that is well-formed JSON but unusable is dropped whole: blank trigger,
     /// bad alias, duplicate trigger, duplicate id, off-step or out-of-range cooldown, and
     /// non-finite cooldowns.

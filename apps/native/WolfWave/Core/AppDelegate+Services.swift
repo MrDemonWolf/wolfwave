@@ -93,8 +93,8 @@ extension AppDelegate {
 
     /// Creates the Discord RPC service, consumes its state / artwork streams, and enables if configured.
     ///
-    /// The two consumer tasks are retained on `AppDelegate` for the app's
-    /// lifetime. State changes are re-posted as the
+    /// The two consumer tasks are retained on `AppDelegate` and cancelled in
+    /// `applicationWillTerminate` (or replaced if this runs again). State changes are re-posted as the
     /// `discordState` notification and trigger a Stream Deck health broadcast;
     /// artwork Discord resolves is forwarded to the overlay server.
     func setupDiscordService() {
@@ -110,6 +110,7 @@ extension AppDelegate {
                 category: .discord)
         }
 
+        discordStateConsumer?.cancel()
         discordStateConsumer = Task { @MainActor [weak self] in
             for await newState in service.stateChanges {
                 let stateString: String
@@ -129,6 +130,7 @@ extension AppDelegate {
             }
         }
 
+        discordArtworkConsumer?.cancel()
         discordArtworkConsumer = Task { @MainActor [weak self] in
             for await resolution in service.artworkResolutions {
                 if let server = self?.websocketServer {
@@ -1241,10 +1243,9 @@ extension AppDelegate: PlaybackSourceDelegate {
 
     /// Clears track state and notifies services when playback stops.
     ///
-    /// - Parameter status: One of the human-readable status strings
-    ///   `AppleMusicSource` emits (for example `"No track playing"`,
-    ///   `"Music not running"`, `"Script error"`). Matched by exact string,
-    ///   so a renamed status there silently stops clearing playback here.
+    /// - Parameter status: One of the `AppleMusicSource.DelegateStatus`
+    ///   strings (for example `noTrackPlaying`, `musicNotRunning`,
+    ///   `scriptError`).
     func playbackSource(didUpdateStatus status: String) {
         Log.info("AppDelegate: Playback status = \(status)", category: .music)
 
@@ -1253,7 +1254,7 @@ extension AppDelegate: PlaybackSourceDelegate {
         // history (which double-counts the track when it later ends) or blank
         // Discord and the overlay. Only a sustained error streak clears
         // playback; any other status, or a good track read, resets the streak.
-        if status == "Script error" {
+        if status == AppleMusicSource.DelegateStatus.scriptError {
             consecutiveScriptErrorCount += 1
             if consecutiveScriptErrorCount < scriptErrorStopThreshold {
                 Log.debug(
@@ -1270,17 +1271,17 @@ extension AppDelegate: PlaybackSourceDelegate {
         // Flush in-progress history and blank the cached snapshot so Discord
         // Rich Presence and the WebSocket overlay don't keep broadcasting a
         // stale song after Music quits, permission is revoked, or SB errors out.
-        let shouldClearPlayback = status == "No track playing"
-            || status == "Music access denied"
-            || status == "Music not running"
-            || status == "No track info"
-            || status == "Script error"
+        let shouldClearPlayback = status == AppleMusicSource.DelegateStatus.noTrackPlaying
+            || status == AppleMusicSource.DelegateStatus.accessDenied
+            || status == AppleMusicSource.DelegateStatus.musicNotRunning
+            || status == AppleMusicSource.DelegateStatus.noTrackInfo
+            || status == AppleMusicSource.DelegateStatus.scriptError
 
         if shouldClearPlayback {
             clearPlaybackStateAndOutputs()
         }
 
-        if status == "Music access denied" {
+        if status == AppleMusicSource.DelegateStatus.accessDenied {
             // Tell the Music Monitor settings view to flip its banner now,
             // without waiting for the next AEDeterminePermissionToAutomateTarget
             // poll or the user clicking Recheck.

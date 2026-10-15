@@ -25,10 +25,6 @@ struct OnboardingTwitchStepView: View {
     /// Stable owner supplied by the containing Onboarding presentation.
     let oauthOwner: TwitchViewModel.OAuthPresentationOwner
 
-    /// Set when the user copies the code or opens the activation page, cleared
-    /// when a new flow starts. Currently write-only: nothing reads it.
-    @State private var hasStartedActivation = false
-
     // MARK: - Body
 
     var body: some View {
@@ -56,7 +52,7 @@ struct OnboardingTwitchStepView: View {
                         errorContent(message: message)
                     }
                 }
-                .animation(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
+                .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
             }
         )
         // Load any stored sign-in (so a returning user lands on Connected), and
@@ -84,7 +80,6 @@ struct OnboardingTwitchStepView: View {
             PillButton(
                 background: AnyShapeStyle(AppConstants.Brand.twitch),
                 action: {
-                    hasStartedActivation = false
                     twitchViewModel.startOAuth(owner: oauthOwner)
                 },
                 label: {
@@ -118,14 +113,9 @@ struct OnboardingTwitchStepView: View {
                     verificationURI: uri,
                     onCopy: {
                         twitchViewModel.progressMessage = "Code copied"
-                        hasStartedActivation = true
-                    },
-                    onActivate: {
-                        hasStartedActivation = true
                     },
                     expiresAt: twitchViewModel.deviceCodeExpiresAt,
                     onRequestNewCode: {
-                        hasStartedActivation = false
                         twitchViewModel.startOAuth(owner: oauthOwner)
                     }
                 )
@@ -137,7 +127,6 @@ struct OnboardingTwitchStepView: View {
                 Spacer()
 
                 Button("Cancel") {
-                    hasStartedActivation = false
                     twitchViewModel.requestOAuthCancellation(ifOwnedBy: oauthOwner)
                 }
                 .buttonStyle(.bordered)
@@ -268,7 +257,7 @@ struct OnboardingTwitchStepView: View {
                 }
 
                 channelValidationIndicator
-                    .animation(
+                    .motionSafe(
                         .easeInOut(duration: DSMotion.Duration.base),
                         value: twitchViewModel.channelValidationState)
             }

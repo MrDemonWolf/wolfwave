@@ -762,9 +762,6 @@ actor TwitchChatService {
     var oauthToken: String?
     /// Twitch application client ID sent as `Client-Id`.
     var clientID: String?
-    /// Login of the signed-in account. Note: only ever reset to `nil` on join;
-    /// nothing in the service assigns it a value today.
-    var botUsername: String?
 
     /// Live `SongRequestService`, used by the channel-point and bit redemption
     /// handlers. Set by `AppDelegate` via `setSongRequestServiceReference(_:)`.
@@ -1385,12 +1382,12 @@ actor TwitchChatService {
         self.botID = botID
         self.oauthToken = token
         self.clientID = clientID
-        self.botUsername = nil
         self.hasSentConnectionMessage = false
         replayPendingRedemptionResolutions()
 
         // The caller publishes reconnect ownership before starting transport.
-        // Connected state still waits for EventSub session_welcome.
+        // Connected state waits for `session_welcome` and a successful chat
+        // subscription (see `handleSessionWelcome`).
     }
 
     /// Connects to a Twitch channel by name, resolving usernames to IDs.

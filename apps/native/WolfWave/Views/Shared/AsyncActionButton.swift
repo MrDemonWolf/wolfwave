@@ -44,7 +44,7 @@ struct AsyncActionButton: View {
     }
 
     /// Where the button is in the action lifecycle.
-    private enum Phase: Equatable {
+    enum Phase: Equatable {
         /// Waiting for a tap; shows the title label.
         case idle
         /// The action is in flight; shows the spinner and disables the control.
@@ -110,6 +110,9 @@ struct AsyncActionButton: View {
     /// The in-flight action (plus its success hold). Cancelled on disappear so
     /// a closed pane does not keep running the work or flip state later.
     @State private var task: Task<Void, Never>?
+    /// Bumped per run and on disappear; a run only writes `phase` while its
+    /// id is still current.
+    @State private var runID = 0
 
     /// Gates the label cross-fade; under Reduce Motion the swap is instant.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -136,6 +139,8 @@ struct AsyncActionButton: View {
         .onDisappear {
             task?.cancel()
             task = nil
+            runID &+= 1
+            phase = .idle
         }
         .accessibilityLabel(title)
         .accessibilityValue(accessibilityValue)
@@ -218,30 +223,40 @@ struct AsyncActionButton: View {
     /// Starts the action. Re-entrant taps are dropped: the button is disabled
     /// while running, and this guard covers the keyboard-activation race.
     ///
-    /// A thrown error (including `CancellationError`) returns to `.idle`. If the
-    /// task is cancelled without throwing, the phase is left as is: the only
-    /// canceller is `onDisappear`, after which the view is gone.
+    /// Every run ends in a phase: a throw or a cancellation goes back to
+    /// `.idle`, success to `.succeeded` (then `.idle`). `@State` outlives
+    /// `onDisappear`, so a cancelled run that left `.running` behind would
+    /// bring the button back as a disabled spinner; `onDisappear` resets it too.
+    /// `runID` drops writes from a superseded run, so a late finish can never
+    /// overwrite a newer one.
     private func run() {
         guard phase != .running else { return }
         task?.cancel()
+        runID &+= 1
+        let id = runID
         phase = .running
         task = Task { @MainActor in
+            var threw = false
             do {
                 try await action()
             } catch {
-                phase = .idle
-                return
+                threw = true
             }
-            guard !Task.isCancelled else { return }
-            guard showsSuccess else {
-                phase = .idle
-                return
-            }
-            phase = .succeeded
+            guard runID == id else { return }
+            phase = Self.completionPhase(
+                threw: threw, cancelled: Task.isCancelled, showsSuccess: showsSuccess)
+            guard phase == .succeeded else { return }
             try? await Task.sleep(for: .seconds(successDuration))
-            guard !Task.isCancelled else { return }
+            guard runID == id else { return }
             phase = .idle
         }
+    }
+
+    /// The phase a finished action lands in. Only an uncancelled, non-throwing
+    /// run that wants the checkmark shows it; everything else is idle, so the
+    /// button can never be left spinning.
+    static func completionPhase(threw: Bool, cancelled: Bool, showsSuccess: Bool) -> Phase {
+        threw || cancelled || !showsSuccess ? .idle : .succeeded
     }
 }
 

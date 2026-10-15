@@ -74,7 +74,7 @@ OnboardingToggleCard(
 
 ## `.onboardingTintedToggleShell(...)` (same file)
 
-Card chrome for the onboarding "smart toggle" cards (Discord presence, OBS Stream Widgets): a neutral opaque card when off that brightens with a brand-tinted fill, stroke, and glow when on. Wraps a `ToggleSettingRow`; includes `DSSpace.s5` (14) padding and the on/off ease animation (`DSMotion.Duration.base`). The Discord and OBS steps used to carry byte-identical copies of this chrome.
+Card chrome for the onboarding "smart toggle" cards (Discord presence, OBS Stream Widgets): a neutral opaque card when off that brightens with a brand-tinted fill, stroke, and glow when on. Wraps a `ToggleSettingRow`; includes `DSSpace.s5` (14) padding and the on/off ease animation (`DSMotion.Duration.base`), applied through `.motionSafe` so it snaps instead of fading under Reduce Motion. The Discord and OBS steps used to carry byte-identical copies of this chrome.
 
 ```swift
 ToggleSettingRow(...)

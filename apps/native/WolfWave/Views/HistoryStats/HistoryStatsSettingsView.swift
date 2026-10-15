@@ -157,17 +157,31 @@ struct HistoryStatsSettingsView: View {
         return service?.isLoaded == false
     }
 
+    // MARK: - Music Permission
+
+    /// Refreshes ``musicPermission`` with a live Apple Events probe. The probe
+    /// can take tens of milliseconds, so it runs detached to keep the main
+    /// thread free; the result is applied back on the main actor.
+    private func probeMusicPermission() {
+        Task {
+            let state = await Task.detached(priority: .userInitiated) {
+                MusicPermissionChecker.currentState()
+            }.value
+            musicPermission = state
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
         unifiedLayout
         .onAppear {
-            musicPermission = MusicPermissionChecker.currentState()
+            probeMusicPermission()
             refreshTwitchState()
             refreshReauthState()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            musicPermission = MusicPermissionChecker.currentState()
+            probeMusicPermission()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name.twitchConnectionStateChanged)) { notification in
             if let connected = notification.isConnectedFlag {
