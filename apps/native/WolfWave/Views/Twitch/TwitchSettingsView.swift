@@ -26,9 +26,6 @@ struct TwitchSettingsView: View {
     @Bindable var viewModel: TwitchViewModel
     /// Stable owner supplied by the containing Settings presentation.
     let oauthOwner: TwitchViewModel.OAuthPresentationOwner
-    /// Tracks whether the user has copied/opened the device code at least once.
-    /// Written on every flow transition but currently not read by any view.
-    @State private var hasStartedActivation = false
     /// Whether the one-time keychain + service wiring has run for this view model instance.
     @State private var didLoadCredentials = false
     /// Owns re-authentication teardown so closing Settings cannot start OAuth later.
@@ -204,7 +201,6 @@ struct TwitchSettingsView: View {
     private func retry(_ target: TwitchViewModel.RetryTarget) {
         switch target {
         case .signIn:
-            hasStartedActivation = false
             viewModel.startOAuth(owner: oauthOwner)
         case .signOut:
             Task { @MainActor in await viewModel.clearCredentials() }
@@ -300,7 +296,6 @@ struct TwitchSettingsView: View {
     private var notConnectedContent: some View {
         VStack(spacing: DSSpace.s4) {
             Button(action: {
-                hasStartedActivation = false
                 viewModel.startOAuth(owner: oauthOwner)
             }) {
                 HStack(spacing: DSSpace.s2) {
@@ -348,14 +343,9 @@ struct TwitchSettingsView: View {
                     userCode: code, verificationURI: uri,
                     onCopy: {
                         viewModel.progressMessage = "Code copied"
-                        hasStartedActivation = true
-                    },
-                    onActivate: {
-                        hasStartedActivation = true
                     },
                     expiresAt: viewModel.deviceCodeExpiresAt,
                     onRequestNewCode: {
-                        hasStartedActivation = false
                         viewModel.startOAuth(owner: oauthOwner)
                     }
                 )
@@ -709,15 +699,15 @@ private struct SignedInView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .stableWidth {
-                    Label("Connect", systemImage: "checkmark.circle.fill")
+                    Label("Join Channel", systemImage: "checkmark.circle.fill")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
-                    Label("Disconnect", systemImage: "xmark.circle.fill")
+                    Label("Leave Channel", systemImage: "xmark.circle.fill")
                         .font(.system(size: DSFont.Size.body, weight: .medium))
                     HStack(spacing: DSSpace.s1h) {
                         ProgressView()
                             .progressViewStyle(.circular)
                             .controlSize(.mini)
-                        Text("Connecting...")
+                        Text("Connecting\u{2026}")
                             .font(.system(size: DSFont.Size.body))
                     }
                 }

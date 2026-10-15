@@ -46,9 +46,6 @@ struct SoftwareUpdateSettingsView: View {
 
     /// True from a "Check Now" tap until the next `updateStateChanged`.
     @State private var isCheckingForUpdates = false
-    /// Set on "Check Now" and cleared on the next result. Currently not read
-    /// anywhere else in this view.
-    @State private var isManualCheck = false
     /// Homebrew-managed install: Sparkle is disabled and the pane shows the
     /// `brew upgrade` card instead. Resolved on appear.
     @State private var isHomebrewInstall = false
@@ -132,7 +129,6 @@ struct SoftwareUpdateSettingsView: View {
             if let update = notification.updateState {
                 latestVersion = update.latestVersion
                 updateAvailable = update.isUpdateAvailable && skippedVersion != update.latestVersion
-                isManualCheck = false
             }
         }
     }
@@ -186,8 +182,9 @@ struct SoftwareUpdateSettingsView: View {
     }
 
     /// Version + availability, channel picker (Nightly behind a confirm alert),
-    /// the automatic-check toggle, and Check Now. In DEBUG builds the picker,
-    /// toggle, and Check Now are disabled.
+    /// the automatic-check toggle, and Check Now. In DEBUG builds the picker
+    /// and toggle are disabled; Check Now stays live and checks the bundled
+    /// dev-appcast.xml.
     @ViewBuilder
     private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
@@ -284,12 +281,11 @@ struct SoftwareUpdateSettingsView: View {
                 Spacer()
 
                 Button {
-                    isCheckingForUpdates = true
-                    isManualCheck = true
-                    appDelegate?.sparkleUpdater?.checkForUpdates()
                     // The `updateStateChanged` notification observer resets
                     // `isCheckingForUpdates` when Sparkle's delegate reports
-                    // a result, so no fixed timer is needed.
+                    // a result, so no fixed timer is needed. A check Sparkle
+                    // ignored never reports, so don't start the spinner then.
+                    isCheckingForUpdates = appDelegate?.sparkleUpdater?.checkForUpdates() ?? false
                 } label: {
                     if isCheckingForUpdates {
                         ProgressView()
@@ -307,10 +303,6 @@ struct SoftwareUpdateSettingsView: View {
                 .accessibilityLabel("Check for updates now")
                 .accessibilityHint("Manually checks for a newer version of WolfWave")
                 .accessibilityValue(isCheckingForUpdates ? "Checking" : "Idle")
-                #if DEBUG
-                .disabled(true)
-                .opacity(0.5)
-                #endif
             }
         }
         .cardStyle()

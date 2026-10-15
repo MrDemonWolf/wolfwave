@@ -53,10 +53,37 @@ enum AboutCopy {
     static let trademarkNotice =
         "Apple Music and iTunes are trademarks of Apple Inc. Twitch is a trademark of Twitch Interactive, Inc. Discord is a trademark of Discord Inc. song.link is a trademark of Song, Inc. (Odesli). Spotify is a trademark of Spotify AB. YouTube is a trademark of Google LLC. Elgato and Stream Deck are trademarks of Corsair Memory, Inc. OBS is a trademark of OBS Project."
 
-    /// Copyright line for the About pane. The year is hard-coded, so update it
-    /// alongside `NSHumanReadableCopyright` (which the standard panel uses).
+    /// Copyright line for the About pane. The year comes from the bundle's
+    /// `NSHumanReadableCopyright` (the line the standard panel shows), so the
+    /// two can't drift; the holder stays `copyrightHolder`, so a fork's
+    /// `COPYRIGHT_HOLDER` override still applies here.
     static var copyrightLine: String {
-        "© 2026 \(AppConstants.AppInfo.copyrightHolder) All rights reserved."
+        copyrightLine(
+            bundleCopyright: Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String,
+            holder: AppConstants.AppInfo.copyrightHolder
+        )
+    }
+
+    /// Testable builder for `copyrightLine`.
+    ///
+    /// - Parameters:
+    ///   - bundleCopyright: The raw `NSHumanReadableCopyright` value, if any.
+    ///   - holder: Legal entity named in the line.
+    ///   - fallbackYear: Used when `bundleCopyright` holds no four-digit year.
+    static func copyrightLine(
+        bundleCopyright: String?,
+        holder: String,
+        fallbackYear: Int = Calendar.current.component(.year, from: Date())
+    ) -> String {
+        let year = bundleCopyright.flatMap(copyrightYear(in:)) ?? String(fallbackYear)
+        return "© \(year) \(holder) All rights reserved."
+    }
+
+    /// The year (or year range, e.g. `2025-2026`) in a copyright string, or
+    /// `nil` when it has none.
+    static func copyrightYear(in copyright: String) -> String? {
+        guard let match = copyright.firstMatch(of: /\d{4}(?:\s*[-–]\s*\d{4})?/) else { return nil }
+        return String(match.output)
     }
 
     // MARK: - Standard About Panel

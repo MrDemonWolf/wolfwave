@@ -56,10 +56,15 @@ struct SongRequestSetupView: View {
     /// Edge the next step slides in from: trailing for Next, leading for Back.
     @State private var navigationDirection: Edge = .trailing
 
-    /// Public playlist link for `!playlist`. Bound straight to the field, so it
-    /// persists as typed; the Next button blocks an invalid value.
+    /// Public playlist link for `!playlist`. Written only with a value that
+    /// normalizes through `Preferences.normalizedHTTPSURL` (or blank); the
+    /// field edits `songListDraft` instead.
     @AppStorage(AppConstants.UserDefaults.songRequestSongListURL)
     private var songListURL = ""
+    /// What the share-link field shows. Committed to `songListURL` only when
+    /// it is blank or a valid HTTPS link, so a half-typed link never persists;
+    /// the Next button blocks while it is invalid.
+    @State private var songListDraft = ""
     /// `!playlist` switch, turned on when a link is fetched.
     @AppStorage(AppConstants.UserDefaults.songListCommandEnabled)
     private var songListCommandEnabled = false
@@ -107,9 +112,11 @@ struct SongRequestSetupView: View {
         .frame(width: 580, height: 600)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
+            songListDraft = songListURL
             refreshTwitchState()
             syncAuth(MusicAuthorization.currentStatus)
         }
+        .onChange(of: songListDraft) { _, draft in commitSongListDraft(draft) }
         .onChange(of: musicAuthStatus) { _, new in syncAuth(new) }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             syncAuth(MusicAuthorization.currentStatus)
@@ -366,14 +373,14 @@ struct SongRequestSetupView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    TextField("Link shows up here, or paste your own", text: $songListURL)
+                    TextField("Link shows up here, or paste your own", text: $songListDraft)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: DSFont.Size.body))
 
                     Text("Leave blank to skip. !playlist stays off until a link is set.")
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.secondary)
-                    if Preferences.normalizedHTTPSURL(songListURL) == nil {
+                    if Preferences.normalizedHTTPSURL(songListDraft) == nil {
                         FieldValidationRow(state: .invalid("Use an HTTPS link with a host, up to 2,048 characters."))
                     }
                 }
@@ -416,6 +423,14 @@ struct SongRequestSetupView: View {
                 }
             }
         )
+    }
+
+    /// Persists the share-link draft when it is blank or a valid HTTPS link
+    /// (stored in its normalized form). An invalid draft leaves the stored
+    /// link untouched.
+    private func commitSongListDraft(_ draft: String) {
+        guard let normalized = Preferences.normalizedHTTPSURL(draft) else { return }
+        if songListURL != normalized { songListURL = normalized }
     }
 
     /// Whether a `!playlist` share link is configured (drives the Done recap).
@@ -486,7 +501,7 @@ struct SongRequestSetupView: View {
                 .controlSize(.regular)
                 .pointerCursor()
                 .disabled(!viewModel.canAdvance || (viewModel.currentStep == .shareLink
-                    && Preferences.normalizedHTTPSURL(songListURL) == nil))
+                    && Preferences.normalizedHTTPSURL(songListDraft) == nil))
                 .accessibilityIdentifier("songRequestSetup.next")
             }
         }
@@ -497,7 +512,7 @@ struct SongRequestSetupView: View {
     /// is present, so it's obvious the step can be passed over.
     private var nextButtonTitle: String {
         if viewModel.currentStep == .shareLink {
-            return songListURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Skip" : "Next"
+            return songListDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Skip" : "Next"
         }
         return "Next"
     }
@@ -605,7 +620,7 @@ struct SongRequestSetupView: View {
         fetchStatus = nil
         do {
             if let url = try await libraryService.resolveRequestsPlaylistShareURL() {
-                songListURL = url
+                songListDraft = url
                 songListCommandEnabled = true
                 fetchStatus = "Got it. !playlist is on and shares this link."
             } else {

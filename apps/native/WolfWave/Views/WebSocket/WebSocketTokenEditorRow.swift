@@ -61,8 +61,8 @@ struct WebSocketTokenEditorRow: View {
     /// True when the draft differs from the saved token (ignoring surrounding
     /// whitespace) and isn't empty. Shows Save / Cancel.
     private var hasTokenEdits: Bool {
-        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed != currentToken
+        let normalized = WebSocketAuthToken.normalizedInput(tokenDraft)
+        return !normalized.isEmpty && normalized != currentToken
     }
 
     // Role-specific accessibility identifiers. The overlay ones keep their
@@ -250,8 +250,8 @@ struct WebSocketTokenEditorRow: View {
 
     /// Validates and saves the draft.
     ///
-    /// Order: ignore empty / unchanged drafts (reset the field), require
-    /// exactly 64 hex characters, refuse a value equal to the live counterpart
+    /// Order: normalize (trim, lowercase), ignore empty / unchanged drafts
+    /// (reset the field), require exactly 64 hex characters, refuse a value equal to the live counterpart
     /// token (constant-time compare), then persist off the main actor and push
     /// it to the server. Every failure leaves the saved token untouched and
     /// sets `tokenError`.
@@ -259,7 +259,7 @@ struct WebSocketTokenEditorRow: View {
         guard !isSavingToken else { return }
         isSavingToken = true
         defer { isSavingToken = false }
-        let trimmed = tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = WebSocketAuthToken.normalizedInput(tokenDraft)
         guard !trimmed.isEmpty, trimmed != currentToken else {
             tokenDraft = currentToken
             return
@@ -309,11 +309,23 @@ struct WebSocketTokenEditorRow: View {
     }
 
     /// Generates and saves a fresh random token for this role, then applies it.
-    /// Runs the Keychain write synchronously on the main actor; on failure the
-    /// old token stays active.
+    /// The Keychain write runs off the main actor (like `persistTokenEdit`);
+    /// on failure the old token stays active.
     private func regenerateToken() {
+        Task { await performRegenerate() }
+    }
+
+    /// Async body of `regenerateToken()`. Shares `isSavingToken` with the save
+    /// path so a regenerate and a save can't race each other's Keychain write.
+    private func performRegenerate() async {
+        guard !isSavingToken else { return }
+        isSavingToken = true
+        defer { isSavingToken = false }
+        let rotatedRole = role
         do {
-            let fresh = try WebSocketAuthToken.rotate(role)
+            let fresh = try await Task.detached(priority: .userInitiated) {
+                try WebSocketAuthToken.rotate(rotatedRole)
+            }.value
             currentToken = fresh
             tokenDraft = fresh
             tokenError = nil

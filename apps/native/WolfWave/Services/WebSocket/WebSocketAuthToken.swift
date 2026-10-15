@@ -328,10 +328,20 @@ nonisolated enum WebSocketAuthToken {
         return diff == 0
     }
 
+    /// Canonical form of a token the user typed or pasted: surrounding
+    /// whitespace trimmed and hex folded to lowercase, the case `generate()`
+    /// mints. The token editor saves this form, so a pasted uppercase token is
+    /// stored (and copied back out) in the one case clients are handed.
+    static func normalizedInput(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
     /// Returns `true` for the protocol's exact 32-byte hexadecimal credential.
     ///
-    /// Accepts either case, but matching in `authenticationRole` is
-    /// case-sensitive, so the client must send the token exactly as stored.
+    /// Accepts either case so a token stored before the editor normalized
+    /// input (`normalizedInput`) keeps working instead of being silently
+    /// rotated. Matching in `authenticationRole` is case-sensitive, so the
+    /// client must send the token exactly as stored.
     static func isValid(_ candidate: String) -> Bool {
         guard candidate.count == 64 else { return false }
         return candidate.unicodeScalars.allSatisfy { scalar in

@@ -24,12 +24,12 @@ struct DiagnosticsShareCardView: View {
     @AppStorage(AppConstants.UserDefaults.shareDiagnosticsEnabled)
     private var shareEnabled = false
 
-    /// Launch count snapshotted when the view is created; not refreshed while
-    /// the card stays on screen.
-    @State private var launchCount = DiagnosticsService.shared.launchCount
-    /// Latest stored diagnostic summary, snapshotted at creation. `nil` hides
-    /// the "Last diagnostics" row.
-    @State private var summary = DiagnosticsService.shared.diagnosticSummary
+    /// Launch count, read on every render (a cheap defaults read) so the card
+    /// never shows a value cached from when the view was first built.
+    private var launchCount: Int { DiagnosticsService.shared.launchCount }
+    /// Latest diagnostic summary, read on every render. `nil` hides the
+    /// "Last diagnostics" row.
+    private var summary: String? { DiagnosticsService.shared.diagnosticSummary }
 
     // MARK: - Body
 
