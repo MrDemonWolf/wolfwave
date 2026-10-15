@@ -203,6 +203,12 @@ export interface AckFrame {
   kind: "ack";
   action: string;
   ok: boolean;
+  /**
+   * Reason code on a failed ack, mirroring `CommandAck.error` in
+   * `StreamDeckCommand.swift`: `protocol`, `unknown_action`, `unauthorized`,
+   * `disabled`, `unavailable`, `empty`, `full`, `music`, `twitch`. Kept a plain
+   * string so a code added by a newer app still decodes (and alerts the key).
+   */
   error?: string;
 }
 

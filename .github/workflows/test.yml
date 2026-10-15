@@ -387,6 +387,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Pin Node instead of using whatever the runner image ships. These
+      # scripts only need node:test and fs, but `ubuntu-latest` moves to the
+      # Ubuntu 26 image (rolling out 2026-10-19 to 2026-11-19), and an image
+      # change should never be what flips a blocking gate.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
       - name: Check Swift file headers
         run: make lint-headers
 
@@ -400,6 +408,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # Pin Node instead of using whatever the runner image ships. These
+      # scripts only need node:test and fs, but `ubuntu-latest` moves to the
+      # Ubuntu 26 image (rolling out 2026-10-19 to 2026-11-19), and an image
+      # change should never be what flips a blocking gate.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
 
       - name: Check source and documentation sync
         run: make lint-sync

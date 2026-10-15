@@ -389,7 +389,8 @@ extension TwitchChatService {
     /// Replays pending Bits work only for the active broadcaster. The request
     /// queue is intentionally process-local, so a process crash after queue
     /// mutation loses that volatile mutation and replay applies it exactly once
-    /// to the fresh queue. In-process workers are retained until acknowledgement.
+    /// to the fresh queue. In-process workers are retained until acknowledgement;
+    /// an item already applied in this process is only acknowledged.
     func replayPendingBitsEvents() {
         guard let broadcasterID, songRequestService != nil else { return }
         pruneVolatileBitsFallbacks()
@@ -428,24 +429,36 @@ extension TwitchChatService {
               broadcasterID == item.broadcasterID else {
             return
         }
+        // An item applied earlier in this process whose acknowledgement gave
+        // up only needs the acknowledgement; applying it again would repeat a
+        // paid boost / request.
+        let alreadyApplied = appliedUnacknowledgedBitsItemIDs.contains(item.id)
         paidRedemptionTasks[item.id] = Task { [weak self] in
             guard let self else { return }
-            let outcome = await self.applyPersistedBitsEvent(
-                item,
-                service: service)
-            guard outcome.applied else {
-                await self.clearPaidRedemptionTask(item.id)
-                return
+            var message: String?
+            if !alreadyApplied {
+                let outcome = await self.applyPersistedBitsEvent(
+                    item,
+                    service: service)
+                guard outcome.applied else {
+                    await self.clearPaidRedemptionTask(item.id)
+                    return
+                }
+                message = outcome.message
+                if requiresDurableAcknowledgement {
+                    await self.markBitsItemApplied(item.id)
+                }
             }
             if requiresDurableAcknowledgement {
                 guard await self.acknowledgeBitsEventWithRetry(item) else {
                     await self.clearPaidRedemptionTask(item.id)
                     return
                 }
+                await self.forgetAppliedBitsItem(item.id)
             } else {
                 await self.completeVolatileBitsFallback(item)
             }
-            if let message = outcome.message, !message.isEmpty {
+            if let message, !message.isEmpty {
                 await self.sendSessionBoundMessage(
                     message,
                     replyTo: nil,
@@ -496,8 +509,22 @@ extension TwitchChatService {
             bitsOutcomeMessage(for: result, username: item.userName))
     }
 
+    /// Records that a durable Bits item's paid action has run, so a later
+    /// replay in this process acknowledges it instead of applying it again.
+    private func markBitsItemApplied(_ id: UUID) {
+        appliedUnacknowledgedBitsItemIDs.insert(id)
+    }
+
+    /// Forgets an applied Bits item once its acknowledgement is on disk.
+    private func forgetAppliedBitsItem(_ id: UUID) {
+        appliedUnacknowledgedBitsItemIDs.remove(id)
+    }
+
     /// Retries only the local atomic acknowledgement; the paid queue action is
-    /// never repeated in-process after it has been applied.
+    /// never repeated in-process after it has been applied. If the retry is
+    /// cancelled the item stays pending on disk, and
+    /// `appliedUnacknowledgedBitsItemIDs` makes the next replay acknowledge it
+    /// without applying it a second time.
     private func acknowledgeBitsEventWithRetry(
         _ item: TwitchRedemptionResolutionOutbox.BitsItem
     ) async -> Bool {

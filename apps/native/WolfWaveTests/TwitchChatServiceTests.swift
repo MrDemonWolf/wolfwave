@@ -675,6 +675,111 @@ struct TwitchChatServiceTests {
                 == .storageUnavailable)
     }
 
+    @Test("A Bits item whose acknowledgement gave up is acknowledged, not re-applied, on replay")
+    func testAppliedBitsItemIsNotReappliedAfterAcknowledgementGivesUp() async throws {
+        enum InjectedFailure: Error {
+            case write
+            case sleepCancelled
+        }
+
+        let directory = makeIsolatedTempDirectory(prefix: "bits-ack-giveup")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let failWrites = ThreadSafeBox(false)
+        let outbox = TwitchRedemptionResolutionOutbox(
+            fileURL: directory.appending(path: "outbox.json"),
+            atomicWriter: { data, url in
+                if failWrites.value { throw InjectedFailure.write }
+                try data.write(to: url, options: .atomic)
+            })
+        let searches = ThreadSafeBox(0)
+        let music = MockAppleMusicController()
+        music.searchProvider = { _ in
+            searches.mutate { $0 += 1 }
+            // The first search lands after the durable intake write, so the
+            // acknowledgement that follows it is the write that fails.
+            failWrites.value = true
+            return .notFound
+        }
+        let requests = SongRequestService(musicController: music)
+        let chatHandler: MockURLProtocol.Handler = { request in
+            (
+                MockURLProtocol.httpResponse(for: request, status: 200),
+                Data(#"{"data":[{"is_sent":true}]}"#.utf8)
+            )
+        }
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(
+                session: MockURLProtocol.makeSession(handler: chatHandler)),
+            redemptionResolutionOutbox: outbox)
+        // A sleep that throws stands in for a cancelled acknowledgement retry.
+        await service.setRedemptionResolutionSleep { _ in
+            throw InjectedFailure.sleepCancelled
+        }
+        let defaults = DefaultsStore.store
+        let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+        defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+            defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestBitsMinimum)
+            defaults.removeObject(forKey: statusKey)
+        }
+
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(requests)
+        await service.handleBitsUse(
+            Self.bitsPayload(), eventSubMessageID: "bits-ack-giveup")
+        await service.awaitPaidRedemptionTasksForTesting()
+
+        // Applied once, but the acknowledgement never reached disk.
+        #expect(searches.value == 1)
+        #expect(outbox.pendingBitsItems().count == 1)
+        #expect(await service.activePaidRedemptionTaskCount == 0)
+
+        // A replay in the same process (service rewired, rejoin) must not
+        // repeat the paid request, while the item stays on disk.
+        await service.setSongRequestServiceReference(requests)
+        await service.awaitPaidRedemptionTasksForTesting()
+        #expect(searches.value == 1)
+        #expect(outbox.pendingBitsItems().count == 1)
+
+        // Once storage recovers, replay only writes the acknowledgement.
+        failWrites.value = false
+        await service.setSongRequestServiceReference(requests)
+        await service.awaitPaidRedemptionTasksForTesting()
+        #expect(searches.value == 1)
+        #expect(outbox.pendingBitsItems().isEmpty)
+    }
+
+    @Test("A terminal EventSub revocation disarms wake and network reconnects")
+    func testTerminalRevocationDisarmsWakeReconnect() async throws {
+        Preferences.setTwitchReauthNeeded(false)
+        let service = TwitchChatService()
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+
+        await service.handleWebSocketMessage(
+            try Self.eventSubEnvelope(
+                messageType: "revocation",
+                messageID: "terminal-revocation",
+                payload: [
+                    "subscription": [
+                        "type": "channel.chat.message",
+                        "status": "user_removed",
+                    ]
+                ]))
+
+        #expect(await service.reconnectChannelName == nil)
+        #expect(await service.reconnectToken == nil)
+        #expect(await service.reconnectClientID == nil)
+
+        await service.handleSystemWake()
+        #expect(await service.reconnectTask == nil)
+        await service.scheduleReconnect()
+        #expect(await service.reconnectTask == nil)
+    }
+
     @Test("Bits handler ignores power-up event variants")
     func testBitsHandlerIgnoresPowerUpVariants() async {
         let directory = makeIsolatedTempDirectory(prefix: "bits-subtypes")

@@ -264,6 +264,12 @@ describe("parseFrame", () => {
     ).toEqual({ kind: "ack", action: "skip", ok: false, error: "music" });
   });
 
+  test("decodes approve_next refused because the live queue is full", () => {
+    expect(
+      parseFrame('{"type":"ack","action":"approve_next","ok":false,"error":"full"}'),
+    ).toEqual({ kind: "ack", action: "approve_next", ok: false, error: "full" });
+  });
+
   test("queue_state from an older WolfWave reads held as false", () => {
     // Pre-`held` builds omit the field. Defaulting to false is right: a build
     // that can't report hold also can't have been put on hold from a key.

@@ -77,10 +77,11 @@ extension AppDelegate {
             guard let service = songRequestService, let next = service.queue.pending.first else {
                 return .failure(action.rawValue, "empty")
             }
-            // Approves the oldest pending request. The result is ignored, so a
-            // full live queue (which puts the request back in pending) still acks.
-            _ = await service.approve(id: next.id)
-            return .success(action)
+            // Approves the oldest pending request. A full live queue puts the
+            // request back in pending and returns nil, so the key must alert
+            // rather than flash success for a request that didn't move.
+            let approved = await service.approve(id: next.id)
+            return approved == nil ? .failure(action.rawValue, "full") : .success(action)
 
         case .clearQueue:
             // The service-level clear, not `queue.clear()`: it also empties

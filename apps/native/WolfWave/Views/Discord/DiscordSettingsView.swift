@@ -654,11 +654,12 @@ private struct NowPlayingSnapshot {
     /// read anywhere.
     let isLive: Bool
 
-    /// Placeholder used before the first track arrives.
+    /// Placeholder used before the first track arrives. Invented track with a
+    /// wolf-species "artist", like every other demo: never real music metadata.
     static let sample = NowPlayingSnapshot(
-        track: "Smooth Operator",
-        artist: "Sade",
-        album: "Diamond Life",
+        track: "Moonlit Howl",
+        artist: "Arctic Wolf",
+        album: "Tundra Sessions",
         playlist: "Chill Saturday",
         artworkURL: nil,
         appleMusicURL: nil,

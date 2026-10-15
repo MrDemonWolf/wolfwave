@@ -25,11 +25,6 @@ private var consecutiveScriptErrorCount = 0
 /// is treated as genuinely stopped.
 private let scriptErrorStopThreshold = 3
 
-/// `true` once the in-progress play has been written to listening history
-/// (History toggle-off flush or a sustained playback stop). Blocks the same
-/// play from being recorded a second time; resets when a new track starts.
-private var currentPlayFlushedToHistory = false
-
 // MARK: - Service Initialization
 
 /// Launch-time construction and cross-wiring of every long-lived service.

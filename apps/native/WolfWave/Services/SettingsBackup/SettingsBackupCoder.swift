@@ -50,6 +50,11 @@ nonisolated struct SettingsBackupCoder {
             self.reconnectTwitch = reconnectTwitch
             self.includeLocalSharingSettings = includeLocalSharingSettings
         }
+
+        /// What the import sheet starts with, and what iCloud sync always uses:
+        /// no Twitch reconnect and no local sharing or server settings.
+        static let reviewDefault = ImportChoices(
+            reconnectTwitch: false, includeLocalSharingSettings: false)
     }
 
     /// A fully resolved description of what an import will change. The adapter
@@ -327,7 +332,7 @@ nonisolated struct SettingsBackupCoder {
     /// (update feed, diagnostics). Skipped unless
     /// ``ImportChoices/includeLocalSharingSettings`` is on, and counted in
     /// `ignoredKeyCount` when skipped.
-    private static let localSharingKeys: Set<String> = [
+    static let localSharingKeys: Set<String> = [
         AppConstants.UserDefaults.shareDiagnosticsEnabled,
         AppConstants.UserDefaults.updateChannel,
         AppConstants.UserDefaults.updateCheckEnabled,
@@ -342,16 +347,24 @@ nonisolated struct SettingsBackupCoder {
     /// review summary). Uses the same validation as apply so the preview can
     /// never promise a preference that import will reject.
     ///
-    /// Counts with default ``ImportChoices``, so local-sharing keys are
-    /// included even if the user later leaves that option off.
+    /// Counts with ``ImportChoices/reviewDefault`` unless told otherwise, so
+    /// local-sharing keys are left out, matching the sheet's initial toggles.
     func restorableCount(
         backup: SettingsBackup,
+        choices: ImportChoices = .reviewDefault,
         exportablePreferences: [AppConstants.UserDefaults.ExportablePreference]
     ) -> Int {
         makeApplyPlan(
             backup: backup,
-            choices: ImportChoices(),
+            choices: choices,
             exportablePreferences: exportablePreferences
         ).set.count
+    }
+
+    /// `settings` without the ``localSharingKeys``: the part of a payload that
+    /// iCloud sync actually carries between Macs, used to decide whether two
+    /// payloads differ enough to push.
+    static func syncedSettings(_ settings: [String: BackupValue]) -> [String: BackupValue] {
+        settings.filter { !localSharingKeys.contains($0.key) }
     }
 }

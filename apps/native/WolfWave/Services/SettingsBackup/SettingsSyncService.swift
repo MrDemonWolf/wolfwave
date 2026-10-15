@@ -49,8 +49,11 @@ extension NSUbiquitousKeyValueStore: SettingsSyncStore {
 /// is kept in `iCloudSettingsSyncLastAppliedAt` (seconds since 1970); a cloud
 /// payload at or below it is never applied.
 ///
-/// A pull applies with default import choices apart from Twitch, so local
-/// sharing settings (server switches, ports, update channel) do sync.
+/// A pull applies with ``SettingsBackupCoder/ImportChoices/reviewDefault``,
+/// manual import's default: local sharing settings (server switches, ports,
+/// update channel, diagnostics sharing) stay per Mac and are never applied
+/// from another one. They still ride along in the payload, but differences in
+/// them never count as a change worth pushing.
 ///
 /// Main-actor isolated: notification observers run on the main queue and hop
 /// in with `MainActor.assumeIsolated`.
@@ -73,9 +76,10 @@ final class SettingsSyncService {
     private let initialSyncDelay: Duration
     /// Notification tokens registered in `start()`, removed in `stop()`.
     private var observers: [NSObjectProtocol] = []
-    /// The settings this Mac last pushed or applied. `push()` skips the write
-    /// when the current settings equal it, so unrelated defaults churn (window
-    /// frames, runtime state) doesn't upload anything. Reset to `nil` to force
+    /// The synced settings (local-sharing keys stripped) this Mac last pushed
+    /// or applied. `push()` skips the write when the current synced settings
+    /// equal it, so unrelated defaults churn (window frames, runtime state, a
+    /// local server toggle) doesn't upload anything. Reset to `nil` to force
     /// the next push.
     private var lastPushedSettings: [String: BackupValue]?
     /// Set while a pull is writing defaults so the local-change observer
@@ -135,7 +139,7 @@ final class SettingsSyncService {
     ///
     /// Does not check ``isEnabled``; callers gate it. An unreadable payload
     /// (corrupt, foreign, or from a newer schema) is ignored. Twitch is never
-    /// reconnected from a pull.
+    /// reconnected from a pull, and local sharing settings are never applied.
     @discardableResult
     func pull() async -> Bool {
         guard !Task.isCancelled else { return false }
@@ -150,8 +154,8 @@ final class SettingsSyncService {
         isApplying = true
         defer { isApplying = false }
         let summary = await backup.apply(
-            cloud, choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false))
-        lastPushedSettings = cloud.settings
+            cloud, choices: .reviewDefault)
+        lastPushedSettings = SettingsBackupCoder.syncedSettings(cloud.settings)
         markApplied(cloud.exportedAt)
         Log.info(
             "SettingsSync: applied cloud settings",
@@ -180,11 +184,12 @@ final class SettingsSyncService {
         let exportedAt = Date(
             timeIntervalSince1970: exportedAtSeconds)
         guard let payload = try? backup.makeBackup(exportedAt: exportedAt) else { return }
-        guard payload.settings != lastPushedSettings else { return }
+        let synced = SettingsBackupCoder.syncedSettings(payload.settings)
+        guard synced != lastPushedSettings else { return }
         guard let data = try? SettingsBackupCoder().encode(payload) else { return }
         store.set(data, forKey: Self.payloadKey)
         guard store.synchronize() else { return }
-        lastPushedSettings = payload.settings
+        lastPushedSettings = synced
         // `markApplied` writes defaults, which would schedule another push.
         isApplying = true
         markApplied(payload.exportedAt)
@@ -276,7 +281,8 @@ final class SettingsSyncService {
     ///
     /// - Cloud missing or unreadable: push this Mac's copy to repair it.
     /// - Cloud newer than last applied: pull it.
-    /// - Otherwise: push only if the local settings differ from the cloud copy.
+    /// - Otherwise: push only if the local synced settings differ from the
+    ///   cloud copy's (local-sharing keys are ignored).
     private func handleExternalChange() async {
         guard isEnabled, !Task.isCancelled else { return }
         guard let data = store.data(forKey: Self.payloadKey),
@@ -294,7 +300,10 @@ final class SettingsSyncService {
             return
         }
 
-        guard let local = try? backup.makeBackup(), local.settings != cloud.settings else { return }
+        guard let local = try? backup.makeBackup(),
+              SettingsBackupCoder.syncedSettings(local.settings)
+                != SettingsBackupCoder.syncedSettings(cloud.settings)
+        else { return }
         lastPushedSettings = nil
         push()
     }
