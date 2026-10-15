@@ -25,7 +25,6 @@ struct OnboardingTwitchStepView: View {
     /// Stable owner supplied by the containing Onboarding presentation.
     let oauthOwner: TwitchViewModel.OAuthPresentationOwner
 
-
     // MARK: - Body
 
     var body: some View {

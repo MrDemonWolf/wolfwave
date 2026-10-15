@@ -337,7 +337,9 @@ struct DebugLogViewerCard: View {
     /// - Parameter cursor: The caller's current cursor (a copy).
     /// - Returns: The advanced cursor and the complete lines read; a trailing
     ///   partial line stays in the cursor's carry for the next poll.
-    nonisolated private static func readNewLines(cursor original: LogTailCursor) -> (cursor: LogTailCursor, lines: [String]) {
+    nonisolated private static func readNewLines(
+        cursor original: LogTailCursor
+    ) -> (cursor: LogTailCursor, lines: [String]) {
         var cursor = original
         guard let url = Log.exportLogFile(),
               let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber

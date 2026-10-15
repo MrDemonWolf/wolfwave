@@ -465,8 +465,9 @@ nonisolated final class WidgetHTTPService: @unchecked Sendable {
             return nil
         }
         if let refusal {
+            let reason = refusal.logDescription(maximumCount: maxConcurrentConnections)
             Log.warn(
-                "WidgetHTTPService: Refusing connection, \(refusal.logDescription(maximumCount: maxConcurrentConnections))",
+                "WidgetHTTPService: Refusing connection, \(reason)",
                 category: .websocket
             )
             connection.cancel()

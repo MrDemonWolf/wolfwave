@@ -495,9 +495,9 @@ struct CustomCommandStoreTests {
         #expect(store.update(off))
         #expect(store.commands.first?.enabled == false)
 
-        var on = off
-        on.enabled = true
-        #expect(!store.update(on))
+        var reenabled = off
+        reenabled.enabled = true
+        #expect(!store.update(reenabled))
         #expect(store.commands.first?.enabled == false)
     }
 
