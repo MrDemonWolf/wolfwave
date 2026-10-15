@@ -59,4 +59,60 @@ final class BundleInstallMethodTests: XCTestCase {
         XCTAssertTrue(Bundle.isHomebrewPath("/Users/alice/Homebrew/Caskroom/wolfwave/1.0.0/WolfWave.app"))
     }
 
+    // MARK: - Cask Installed to Applications
+
+    /// Probe that reports only the given paths as existing.
+    private func probe(_ existing: Set<String>) -> (String) -> Bool {
+        { existing.contains($0) }
+    }
+
+    func testCaskInApplicationsIsHomebrewOnAppleSilicon() {
+        // The cask's default target: the bundle path carries no Homebrew
+        // marker, only the Caskroom record does.
+        XCTAssertTrue(Bundle.isHomebrewInstall(
+            bundlePath: "/Applications/WolfWave.app",
+            fileExists: probe(["/opt/homebrew/Caskroom/wolfwave"])
+        ))
+    }
+
+    func testCaskInApplicationsIsHomebrewOnIntel() {
+        XCTAssertTrue(Bundle.isHomebrewInstall(
+            bundlePath: "/Applications/WolfWave.app",
+            fileExists: probe(["/usr/local/Caskroom/wolfwave"])
+        ))
+    }
+
+    func testCaskWithUserAppdirIsHomebrew() {
+        XCTAssertTrue(Bundle.isHomebrewInstall(
+            bundlePath: "/Users/alice/Applications/WolfWave.app",
+            fileExists: probe(["/opt/homebrew/Caskroom/wolfwave"])
+        ))
+    }
+
+    func testApplicationsWithoutCaskroomRecordIsDMG() {
+        XCTAssertFalse(Bundle.isHomebrewInstall(
+            bundlePath: "/Applications/WolfWave.app",
+            fileExists: probe(["/opt/homebrew/Caskroom/other-app"])
+        ))
+    }
+
+    func testBuildOutsideApplicationsIgnoresCaskroomRecord() {
+        // A dev build run from DerivedData on a Mac that also has the cask.
+        XCTAssertFalse(Bundle.isHomebrewInstall(
+            bundlePath: "/Users/alice/Library/Developer/Xcode/DerivedData/WolfWave-abc/Build/Products/Debug/WolfWave Dev.app",
+            fileExists: probe(["/opt/homebrew/Caskroom/wolfwave"])
+        ))
+    }
+
+    func testEmptyBundlePathIsNotHomebrew() {
+        XCTAssertFalse(Bundle.isHomebrewInstall(bundlePath: "", fileExists: { _ in true }))
+    }
+
+    func testHomebrewPathNeedsNoProbe() {
+        XCTAssertTrue(Bundle.isHomebrewInstall(
+            bundlePath: "/opt/homebrew/Caskroom/wolfwave/1.0.0/WolfWave.app",
+            fileExists: { _ in false }
+        ))
+    }
+
 }

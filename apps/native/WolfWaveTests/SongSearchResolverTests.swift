@@ -130,4 +130,78 @@ final class SongSearchResolverTests: XCTestCase {
         guard case .found(let song) = result else { XCTFail("Expected normalized YouTube match"); return }
         XCTAssertEqual(song.id.rawValue, "right")
     }
+
+    // MARK: - Artist credit matching
+
+    /// Stubs oEmbed with the given JSON body and the catalog with `songs`.
+    private func stub(oEmbed json: String, songs: [Song]) {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200), Data(json.utf8))
+        }
+        controller.candidateSearchProvider = { _, _ in (songs, nil) }
+    }
+
+    func testExactArtistMatchPasses() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band"}"#,
+             songs: [makeTestSong(id: "right", title: "Tune", artist: "Band")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .found(let song) = result else { XCTFail("Expected exact match, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testPunctuationAndCaseDifferentArtistPasses() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"PANIC! AT THE DISCO"}"#,
+             songs: [makeTestSong(id: "right", title: "Tune", artist: "Panic at the Disco")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .found(let song) = result else { XCTFail("Expected normalized match, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testFeaturedCatalogCreditPasses() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band"}"#,
+             songs: [makeTestSong(id: "right", title: "Tune", artist: "Band feat. Guest")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .found(let song) = result else { XCTFail("Expected credited-name match, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testFeaturedYouTubeTitleCreditPasses() async {
+        stub(oEmbed: #"{"title":"Band ft. Guest - Tune (Official Video)","author_name":"BandVEVO"}"#,
+             songs: [makeTestSong(id: "right", title: "Tune", artist: "Band & Guest")])
+        let result = await makeResolver().resolve(query: "https://www.youtube.com/watch?v=abc")
+        guard case .found(let song) = result else { XCTFail("Expected credited-name match, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testYouTubeTopicChannelArtistPasses() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band - Topic"}"#,
+             songs: [makeTestSong(id: "right", title: "Tune", artist: "Band")])
+        let result = await makeResolver().resolve(query: "https://www.youtube.com/watch?v=abc")
+        guard case .found(let song) = result else { XCTFail("Expected Topic channel match, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "right")
+    }
+
+    func testDifferentArtistSameTitleFails() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band"}"#,
+             songs: [makeTestSong(id: "wrong", title: "Tune", artist: "Other Group")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .linkNotFound = result else { XCTFail("Wrong artist must not pass, got \(result)"); return }
+    }
+
+    func testArtistContainingExpectedAsSubstringFails() async {
+        // "Band" is a substring of "Bandit" but not a credited name, so no artist credit.
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band"}"#,
+             songs: [makeTestSong(id: "wrong", title: "Tune", artist: "Bandit")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .linkNotFound = result else { XCTFail("Substring artist must not pass, got \(result)"); return }
+    }
+
+    func testExactArtistOutranksFeaturedCredit() async {
+        stub(oEmbed: #"{"title":"Tune","author_name":"Band"}"#,
+             songs: [makeTestSong(id: "featured", title: "Tune", artist: "Band feat. Guest"),
+                     makeTestSong(id: "exact", title: "Tune", artist: "Band")])
+        let result = await makeResolver().resolve(query: "https://open.spotify.com/track/abc")
+        guard case .found(let song) = result else { XCTFail("Expected exact match to win, got \(result)"); return }
+        XCTAssertEqual(song.id.rawValue, "exact")
+    }
 }

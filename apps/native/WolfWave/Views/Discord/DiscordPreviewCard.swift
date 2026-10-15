@@ -454,9 +454,9 @@ struct DiscordPreviewCard: View {
 #Preview("Playing") {
     DiscordPreviewCard(
         mode: .playing,
-        trackTitle: "Smooth Operator",
-        artist: "Sade",
-        album: "Diamond Life",
+        trackTitle: "Moonlit Howl",
+        artist: "Arctic Wolf",
+        album: "Tundra Sessions",
         artworkURL: nil,
         button1: .init(label: "Listen on Apple Music", url: "https://music.apple.com/x"),
         button2: .init(label: "Find on Other Services", url: "https://song.link/i/1")
@@ -469,9 +469,9 @@ struct DiscordPreviewCard: View {
 #Preview("Paused") {
     DiscordPreviewCard(
         mode: .paused,
-        trackTitle: "Redbone",
-        artist: "Childish Gambino",
-        album: "Awaken, My Love!",
+        trackTitle: "Lone Runner",
+        artist: "Timber Wolf",
+        album: "Northern Pines",
         artworkURL: nil,
         button1: .init(label: "Listen on Apple Music", url: "https://music.apple.com/x"),
         button2: nil

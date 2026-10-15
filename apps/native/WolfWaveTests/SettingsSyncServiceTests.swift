@@ -260,6 +260,65 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
             .bool(true))
     }
 
+    // MARK: Local sharing settings
+
+    /// Encoded cloud payload carrying a portable key plus machine-specific ones
+    /// (server switches, a port, the update channel).
+    private func cloudPayloadWithLocalSharing(exportedAt: Date) throws -> Data {
+        let keys = AppConstants.UserDefaults.self
+        let payload = SettingsBackup(
+            format: SettingsBackup.currentFormat,
+            schemaVersion: SettingsBackup.currentSchemaVersion,
+            appVersion: "1.0.0",
+            appBuild: "1",
+            exportedAt: exportedAt,
+            settings: [
+                keys.discordPresenceEnabled: .bool(true),
+                keys.websocketEnabled: .bool(true),
+                keys.widgetHTTPEnabled: .bool(true),
+                keys.websocketServerPort: .int(9_123),
+                keys.updateChannel: .string("nightly"),
+            ],
+            integrations: .init(twitch: nil)
+        )
+        return try SettingsBackupCoder().encode(payload)
+    }
+
+    /// A pull matches manual import's default: local sharing and server
+    /// settings from another Mac are never applied.
+    func testPullNeverAppliesLocalSharingSettings() async throws {
+        let keys = AppConstants.UserDefaults.self
+        store.storage[SettingsSyncService.payloadKey] = try cloudPayloadWithLocalSharing(
+            exportedAt: Date(timeIntervalSince1970: 500))
+        let service = makeService()
+
+        let applied = await service.pull()
+
+        XCTAssertTrue(applied)
+        XCTAssertTrue(defaults.bool(forKey: keys.discordPresenceEnabled))
+        XCTAssertNil(defaults.object(forKey: keys.websocketEnabled))
+        XCTAssertNil(defaults.object(forKey: keys.widgetHTTPEnabled))
+        XCTAssertNil(defaults.object(forKey: keys.websocketServerPort))
+        XCTAssertNil(defaults.object(forKey: keys.updateChannel))
+    }
+
+    /// Settings that only differ in local sharing keys are not a change worth
+    /// pushing, so two Macs with different servers don't upload back and forth.
+    func testLocalSharingDifferencesDoNotTriggerPush() async throws {
+        store.storage[SettingsSyncService.payloadKey] = try cloudPayloadWithLocalSharing(
+            exportedAt: Date(timeIntervalSince1970: 500))
+        let service = makeService()
+        service.setEnabled(true)
+        await service.pullTask?.value
+        let writes = store.writes
+
+        service.push(now: Date(timeIntervalSince1970: 1_000))
+        center.post(name: store.externalChangeNotificationName, object: store)
+        await service.pullTask?.value
+
+        XCTAssertEqual(store.writes, writes)
+    }
+
     // MARK: Flush on quit
 
     func testFlushPushesPendingChanges() throws {

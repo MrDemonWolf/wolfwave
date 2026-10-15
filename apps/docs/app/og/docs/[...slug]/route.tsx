@@ -1,3 +1,4 @@
+import { type ChangelogInfo, parseLatestChangelog } from '@/lib/changelog';
 import { getPageImage, source } from '@/lib/source';
 import { notFound } from 'next/navigation';
 import { ImageResponse } from 'next/og';
@@ -15,42 +16,11 @@ import { presetForSlug } from '../../_components/og-presets';
 export const revalidate = false;
 export const dynamic = 'force-static';
 
-/** Fields the changelog card shows: newest version, its date text, and up to three bold bullet leads. */
-interface ChangelogInfo {
-  version: string;
-  date: string;
-  highlights: string[];
-}
-
-/**
- * Reads `content/docs/changelog.mdx` (relative to the docs package cwd) and
- * extracts the first `## vX.Y.Z` heading, its date, and the first three bullets
- * that start with a bold lead (`- **Title** ...`).
- * Returns null on any read/parse failure or when no bold bullets exist, in which
- * case the caller falls back to the generic card.
- * Note: the heading regex requires a dash or en dash between version and date.
- */
-function parseLatestChangelog(): ChangelogInfo | null {
+/** Reads `content/docs/changelog.mdx` and parses the latest released version; null falls back to the generic card. */
+function readLatestChangelog(): ChangelogInfo | null {
   try {
     const filePath = path.join(process.cwd(), 'content/docs/changelog.mdx');
-    const raw = readFileSync(filePath, 'utf-8');
-    const versionMatch = raw.match(/^##\s+v(\d[\d.]*)\s*[–-]\s*(.+)$/m);
-    if (!versionMatch) return null;
-    const version = versionMatch[1];
-    const date = versionMatch[2].trim();
-
-    const after = raw.slice(versionMatch.index! + versionMatch[0].length);
-    const next = after.search(/^##\s+v\d/m);
-    const section = next === -1 ? after : after.slice(0, next);
-
-    const bulletRe = /^[-*]\s+\*\*([^*]+)\*\*/gm;
-    const highlights: string[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = bulletRe.exec(section)) !== null && highlights.length < 3) {
-      highlights.push(m[1].trim());
-    }
-    if (highlights.length === 0) return null;
-    return { version, date, highlights };
+    return parseLatestChangelog(readFileSync(filePath, 'utf-8'));
   } catch {
     return null;
   }
@@ -75,7 +45,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/og/docs/[...
   const eyebrow = page.data.ogEyebrow ?? preset.eyebrow;
 
   if (isChangelog) {
-    const cl = parseLatestChangelog();
+    const cl = readLatestChangelog();
     if (cl) {
       return new ImageResponse(
         <ChangelogOgCard version={cl.version} date={cl.date} highlights={cl.highlights} />,

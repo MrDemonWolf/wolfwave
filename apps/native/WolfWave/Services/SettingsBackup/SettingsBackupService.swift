@@ -214,13 +214,13 @@ struct SettingsBackupService {
 
     /// How many preferences a backup would restore (for the review summary).
     ///
-    /// Uses default ``SettingsBackupCoder/ImportChoices`` (local-sharing keys
-    /// included), so it can exceed what an import with that option off writes.
-    func restorableCount(_ backup: SettingsBackup) -> Int {
-        resolvedImportPlan(
-            backup: backup,
-            choices: SettingsBackupCoder.ImportChoices()
-        ).plan.set.count
+    /// Defaults to ``SettingsBackupCoder/ImportChoices/reviewDefault``, the
+    /// import sheet's initial toggles, so local-sharing keys are not counted.
+    func restorableCount(
+        _ backup: SettingsBackup,
+        choices: SettingsBackupCoder.ImportChoices = .reviewDefault
+    ) -> Int {
+        resolvedImportPlan(backup: backup, choices: choices).plan.set.count
     }
 
     /// Applies a backup using the user's per-integration choices.

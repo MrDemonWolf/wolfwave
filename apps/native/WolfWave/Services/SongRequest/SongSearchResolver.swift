@@ -123,9 +123,10 @@ final class SongSearchResolver {
             let expectedArtist = youtube && pieces.count == 2 ? pieces[0] : artist.map(TrackTextNormalizer.title)
             guard !expectedTitle.isEmpty else { return .linkNotFound }
             // Title score is word-set Jaccard similarity on normalized titles. With an
-            // expected artist the score is 0.8 * title + 0.2 * exact artist match, so
-            // against the 0.9 bar below an artist mismatch can never pass (max 0.8)
-            // and a match still needs a title score of at least 0.875.
+            // expected artist the score is 0.8 * title + the artist credit from
+            // `artistCredit` (0.2 same credit, 0.15 a shared credited name, else 0),
+            // so against the 0.9 bar below a wrong artist can never pass (max 0.8),
+            // and an exact credit outranks a featured one instead of tying with it.
             let expectedWords = Set(expectedTitle.split(separator: " "))
             let scored = candidates.songs.map { song -> (song: Song, score: Double) in
                 let words = Set(TrackTextNormalizer.title(song.title).split(separator: " "))
@@ -133,7 +134,7 @@ final class SongSearchResolver {
                     / Double(max(1, words.union(expectedWords).count))
                 let score: Double
                 if let expectedArtist, !expectedArtist.isEmpty {
-                    score = titleScore * 0.8 + (TrackTextNormalizer.title(song.artistName) == expectedArtist ? 0.2 : 0)
+                    score = titleScore * 0.8 + Self.artistCredit(expected: expectedArtist, catalog: song.artistName)
                 } else {
                     score = titleScore
                 }
@@ -151,6 +152,31 @@ final class SongSearchResolver {
         case .error(let message):
             return .error(message)
         }
+    }
+
+    /// Artist part of a link match score.
+    ///
+    /// Names are compared after ``TrackTextNormalizer/title(_:)`` (case, diacritics,
+    /// brackets, YouTube " - Topic") with everything but letters and digits removed,
+    /// so "PANIC! AT THE DISCO" equals "Panic at the Disco".
+    ///
+    /// - Parameters:
+    ///   - expected: Artist from oEmbed or the YouTube title.
+    ///   - catalog: The candidate's catalog artist credit.
+    /// - Returns: `0.2` for the same credit, `0.15` when the two credits share a
+    ///   whole credited name (see ``TrackTextNormalizer/artistCandidates(_:)``, so
+    ///   "Band" matches "Band feat. Guest" but never "Bandit"), otherwise `0`.
+    static func artistCredit(expected: String, catalog: String) -> Double {
+        func loose(_ value: String) -> String {
+            String(String.UnicodeScalarView(value.unicodeScalars.filter(CharacterSet.alphanumerics.contains)))
+        }
+        func names(_ credit: String) -> Set<String> {
+            Set(TrackTextNormalizer.artistCandidates(TrackTextNormalizer.title(credit)).map(loose)).subtracting([""])
+        }
+        let expectedWhole = loose(TrackTextNormalizer.title(expected))
+        guard !expectedWhole.isEmpty else { return 0 }
+        if expectedWhole == loose(TrackTextNormalizer.title(catalog)) { return 0.2 }
+        return names(expected).isDisjoint(with: names(catalog)) ? 0 : 0.15
     }
 
     /// Searches the Apple Music catalog for the best match for a plain-text

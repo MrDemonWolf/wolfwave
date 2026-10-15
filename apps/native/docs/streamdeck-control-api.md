@@ -71,7 +71,7 @@ Errors that can come back for any action:
 | `play_pause` | Apple Music play/pause | `unavailable` / `music` |
 | `skip` | Skip to next track | `unavailable` / `music` |
 | `hold_queue` / `resume_queue` | Song-request queue hold on/off | — |
-| `approve_next` | Approve the first pending request | `empty` |
+| `approve_next` | Approve the first pending request | `empty` / `full` |
 | `clear_queue` | Clear the request queue | — |
 | `block_current` | Add current song title to the blocklist | `empty` |
 | `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | — |
