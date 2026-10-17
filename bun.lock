@@ -55,7 +55,7 @@
       "name": "streamdeck",
       "version": "0.0.0",
       "dependencies": {
-        "@elgato/streamdeck": "^2.1.0",
+        "@elgato/streamdeck": "^3.0.2",
         "ws": "^8.22.0",
       },
       "devDependencies": {
@@ -121,9 +121,9 @@
 
     "@elgato/schemas": ["@elgato/schemas@0.5.2", "", {}, "sha512-o3WKn69nKh4orOJZdB5Ei3OXktscFOzSO2s4mIlEEkO+wvs/b38IjSzV/dOFKjux2crTWobAmw7W1d5Vm+VucQ=="],
 
-    "@elgato/streamdeck": ["@elgato/streamdeck@2.1.0", "", { "dependencies": { "@elgato/schemas": "^0.4.14", "@elgato/utils": "^0.4.4", "ws": "^8.19.0" } }, "sha512-d6wgSe93NbKAW0yT6/rabGCYUWic6nAoQoSLAXVadqTIUVmt+5Tfu7OaIGKnGER6AOn6dOpX6havRLFFFcUmOw=="],
+    "@elgato/streamdeck": ["@elgato/streamdeck@3.0.2", "", { "dependencies": { "@elgato/schemas": "0.5.2", "@elgato/utils": "0.6.1", "ws": "^8.19.0" } }, "sha512-apVu9j08QlfdkEjs8ZCSXCHL7qXzNk/9e2Ey9gcPqT5NNzLdLKGiM8Y6Xx5Qmk/t/U+VbZtPCbXk/2r7L1QTRg=="],
 
-    "@elgato/utils": ["@elgato/utils@0.4.5", "", { "dependencies": { "zod": "^3.25.24" } }, "sha512-kBoqM8LEhhVLv7lNftYqaecNna3T/L85QQWU56yR1iFCvqlyyD22WmBljRcQkw5ZNvib55Br3cnrsxX3ajp+dQ=="],
+    "@elgato/utils": ["@elgato/utils@0.6.1", "", { "dependencies": { "zod": "^3.25.24" } }, "sha512-R3YZWdBlg1ffLny8EmAaZuh7qe+FahGHHwVzCUixnhZObuq4UPhv25ev+PxzgeJRwtpP6P/TVqOw7FFIYThllg=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.0", "tslib": "^2.4.0" } }, "sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA=="],
 
@@ -2120,10 +2120,6 @@
     "@elgato/cli/chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 
     "@elgato/cli/ignore": ["ignore@7.0.5", "", {}, "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg=="],
-
-    "@elgato/streamdeck/@elgato/schemas": ["@elgato/schemas@0.4.15", "", {}, "sha512-UpELAqazf52PFer+hqg/hvEhYoPHCH3R0af6P7Ih3Hk6xCCJENn7cA5TIpXAIGEWe6dIteHuo/e/iPGLUP7yXA=="],
-
-    "@elgato/streamdeck/ws": ["ws@8.21.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="],
 
     "@elgato/utils/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
