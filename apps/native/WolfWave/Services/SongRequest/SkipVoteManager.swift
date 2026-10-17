@@ -44,58 +44,6 @@ nonisolated enum SkipPollCreationOutcome: Equatable, Sendable {
 /// poll that happened meanwhile turns the old request into a no-op.
 actor SkipVoteManager {
 
-    // MARK: - Types
-
-    /// The result of recording a `!voteskip`. Returned as a value (not a string) so
-    /// the logic stays unit-testable; `VoteSkipCommand` formats the chat reply.
-    enum VoteOutcome: Equatable, Sendable {
-        /// The invoking command was cancelled before state could be mutated.
-        case cancelled
-        /// The feature master toggle is off, the command should stay silent.
-        case disabled
-        /// Subscriber-only voting is on and the voter is not a subscriber.
-        case subscriberOnly
-        /// A previous session ended too recently. `remaining` is whole seconds left.
-        case onCooldown(remaining: Int)
-        /// This vote opened a new session.
-        case started(count: Int, needed: Int)
-        /// This vote was added to the running session.
-        case counted(count: Int, needed: Int)
-        /// The voter had already voted in this session.
-        case alreadyVoted(count: Int, needed: Int)
-        /// The vote reached the threshold, the song is being skipped.
-        case passed(count: Int)
-        /// Polls mode: a Twitch poll was created.
-        case pollStarted
-        /// Polls mode: a Twitch poll is already running.
-        case pollInProgress
-        /// The target track changed while Twitch was creating the poll.
-        case pollTrackChanged
-        /// Twitch may have created the poll, so another mechanism is blocked.
-        case pollStatusUnknown
-        /// Poll creation was invalidated by reset/disconnect; stay silent.
-        case pollRequestCancelled
-        /// Polls mode: a non-moderator tried to start a poll.
-        case pollNotAllowed
-        /// Music.app's current track could not be bound safely.
-        case playbackUnavailable
-        /// The bound target changed or Music rejected the final skip command.
-        case skipUnavailable
-    }
-
-    /// A lifecycle signal emitted to the optional `onVoteEvent` hook so a consumer
-    /// (e.g. `AppDelegate`) can post a macOS notification. The manager stays "dumb":
-    /// it knows nothing about notifications or user preferences. It only reports
-    /// that the event happened.
-    enum VoteEvent: Sendable {
-        /// A chat-tally session just opened. `needed` is the vote threshold.
-        case started(needed: Int)
-        /// A native Twitch poll just opened.
-        case pollStarted
-        /// A vote (chat tally or poll) reached the threshold, song is being skipped.
-        case passed
-    }
-
     // MARK: - Wiring
 
     /// Captures the exact Music track before a native poll is created.
@@ -215,63 +163,6 @@ actor SkipVoteManager {
     /// Extra seconds granted past `pollDuration` before the poll-end fallback
     /// timer assumes the `channel.poll.end` event was missed.
     private static let pollEndGraceSeconds = 15
-
-    // MARK: - Configuration
-
-    /// Preference store, read fresh on every access so settings changes apply
-    /// to the next vote without reconfiguring the actor.
-    private nonisolated var defaults: Foundation.UserDefaults { DefaultsStore.store }
-
-    /// Whether the vote-skip feature is enabled.
-    nonisolated var isEnabled: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.voteSkipEnabled)
-    }
-
-    /// Minimum unique voters required to skip. A stored value of 0 or less reads
-    /// as the default (via `Preferences.int`), so it is always at least 1.
-    ///
-    /// Deliberately *not* snapped to the settings picker's allowlist. Both this
-    /// and ``windowSeconds`` are used as plain integers, so neither can trap the
-    /// way a `Double` feeding `Int(_:)` can, and narrowing them would silently
-    /// move a working threshold (a stored `1` becoming `3`) for anyone whose
-    /// value predates the current picker. The allowlist guards the control,
-    /// which is where the crash was; the service keeps accepting any positive
-    /// value.
-    nonisolated var minVotes: Int {
-        Preferences.int(AppConstants.UserDefaults.voteSkipMinVotes, default: AppConstants.UserDefaults.Defaults.voteSkipMinVotes)
-    }
-
-    /// How long a chat-tally session stays open, in seconds. Non-positive
-    /// stored values fall back to the default.
-    nonisolated var windowSeconds: Int {
-        Preferences.int(AppConstants.UserDefaults.voteSkipWindowSeconds, default: AppConstants.UserDefaults.Defaults.voteSkipWindowSeconds)
-    }
-
-    /// Cooldown between sessions, in seconds. May legitimately be `0`.
-    ///
-    /// Clamped to `0...3600`: the key is user-writable (exportable settings
-    /// backup, `defaults write`) and unclamped it flows into `Int(ceil(...))`
-    /// at the cooldown branch, which traps on a non-finite/overflow value.
-    nonisolated var sessionCooldown: TimeInterval {
-        let value = Preferences.double(AppConstants.UserDefaults.voteSkipSessionCooldown, default: AppConstants.UserDefaults.Defaults.voteSkipSessionCooldown)
-        return value.isFinite ? min(max(value, 0), 3600) : 0
-    }
-
-    /// Whether only subscribers may vote.
-    nonisolated var isSubscriberOnly: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.voteSkipSubscriberOnly)
-    }
-
-    /// Whether vote-skip uses native Twitch Polls instead of a chat tally.
-    nonisolated var usePolls: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.voteSkipUsePolls)
-    }
-
-    /// Twitch poll duration in seconds. Clamped to Twitch's 15-1800 range.
-    nonisolated var pollDuration: Int {
-        let value = Preferences.int(AppConstants.UserDefaults.voteSkipPollDuration, default: AppConstants.UserDefaults.Defaults.voteSkipPollDuration)
-        return min(max(value, 15), 1800)
-    }
 
     // MARK: - Public API
 
