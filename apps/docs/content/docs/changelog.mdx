@@ -1,17 +1,22 @@
 ---
 title: Changelog
-description: Every WolfWave release. New features, fixes, and breaking changes. Auto-updating via Sparkle. macOS menu bar app for Apple Music streamers.
+description: Every WolfWave release in plain language. New features, fixes, and breaking changes for the macOS Apple Music to Twitch, Discord, and OBS app.
+ogTitle: WolfWave Changelog
+ogDescription: Every release in plain language. New features, fixes, and breaking changes.
+ogEyebrow: Release notes
+ogChips:
+  - Features
+  - Fixes
+  - Breaking changes
+  - Sparkle updates
 keywords:
   - wolfwave changelog
   - wolfwave release notes
   - wolfwave updates
   - apple music twitch bot changelog
-ogTitle: WolfWave Changelog. What's New
-ogDescription: Every release. Features, fixes, breaking changes. Auto-updating via Sparkle.
-ogEyebrow: Release notes
 ---
 
-All notable changes to WolfWave are documented here. When an update is ready, the same notes show up right inside the app's update window.
+Every WolfWave release, newest first. When an update is ready, the same notes show up in the app's update window (minus the developer-only details, which live in [`CHANGELOG.md`](https://github.com/MrDemonWolf/WolfWave/blob/main/CHANGELOG.md)).
 
 
 ## v2.2.0 (Unreleased)
@@ -20,113 +25,91 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Added
 
-- **Settings can sync through iCloud.** Turn on "Sync with iCloud" in Settings → Advanced, or during setup, and your preferences follow you to any other Mac with the switch on. Same file as Export, so logins and permissions stay put. Off by default. See [Back Up & Restore](/docs/backup#sync-with-icloud). Servers, ports, the update channel, and diagnostics sharing stay per Mac.
-- **Custom commands can pick how they answer.** Each custom command now has a "How it's sent" setting: reply to the chatter (the default, and what existing commands keep doing), a plain chat message, or a Twitch announcement. Announcements need the signed-in account to be a mod and a one-time Twitch reconnect to grant the new permission; if Twitch refuses, the command falls back to a reply and the Custom Commands card tells you why.
-- **Links that open Settings right where you need them.** WolfWave now answers `wolfwave://settings/<pane>` and `wolfwave://settings/<pane>/<section>` links, so the docs can open the Twitch pane, scroll to Custom Commands, and flash it. Works whether Settings is closed or already open on another pane. A link to something that doesn't exist just opens General. Full list of names under [Deep links](/docs/settings#deep-links).
-- **Five new Stream Deck keys.** **Announce Song** posts what's playing to your chat, same wording as `!song`. **Reject Request** drops the request that's playing and tells chat it went, so the requester isn't left wondering (Skip just moves on silently). **Block Requester** bars the person who requested the current song, held for a second so you can't do it by accident. **Request Access** cycles who can request and shows the current setting on the key. **Now Playing** shows the track over its album art. See [Stream Deck](/docs/streamdeck).
-- **You can block people from requesting, not just songs.** Settings → Song Requests → Blocklist now takes a Twitch username as well as song titles and artists. A blocked person's requests are turned away before WolfWave even looks the song up.
-- **A Sponsor link you can turn off.** WolfWave now has a Sponsor item in the menu bar's Help submenu as well as the Help menu and the About pane. If you'd rather not be asked, turn off "Show sponsor links" in [Settings, About](/docs/settings#about). WolfWave is free and complete either way.
+- **Sync settings with iCloud.** Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and your preferences follow you to every Mac with the switch on. Sign-ins, tokens, and permissions never sync, so you still connect Twitch once per Mac. Off by default, and the newest change wins. Server switches, ports, the update channel, and diagnostics stay per Mac. See [Back Up & Restore](/docs/backup#sync-with-icloud).
+- **Custom commands choose how they answer.** Each custom command has a "How it's sent" setting: reply to the chatter (the default), a plain chat message, or a Twitch announcement. Announcements need a mod account and a one-time Twitch reconnect. If Twitch refuses, WolfWave sends a reply instead and tells you why.
+- **Links that open Settings in the right place.** `wolfwave://settings/<pane>` and `wolfwave://settings/<pane>/<section>` open a pane, scroll to the section, and highlight it, even if Settings is already open. An unknown link opens General. The full list is on the [Settings](/docs/settings#deep-links) page.
+- **Five new Stream Deck keys.** Announce Song posts what's playing to chat (same wording as `!song`). Reject Request drops the current request and tells chat. Block Requester bars whoever requested the current song (hold it to use it). Request Access cycles who can request and shows the current choice. Now Playing shows the track over its album art. See [Stream Deck](/docs/streamdeck).
+- **Stream Deck has its own settings page.** Find it under On Stream. It holds the control token, the setup steps, and a new "Allow Stream Deck commands" switch. Turn it off to refuse every key press while your overlay keeps running. It's on by default, so nothing changes unless you change it.
+- **Block people, not just songs.** Settings → Song Requests → Blocklist now takes Twitch usernames too. A blocked person's requests are turned away before WolfWave looks the song up.
+- **An optional Sponsor link.** Sponsor now appears in the menu bar's Help submenu, the Help menu, and the About pane. Turn off "Show sponsor links" in Settings → About to hide it. WolfWave is free and complete either way.
 
 ### Changed
 
-- **Stacked request limits only add what you set.** In [Settings, Song Requests](/docs/settings#song-requests), the Stacked mode used to count every role limit you never touched as 2, so on a fresh install a subscriber could queue 4 songs when you'd only allowed 2. Now a role you haven't set adds nothing and shows **None**, and the pickers read "+2", "+3" so it's clear they add on top of Everyone. Role limits you already picked keep working the same. Highest tier mode is unchanged.
-- **Stream Deck keys got a visual refresh.** The new artwork is easier to scan, and the Clear Queue confirmation tooltip now explains what it does. See [Stream Deck](/docs/streamdeck).
-- **Buttons that do slow work now show they're working.** Approve, Skip, Hold, Fetch link, Check Again, Add to blocklist, and the developer service controls swap their label for a spinner while the work runs, ignore a second click, and flash a checkmark when they're done. Before, they looked untouched the whole time, so the only way to tell WolfWave had heard you was to click again and hope you hadn't just done it twice.
-- **Stream Deck has its own settings page.** It used to share [Stream Widgets](/docs/settings#stream-widgets), with the control token sitting one divider below the overlay token in the same card. Those two do very different things: the overlay token is read-only and reachable from other machines on your network, while the control token runs commands and is only ever accepted from this Mac. Putting them side by side made them look interchangeable. [Stream Deck](/docs/settings#stream-deck) is now its own page under On Stream, holding the control token, the setup steps, and a new **Allow Stream Deck commands** switch. Turn that off and WolfWave refuses every key press while your overlay keeps running, which is what you want if you like the now-playing box on stream but would rather nothing could drive playback. It's on by default, so nothing changes unless you change it.
-- **Stream Widgets reads in the order you actually set it up.** Turn the connection on, drop in the ready-made browser source, then style it. The port, the overlay token, and the raw WebSocket addresses moved to the bottom under "Build your own overlay", where they belong, because they're only needed if you're writing your own overlay. Leading with them made a two-click setup look like a programming job. The page also now tells you where the server can be reached (this Mac, or this Mac and your local network) instead of leaving you to guess, and the note explaining why the port is locked sits above the locked field rather than below it, where you'd only find it after wondering what was broken.
-- **The Now Playing key scrolls the track.** Song titles are longer than a 72px key, and the Stream Deck's own label just clips them to the middle of a word, so "Pack of Agents" read as "ck of Agen". The title and artist now scroll across the bottom of the album art instead. Short titles stay still rather than jiggling. Play / Pause no longer shows the track at all, which also frees its label for whatever you want to call it. See [Stream Deck](/docs/streamdeck).
-- **Breaking: Stream Deck protocol v3. Four keys removed, and Clear Queue now has to be held.** Discord Presence, Music Sync, Cycle Theme, and Status are gone. The first three flipped a setting you set once and then never touch, and a key on a deck is worth more than that; change them in [Settings](/docs/settings) instead. Now Playing replaces Status. Clear Queue still exists but only fires if you hold it for about a second, because it deletes every request with no undo. The control protocol moved from v2 to v3, so **update the plugin and WolfWave together**: a version mismatch shows `Update` on every key until both sides match. See [Stream Deck](/docs/streamdeck).
-- **Stream Deck keys use the whole key.** A key that's on is now a solid blue key rather than a small blue glyph on black, so playing, queue held, and every toggle read from across the room. Clear Queue and Block Song are red because they throw something away, and Approve Next turns amber when requests are waiting. The queue keys print their count as a big number instead of squeezing it into the key label, and the Status key shows four dots, one per link, each in its own service colour, instead of a three-line list that never fit. Those keys also stop overwriting the key title, so a label you set on them now stays. See [Stream Deck](/docs/streamdeck).
-- **Export Logs now exports everything, not just the newest file.** Settings → Advanced → Export Logs writes a single file containing your app version, macOS version, and install method, the details of the last crash if there was one, and every rotated log file rather than only the current one. Before, if the log had just rolled over you'd send us a nearly empty file while the lines about your problem sat in a backup we never saw. The file is named with the date and time so a second export doesn't overwrite the first, and Copy to Clipboard now includes the same version header.
-- **The crash notice says what actually crashed.** After an unexpected quit, the notice in Settings → Advanced now names the fault and when it happened instead of just saying something went wrong, and those details are written into your log so they're in the file you send us. "Report a Bug" also fills in the crash, your install method, and log size for you.
-- **Logs you can actually read.** Every line now carries a full date and timezone instead of just a clock time, so a log covering more than one day can be put in order. Each launch stamps the app version, build, and macOS version at the top, so a log you send us can be matched to the exact build that wrote it. Numbers that describe what happened (file sizes, timings, ports) are no longer scrubbed out as if they were account IDs, while tokens and account IDs are still removed. Export your logs from Settings → Advanced.
-- **Custom commands can be set up before you connect Twitch.** Create and edit them any time; they start replying once you connect. The editor now says exactly what's wrong (a space in a trigger, an empty reply, a name another command already uses, a reply over 500 characters) under the field to fix, and shows a live character counter. See [Bot Commands](/docs/bot-commands#custom-commands).
-- **Twitch sign-in is easier to follow.** The sign-in code shows how long it has left and offers "Get a new code" when it expires. Log Out asks for confirmation first, and the signed-in row is now called "Bot account". See [Troubleshooting](/docs/troubleshooting#twitch-code-expired).
-- **Paid request switches live in one place.** The channel point and Bits request toggles now sit only in Channel Points & Bits. Who Can Request shows a "Paid requests" summary with a button that jumps there. See [Settings, Song Requests](/docs/settings#song-requests).
-- **Stream Widgets says what happened.** Port fields revert an invalid entry and confirm a saved one, and the copy buttons and the Widget Webpage switch say why they're greyed out. See [Settings, Stream Widgets](/docs/settings#stream-widgets).
-- **Advanced and About are tidier.** Clear Logs now sits with the other log actions and Clear Artwork Cache sits in the Artwork Cache card, so the Danger Zone holds only Erase All Data & Reset. The MetricKit card is now "Share Diagnostics". About has one Docs button instead of separate Website and Documentation buttons, and the Rerun Setup Wizard alert's button reads "Open Wizard". See [Settings, Advanced](/docs/settings#advanced).
-- **The last `!stats` fact can't be switched off.** Its chip locks with "Keep at least one." instead of quietly ignoring your click.
-- **Turning off on-device diagnostics deletes saved reports.** While it's on, WolfWave keeps only the newest 50 reports from the last 30 days.
-- **The menu bar asks before it deletes.** Clear Queue and Restart Integrations confirm first, and Clear Queue sits apart from Skip. Help has a Check for Updates item, and long song or request titles are shortened, with the full text in the tooltip.
-- **The setup wizard is easier to drive.** Return moves to the next step (on the Twitch step, Return submits the channel name instead). Optional steps are labelled "Optional", Skip All ends on a short "Skipped" screen, and the finish screen has a Done button and stays open while VoiceOver is on.
-- **Status colors and motion are friendlier to your eyes and to VoiceOver.** In Light mode, status chips, callout icons, and the selected settings rail row use darker glyph colors so they stay readable on their tinted backgrounds. VoiceOver no longer reads status chips twice and announces the selected row in the settings jump rail, and jumping to a settings section no longer animates when Reduce Motion is on.
-- **Song Requests settings work better with VoiceOver and the keyboard.** Every picker has a spoken name, blocklist Remove buttons say which entry they remove, and pressing Return adds a blocklist entry.
-- **The Stream Deck panel tells you whether the token works.** It saves the control token as soon as a valid one is pasted and shows "Connected", "WolfWave rejected this token", or "Update the plugin". The old green message now reads "Token format is valid", because it only checks the shape. See [Stream Deck](/docs/streamdeck).
-- **Phones get a "Send to my Mac" button on the website.** A phone can't install a .dmg, so the hero, the closing call to action, and the download page swap the download for a button that shares the link. The song-requests pitch moved into the Twitch section, every demo widget is labelled as a demo with made-up songs, and the hero shows the real latest version.
-- **The Apple Music permission warning has a Learn More link.** It sits next to Open System Settings and opens the troubleshooting page, and the warning now uses the same style as the rest of the app.
-- **An expired Twitch sign-in has a Reconnect button wherever it shows up.** The notices in Bot Commands, Custom Commands, Song Requests, and the `!stats` card now say what stopped and offer **Reconnect with Twitch**, which jumps to the Twitch page and starts signing in.
+- **Breaking: Stream Deck protocol v3. Update the plugin and the app together.** Until both match, every key shows `Update`. The Discord Presence, Music Sync, Cycle Theme, and Status keys are gone: change those in Settings, and use Now Playing instead of Status. Clear Queue now fires only if you hold it for about a second, because it can't be undone.
+- **Stream Deck keys are easier to read.** An active key is solid blue, Clear Queue and Block Song are red, and Approve Next turns amber when requests are waiting. Queue keys show their count as a big number, Now Playing scrolls long titles across the album art, and titles you set on a key are no longer overwritten.
+- **The Stream Deck panel checks your token.** It saves a valid control token as soon as you paste it, then shows "Connected", "WolfWave rejected this token", or "Update the plugin". The old green message now reads "Token format is valid", because it only checks the shape.
+- **Stream Widgets follows the order you set it up.** Turn on the connection, add the ready-made browser source, then style it. The port, overlay token, and raw WebSocket addresses moved down to "Build your own overlay". The page also says where the server can be reached: this Mac only, or your local network too.
+- **Stacked request limits only add what you set.** In Settings → Song Requests, Stacked mode used to count every role limit you never touched as 2, so a subscriber could queue more than you allowed. An unset role now adds nothing and shows None, and the pickers read "+2", "+3". Highest tier mode is unchanged.
+- **Paid request switches live in one place.** The channel-point and Bits toggles now sit only in Channel Points & Bits. Who Can Request shows a "Paid requests" summary with a button that jumps there.
+- **Custom commands work before you connect Twitch.** Create and edit them any time, and they start replying once you connect. The editor names the exact problem under the field to fix (a space in a trigger, an empty reply, a name already taken, a reply over 500 characters) and shows a live character count.
+- **Twitch sign-in is easier to follow.** The sign-in code shows how long it has left and offers "Get a new code" when it expires. Log Out asks first, and the signed-in row is now called "Bot account".
+- **Errors say what broke and how to fix it.** Messages name the cause and offer a button that does the fix, instead of hiding the reason in a tooltip. Learn More buttons open the new [Troubleshooting](/docs/troubleshooting) page, including from the Apple Music permission warning.
+- **Expired Twitch sign-ins have a Reconnect button everywhere.** The notices in Bot Commands, Custom Commands, Song Requests, and the `!stats` card offer "Reconnect with Twitch", which opens the Twitch pane and starts signing in.
+- **Slow buttons show they're working.** Approve, Skip, Hold, Fetch link, Check Again, Add to blocklist, and other slow actions show a spinner while they run, ignore a second click, and flash a checkmark when done.
+- **Export Logs sends everything.** Settings → Advanced → Export Logs writes one file, named with the date and time, holding your app and macOS versions, install method, the last crash (if any), and every log file instead of only the newest. Copy to Clipboard includes the same header.
+- **Clearer crash notices and logs.** After a crash, Settings → Advanced names the fault and when it happened, and "Report a Bug" fills in the details for you. Every log line has a full date and timezone, each launch stamps the app and macOS versions, and numbers like file sizes and ports are no longer scrubbed (tokens and account IDs still are).
+- **Diagnostics clean up after themselves.** Turning off Share Diagnostics deletes the saved reports. While it's on, WolfWave keeps only the newest 50 from the last 30 days.
+- **Advanced and About are tidier.** Clear Logs sits with the other log actions, Clear Artwork Cache sits in Artwork Cache, and the Danger Zone holds only Erase All Data & Reset. The MetricKit card is now "Share Diagnostics", About has one Docs button, and the Rerun Setup Wizard alert's button reads "Open Wizard".
+- **The menu bar asks before it deletes.** Clear Queue and Restart Integrations confirm first, and Clear Queue sits apart from Skip. Help gains Check for Updates, and long titles are shortened with the full text in the tooltip.
+- **The setup wizard is easier to drive.** Return moves to the next step (on the Twitch step it submits the channel name). Optional steps say "Optional", Skip All ends on a short "Skipped" screen, and the finish screen has a Done button and stays open while VoiceOver is on.
+- **Easier to read, and better with VoiceOver.** In Light mode, status chips, callout icons, and the selected settings rail row use darker icons so they stay readable. VoiceOver reads each status chip once, names every Song Requests picker, says which blocklist entry a Remove button removes, and announces the selected rail row. Return adds a blocklist entry.
+- **Reduce Motion is honored everywhere.** Jumping to a settings section and every setup wizard step, progress dot, and toggle card stop animating when Reduce Motion is on.
+- **The last `!stats` fact can't be switched off.** Its chip locks with "Keep at least one." instead of ignoring your click. See [History & Stats](/docs/listening-history).
 
 ### Fixed
-- **Discord connects when Discord was launched with an empty or non-UTF-8 argument.** WolfWave misread where Discord's environment starts and could miss its temp folder, so Rich Presence never found the socket.
-- When Twitch permanently cuts off WolfWave's chat connection (the account was removed, a permission was lost, or WolfWave needs an update), waking your Mac or getting your network back no longer quietly reconnects it. Connect again from Settings → Twitch once you've fixed the cause.
-- **Homebrew installs no longer run Sparkle too.** A cask installed to Applications (the Homebrew default) was taken for a DMG install, so WolfWave offered its own updates alongside `brew upgrade`. It now spots the cask and leaves updates to Homebrew.
-- **Turning History off and back on mid-song no longer counts the song twice.** Quitting on that same track recorded the play a second time.
-- **The Stream Deck Approve Next key no longer fakes success when the queue is full.** The request stays pending and the key now shows an alert (`full`) instead of a checkmark.
-- Spotify and YouTube song requests no longer fail just because the artist is written a little differently. A featured credit ("Band feat. Guest") or different punctuation in the name now still finds the song, while a different artist with the same song title is still turned away.
-- **Import's "replaces N settings" count is accurate.** It no longer counts the server, port, update-channel, and diagnostics settings unless you turn on the option to bring those across.
-- **Discord's preview no longer shows a real song.** The placeholder before your first track is an invented wolf track, like every other demo in WolfWave.
-- Permission rechecks report the actual Automation result and close the instruction sheet after a grant. Setup and onboarding refresh permissions on return from System Settings, and Song Request setup links to Twitch settings.
-- Settings now explain aborted resets, login-item failures, and log or wrap export errors. Imports clearly identify overwritten settings; clearing logs removes rotated backups, and completed or cancelled wrap shares remove their temporary files.
-- Settings sidebar toggles no longer apply a spring to the entire detail layout or repeatedly reset the divider width. Now-playing progress redraws only when its inputs change, and the Debug motion demo pauses offscreen.
-- Widget HTTP retries failed listeners, caches its favicon, and bounds response writes. WebSockets use TCP keepalive and acknowledge unavailable commands; token loading and saves run away from the UI thread.
-- Music polling limits slow Apple Event replies, prevents overlapping reads, and checks the latest state after notification bursts.
-- Discord presence caps text fields, coalesces rapid updates, and retries a rejected activity once. Preview buttons now match live labels and valid links; initial connection status reads Connecting.
-- Spotify and YouTube requests reject ambiguous catalog matches. Artwork lookup validates title and artist, escapes search terms, and backs off after temporary network or rate-limit failures.
-- Failed vote-skips no longer consume the session cooldown. Music launch respects request and auto-advance settings, and priority queue jumps also work with fair-share off.
-- Song request limits, queue ownership, and Bits boosts use Twitch logins across display-name changes. Blocklists match collaborations, accents, whitespace, and bracketed title suffixes.
-- Twitch reconnects continue with a slower retry tier after brief outages and retry promptly after system wake. Rotated tokens survive temporary Keychain write failures.
-- `!song`, `!last`, and `!stats` no longer all reply when several viewers spam them at once. The cooldown now holds.
-- WolfWave no longer stays disconnected from Twitch after a quick Wi-Fi or VPN switch.
-- Song Request queue Decline and Remove buttons are easier to click and now have tooltips, and the queue's status pills (On hold, Music closed, N in queue) use the standard colors and match the rest of the app.
-- The Twitch sign-in code copies through the Copy button only, so VoiceOver and keyboard users get one clear control.
-- VoiceOver can reach the Open Music button on the Now Playing card, and the Open System Settings, Show me how, and Try again buttons on the Music Access screen.
-- The pause icon on the Now Playing card fades instead of popping.
-- The Stream Deck Clear Queue key also clears Music.app's queue, like the menu bar item does.
-- Stream Widgets port fields save when you Tab or click away, not only on Return.
-- Erase & Reset tells you if your history and logs couldn't be erased, and offers a Relaunch instead of leaving a half-reset app running.
-- What's New no longer opens a second window when one is already showing.
-- Monthly Wrap month arrows are easier to click.
-- A damaged lifetime stats file is logged and backed up instead of silently reset.
-- **The [Stream Deck `health` frame](/docs/stream-deck) now reports whether Discord is actually connected.** It used to say Discord was up whenever the integration was switched on, even with Discord closed or the link dropped mid-stream. `discord` is now true only when Rich Presence is really connected, a new `discordState` field tells "off" from "disconnected", and the frame is re-sent the moment Discord connects or drops.
-- **The Stream Deck page's cards line up now.** The "Setting it up" card was drawn narrower than the two above it, because it holds only text and a button and so shrank to fit them instead of filling the page like its neighbours. See [Settings, Stream Deck](/docs/settings#stream-deck).
-- **The Stream Deck setup steps described an install you can't do.** Step one told you to get the plugin from the Elgato Marketplace. It isn't there yet, you build it from the repo, which is what the setup guide has said all along. Step four also told you to leave the host alone; there is no host to change, so it now mentions only the port. See [Stream Deck](/docs/streamdeck).
-- **Hiding the overlay no longer blanks your Stream Deck.** With the overlay cards turned off, WolfWave stopped telling the Stream Deck what was playing, so the Play/Pause key showed the track that happened to be on when you hid them, or nothing at all. Hiding the cards now only hides the cards. See [Stream Deck](/docs/streamdeck).
-- **Errors now tell you what broke and what to do about it.** Failures used to say things like "Couldn't check channel" with no explanation, and the real reason was only visible if you hovered for a tooltip. Messages now name the cause and come with a button that performs the fix, and where there's a Learn More button it opens the matching section of the new [Troubleshooting](/docs/troubleshooting) page.
-- **Twitch errors were invisible.** Around forty failure messages, including every failed channel join and every Keychain problem, were written to a status line that no screen ever displayed. They now appear in the Twitch pane.
-- **A missing permission no longer looks like an expired sign-in.** If your Twitch token was missing an optional permission, WolfWave said your session had expired and told you to reconnect, then quietly stopped re-checking the token. It now names the missing permission, and everything else keeps working.
-- **"Your sign-in is fine" when it is.** If Twitch is down, rate limiting us, or you're offline, WolfWave used to blame your sign-in and send you to reconnect, which never helped. Those now say what actually happened.
-- **Erase & Reset no longer stops silently.** If macOS refused to remove your saved sign-ins, the reset stopped partway and said nothing, so it looked like everything had been erased when nothing had. It now tells you plainly that nothing was erased.
-- **Discord says what went wrong.** "Discord not running" was shown for every connection problem, including ones that happen with Discord open in front of you. WolfWave now distinguishes Discord being closed, Discord refusing the connection, and macOS blocking it. See [Settings, Discord](/docs/settings#discord).
-- **Song list link status tells the truth.** The Song Requests pane said "Ready" for any text in the link field, even a link `!playlist` would refuse. It now shows "Invalid link" until the link is a real HTTPS address.
-- **A half-typed playlist link is no longer saved.** In the Song Requests setup, the share-link field saved every keystroke, so an unfinished link could be stored. It now saves only a valid link (or a blank one).
-- **Pasted uppercase tokens just work.** An overlay or control token pasted in uppercase is now saved in lowercase, the same form WolfWave generates and copies, and Regenerate no longer briefly stalls the settings window.
-- **Diagnostics numbers stay current.** The Share Diagnostics card no longer shows a launch count and summary frozen from when the window first opened.
-- **Join Channel no longer changes width.** The Twitch Join / Leave Channel button keeps one width as it switches labels.
-- A custom command trigger or alias with a space (like `!hug me`) could be saved but never fired. The editor now blocks spaces. Saved commands with a spaced trigger get the spaces removed and are turned off so you can check them, and spaced aliases are dropped.
-- Chat replies full of emoji or flags could go over Twitch's 500-character limit and get rejected. WolfWave now counts the way Twitch does and trims without cutting an emoji in half.
-- A failed Twitch sign-in no longer shows its error twice, and an old error clears when you try again. Try Again now retries the sign-in (or the sign-out, if that is what failed) instead of trying to join a channel.
-- Blocking an artist with a comma in the name (like "Tyler, The Creator") now also blocks their collaborations, and "ft." and "featuring" credits are checked too.
-- `!skip` no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."
-- A viewer who isn't allowed to request no longer puts `!sr` on cooldown for everyone else, and neither does `!sr` while requests are off. Those refusal replies are throttled so they can't flood chat. See [Bot Commands](/docs/bot-commands#song-requests).
-- An `!sr` alias that starts with a built-in trigger (like `!srq`) now searches for the full song name.
-- Apple Music song links without a song name in the URL (`music.apple.com/us/song/<id>`) now work with `!sr`.
-- The Resume button now shows when the request queue is on hold and empty, with a note that explains the hold.
-- The Stream Deck pane no longer says Ready when the server failed to start; it shows Starting or Server error. Stream Widgets shows a clear "Couldn't start" message when the port is in use. See [Troubleshooting](/docs/troubleshooting#port-in-use).
-- The What's New button now closes the window. It reads "Got it" instead of "Get Started".
-- A crash from an uncaught error now keeps its full report (name, reason, backtrace) instead of a bare abort record.
-- A listening-history entry cut off by a crash no longer corrupts the next play that gets recorded.
-- Channel-point and Bits duplicate protection now survives your Mac's clock moving backwards, and the paid-event queue is fully flushed to disk on every write.
-- Log lines can no longer be broken by carriage returns in a message or field.
-- Stream Deck: the Now Playing key stops scrolling when it goes Offline, Token?, or Update, and a late answer from a timed-out press is no longer shown as the result of your next press.
-- Website claims now match the app: Stream Deck is marked optional (manual install for now), the FAQ gives the real 5-second fallback check, and an unverified app-size claim is gone.
-- A settings button that was busy when you switched panes no longer comes back stuck as a disabled spinner.
-- A "Try Again in Ns" countdown no longer restarts from the top when you leave and come back, and a new wait for the same problem now gets its own countdown.
-- The Share button no longer stops responding after a sharing service that never reports back.
-- Copying twice in a row keeps the checkmark up for the full time after the second copy.
-- **The setup wizard honors Reduce Motion everywhere.** The OBS, Permissions, Notifications, and Twitch steps, the progress dots, and the integration toggle cards no longer fade or slide when Reduce Motion is on.
-- **The setup wizard's OBS URL names the right port.** A stored widget port outside the valid range now shows the port the server actually listens on.
-- **The setup wizard no longer stalls on the Music permission check.** It runs in the background instead of holding up the window while each step loads.
-- Cleaning up listening history can no longer silently drop a play: if one entry can't be saved, the cleanup stops and your existing history is kept.
+
+- **`!song`, `!last`, and `!stats` honor their cooldown.** When several viewers sent one at the same moment, they all got a reply.
+- **A refused `!sr` no longer blocks everyone else.** A viewer who isn't allowed to request, or `!sr` while requests are off, no longer puts it on cooldown for the rest of chat. Those refusal replies are throttled so they can't flood chat.
+- **`!skip` tells the truth.** It no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."
+- **More Apple Music links work.** Song links without a name in the URL (`music.apple.com/us/song/<id>`) and album links that point at one track now play the right song, and link requests ask for Music access when needed.
+- **Spotify and YouTube requests match better.** A featured credit or different punctuation in the artist name still finds the song, while an unclear match or a different artist with the same title is turned away.
+- **An `!sr` alias that starts with a built-in trigger works.** An alias like `!srq` now searches for the whole song name.
+- **Blocklists catch more.** Artist blocks match collaborations, "feat.", "ft.", and "featuring" credits, accents, extra spaces, bracketed title endings, and artist names that contain a comma.
+- **Requests follow viewers through name changes.** Request limits, queue ownership, and Bits boosts use the Twitch login, so a new display name doesn't reset them.
+- **Custom command triggers with spaces.** A trigger or alias with a space (like `!hug me`) could be saved but never fired. The editor now blocks spaces. Saved commands with a spaced trigger get the spaces removed and are turned off so you can check them, and spaced aliases are dropped.
+- **Emoji-heavy replies fit Twitch's limit.** Replies full of emoji or flags could go over 500 characters and be rejected. WolfWave now counts the way Twitch does and never cuts an emoji in half.
+- **Vote-skip and queue fixes.** A failed vote-skip no longer uses up the cooldown, opening Music respects your request and auto-advance settings, and priority jumps work with fair-share off.
+- **Resume shows on an empty held queue.** The Resume button appears when the queue is on hold with nothing in it, with a note explaining the hold.
+- **Queue buttons are easier to use.** Decline and Remove are easier to click and have tooltips, and the queue's status pills use the same colors as the rest of the app.
+- **The song list link status tells the truth.** It shows "Invalid link" until the `!playlist` link is a real HTTPS address, and a half-typed link in setup is no longer saved.
+- **Channel-point refunds wait for Twitch.** A refund no longer reports success before Twitch confirms it. Rejected refunds are checked and retried a few times, and stuck ones show in Settings without blocking sign-out.
+- **Paid requests are safer.** Duplicate protection for channel points and Bits survives your Mac's clock moving backwards, every change is saved to disk right away, and a Bits boost or request that already ran is never applied twice.
+- **Twitch reconnects more reliably.** It reconnects after a quick Wi-Fi or VPN switch, keeps retrying more slowly after longer outages, retries promptly after sleep, and keeps a renewed sign-in through a brief Keychain error.
+- **A permanent Twitch cut-off stays off.** When Twitch ends the chat connection for good (account removed, permission lost, or an update needed), waking your Mac no longer quietly reconnects. Connect again from Settings → Twitch once you've fixed the cause.
+- **Twitch errors show up.** About forty failure messages, including failed channel joins and Keychain problems, went to a status line no screen showed. They now appear in the Twitch pane.
+- **The right Twitch message for the right problem.** A missing optional permission now names that permission instead of claiming your sign-in expired. Twitch being down, rate limiting, or you being offline no longer sends you to reconnect.
+- **Twitch sign-in errors behave.** A failed sign-in shows its error once, an old error clears when you retry, and Try Again retries the sign-in (or sign-out) instead of joining a channel. The sign-in code copies through its Copy button only.
+- **Join Channel keeps its width.** The Join / Leave Channel button no longer changes size as its label switches.
+- **Discord connects in more setups.** If Discord was launched with an empty or non-UTF-8 argument, WolfWave could miss its connection and Rich Presence never appeared.
+- **Discord says what went wrong.** Instead of "Discord not running" for every problem, WolfWave tells apart Discord being closed, Discord refusing the connection, and macOS blocking it.
+- **Rich Presence is steadier.** Long text is trimmed, rapid updates are combined, a rejected update is retried once, preview buttons match the live ones, and the preview's placeholder track is invented.
+- **Hiding the overlay no longer blanks your Stream Deck.** With the overlay cards hidden, the Play / Pause key stopped updating. Hiding the cards now only hides the cards.
+- **Approve Next doesn't fake success when the queue is full.** The request stays pending and the key shows `full` instead of a checkmark.
+- **Stream Deck Clear Queue clears Music too.** It now also clears Music.app's queue, like the menu bar item.
+- **The Stream Deck page is accurate.** It shows Starting or Server error instead of Ready when the server failed, its cards line up, the setup steps say to build the plugin from the repo (it isn't on the Elgato Marketplace yet), and the `health` frame reports whether Discord is really connected.
+- **Stream Deck keys stay in step.** Now Playing stops scrolling when it shows Offline, Token?, or Update, and a late answer to a timed-out press no longer shows up on your next press.
+- **Stream Widgets port fields behave.** They save when you Tab or click away, undo an invalid entry, confirm a saved one, and show "Couldn't start" when the port is in use. Greyed-out copy buttons and the Enable Widget Webpage switch say why.
+- **Pasted uppercase tokens work.** An overlay or control token pasted in uppercase is saved in lowercase, and Regenerate no longer stalls the window.
+- **The overlay server is sturdier.** The widget server retries a failed start and caps slow responses, WebSocket connections stay alive through quiet periods, and loading or saving tokens no longer blocks the window.
+- **Music tracking is steadier.** Slow Music replies time out, reads never overlap, and WolfWave checks the latest state after a burst of changes.
+- **Album art matches the song.** Artwork lookups check the title and artist and back off after network or rate-limit errors.
+- **Homebrew installs leave updates to Homebrew.** A cask installed to Applications was mistaken for a DMG install, so WolfWave offered its own updates next to `brew upgrade`.
+- **History counts each play once.** Turning History off and on mid-song, then quitting on that track, recorded it twice. A play cut off by a crash no longer damages the next one, and cleanup keeps your history if an entry can't be saved.
+- **History retention cleans up on time.** Expired plays are removed while recording, once a day, and when you change retention. Shortening retention tells you how many plays it removed.
+- **Lifetime stats survive damage.** A damaged lifetime stats file is backed up and logged instead of silently reset.
+- **Safer backup imports.** Imports check sizes, ranges, and HTTPS links, name the settings they overwrite, and only count server, port, update-channel, and diagnostics settings when you choose to bring those across.
+- **Erase & Reset tells you what happened.** If macOS refuses to remove your sign-ins, it says nothing was erased. If history or logs can't be erased, it says so and offers Relaunch.
+- **Settings explain more failures.** Login-item failures and log or Monthly Wrap export errors are explained, clearing logs removes the older log files too, and finished or cancelled wrap shares delete their temporary files.
+- **Music permission checks report the real result.** Try Again shows the actual Automation result and closes the instructions after you allow access. Setup refreshes when you come back from System Settings, and Song Request setup links to Twitch settings.
+- **The setup wizard is quicker and more accurate.** The Music permission check no longer stalls the window, and the OBS URL shows the port the server really uses.
+- **Smoother settings.** Sidebar toggles no longer animate the whole pane or reset the sidebar width, a busy button no longer comes back stuck, "Try Again in Ns" countdowns don't restart, Share always responds, copy checkmarks stay up the full time, the pause icon fades, and Monthly Wrap arrows are easier to click.
+- **What's New behaves.** It no longer opens a second window, and its button now reads "Got it" and closes the window.
+- **VoiceOver reaches every button.** That includes Open Music on the Now Playing card and the Open System Settings, Show me how, and Try again buttons on the Music Access screen.
+- **Crash reports keep the details.** A crash from an uncaught error keeps its name, reason, and backtrace instead of a bare abort record.
+- **Log lines stay whole.** A carriage return in a message can no longer break a log line.
+- **Diagnostics numbers stay current.** The Share Diagnostics card no longer shows a launch count frozen from when the window opened.
+- **Accurate privacy text.** The app's privacy wording now matches what it does with integrations, local overlays, listening history, logs, the artwork cache, and reset.
+
 
 ## v2.1.0. August 14, 2026
 
@@ -413,4 +396,4 @@ _Developer-facing changes. Not visible to end users._
 - Settings UI with NavigationSplitView sidebar
 - Diagnostic log export
 
-For the full changelog, see [CHANGELOG.md on GitHub](https://github.com/MrDemonWolf/wolfwave/blob/main/CHANGELOG.md).
+For the full changelog, see [CHANGELOG.md on GitHub](https://github.com/MrDemonWolf/WolfWave/blob/main/CHANGELOG.md).

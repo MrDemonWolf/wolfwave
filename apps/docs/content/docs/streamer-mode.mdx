@@ -1,14 +1,14 @@
 ---
 title: Streamer Mode
-description: Streamer Mode masks WolfWave's sensitive values like your Twitch channel, overlay URLs, and WebSocket tokens, so the app is safe to show on camera. It only changes the screen.
+description: Streamer Mode hides your Twitch channel, overlay links, and tokens inside WolfWave so the app is safe to show on camera. Your overlay, Discord, and chat keep working.
 ogTitle: WolfWave Streamer Mode
-ogDescription: One toggle masks your channel name, overlay and widget URLs, and WebSocket tokens across the UI. Safe to show on stream. Your feeds keep working.
+ogDescription: One menu bar switch hides your channel name, overlay links, and tokens across WolfWave. Safe to show on stream. Everything keeps working.
 ogEyebrow: Guide
 ogChips:
   - Camera safe
-  - Masks URLs & token
-  - UI only
-  - One toggle
+  - Hides links & tokens
+  - Screen only
+  - One switch
 keywords:
   - wolfwave streamer mode
   - hide stream key on camera
@@ -16,37 +16,59 @@ keywords:
   - safe to screen share music app
 ---
 
-**One toggle, camera-safe.** Streamer Mode hides anything you would not want a viewer reading off your screen. Flip it on before you share your screen or show Settings on camera.
-
-## What it hides
-
-With Streamer Mode on, these turn into a `••••••` mask everywhere they show up, in Settings and in the menu bar:
-
-- **Your Twitch channel name**
-- **Overlay and widget URLs**
-- **The WebSocket server address**
-- **The Stream Widgets overlay and Stream Deck control tokens**
-
-**No accidental leaks.** The **Copy** and **Open** buttons next to a masked value go dead too, so a stray click can't push it to your clipboard or open it in a browser.
-
-## What it does NOT change
-
-Streamer Mode only changes the screen. Everything keeps running:
-
-- **Your overlay** keeps getting now-playing data.
-- **Discord Rich Presence** keeps updating.
-- **Twitch chat output** is unchanged.
-
-Leave it on for a whole stream. No downside.
+**TL;DR:** Streamer Mode hides private details inside WolfWave so you can show the app on stream. It only changes what's on your screen. This page is for streamers.
 
 ## Turn it on
 
-It's a menu bar toggle. Click the WolfWave icon, then **Streamer Mode**, near the bottom of the menu above **Settings**. One tap, on or off. WolfWave remembers your choice.
+1. Click the WolfWave icon in the menu bar.
+2. Click **Streamer Mode**. A checkmark means it's on.
+
+Click it again to turn it off. WolfWave remembers your choice, even after a restart.
+
+## What it hides
+
+With Streamer Mode on, these show as **hidden** or **hidden (streamer mode)** instead of the real value:
+
+- **Your Twitch channel name and signed-in username**, in Settings and the menu bar.
+- **Overlay and widget links.**
+- **WebSocket addresses.**
+- **Your Mac's local network address** on the Stream Widgets server card.
+- **The channel-point reward ID** in Song Requests.
+
+A **Streamer Mode** badge sits next to hidden values, so nobody mistakes them for a bug.
+
+### Tokens are locked too
+
+The overlay token and the Stream Deck control token stay hidden. While Streamer Mode is on you can't:
+
+- reveal them,
+- copy them,
+- edit them, or
+- regenerate them.
+
+### Copy and Open are off
+
+In Settings, the **Copy** and **Open** buttons next to a hidden link stop working. A stray click can't paste it into chat or open it in a browser.
+
+## What it does NOT change
+
+Streamer Mode only changes the screen. Everything else keeps running:
+
+- **Your overlay** keeps getting now-playing data.
+- **Discord Rich Presence** keeps updating.
+- **Twitch chat replies** are the same.
+
+Leave it on for your whole stream. There's no downside.
 
 ## When to use it
 
-- **Sharing your whole desktop.**
-- **Walking through Settings on camera.**
-- **Recording a tutorial or a bug-report screenshot.**
+- Sharing your whole desktop.
+- Showing Settings on camera.
+- Recording a tutorial or a bug-report screenshot.
 
-Pair it with [Back Up & Restore](/docs/backup) and [Stream Widgets](/docs/features). Safe to show, easy to move between machines.
+Need to copy a token or link? Turn Streamer Mode off for a moment, copy it off-camera, then turn it back on.
+
+## Related
+
+- [Stream Deck](/docs/streamdeck): copying the control token.
+- [Back Up & Restore](/docs/backup): the Streamer Mode setting is part of a backup.

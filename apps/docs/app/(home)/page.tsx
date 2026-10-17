@@ -13,9 +13,20 @@ import {
 import { buildFaqJsonLd, landingFaq } from "@/lib/faq";
 import {
   ArrowRight,
+  Ban,
+  Bell,
   BookOpen,
+  ChartColumn,
   Check,
+  Coins,
   Download,
+  EyeOff,
+  Gem,
+  History,
+  LayoutGrid,
+  ListMusic,
+  ListOrdered,
+  MessageSquareText,
   Radio,
   Shield,
   ShieldCheck,
@@ -23,8 +34,10 @@ import {
   Tag,
   Music,
   CodeXml,
-  Headphones,
+  ArrowLeftRight,
   Terminal,
+  UserCheck,
+  Vote,
   X as XIcon,
 } from "lucide-react";
 import { GithubIcon, TwitchIcon } from "@/components/icons";
@@ -75,7 +88,7 @@ export const metadata: Metadata = {
 
 // ── Section kicker ───────────────────────────────────────────
 // One numbered anchor tag, shared by every section, so the whole page
-// reads with a single consistent spine: 01 · For streamers, 02 · Twitch …
+// reads with a single consistent spine: 01 · Who it's for, 02 · Song requests …
 function Kicker({
   index,
   children,
@@ -188,7 +201,8 @@ export default async function HomePage() {
             </h1>
             <p className="ww-reveal ww-reveal-2 ww-hero-description ww-text-2">
               The free Mac app that puts Apple Music in your Twitch chat,
-              Discord profile, and OBS. Chat can request songs too.
+              Discord profile, and OBS. Chat requests songs. You stay in
+              charge of what plays.
             </p>
             <div className="ww-reveal ww-reveal-3 ww-hero-actions">
               {/* Desktop primary: the .dmg itself. Phones get SendToMac
@@ -331,9 +345,9 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl">
           <CenterHead
             index="01"
-            kicker="Pick your lane"
-            title={<>Three kinds of people. One wolf.</>}
-            sub="Every streaming tool got built for Spotify first, so Apple Music users got skipped. Streamers, listeners, builders. WolfWave covers all three."
+            kicker="Who it's for"
+            title={<>Built for streamers. Fun for chat.</>}
+            sub="Most streaming music tools were built for Spotify. WolfWave is built for Apple Music on a Mac. Pick the card that sounds like you."
           />
 
           <div className="mt-14 grid md:grid-cols-3 gap-5">
@@ -341,23 +355,23 @@ export default async function HomePage() {
               {
                 icon: TwitchIcon,
                 title: "For streamers",
-                body: "Go live on Apple Music without the hacks. !song replies, chat song requests, and a real-time overlay. Optional Stream Deck keys too (manual install for now).",
-                href: "/docs/features#twitch-chat-bot",
-                cta: "Streaming guide",
+                body: "Play Apple Music on stream without the hacks. Chat requests songs, you approve or hold them, and the overlay and Discord keep up on their own.",
+                href: "/docs/installation",
+                cta: "Set it up",
               },
               {
-                icon: Headphones,
-                title: "For listeners",
-                body: "Spotify friends always had Rich Presence. Now you do too. Album art, live progress, and your full Apple Music library on your Discord profile.",
-                href: "/docs/features#discord-status",
-                cta: "What's included",
+                icon: MessageSquareText,
+                title: "For your chat",
+                body: "Viewers type !sr to request a song, !song to see what's playing, and !voteskip to skip it. Channel points and Bits work too, if the streamer turns them on.",
+                href: "/#chat",
+                cta: "What chat can type",
               },
               {
                 icon: CodeXml,
                 title: "For developers",
                 body: "A real Apple Music feed to build on. A local WebSocket streams every play, pause, and skip. Wire it into anything in about 20 lines.",
-                href: "/docs/architecture",
-                cta: "Read the architecture",
+                href: "/#developers",
+                cta: "See the feed",
               },
             ].map(({ icon: Icon, title, body, href, cta }) => (
               <div
@@ -397,30 +411,43 @@ export default async function HomePage() {
       >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div className="text-center md:text-left">
-            <Kicker index="02">Twitch integration</Kicker>
+            <Kicker index="02">Song requests</Kicker>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl mt-5">
-              Chat that knows the song, and picks the next one.
+              Chat picks the next song. You stay in charge.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Viewers type <code className="ww-mono ww-text-1">!song</code> to
-              see what&apos;s playing, or{" "}
-              <code className="ww-mono ww-text-1">!sr</code> to add a song to
-              your queue. They can request with channel points too, and a Bits
-              cheer bumps their pick to the front. Chat can vote to skip. Hold
-              the queue from the menu bar, or approve and reject requests from
-              the optional Stream Deck plugin.
+              Requests come in from chat, channel points, or Bits, and play
+              through Apple Music on your Mac. You decide how much control to
+              hand over.
             </p>
-            <ul
-              className="mt-6 flex flex-wrap justify-center md:justify-start gap-2"
-              aria-label="Twitch features"
-            >
-              {["Song requests", "Channel points + Bits", "Vote-to-skip"].map(
-                (label) => (
-                  <li key={label} className="ww-pill">
-                    {label}
-                  </li>
-                ),
-              )}
+            <ul className="mt-6 space-y-3 text-left max-w-md mx-auto md:mx-0">
+              {[
+                {
+                  icon: UserCheck,
+                  text: "Require My Approval holds every request until you approve or decline it.",
+                },
+                {
+                  icon: ListOrdered,
+                  text: "Fair-share order plays everyone's first request before anyone's second.",
+                },
+                {
+                  icon: Ban,
+                  text: "Block a song, a whole artist, or a person from requesting.",
+                },
+                {
+                  icon: Vote,
+                  text: "Chat can vote to skip. Hold the queue from chat, the menu bar, or a Stream Deck.",
+                },
+              ].map(({ icon: Icon, text }) => (
+                <li key={text} className="flex gap-3 ww-text-2 text-base leading-relaxed">
+                  <Icon
+                    className="w-5 h-5 mt-0.5 shrink-0"
+                    style={{ color: "var(--brand-500)" }}
+                    aria-hidden="true"
+                  />
+                  <span>{text}</span>
+                </li>
+              ))}
             </ul>
             <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-3">
               <Link
@@ -449,10 +476,95 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 03 · DISCORD ═══════════════ */}
+      {/* ═══════════════ 03 · CHAT (what viewers can type) ═══════════════ */}
+      <section
+        id="chat"
+        className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
+      >
+        <div className="mx-auto max-w-6xl">
+          <CenterHead
+            index="03"
+            kicker="For your chat"
+            title={<>What your chat can do.</>}
+            sub="Watching a stream that runs WolfWave? Type these in Twitch chat. The streamer picks which ones are switched on."
+          />
+
+          <ul className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              {
+                icon: ListMusic,
+                cmd: "!sr <song or link>",
+                body: "Request a song. Type a name, or paste an Apple Music, Spotify, or YouTube link.",
+              },
+              {
+                icon: Music,
+                cmd: "!song",
+                body: "See what's playing right now. !last shows the song before it.",
+              },
+              {
+                icon: ListOrdered,
+                cmd: "!queue",
+                body: "See what's coming up. !myqueue shows only your own requests.",
+              },
+              {
+                icon: Vote,
+                cmd: "!voteskip",
+                body: "Vote to skip the current song. Enough votes and it's gone. Short form: !vs.",
+              },
+              {
+                icon: Gem,
+                cmd: "Channel points",
+                body: "Redeem “Request a Song” and type the song name. If the request fails, your points come back.",
+              },
+              {
+                icon: Coins,
+                cmd: "Bits",
+                body: "Cheer with a song name to request it. Some streamers let a cheer bump your queued song to the front instead.",
+              },
+            ].map(({ icon: Icon, cmd, body }) => (
+              <li
+                key={cmd}
+                className="ww-card ww-bg-base"
+                style={{ border: "1px solid var(--hairline)" }}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <span
+                    className="w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: "var(--brand-50)",
+                      color: "var(--brand-500)",
+                    }}
+                    aria-hidden="true"
+                  >
+                    <Icon className="w-4 h-4" />
+                  </span>
+                  <code className="ww-mono ww-text-1 text-base font-semibold break-words min-w-0">
+                    {cmd}
+                  </code>
+                </div>
+                <p className="ww-text-2 text-sm leading-relaxed">{body}</p>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-8 text-center text-sm ww-text-2 max-w-2xl mx-auto leading-relaxed">
+            Mods also get <code className="ww-mono ww-text-1">!skip</code>,{" "}
+            <code className="ww-mono ww-text-1">!hold</code> /{" "}
+            <code className="ww-mono ww-text-1">!resume</code>, and{" "}
+            <code className="ww-mono ww-text-1">!clearqueue</code>. Channel
+            points and Bits need a Twitch Affiliate or Partner channel.{" "}
+            <Link href="/docs/bot-commands" className="ww-text-brand font-semibold">
+              Every command
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════ 04 · DISCORD ═══════════════ */}
       <section
         id="discord"
-        className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
+        className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <figure
@@ -464,7 +576,7 @@ export default async function HomePage() {
           </figure>
 
           <div className="order-1 md:order-2 text-center md:text-left">
-            <Kicker index="03">Discord Rich Presence</Kicker>
+            <Kicker index="04">Discord Rich Presence</Kicker>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl mt-5">
               Your friends see what you&apos;re playing.
             </h2>
@@ -484,20 +596,21 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 04 · OVERLAY ═══════════════ */}
+      {/* ═══════════════ 05 · OVERLAY ═══════════════ */}
       <section
         id="overlay"
-        className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
+        className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div className="text-center md:text-left">
-            <Kicker index="04">Stream overlay</Kicker>
+            <Kicker index="05">Stream overlay</Kicker>
             <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl mt-5">
               A now-playing card for OBS in 30 seconds.
             </h2>
             <p className="ww-text-2 text-lg mt-5 leading-relaxed">
-              Add one browser source in OBS, pick a theme or build your own, and
-              every track change shows up on stream the instant it happens.
+              Add one browser source in OBS, pick a theme and layout or build
+              your own, and every track change shows up on stream the instant
+              it happens. An optional ticker shows the next few requests.
             </p>
             <Link
               href="/docs/features#now-playing-widget"
@@ -558,14 +671,90 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 05 · COMPARISON ═══════════════ */}
+      {/* ═══════════════ 06 · MORE (streamer extras) ═══════════════ */}
+      <section
+        id="more"
+        className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
+      >
+        <div className="mx-auto max-w-6xl">
+          <CenterHead
+            index="06"
+            kicker="And the rest"
+            title={<>The small stuff, handled.</>}
+            sub="Everything here is optional. Turn on what helps and leave the rest off."
+          />
+
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              {
+                icon: LayoutGrid,
+                title: "Stream Deck keys",
+                body: "Twelve keys: play/pause, skip, approve, reject, hold the queue, announce the song, and more. The plugin is a manual install for now.",
+                href: "/docs/streamdeck",
+              },
+              {
+                icon: History,
+                title: "History & Stats",
+                body: "Opt-in and stays on your Mac. Top artists, listening time, a Monthly Wrap you can share, and !stats for chat while you're live.",
+                href: "/docs/listening-history",
+              },
+              {
+                icon: MessageSquareText,
+                title: "Custom commands",
+                body: "Make your own chat commands with variables like $user and $song. Send each one as a reply, a chat message, or an announcement.",
+                href: "/docs/bot-commands",
+              },
+              {
+                icon: EyeOff,
+                title: "Streamer Mode",
+                body: "One click hides your channel name, overlay links, and tokens, so you can show Settings on camera.",
+                href: "/docs/streamer-mode",
+              },
+              {
+                icon: ArrowLeftRight,
+                title: "Move your settings",
+                body: "Export your settings to a file and import them on another Mac. Logins stay behind, so you sign in to Twitch once per Mac.",
+                href: "/docs/backup",
+              },
+              {
+                icon: Bell,
+                title: "Song-change banners",
+                body: "Opt-in Mac notifications when the song changes or a vote-skip starts or passes. A new banner replaces the last one of its kind.",
+                href: "/docs/features",
+              },
+            ].map(({ icon: Icon, title, body, href }) => (
+              <Link
+                key={title}
+                href={href}
+                className="ww-card ww-card-hover ww-bg-base block"
+                style={{ border: "1px solid var(--hairline)" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl inline-flex items-center justify-center mb-4"
+                  style={{
+                    backgroundColor: "var(--brand-50)",
+                    color: "var(--brand-500)",
+                  }}
+                  aria-hidden="true"
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="ww-display ww-text-1 text-lg mb-2">{title}</h3>
+                <p className="ww-text-2 text-sm leading-relaxed">{body}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ 07 · COMPARISON ═══════════════ */}
       <section
         id="compare"
         className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-6xl">
           <CenterHead
-            index="05"
+            index="07"
             kicker="Honest comparison"
             title={<>Stop working around Apple Music.</>}
             sub="Most tools chase Spotify and bolt on Apple Music later, if ever. WolfWave starts with Apple Music. Free, native, and yours to fork."
@@ -638,7 +827,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 06 · DEVELOPERS ═══════════════ */}
+      {/* ═══════════════ 08 · DEVELOPERS ═══════════════ */}
       <section
         id="developers"
         className="ww-bg-base ww-dev-dot-grid px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20 relative overflow-hidden"
@@ -649,7 +838,7 @@ export default async function HomePage() {
       >
         <div className="mx-auto max-w-5xl relative">
           <CenterHead
-            index="06"
+            index="08"
             kicker="For developers"
             title={
               <>
@@ -801,14 +990,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 07 · PRIVACY ═══════════════ */}
+      {/* ═══════════════ 09 · PRIVACY ═══════════════ */}
       <section
         id="privacy"
         className="ww-bg-base px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-3xl text-center">
           <div className="flex justify-center mb-5">
-            <Kicker index="07">Your data</Kicker>
+            <Kicker index="09">Your data</Kicker>
           </div>
           <h2 className="ww-display ww-text-1 text-4xl sm:text-5xl">
             No WolfWave servers. No tracking.
@@ -834,14 +1023,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ 08 · FAQ ═══════════════ */}
+      {/* ═══════════════ 10 · FAQ ═══════════════ */}
       <section
         id="faq"
         className="ww-bg-surface px-[10%] md:px-6 py-16 sm:py-24 lg:py-28 scroll-mt-20"
       >
         <div className="mx-auto max-w-3xl">
           <CenterHead
-            index="08"
+            index="10"
             kicker="Questions, answered"
             title={<>Anything else?</>}
             sub="The short answers. Longer ones live in the docs."

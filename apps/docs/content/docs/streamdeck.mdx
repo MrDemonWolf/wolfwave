@@ -1,8 +1,8 @@
 ---
 title: Stream Deck
-description: Control WolfWave from your Elgato Stream Deck. Play, pause, skip, run the song-request queue, announce the song, block a requester, and toggle your overlay from physical keys.
+description: Control WolfWave from an Elgato Stream Deck. Play, pause, skip, run the song-request queue, announce the song, block a requester, and toggle your overlay.
 ogTitle: WolfWave on Stream Deck
-ogDescription: Physical keys for playback, the request queue, and your overlay. Live state on every key.
+ogDescription: Twelve physical keys for playback, the song-request queue, and your overlay, with live state on every key. Local only, token gated.
 ogEyebrow: Guide
 ogChips:
   - Twelve keys
@@ -16,123 +16,106 @@ keywords:
   - twitch song request stream deck
 ---
 
-The WolfWave Stream Deck plugin puts playback, your song-request queue, and your
-integrations on physical keys. Keys aren't just buttons: they show live state, so
-a glance tells you what's playing and how many requests are waiting.
+**TL;DR:** The WolfWave Stream Deck plugin puts playback, your song-request queue, and your overlay on physical keys. Keys show live state, like what's playing and how many requests are waiting. This page is for streamers. Building your own controller? See the [Stream Deck Control API](/docs/stream-deck).
 
 <Callout type="warn">
-  The plugin is not on the Elgato Marketplace yet. Until it is, you install it
-  by hand from the repo.
+  The plugin isn't on the Elgato Marketplace yet. For now you install it from the WolfWave repo.
 </Callout>
 
-## What you get
+## The keys
 
-| Key | Does |
+| Key | What it does |
 |---|---|
-| Play / Pause | Plays or pauses Apple Music. |
-| Skip | Skips to the next track. |
-| Hold Queue | Holds or resumes the request queue. Shows the queue size as a big number. |
-| Approve Next | Approves the first request waiting for review. Turns amber with the pending count when requests are waiting. |
-| Clear Queue | Empties the request queue. Shows the queue size. **Hold it** — see below. |
-| Block Song | Adds the current song to your blocklist. |
-| Overlay | Turns the stream overlay on or off. |
-| Announce Song | Posts what's playing to your Twitch chat, same wording as `!song`. |
-| Reject Request | Drops the request that's playing and tells chat it went, so the requester isn't left wondering. Different from Skip, which says nothing. |
-| Block Requester | Bars the person who requested the current song from requesting again. **Hold it.** |
-| Request Access | Cycles who may request: Everyone → Subscribers → VIPs & Subs → Mods, then back to Everyone. Shows the current setting on the key. |
-| Now Playing | The track and artist scrolling over the album art. Short titles that already fit stay still. Display only, pressing it does nothing. |
+| **Play / Pause** | Plays or pauses Apple Music. |
+| **Skip** | Skips to the next track. |
+| **Hold Queue** | Holds or resumes the request queue. Shows the queue size as a big number. |
+| **Approve Next** | Approves the first request waiting for review. Turns amber with the count when requests are waiting. |
+| **Clear Queue** | Empties the request queue. Shows the queue size. **Hold to fire.** |
+| **Block Song** | Adds the current song to your blocklist. |
+| **Overlay** | Shows or hides your stream overlay. |
+| **Announce Song** | Posts what's playing to Twitch chat, same wording as `!song`. |
+| **Reject Request** | Drops the request that's playing and tells chat, so the requester isn't left guessing. (Skip says nothing.) |
+| **Block Requester** | Stops the person who requested the current song from requesting again. **Hold to fire.** |
+| **Request Access** | Cycles who may request: Everyone → Subscribers → VIPs & Subs → Mods → Everyone. Shows the current setting. |
+| **Now Playing** | Shows the track and artist scrolling over the album art. Display only: pressing it does nothing. |
 
-A key you can press turns solid blue while it's on, so playing, held, and the
-overlay read from across the room. Clear Queue and Block Song are red because
-they throw something away.
+How to read them:
 
-Hold Queue, Approve Next, and Clear Queue draw their own numbers, so they leave
-the key title free — set your own label on them and it stays.
+- **Solid blue** means on: playing, queue held, overlay showing.
+- **Red** keys throw something away: Clear Queue and Block Song.
+- **Counting keys draw their own number.** Hold Queue, Approve Next, and Clear Queue leave the key title free, so your own label stays.
 
-<Callout type="warn">
-  **Clear Queue and Block Requester only fire if you hold them** for about a
-  second. Tapping does nothing and flashes an alert. One deletes every request
-  with no undo, the other shuts a viewer out of your queue, and a deck is a grid
-  of identical squares under your hand mid-stream.
-</Callout>
+### Hold-to-fire keys
 
-Block Requester targets whoever requested **the song that's playing**, not
-whoever spoke last, so a busy chat can't shift the target between you deciding
-and the key landing. Remove them again in Settings → Song Requests → Blocklist,
-which now takes people as well as songs and artists.
+**Clear Queue** and **Block Requester** only fire if you hold them for about a second.
 
-Announce Song needs Twitch connected. Reject Request and Block Requester need a
-request actually playing — pressing them otherwise flashes an alert.
+- A quick tap does nothing and flashes an alert.
+- Why: one deletes every request with no undo. The other shuts a viewer out. A Stream Deck is a grid of look-alike keys under your hand mid-stream.
 
-Three toggle keys were removed in WolfWave 2.2.0: Discord Presence, Music Sync,
-and Cycle Theme. All three flipped a setting you set once, and a deck slot is
-worth more than that. Change them in Settings instead. The old Status key is
-gone too; Now Playing took its slot. That is how eleven keys became twelve. **Update the plugin and WolfWave
-together** — a mismatch shows `Update` on every key.
+### Key rules
 
-Approve Next only matters if you've turned on **Require My Approval** in
-Settings → Song Requests → Access. See [Song Requests](/docs/features#song-requests).
+- **Block Requester** targets whoever requested **the song that's playing**, not whoever spoke last.
+- To unblock someone, open **Settings → Song Requests → Blocklist**. It holds people as well as songs and artists.
+- **Announce Song** needs Twitch connected.
+- **Reject Request** and **Block Requester** need a request to be playing. Otherwise they flash an alert.
+- **Approve Next** only matters if **Require My Approval** is on in **Settings → Song Requests → Who Can Request**. See [Song Requests](/docs/features#song-requests).
 
-## Install
+## Install the plugin
 
-1. Package the plugin from the repo:
+You need [Bun](https://bun.sh) and a copy of the WolfWave repo.
+
+1. In the repo, run:
 
    ```bash
    bun run --filter streamdeck pack
    ```
 
 2. Double-click `apps/streamdeck/dist/com.mrdemonwolf.wolfwave.streamDeckPlugin`.
-   The Stream Deck app installs it and asks you to confirm.
+3. The Stream Deck app installs it and asks you to confirm.
 
-Prefer to work on the plugin itself? Run `bun run --filter streamdeck build` and
-copy (or symlink) `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin` into
-`~/Library/Application Support/com.elgato.StreamDeck/Plugins/`, then restart the
-Stream Deck app.
+Working on the plugin itself? Run `bun run --filter streamdeck build`, copy (or symlink) `apps/streamdeck/com.mrdemonwolf.wolfwave.sdPlugin` into `~/Library/Application Support/com.elgato.StreamDeck/Plugins/`, then restart the Stream Deck app.
 
 ## Connect it to WolfWave
 
-Drag any WolfWave key onto a page and open its settings panel.
+You do this once. Every WolfWave key shares the same connection.
 
-1. In WolfWave, go to Settings → Stream Deck and reveal **Stream Deck Control Token**.
-2. Paste it into the **Control token** field.
-3. Leave **Port** alone unless you changed the WebSocket port in WolfWave.
-   The plugin always connects to WolfWave on this Mac.
+1. In WolfWave, open **Settings → Stream Widgets** and make sure the server is on. Stream Deck and your overlay share it.
+2. Open **Settings → Stream Deck**.
+3. Check **Allow Stream Deck commands** is on. It's on by default.
+4. Reveal and copy the **Stream Deck Control Token**.
+5. In the Stream Deck app, drag any WolfWave key onto a page and open its settings.
+6. Paste the token into **Control token**.
+7. Leave **Port** alone unless you changed the WebSocket port in WolfWave. The default is `8765`.
 
-The Stream Deck pane also has an **Allow Stream Deck commands** switch. It is on
-by default. Turning it off makes WolfWave refuse every key press while leaving
-your overlay on the air, which is the switch to reach for if you want the
-now-playing box on stream but nothing able to drive playback.
+Good to know:
 
-You only do this once. Every WolfWave key shares the same connection.
-
-Stream Deck and your overlay share one connection, so **Stream Widgets** has to
-be on for keys to reach WolfWave. The Stream Deck pane says so, with a button
-that takes you there, when it is off.
-If you used protocol v1, copy the new control token once after updating. The old
-shared access token is now the read-only overlay token and cannot run commands.
+- **Treat the token like a password.** Anything holding it can drive WolfWave from this Mac.
+- **The overlay token won't work here.** It's read-only and can't run commands.
+- **Streamer Mode blocks copying the token.** Turn [Streamer Mode](/docs/streamer-mode) off for a moment, copy it, then turn it back on.
+- **Want the overlay on air but no key presses?** Turn off **Allow Stream Deck commands**. WolfWave then refuses every key press and leaves your overlay running.
+- **Coming from protocol v1?** Copy the new control token once after updating. The old shared token is now the read-only overlay token.
 
 <Callout type="info">
-  The plugin talks directly to WolfWave over a loopback-only control role, gated
-  by its own control token. The overlay token is read-only. No third-party service
-  is involved, no key press goes through the internet, and the plugin cannot be
-  pointed at another Mac.
+  The plugin talks only to WolfWave on this Mac. No outside service is involved, no key press goes over the internet, and the plugin can't be pointed at another Mac.
 </Callout>
 
 ## What the keys tell you
 
-| Key reads | Means |
-|---|---|
-| **Offline** | WolfWave isn't running, or the overlay server is off. It also shows when WolfWave rejects the token (rotated, or the overlay token pasted by mistake): re-copy **Stream Deck Control Token** from Settings → Stream Deck. The panel says "WolfWave rejected this token" in that case. The plugin keeps retrying. |
-| **Token?** | The control token is missing, or isn't exactly 64 hexadecimal characters (`0`–`9`, `a`–`f`, `A`–`F`; case-insensitive). Re-copy **Stream Deck Control Token** from Settings → Stream Deck. |
-| **Update** | WolfWave and the plugin disagree on the control-protocol version (v3 as of WolfWave 2.2.0, Nightly until it ships on Stable). Either one can be the older side. Update both to matching versions. |
+| Key shows | What it means | Fix |
+|---|---|---|
+| **Offline** | WolfWave isn't running, Stream Widgets is off, or WolfWave rejected the token (the settings panel says "WolfWave rejected this token"). | Start WolfWave, turn on Stream Widgets, or re-copy the **Stream Deck Control Token**. The plugin keeps retrying. |
+| **Token?** | The token is missing, or isn't exactly 64 hex characters (`0`–`9`, `a`–`f`, any case). | Re-copy the **Stream Deck Control Token** from **Settings → Stream Deck**. |
+| **Update** | WolfWave and the plugin speak different protocol versions (WolfWave 2.2.0 uses v3). Either side can be older. | Update both so they match. |
 
-A key flashes a checkmark when a press worked and an alert when it didn't —
-pressing Approve Next with nothing pending, for example.
+- A **checkmark** flash means the press worked.
+- An **alert** flash means it didn't, for example Approve Next with nothing waiting.
+- **Every press flashes an alert?** Check **Allow Stream Deck commands** is on in **Settings → Stream Deck**.
 
-If every press flashes an alert, check that **Allow Stream Deck commands** is on in Settings → Stream Deck. That is the switch, not a fault.
+## Removed in 2.2.0
 
-## Streamer Mode
+Four keys are gone:
 
-[Streamer Mode](/docs/streamer-mode) masks both tokens in WolfWave's own windows.
-It doesn't change what the plugin does, but you'll need to turn it off (or use
-the reveal control) to copy the control token in the first place.
+- **Discord Presence**, **Music Sync**, and **Cycle Theme**: each flipped a setting you set once. Change them in Settings instead.
+- **Status**: replaced by **Now Playing**.
+
+**Update the plugin and WolfWave together.** A mismatch shows **Update** on every key.

@@ -17,6 +17,13 @@ ogChips:
 ogEyebrow: Foundations
 ---
 
+**TL;DR:** these are the raw values behind every color, font size, gap, corner, and animation in WolfWave.
+Use the token name in code, never the number.
+
+| In Swift | In CSS |
+|---|---|
+| `DSColor`, `DSFont.Size`, `DSSpace`, `DSRadius`, `DSMotion`, `DSOpacity`, `DSDimension` | `--ds-*` custom properties |
+
 All values come from [`design-system/tokens.json`](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/tokens.json). Edit there and run `bun run tokens` to regenerate every platform output.
 
 ## Color
@@ -79,6 +86,14 @@ Surfaces and text colors swap on their own based on `prefers-color-scheme` / `.d
 | `surface-elev`     | `#FBFBFD` | `#0A0A0C` |
 | `surface-hairline` | `#D2D2D7` | `#2C2C2E` |
 
+### Text
+
+| Token | Light | Dark |
+|---|---|---|
+| `--ds-color-text-primary`   | `#1D1D1F` | `#F5F5F7` |
+| `--ds-color-text-secondary` | `#6E6E73` | `#A1A1A6` |
+| `--ds-color-text-muted`     | `#767676` | `#8E8E93` |
+
 ### Partner
 
 Reserved for third-party brand identity (do not use as WolfWave brand):
@@ -99,6 +114,20 @@ Reserved for third-party brand identity (do not use as WolfWave brand):
 | `2xl`  | 22 | Hero |
 | `3xl`  | 26 | Reserved for hero and the Monthly Wrap share card |
 | `display` | 52 | Monthly Wrap headline figure |
+
+Weights: `regular` 400, `medium` 500, `semibold` 600, `bold` 700.
+
+In SwiftUI, use the heading ramp instead of picking sizes:
+
+| Modifier | Size | Role |
+|---|---|---|
+| `.paneTitle()` | 22, bold | Pane title (H1) |
+| `.sectionHeader()` | 17, semibold | Section (H2) |
+| `.sectionEyebrow()` | 11, semibold, secondary | Eyebrow (H3) |
+| `.fieldSubtitle()` | 13, secondary | Body under a heading |
+| `.captionText()` | 10, secondary | Caption, footnote |
+
+All five scale with the user's text size setting.
 
 Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instrument Sans), `--ds-font-family-serif` (Instrument Serif), `--ds-font-family-mono` (JetBrains Mono).
 
@@ -159,6 +188,12 @@ Springs (`response` in seconds, `damping` as a fraction):
 | `expressive` | 0.50 | 0.60 |
 
 Respect `prefers-reduced-motion`. Drop to instant transitions.
+
+## Dimensions
+
+`DSDimension` holds fixed sizes, like window sizes, the settings sidebar width, and chart heights.
+Use it for `.frame(width:height:)`. `DSSpace` is only for gaps and padding.
+The full list is in `tokens.json` under `dimension`.
 
 ## Shadows
 

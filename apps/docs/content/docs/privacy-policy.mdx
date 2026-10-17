@@ -1,13 +1,14 @@
 ---
 title: Privacy Policy
-description: WolfWave has no tracking, no analytics, no servers. Tokens are stored in macOS Keychain. Now-playing data never leaves your Mac unless you enable a service.
+description: WolfWave has no tracking, no analytics, and no servers. Sign-ins stay in the macOS Keychain, and now-playing data only goes to services you turn on.
 keywords:
   - wolfwave privacy
   - mac streamer app no tracking
   - twitch bot privacy
   - apple music local first
+  - wolfwave data storage
 ogTitle: WolfWave Privacy. No Tracking or Cloud Servers
-ogDescription: Zero tracking. Zero analytics. Zero servers. Tokens stay in macOS Keychain. Local-first by design.
+ogDescription: Zero tracking. Zero analytics. Zero servers. Sign-ins stay in the macOS Keychain. Data only goes to services you turn on.
 ogChips:
   - No Tracking
   - No Servers
@@ -23,7 +24,19 @@ export function ContactEmail() {
 }
 
 **Effective Date:** February 12, 2026
-**Last Updated:** August 21, 2026
+**Last Updated:** October 16, 2026
+
+<Callout title="The short version">
+
+- **We don't collect anything.** WolfWave has no servers, no analytics, no ads, and no tracking.
+- **Your data stays on your Mac.** It only goes to services you turn on: Twitch, Discord, your overlay, Apple's music search, and iCloud if you turn on sync.
+- **Sign-ins are locked in the macOS Keychain** and never put in backups or iCloud.
+- **Listening History and diagnostics are off by default** and never uploaded.
+- **You can erase everything** from **Settings → Advanced → Erase All Data & Reset**.
+
+This summary is for convenience. The full policy below is what applies.
+
+</Callout>
 
 MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This Privacy Policy explains how we handle information when you use WolfWave.
 
@@ -33,16 +46,18 @@ MrDemonWolf, Inc. ("we", "us", or "our") operates the WolfWave application. This
 
 - **Twitch Account Credentials**. When you connect your Twitch account via OAuth Device Code Flow, WolfWave receives OAuth access and refresh tokens from Twitch. These tokens are stored locally in your macOS Keychain and are never transmitted to us.
 - **Channel Name**. The Twitch channel you connect to is stored with your Twitch account record in the macOS Keychain. If you restore a backup while signed out, WolfWave temporarily stages that public channel name in UserDefaults only until a successful Twitch sign-in commits it with the account.
-- **Discord Application ID**. Your Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket.
-- **Song Request Blocklist**. Song titles and artist names you choose to block from song requests are stored locally in your macOS UserDefaults and included in a settings backup if you export one. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
+- **Discord Application ID**. WolfWave's own Discord Application ID is stored in the app's build configuration and used to connect to Discord's local IPC socket. It is not information about you.
+- **Song Request Blocklist**. Song titles, artist names, and the Twitch usernames of people you choose to block from song requests are stored locally in your macOS UserDefaults and included in a settings backup if you export one. You can remove individual entries or clear the entire list at any time from **Settings → Song Requests → Blocklist → Clear All**.
 - **Custom Bot Commands**. The triggers, replies, aliases, cooldowns, and permission levels of chat commands you author are stored locally in your macOS UserDefaults and included in a settings backup if you export one.
 - **Settings Backups**. When you export your settings, WolfWave writes a plain JSON file to the location you choose. Backups contain portable preferences and the public Twitch channel name used to offer reconnection. They never include OAuth tokens, resolved Twitch user IDs, overlay or Stream Deck control tokens, or other Keychain secrets.
 
 ### Information Collected Automatically
 
 - **Now Playing Data**. WolfWave reads the currently playing track, artist, and album from Apple Music on your device using ScriptingBridge. It is shared only with services you enable (such as Twitch chat, Discord Rich Presence, or your local WebSocket overlay). Artwork lookups send track and artist search terms to Apple's iTunes Search API to find cover art.
-- **Listening History (opt-in)**. When you enable **Settings → History & Stats → Listening History**, WolfWave records each scrobbled play (track, artist, album, timestamp, duration) to a local NDJSON file under Application Support. Recording only happens while the toggle is on. You set the retention window in days (0 = keep everything) and can clear all recorded history at any time from the same pane.
-- **Twitch Viewer Activity.** When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Ordinary chat usernames and message bodies are held in memory for the queue or vote session and discarded when that state is cleared or the app quits. Paid song-request features also use a temporary recovery queue under Application Support. A channel-point record contains broadcaster, reward, and redemption IDs, its fulfill/refund state, and a timestamp; it does not contain the viewer name or request text. A qualifying Bits-cheer record contains the EventSub message and broadcaster IDs, viewer display name, Bits amount, the boost setting, the extracted song query, and a timestamp until the action is acknowledged. Completed paid-event identifiers remain for up to 10 minutes 30 seconds to suppress Twitch redelivery. Live records are removed after completion; a damaged queue file may be retained locally with a `.corrupt-*` suffix for recovery. Optional blocklist entries you create are also stored locally.
+- **Listening History (opt-in)**. When you enable **Settings → History & Stats → Listening History**, WolfWave records each qualifying play (track, artist, album, timestamp, duration) to a local file under Application Support, plus a running all-time tally. Recording only happens while the toggle is on. You choose how long plays are kept (**Keep for**: Forever, or 7 to 365 days) and can clear all recorded history at any time from the same pane.
+- **Twitch Viewer Activity.** When the Song Request, vote-skip, or chat-command features are enabled, WolfWave receives chat messages, channel-point redemptions, and bit cheers via the Twitch EventSub WebSocket. Ordinary chat usernames and message bodies are held in memory for the queue or vote session and discarded when that state is cleared or the app quits. Paid song-request features also use a temporary recovery queue under Application Support. A channel-point record contains broadcaster, reward, and redemption IDs, its fulfill/refund state, and a timestamp; it does not contain the viewer name or request text. A qualifying Bits-cheer record contains the EventSub message and broadcaster IDs, viewer display name, Bits amount, the boost setting, the extracted song query, and a timestamp until the action is acknowledged. Completed paid-event identifiers remain for up to 10 minutes 30 seconds to suppress Twitch redelivery. Live records are removed after completion; a damaged queue file may be retained locally with a `.corrupt-*` suffix for recovery. Optional blocklist entries you create are also stored locally. If you choose Twitch Polls for vote-skip, WolfWave creates the poll on your channel through the Twitch API.
+- **Notifications (opt-in)**. If you turn on song-change or vote-skip alerts, WolfWave shows them through macOS Notification Center on your Mac. Album art for a banner is written to a temporary file and deleted after the banner is posted.
+- **Crash note**. If WolfWave crashes, it writes a small note (crash type and details, app version, and build) on your Mac so the next launch can tell you. The next launch copies it into the app log and deletes the note. It is never sent anywhere.
 
 ## How We Use Information
 
@@ -50,19 +65,21 @@ WolfWave processes data **entirely on your device**. We do not operate servers o
 
 | Data | Destination | Purpose |
 |------|-------------|---------|
-| Now playing info | Twitch chat (via Helix API at `api.twitch.tv`) | Respond to `!song`, `!last`, and `!stats` commands |
+| Twitch sign-in | Twitch (`id.twitch.tv`) | Sign in with the Device Code flow, refresh, and validate your token |
+| Now playing info and chat replies | Twitch (Helix API at `api.twitch.tv`) | Reply to chat commands and song requests, post announcements, run polls, and manage the channel-point reward |
 | Now playing info | Discord (via local IPC socket at `$TMPDIR/discord-ipc-{0..9}`) | Display Rich Presence status |
-| Now playing info | Local WebSocket server (token-gated, bound to all interfaces) | Stream data to OBS browser sources and overlays on the same machine or local network |
+| Now playing info | Local widget and WebSocket servers (off until you turn on Stream Widgets; listen on all network interfaces) | Stream data to OBS browser sources and overlays on the same Mac or local network. Overlay connections need the read-only overlay token. Commands need the separate Stream Deck control token and are accepted only from this Mac |
 | Album artwork query | iTunes Search API (`itunes.apple.com`) | Fetch album art and Apple Music track URLs. song.link URLs are built on your Mac from the iTunes track ID; WolfWave never requests them |
 | Song request queries | Apple Music API (`api.music.apple.com`) for MusicKit search; `open.spotify.com/oembed` or `www.youtube.com/oembed` when a viewer pastes a Spotify or YouTube link | Find the requested track on Apple Music |
 | EventSub subscriptions | Twitch (`eventsub.wss.twitch.tv`) | Receive chat messages, channel-point redemptions, and bit cheers |
-| Update check | GitHub Releases (`github.com/MrDemonWolf/wolfwave`) | Sparkle appcast for in-app updates (skipped on Homebrew installs) |
+| Update check | GitHub Releases (`github.com/MrDemonWolf/wolfwave`) | Sparkle appcast for in-app updates on the Stable or opt-in Nightly channel (skipped on Homebrew installs) |
+| Settings sync (opt-in) | Apple iCloud Key-Value Storage | Mirror your settings export to your other Macs |
 
 ## Diagnostics
 
 WolfWave includes an **optional, opt-in** diagnostics feature that is turned **off by default**. When you enable "Collect on-device diagnostics" in Advanced settings, WolfWave uses Apple's MetricKit framework to gather crash, hang, and performance reports.
 
-These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately and deletes the saved reports. While it is on, WolfWave keeps only the newest 50 reports from the last 30 days.
+These reports are aggregated by macOS on your device and stored locally on your Mac under Application Support. They are **never uploaded**. WolfWave has no analytics servers and no code that transmits diagnostics anywhere. While the feature is on, WolfWave also keeps a local, anonymous app-launch count that never leaves your device. Turning the feature off stops collection immediately and deletes the saved reports. While it is on, WolfWave keeps only the newest 50 reports from the last 30 days.
 
 Application logs record app events, warnings, and errors to help troubleshoot problems. WolfWave redacts known sensitive values before writing them. The live log rotates at 5 MB and keeps three rotated files (up to about 20 MB total). Logs can still contain context you may not want to share, so review an exported log before posting or sending it.
 
@@ -100,19 +117,20 @@ WolfWave stores data on your devices, except for the settings payload you explic
 | Settings sync (opt-in) | Apple iCloud Key-Value Storage | Sync updated settings to replace it, or turn sync off on every Mac and delete WolfWave's stored data from your Apple Account's iCloud storage settings |
 | Application logs | `~/Library/Application Support/WolfWave/Logs/` | **Settings → Advanced → Clear Logs** |
 | Artwork and track links | `~/Library/Application Support/WolfWave/Cache/artwork-links.json` | **Settings → Advanced → Clear Artwork Cache**; **Erase All Data & Reset** also removes the Application Support container |
-| Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/plays.ndjson` | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
+| Listening history (opt-in) | `~/Library/Application Support/WolfWave/History/` (`plays.ndjson` and `lifetime-tally.json`) | **Settings → History & Stats → Clear History** (retention window is also enforced on its own) |
 | Song request blocklist | UserDefaults | **Settings → Song Requests → Blocklist → Clear All** (or per-entry remove) |
 | Song request queue / vote-skip sessions | In-memory only | Quitting the app discards these immediately |
 | Custom bot commands | UserDefaults | Delete them in **Settings → Twitch → Custom Commands** |
 | Settings backups | Wherever you saved the export | Delete the JSON file yourself |
-| MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Turn off the toggle in **Settings → Advanced** (this deletes the saved reports) |
+| MetricKit diagnostics (opt-in) | `~/Library/Application Support/WolfWave/Diagnostics/` | Turn off **Collect on-device diagnostics** in **Settings → Advanced** (this deletes the saved reports) |
+| Crash note | `~/Library/Application Support/WolfWave/State/last-crash.marker` | Deleted automatically on the next launch (a copy stays in the application logs) |
 
 Deleting WolfWave may leave UserDefaults, Application Support files, and Keychain items on macOS. Use the in-app reset before uninstalling, or remove the remaining local files and Keychain entries manually.
 
 ## Security
 
 - External service traffic uses encrypted transport (HTTPS/WSS)
-- The local OBS transport uses plaintext HTTP/WS; WebSocket connections require the per-install token, so LAN access should be limited to trusted networks
+- The local OBS transport uses plaintext HTTP/WS. Overlay connections require the per-install read-only overlay token, and commands require a separate control token accepted only from this Mac. Limit LAN access to trusted networks
 - Credentials are encrypted and protected by the macOS Keychain
 - The app is sandboxed with minimum required entitlements
 - The app is signed with a Developer ID certificate

@@ -1,14 +1,15 @@
 ---
 title: OBS Widget
-description: How WolfWave's now-playing OBS overlay is built. A Tailwind + TypeScript workspace that compiles into a single self-contained widget.html with smooth play/stop transitions.
+description: How WolfWave's OBS now-playing overlay works. Build pipeline, WebSocket message contract, themes and layouts, URL parameters, transitions, and security.
 keywords:
   - wolfwave obs widget
   - obs browser source widget
   - now-playing overlay
   - tailwind obs overlay
   - wolfwave widget transitions
-ogTitle: WolfWave OBS Widget. Build Pipeline & Transitions
-ogDescription: Tailwind + TypeScript source compiles to a single inlined widget.html. Transition state machine. Bouncy enter, calm exit, crossfade on skip.
+  - wolfwave websocket message contract
+ogTitle: WolfWave OBS Widget. Build, Messages, Themes
+ogDescription: One self-contained widget.html. WebSocket message contract, five themes, five layouts, and smooth transitions.
 ogChips:
   - OBS overlay
   - Tailwind
@@ -17,14 +18,14 @@ ogChips:
 ogEyebrow: Developers
 ---
 
-**The OBS overlay is one self-contained HTML file** at
-`apps/native/WolfWave/Resources/widget.html`. The native app bundles it, and
-`WidgetHTTPService` serves it to OBS Browser Source clients.
+**TL;DR:** the OBS overlay is one self-contained `widget.html`, built from `apps/widget/` and served by WolfWave to an OBS Browser Source.
+This page is for developers changing the widget or reading its message feed.
 
-**Don't edit that file directly.** The real source is a Tailwind + TypeScript
-workspace at `apps/widget/`. The bundled HTML is a generated artifact, produced
-by the explicit Bun build or by CI. Xcode bundles the committed artifact; it
-does not rebuild it.
+Just want the overlay on stream? Turn it on in **Settings → Stream Widgets** and copy the URL into OBS. See [Features](/docs/features) and [Settings](/docs/settings).
+
+- **Shipped file:** `apps/native/WolfWave/Resources/widget.html`. `WidgetHTTPService` serves it.
+- **Don't edit it by hand.** It's generated from the Tailwind + TypeScript workspace at `apps/widget/`.
+- **Xcode doesn't rebuild it.** Xcode bundles the committed file. You (or CI) rebuild it with bun.
 
 ## Architecture
 
@@ -64,6 +65,8 @@ coordinated change.
 | `queue_upcoming` | `{ items: [{ title, requesterUsername }] }` (max 3) | Queue change |
 
 The browser widget never sends back. The native app pushes, the browser renders.
+
+The server also broadcasts `queue_state` and `health` to every client. The widget ignores them; they're for [Stream Deck](/docs/stream-deck#live-state-frames).
 
 ### Control API
 
@@ -126,6 +129,7 @@ Background color pickers; the other themes ship fixed palettes.
 | Parameter | What it does |
 |---|---|
 | `?token=<hex>` | LAN bootstrap token; the widget forwards it when opening the WebSocket. Loopback pages receive the token in the served HTML instead. |
+| `?port=8765` | WebSocket port to connect to (1-65535). Defaults to `8765` |
 | `?duration=8` | Auto-hide after N seconds (0 = never) |
 | `?hideAlbumArt` | Render without the artwork tile |
 | `?queueTicker=1` | Show the upcoming-queue ticker panel (off by default) |
@@ -139,7 +143,7 @@ Widgets** and the overlay follows along live.
 widget URL to show a small panel listing the next 3 song requests (title +
 requester). It's a separate fixed-position panel, not part of the now-playing
 card or any layout, so turning it on never changes an existing Browser
-Source's size or position. When the queue is empty it shows "Queue open, !sr
+Source's size or position. When the queue is empty it shows "Queue open — !sr
 to join" instead of disappearing, so the panel doesn't flicker in and out as
 the queue drains.
 
@@ -191,6 +195,8 @@ The runtime source is heavily commented top-to-bottom, with banner sections
 to understand the whole widget.
 
 ## Dev loop
+
+Use the pinned bun (`1.3.11`, from the root `package.json`). Other versions minify differently and fail CI's drift check.
 
 ```bash
 # Regenerate tokens when tokens.json or its generator inputs change

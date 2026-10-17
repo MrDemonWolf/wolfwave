@@ -1,61 +1,65 @@
 ---
 title: Install
-description: Install WolfWave on macOS 26+ with Apple Silicon. Download the signed DMG or use Homebrew. Free and open source.
+description: Install WolfWave on a Mac with macOS 26 and Apple Silicon. Download the signed DMG or use Homebrew, then walk through the 8-step setup wizard.
 ogTitle: Install WolfWave. Free Apple Music Bot for Twitch on Mac
-ogDescription: Two-minute install. DMG or Homebrew. macOS 26+ on Apple Silicon. Signed and notarized. Free and open source.
+ogDescription: Download the DMG or use Homebrew, then follow the short setup wizard. macOS 26+ on Apple Silicon. Signed, notarized, and free.
+ogEyebrow: Install in 2 minutes
+ogChips:
+  - DMG
+  - Homebrew
+  - Setup wizard
+  - Apple Silicon
 keywords:
   - install wolfwave
   - download wolfwave mac
   - brew install wolfwave
   - brew tap mrdemonwolf/den
+  - wolfwave setup wizard
   - apple music twitch chat bot mac
-  - free apple music twitch bot
   - macos 26 streamer app
-ogChips:
-  - DMG
-  - Homebrew
-  - Apple Silicon
-  - Free
-ogEyebrow: Install in 2 minutes
 ---
+
+**TL;DR:** For streamers setting up WolfWave for the first time. Install the app, follow the setup wizard, then turn on the features you want.
 
 ## What you need
 
-- **macOS 26.0+ (Tahoe).** Older versions won't run it.
-- **Apple Silicon (M1 or later).** Intel Macs aren't supported.
-- **The Apple Music app.** WolfWave reads only from Apple Music, which is built into macOS. Spotify and other players don't work.
+- **macOS 26 (Tahoe) or later.** Older versions can't run it.
+- **A Mac with Apple Silicon** (M1 or later). Intel Macs aren't supported.
+- **The Apple Music app.** It's built into macOS. WolfWave only reads from Apple Music, not Spotify or other players.
 
-## Get WolfWave
+## Step 1: Get WolfWave
 
 <Tabs items={["DMG (recommended)", "Homebrew"]}>
 
 <Tab value="DMG (recommended)">
 
-**Pick this if you're not sure.** It's the normal installer, signed and notarized, so no security warnings.
+**Pick this if you're not sure.** It's signed and notarized by Apple, so macOS won't warn you.
 
 <Cards>
   <Card
     title="Download the .dmg"
     href="/download"
-    description="Latest signed release direct from GitHub."
+    description="The latest signed release, straight from GitHub."
   />
 </Cards>
 
-1. **Open the `.dmg`** you just downloaded.
+1. **Open the `.dmg`** you downloaded.
 2. **Drag WolfWave into Applications.**
-3. **Launch it** from Spotlight or Launchpad.
+3. **Open WolfWave** from Applications or Spotlight.
+
+The app updates itself. You can check any time from **Settings → Software Update**.
 
 </Tab>
 
 <Tab value="Homebrew">
 
-**For developers** who want one-command installs and `brew upgrade`.
+**For people who already use [Homebrew](https://brew.sh).**
 
 ```bash
 brew install --cask mrdemonwolf/den/wolfwave
 ```
 
-Updates come through Homebrew. The in-app Sparkle updater is off in this mode.
+Homebrew handles updates. The in-app updater turns itself off for this install.
 
 ```bash
 brew upgrade --cask wolfwave
@@ -65,9 +69,14 @@ brew upgrade --cask wolfwave
 
 </Tabs>
 
-## First launch
+## Step 2: The setup wizard
 
-**A setup wizard runs the first time you open WolfWave.** It's 8 short steps. Skip any optional one and finish it later from **Settings**.
+The wizard opens the first time you launch WolfWave. It has 8 steps.
+
+- **Optional steps** say "Optional" above the title. Click **Next** or **Skip** to move on.
+- **Back** returns to the step before.
+- **Skip All** ends the wizard and keeps the default settings.
+- You can finish anything later in **Settings**, or open the wizard again from **Settings → Advanced → Rerun Setup Wizard**.
 
 <Steps>
 
@@ -75,7 +84,7 @@ brew upgrade --cask wolfwave
 
 ### Welcome
 
-**A quick intro.** What WolfWave does and what you're about to set up.
+A quick hello. WolfWave reads your Apple Music track and only shares what you turn on.
 
 </Step>
 
@@ -83,7 +92,10 @@ brew upgrade --cask wolfwave
 
 ### Discord *(optional)*
 
-**Sign in to your Discord desktop app.** WolfWave talks to it locally. No bot token, no server to run.
+Turn on **Show music on Discord** to show your song on your Discord profile.
+
+- Keep the Discord app open on this Mac. WolfWave talks to it directly.
+- No bot or token needed.
 
 </Step>
 
@@ -91,7 +103,11 @@ brew upgrade --cask wolfwave
 
 ### Twitch *(optional)*
 
-**Connect your Twitch account.** You're sent to twitch.tv to approve. Your login is stored safely in your Mac's Keychain.
+1. Click **Connect with Twitch**.
+2. Your browser opens **twitch.tv/activate**. Enter the code WolfWave shows and approve.
+3. Type your channel name under **Which channel should WolfWave join?** and click **Join**.
+
+Your sign-in is saved in your Mac's Keychain. You never type your Twitch password into WolfWave.
 
 </Step>
 
@@ -99,15 +115,23 @@ brew upgrade --cask wolfwave
 
 ### OBS Widget *(optional)*
 
-**Add a now-playing overlay to OBS.** Turn on the widget, copy the localhost URL, and paste it into OBS as a Browser Source. Details in the [widget guide](/docs/widget).
+1. Turn on **Turn on Stream Widgets**.
+2. Click **Copy overlay URL**.
+3. In OBS, add a **Browser Source** and paste the link.
+
+Sizes and styles are in [Stream Widgets](/docs/features#now-playing-widget).
 
 </Step>
 
 <Step>
 
-### Preferences
+### Preferences *(optional)*
 
-**Tweak the small stuff.** Launch at login, song-change notifications, and other handy toggles.
+Three switches:
+
+- **Start WolfWave at login.**
+- **Remember my listening history.** Kept on this Mac only. Powers [History & Stats](/docs/listening-history).
+- **Sync settings with iCloud.** Your preferences follow you to your other Macs. Accounts stay on this one. See [Back Up & Restore](/docs/backup).
 
 </Step>
 
@@ -115,7 +139,12 @@ brew upgrade --cask wolfwave
 
 ### Permissions
 
-**Click OK when macOS asks for Apple Music access.** This one is required. It's how WolfWave reads the song that's playing.
+**This one matters.** It lets WolfWave read the song that's playing.
+
+1. Click **Allow Music access**.
+2. Click **OK** when macOS asks.
+
+Clicked "Don't Allow" by mistake? Click **Open System Settings**, go to **Privacy & Security → Automation → WolfWave**, turn on **Music**, then click **Recheck**.
 
 </Step>
 
@@ -123,7 +152,10 @@ brew upgrade --cask wolfwave
 
 ### Notifications *(optional)*
 
-**Pick which alerts you want:** song-change banners, skip-vote started, skip-vote passed. Turn on notifications first, then choose. Skip any you don't need.
+1. Click **Allow notifications**.
+2. Pick your alerts: **Song changes**, **Skip vote started**, **Skip vote passed**.
+
+All are off unless you turn them on.
 
 </Step>
 
@@ -131,22 +163,30 @@ brew upgrade --cask wolfwave
 
 ### Menu Bar
 
-**Find the wolf icon.** An arrow points to it, top-right of your screen.
-
-</Step>
-
-<Step>
-
-### Done
-
-**You're set.** Click the wolf icon any time to see what's playing or open **Settings**.
+An arrow points to the wolf icon in your menu bar. Click it any time to see what's playing or open **Settings**.
 
 </Step>
 
 </Steps>
 
+Click **Finish**, then **Done**. You're set.
+
+## Step 3: Turn on what you need
+
+Pick the features you want. Each link shows how to set it up.
+
 <Cards>
-  <Card title="Features & how-to" href="/docs/features" description="What WolfWave does and how to use it." />
-  <Card title="Bot Commands" href="/docs/bot-commands" description="Every chat command explained." />
-  <Card title="Nightly Builds" href="/docs/nightly" description="Want the newest builds off main? Opt into the Nightly channel." />
+  <Card title="Twitch chat bot" href="/docs/features#twitch-chat-bot" description="Let chat ask what's playing with !song and !last." />
+  <Card title="Song requests" href="/docs/features#song-requests" description="Let chat queue songs with !sr, channel points, or Bits." />
+  <Card title="OBS overlay" href="/docs/features#now-playing-widget" description="Show the current song on stream." />
+  <Card title="Discord status" href="/docs/features#discord-status" description="Show your song on your Discord profile." />
+  <Card title="Stream Deck" href="/docs/streamdeck" description="Skip, hold the queue, and more from physical keys." />
+  <Card title="History & Stats" href="/docs/listening-history" description="Charts, top artists, and a Monthly Wrap." />
 </Cards>
+
+## More help
+
+- [Settings](/docs/settings). What lives in each pane.
+- [Bot Commands](/docs/bot-commands). Every chat command.
+- [Troubleshooting](/docs/troubleshooting). Fixes by symptom.
+- [Nightly Builds](/docs/nightly). Want the newest builds early? Switch channels.

@@ -1,6 +1,6 @@
 import { docs } from 'fumadocs-mdx:collections/server';
 import { type InferPageType, loader } from 'fumadocs-core/source';
-import { absoluteUrl } from './site';
+import { absoluteUrl, pageUrl } from './site';
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
@@ -19,11 +19,17 @@ export function getPageImage(page: InferPageType<typeof source>) {
   };
 }
 
-/** Renders a docs page as plain markdown (title + processed body) for the llms.txt export. */
+/**
+ * Renders a docs page as plain markdown for the llms-full.txt export: title,
+ * canonical URL, one-line description, then the processed body.
+ */
 export async function getLLMText(page: InferPageType<typeof source>) {
   const processed = await page.data.getText('processed');
+  const description = page.data.description ? `\n\n> ${page.data.description}` : '';
 
   return `# ${page.data.title}
+
+URL: ${pageUrl(page.url)}${description}
 
 ${processed}`;
 }

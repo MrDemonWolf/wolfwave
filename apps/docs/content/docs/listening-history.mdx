@@ -1,8 +1,8 @@
 ---
 title: Listening History & Stats
-description: WolfWave can keep an opt-in, on-device log of what you play, with top artists, listening time, a weekly trend, a Monthly Wrap, and the !stats chat command.
+description: Keep an opt-in, on-device log of what you play in Apple Music, with top artists, listening time, a 7-day trend, a Monthly Wrap, and a !stats chat command.
 ogTitle: WolfWave Listening History & Stats
-ogDescription: An opt-in play log stored on your Mac, with top artists, listening time, weekly trends, Monthly Wrap, and a live !stats command.
+ogDescription: An opt-in play log stored only on your Mac, with top artists, listening time, a 7-day trend, Monthly Wrap, and a !stats chat command.
 ogEyebrow: Guide
 ogChips:
   - On-device only
@@ -16,60 +16,96 @@ keywords:
   - twitch now playing stats command
 ---
 
-**Your private play log.** WolfWave can track what you play and turn it into stats. It's off by default, stays only on your Mac, and never gets uploaded.
+**TL;DR:** WolfWave can keep a private log of the songs you play and turn it into stats, charts, and a shareable Monthly Wrap. It's off by default and never leaves your Mac. This page is for streamers.
+
+Everything here lives in **Settings → History & Stats**.
 
 ## Turn it on
 
-**Opt-in, always.** Flip it on in **Settings → History & Stats**, or during the first-launch setup. Until you do, nothing is recorded.
+1. Open **Settings → History & Stats**.
+2. Turn on **Listening History**. WolfWave starts saving plays.
+3. Turn on **Show Stats & Charts** to see the dashboard, Monthly Wrap, and the `!stats` command.
 
-- **Off** means no play log exists.
-- **Turn it off later** and you can clear what was saved.
+You can also turn on Listening History on the Preferences step of the setup wizard.
+
+Good to know:
+
+- **Nothing is saved until you turn it on.**
+- **Stats & Charts needs Listening History.** Turning History off turns Stats (and `!stats`) off too.
+- **Both need Apple Music access.** If you denied WolfWave control of Music, the switches stay locked until you allow it.
 
 ## What counts as a play
 
-**Skipping doesn't count.** A track logs only after it plays past its halfway point or past four minutes, whichever comes first. Hunting through songs won't junk up your history. A song you actually listen to gets logged once.
+**Skips don't count.** A song is saved only after it plays for:
 
-The log is an on-device, append-only file. It's your data, not a setting, so it's not part of a [settings backup](/docs/backup).
+- **half its length**, or
+- **4 minutes**,
+
+whichever comes first. Each real listen is saved once.
 
 ## Stats and charts
 
-Turn history on and **Settings → History & Stats** shows a dashboard (built on SwiftUI Charts):
+With **Show Stats & Charts** on, the pane shows:
 
-- **Top artists** by play count.
-- **Listening time**, total and recent.
-- **7-day trend** of how much you've played.
-- **Listening by hour**, so you can see when you listen.
-- **Top card** that flips between artists, tracks, and albums.
+- **Top list**: switch between **Artists**, **Tracks**, and **Albums**.
+- **Summary tiles**: plays and listening time for **This week**, **Today**, and **All time**.
+- **7-day trend**: plays per day for the last week.
+- **Listening by hour**: when in the day you listen most.
 
-Two columns on a wide window, one on a narrow one.
+Everything is worked out on your Mac.
 
 ## Monthly Wrap
 
-**Your month, wrapped.** Pick any month for a personal, Wrapped-style summary. Save it as a PNG, or send it to Messages, Mail, AirDrop, and anywhere else through the macOS share sheet.
+**A Wrapped-style summary of any month.**
 
-## Retention
+1. In **Settings → History & Stats**, click **Monthly Wrap**.
+2. Pick a month.
+3. Click **Export as Image** to save a PNG, or use the share button to send it to Messages, Mail, AirDrop, and more.
 
-**You pick how long to keep it** in **Settings → History & Stats**. Older entries clear automatically, and a change applies right away.
+A month with no plays shows an empty card.
 
-| Keep for | |
+## How long plays are kept
+
+Pick a window under **Keep for**:
+
+| Keep for | What happens |
 |---|---|
-| Forever | Nothing is auto-cleared. |
-| 7 / 30 / 90 / 180 / 365 days | Entries older than your pick clear automatically as plays are recorded and during daily checks. |
+| **Forever** | Nothing is cleared automatically. This is the default. |
+| **7 / 30 / 90 / 180 / 365 days** | Older plays clear on their own. |
 
-Shortening the window asks you to confirm how many existing plays will be removed. Expired plays are removed from the statistics too.
+- **A change applies right away.** Shortening the window asks you to confirm how many plays will be removed.
+- **Removed plays leave your stats too.** On **Forever**, older plays that WolfWave compacts still count toward all-time totals and top lists.
+
+## Clear your history
+
+1. Open **Settings → History & Stats**.
+2. In **Danger Zone**, click **Clear History**.
+3. Confirm. Every saved play is deleted. This can't be undone.
+
+Turning **Listening History** off stops new saves but keeps what's already there until you clear it.
 
 ## The !stats chat command
 
-**Viewers can pull up your listening stats** in Twitch chat with `!stats`. It only replies while you're live, so it stays quiet off-air.
+**Lets your Twitch chat see your listening stats.** Viewers type `!stats`.
 
-In **Settings → History & Stats** you control what it says:
+Set it up in **Settings → History & Stats**:
 
-- **Window**: Today, This stream (since you went live), Last 7 days, or All time.
-- **Include**: any mix of play count, listening time, top track, and top artist. A live preview shows the exact reply.
-- **Aliases and cooldowns**: extra trigger names plus per-everyone and per-person cooldowns.
+1. Turn on **!stats command**. It needs Show Stats & Charts on and Twitch connected.
+2. Pick a **Window**:
+   - **Today**
+   - **This stream**: since you went live. When you're offline, it answers with Today.
+   - **Last 7 days**
+   - **All time**
+3. Pick what to **Include**: plays, listening time, top track, top artist. At least one stays on.
+4. Check the **Example reply** to see the exact message.
+5. Set the cooldowns: **Everyone** (whole chat) and **Per person**. Both default to 15 seconds.
 
-See [Bot Commands](/docs/bot-commands) for the full command list.
+Want `!stats` quiet while you're offline? Turn on **Only reply while live** in **Settings → Twitch**. That switch covers every chat command.
 
-## Privacy
+See [Bot Commands](/docs/bot-commands) for every command viewers can use.
 
-Turning Listening History off stops new recordings. Existing plays stay on this Mac until you clear the history; the retention window can also remove older plays.
+## Where your data lives
+
+- **On this Mac only**, in WolfWave's Application Support folder.
+- **Not in settings backups or iCloud sync.** See [Back Up & Restore](/docs/backup).
+- **Never uploaded.** See the [Privacy Policy](/docs/privacy-policy).
