@@ -30,7 +30,7 @@
     "postcss": "^8.5.29",
     "serve": "^14.2.5",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "eslint-config-next": "16.4.0",
     "eslint": "^10.12.0"
   }
