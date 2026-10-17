@@ -319,13 +319,13 @@ actor DiscordRPCService {
     private var enableIntentGeneration: UInt64 = 0
 
     /// Process ID sent with SET_ACTIVITY (Discord requires it).
-    private let pid = ProcessInfo.processInfo.processIdentifier
+    let pid = ProcessInfo.processInfo.processIdentifier
 
     /// Snapshot of the most recent `updatePresence` call. Used to re-send the
     /// current activity when display settings (button labels, toggles, state format)
     /// change via `discordPresenceSettingsChanged`, so users see the effect of a
     /// label edit without waiting for the next track change.
-    private struct LastPresence {
+    struct LastPresence {
         let track: String
         let artist: String
         let album: String
@@ -342,20 +342,20 @@ actor DiscordRPCService {
     /// The latest track snapshot. Cleared when presence is cleared or idle is
     /// shown, except on paths that pass `preservingLastPresence: true` so a
     /// later re-enable or resume can restore the activity.
-    private var lastPresence: LastPresence?
+    var lastPresence: LastPresence?
     /// Newest activity waiting for the rate-limit window. Only the latest one
     /// survives a burst; ``cancelPendingPresence()`` drops it.
-    private var pendingActivity: [String: Any]?
+    var pendingActivity: [String: Any]?
     /// Delayed flush of ``pendingActivity``; non-nil while a send is scheduled.
-    private var presenceSendTask: Task<Void, Never>?
+    var presenceSendTask: Task<Void, Never>?
     /// When the last `SET_ACTIVITY` with an activity was written.
-    private var lastActivitySentAt: Date?
+    var lastActivitySentAt: Date?
     /// Nonce of the last activity sent. A Discord ERROR reply is retried only
     /// when it matches, so a rejection of an older payload is ignored.
-    private var lastActivityNonce: String?
+    var lastActivityNonce: String?
     /// Whether the one allowed retry for the current activity was spent. Reset
     /// whenever a new activity is queued.
-    private var presenceRetryUsed = false
+    var presenceRetryUsed = false
     /// Minimum seconds between activity sends. Discord rate-limits
     /// `SET_ACTIVITY`, so updates inside this window are coalesced.
     var presenceMinimumInterval: TimeInterval = 4
@@ -364,11 +364,11 @@ actor DiscordRPCService {
     private nonisolated(unsafe) var settingsObserver: NSObjectProtocol?
 
     /// Cached result of `readDiscordTmpDir()` to avoid sysctl on every connect.
-    private var cachedDiscordTmpDir: String?
+    var cachedDiscordTmpDir: String?
     /// When `cachedDiscordTmpDir` was last populated.
-    private var cachedDiscordTmpDirAt: Date = .distantPast
+    var cachedDiscordTmpDirAt: Date = .distantPast
     /// How long the TMPDIR cache is valid (Discord's TMPDIR doesn't change mid-session).
-    private let discordTmpDirTTL: TimeInterval = 30
+    let discordTmpDirTTL: TimeInterval = 30
 
     // MARK: - Init
 
@@ -587,7 +587,7 @@ actor DiscordRPCService {
     /// Starts a one-time `ArtworkService` lookup for the track's artwork and
     /// links, unless one was already attempted. When it returns anything new,
     /// ``handleResolvedLinks(track:artist:links:)`` re-sends the presence.
-    private func resolveLinksIfNeeded(track: String, artist: String) {
+    func resolveLinksIfNeeded(track: String, artist: String) {
         guard !ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist) else {
             return
         }
@@ -632,7 +632,7 @@ actor DiscordRPCService {
     ///
     /// - Parameter preservingLastPresence: Keep ``lastPresence`` so a resume
     ///   can restore the track (used when a paused track is hidden).
-    private func performShowIdleStatus(preservingLastPresence: Bool) async {
+    func performShowIdleStatus(preservingLastPresence: Bool) async {
         if !preservingLastPresence {
             lastPresence = nil
         }
@@ -665,236 +665,6 @@ actor DiscordRPCService {
         }
     }
 
-    // MARK: - Presence Helpers
-
-    /// Drops any queued activity and sends a `SET_ACTIVITY` with no `activity`,
-    /// which clears the profile card. Not rate-limited: a clear always goes out
-    /// immediately.
-    ///
-    /// - Parameter preservingLastPresence: Keep ``lastPresence`` so the track
-    ///   can be restored later.
-    private func performClearPresence(preservingLastPresence: Bool = false) async {
-        cancelPendingPresence()
-        if !preservingLastPresence {
-            lastPresence = nil
-        }
-        guard state == .connected else { return }
-
-        let payload: [String: Any] = [
-            "cmd": "SET_ACTIVITY",
-            "args": [
-                "pid": pid
-            ],
-            "nonce": UUID().uuidString
-        ]
-
-        await sendCommandFrame(payload)
-    }
-
-    /// Builds and sends a SET_ACTIVITY frame with the given track metadata.
-    ///
-    /// - Parameters:
-    ///   - track: Song title.
-    ///   - artist: Artist name.
-    ///   - album: Album name (used as large image tooltip).
-    ///   - playlist: Current Apple Music playlist name (empty if none / unknown).
-    ///   - artworkURL: Optional iTunes artwork URL. If nil, falls back to a source-specific
-    ///     asset uploaded in the Discord Developer Portal.
-    ///   - duration: Total track duration in seconds (0 if unknown).
-    ///   - elapsed: Elapsed time in seconds (0 if unknown).
-    ///   - appleMusicURL: Target for the first button, if resolved.
-    ///   - songLinkURL: Target for the second button, if resolved.
-    ///   - isPaused: Shows the paused badge and drops timestamps.
-    private func sendPresenceActivity(
-        track: String,
-        artist: String,
-        album: String,
-        playlist: String,
-        artworkURL: String?,
-        duration: TimeInterval,
-        elapsed: TimeInterval,
-        appleMusicURL: String? = nil,
-        songLinkURL: String? = nil,
-        isPaused: Bool = false
-    ) async {
-        let activity = DiscordPresenceBuilder.buildActivity(
-            track: track,
-            artist: artist,
-            album: album,
-            playlist: playlist,
-            artworkURL: artworkURL,
-            duration: duration,
-            elapsed: elapsed,
-            appleMusicURL: appleMusicURL,
-            songLinkURL: songLinkURL,
-            isPaused: isPaused,
-            defaults: DefaultsStore.store,
-            now: Date()
-        )
-
-        await sendActivityFrame(activity)
-    }
-
-    /// Records the latest track snapshot (stamped with the current time) so
-    /// settings changes and reconnects can re-send it.
-    private func cachePresence(
-        track: String,
-        artist: String,
-        album: String,
-        playlist: String,
-        duration: TimeInterval,
-        elapsed: TimeInterval,
-        isPaused: Bool
-    ) {
-        lastPresence = LastPresence(
-            track: track, artist: artist, album: album, playlist: playlist,
-            duration: duration, elapsed: elapsed,
-            isPaused: isPaused, capturedAt: Date()
-        )
-    }
-
-    /// Wraps an `activity` dictionary in a `SET_ACTIVITY` frame and sends it.
-    ///
-    /// Rate-limited: inside ``presenceMinimumInterval`` of the last send, the
-    /// activity replaces any pending one and goes out when the window ends.
-    /// No-op unless enabled and connected.
-    func sendActivityFrame(_ activity: [String: Any]) async {
-        guard isEnabled, state == .connected else { return }
-        pendingActivity = activity
-        presenceRetryUsed = false
-        if presenceSendTask != nil { return }
-        if let lastActivitySentAt, Date().timeIntervalSince(lastActivitySentAt) < presenceMinimumInterval {
-            schedulePendingPresence()
-        } else {
-            await flushPendingPresence(generation: connectionGeneration)
-        }
-    }
-
-    /// Schedules a flush of ``pendingActivity`` when the rate-limit window
-    /// ends. Only the latest pending payload survives a burst. Clear and
-    /// disconnect cancel it. The flush is pinned to the current
-    /// ``connectionGeneration`` so it never writes to a later connection.
-    private func schedulePendingPresence() {
-        guard presenceSendTask == nil else { return }
-        let generation = connectionGeneration
-        let delay = max(0, presenceMinimumInterval - Date().timeIntervalSince(lastActivitySentAt ?? .distantPast))
-        presenceSendTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
-            guard !Task.isCancelled else { return }
-            await self?.flushPendingPresence(generation: generation)
-        }
-    }
-
-    /// Sends ``pendingActivity`` with a fresh nonce, if the connection that
-    /// scheduled it is still current.
-    private func flushPendingPresence(generation: UInt64) async {
-        guard generation == connectionGeneration, isEnabled, state == .connected else { return }
-        presenceSendTask = nil
-        guard let activity = pendingActivity else { return }
-        pendingActivity = nil
-        let nonce = UUID().uuidString
-        lastActivityNonce = nonce
-        lastActivitySentAt = Date()
-        let payload: [String: Any] = [
-            "cmd": "SET_ACTIVITY",
-            "args": [
-                "pid": pid,
-                "activity": activity
-            ],
-            "nonce": nonce
-        ]
-
-        await sendCommandFrame(payload)
-    }
-
-    /// Cancels the scheduled flush and forgets the pending activity and its
-    /// nonce, so a late ERROR reply for it is not retried.
-    func cancelPendingPresence() {
-        presenceSendTask?.cancel()
-        presenceSendTask = nil
-        pendingActivity = nil
-        lastActivityNonce = nil
-    }
-
-    /// A rejected activity gets one delayed retry; newer updates own the pending slot.
-    ///
-    /// Called from ``sendCommandFrame(_:)`` when Discord answers ERROR. Skipped
-    /// when `nonce` is not the latest send, the retry was already used, a
-    /// newer activity is pending, or there is no track to show.
-    func retryRejectedPresence(_ activity: [String: Any], nonce: String) {
-        guard isEnabled, state == .connected, lastPresence != nil,
-              nonce == lastActivityNonce, !presenceRetryUsed, pendingActivity == nil else { return }
-        presenceRetryUsed = true
-        pendingActivity = activity
-        schedulePendingPresence()
-    }
-
-    /// Re-sends the most recent presence with current settings applied.
-    ///
-    /// Called when `discordPresenceSettingsChanged` fires (e.g. user toggled a button
-    /// in settings), after a connect, and after a link lookup. Re-uses cached
-    /// `TrackLinks` via `ArtworkService.shared` so no network round-trip is
-    /// required. With no snapshot, applies the no-track preference (idle or
-    /// clear) instead.
-    func refreshPresenceFromSettings(
-        showIdleStatus: Bool = FeatureFlags.discordShowIdleStatus,
-        clearWhilePaused: Bool = FeatureFlags.discordClearWhilePaused
-    ) async {
-        guard isEnabled, state == .connected else { return }
-        guard let snap = lastPresence else {
-            await sendNoTrackPresence(
-                showIdleStatus: showIdleStatus,
-                preservingLastPresence: false
-            )
-            return
-        }
-        resolveLinksIfNeeded(track: snap.track, artist: snap.artist)
-        if snap.isPaused && clearWhilePaused {
-            await sendNoTrackPresence(
-                showIdleStatus: showIdleStatus,
-                preservingLastPresence: true
-            )
-            return
-        }
-
-        // Recompute elapsed from the captured timestamp so the progress bar stays accurate.
-        let drift = Date().timeIntervalSince(snap.capturedAt)
-        let elapsed = snap.isPaused ? snap.elapsed : snap.duration > 0
-            ? min(snap.elapsed + drift, snap.duration)
-            : snap.elapsed
-
-        let cached = ArtworkService.shared.cachedTrackLinks(track: snap.track, artist: snap.artist)
-        await sendPresenceActivity(
-            track: snap.track,
-            artist: snap.artist,
-            album: snap.album,
-            playlist: snap.playlist,
-            artworkURL: cached.artworkURL,
-            duration: snap.duration,
-            elapsed: elapsed,
-            appleMusicURL: cached.trackViewURL,
-            songLinkURL: cached.songLinkURL,
-            isPaused: snap.isPaused
-        )
-    }
-
-    /// Applies the current no-track preference after a display setting changes.
-    private func sendNoTrackPresence(
-        showIdleStatus: Bool,
-        preservingLastPresence: Bool
-    ) async {
-        if showIdleStatus {
-            await performShowIdleStatus(preservingLastPresence: preservingLastPresence)
-        } else {
-            await performClearPresence(preservingLastPresence: preservingLastPresence)
-        }
-    }
-
-    // Presence payload + playlist-resolution builders (buildActivity,
-    // buildIdleActivity, resolveButton, buttonKeys, PlaylistDisplay,
-    // resolvePlaylistDisplay, stateLine, smallText) live in
-    // DiscordPresenceBuilder.swift.
-
     // MARK: - Client ID Resolution
 
     /// Resolves the Discord Application ID from Info.plist or environment.
@@ -916,164 +686,6 @@ actor DiscordRPCService {
             return env
         }
 
-        return nil
-    }
-
-    // MARK: - Temp Directory
-
-    /// Known Discord bundle identifiers (stable, Canary, PTB).
-    private static let discordBundleIDs = [
-        "com.hnc.Discord",
-        "com.hnc.Discord.Canary",
-        "com.hnc.Discord.PTB"
-    ]
-
-    /// Returns candidate temp directory paths for locating Discord's IPC socket.
-    ///
-    /// In a sandboxed app, `$TMPDIR`, `NSTemporaryDirectory()`, and `confstr` all
-    /// return the container path (`~/Library/Containers/<id>/Data/tmp/`), but Discord
-    /// places its IPC socket in the OS-level temp directory (`/var/folders/.../T/`).
-    ///
-    /// Strategy (in priority order):
-    /// 1. Read the real `TMPDIR` from a running Discord process via `sysctl(KERN_PROCARGS2)`.
-    ///    This kernel query is not blocked by App Sandbox.
-    /// 2. Fall back to `confstr(_CS_DARWIN_USER_TEMP_DIR)` (works for non-sandboxed apps).
-    ///
-    /// All returned paths are resolved through symlinks so the sandbox sees the
-    /// canonical form (e.g., `/private/var/folders/…` instead of `/var/folders/…`).
-    ///
-    /// - Returns: Array of directory paths to search, most likely first.
-    ///
-    /// Widened from `private` so `connectIfNeeded` in `DiscordRPCService+IPC.swift`
-    /// can call it across files.
-    func tempDirectoryCandidates() -> [String] {
-        var candidates: [String] = []
-
-        // 1. Read the REAL TMPDIR from Discord's own process environment.
-        //    sysctl(KERN_PROCARGS2) returns argv + environ for same-user processes
-        //    and is NOT redirected by App Sandbox.
-        //    Result is cached for `discordTmpDirTTL` seconds. Discord's TMPDIR
-        //    doesn't change while it's running, so calling sysctl on every
-        //    connect attempt is wasteful.
-        let now = Date()
-        let discordTmpDir: String?
-        if let cached = cachedDiscordTmpDir, now.timeIntervalSince(cachedDiscordTmpDirAt) < discordTmpDirTTL {
-            discordTmpDir = cached
-        } else {
-            discordTmpDir = readDiscordTmpDir()
-            cachedDiscordTmpDir = discordTmpDir
-            cachedDiscordTmpDirAt = now
-        }
-
-        if let discordTmpDir {
-            let resolved = Self.resolveSymlinks(discordTmpDir)
-            candidates.append(resolved)
-        }
-
-        // 2. confstr: works outside sandbox, returns container path inside sandbox.
-        let len = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
-        if len > 0 {
-            var buf = [CChar](repeating: 0, count: len)
-            confstr(_CS_DARWIN_USER_TEMP_DIR, &buf, len)
-            let bytes = buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
-            let resolved = Self.resolveSymlinks(String(decoding: bytes, as: UTF8.self))
-            if !candidates.contains(resolved) {
-                candidates.append(resolved)
-            }
-        }
-
-        return candidates
-    }
-
-    /// Resolves symlinks in a path to produce the canonical filesystem path.
-    ///
-    /// On macOS, `/var` is a symlink to `/private/var`. The App Sandbox checks
-    /// against canonical paths, so `connect()` to `/var/folders/.../discord-ipc-0`
-    /// won't match an SBPL rule for `/private/var/folders/...`. This method
-    /// ensures paths use the real, resolved form.
-    nonisolated private static func resolveSymlinks(_ path: String) -> String {
-        // URL.resolvingSymlinksInPath() resolves all symlinks and also
-        // standardizes the path (removes trailing slashes, `.`, `..`).
-        URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-    }
-
-    /// Reads the `TMPDIR` environment variable from a running Discord process.
-    ///
-    /// Uses `sysctl(KERN_PROCARGS2)` which returns the command-line arguments and
-    /// environment of any same-user process. This is a kernel info query, not a
-    /// file-system operation, so App Sandbox does not block it.
-    ///
-    /// - Returns: Discord's TMPDIR value, or nil if Discord is not running or
-    ///   the environment cannot be read.
-    private func readDiscordTmpDir() -> String? {
-        // Find a running Discord process
-        var discordPID: pid_t = 0
-        for bundleID in Self.discordBundleIDs {
-            if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
-                discordPID = app.processIdentifier
-                break
-            }
-        }
-        guard discordPID > 0 else { return nil }
-
-        // Query the size of the process args buffer
-        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, discordPID]
-        var size: size_t = 0
-        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else {
-            return nil
-        }
-
-        // Read the process args buffer
-        var buffer = [UInt8](repeating: 0, count: size)
-        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else {
-            return nil
-        }
-
-        guard let value = Self.tmpDir(fromProcArgs2: Array(buffer.prefix(size))) else { return nil }
-        Log.debug("DiscordRPCService: Read TMPDIR from Discord process: \(value)", category: .discord)
-        return value
-    }
-
-    /// Extracts `TMPDIR` from a `KERN_PROCARGS2` buffer.
-    ///
-    /// Layout: `[argc: Int32][exec_path\0][\0 padding...][argv[0]\0]...[argv[argc-1]\0][env[0]\0]...[\0]`.
-    /// Exactly `argc` argv strings are skipped, including empty or non-UTF-8 ones,
-    /// so the environment always starts at the right entry. The environment ends
-    /// at the first empty string or the end of the buffer.
-    ///
-    /// - Parameter buffer: The raw sysctl result, trimmed to the returned size.
-    /// - Returns: The `TMPDIR` value, or nil when the buffer is malformed or has none.
-    nonisolated static func tmpDir(fromProcArgs2 buffer: [UInt8]) -> String? {
-        let header = MemoryLayout<Int32>.size
-        guard buffer.count > header else { return nil }
-        let argc = buffer.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
-        guard argc >= 0 else { return nil }
-
-        var index = header
-        // exec_path
-        while index < buffer.count, buffer[index] != 0 { index += 1 }
-        // NUL padding before argv[0]
-        while index < buffer.count, buffer[index] == 0 { index += 1 }
-
-        // Skip exactly argc argv strings, empty ones included.
-        for _ in 0..<argc {
-            guard index < buffer.count else { return nil }
-            while index < buffer.count, buffer[index] != 0 { index += 1 }
-            index += 1
-        }
-
-        // Environment: NUL-terminated strings until an empty one.
-        let prefix = Array("TMPDIR=".utf8)
-        while index < buffer.count {
-            let entryStart = index
-            while index < buffer.count, buffer[index] != 0 { index += 1 }
-            let entry = buffer[entryStart..<index]
-            index += 1
-            if entry.isEmpty { break }
-            if entry.starts(with: prefix) {
-                return String(bytes: entry.dropFirst(prefix.count), encoding: .utf8)
-            }
-        }
         return nil
     }
 
