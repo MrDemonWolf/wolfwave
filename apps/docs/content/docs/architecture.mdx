@@ -27,7 +27,7 @@ The native app lives at [`apps/native/WolfWave/`](https://github.com/MrDemonWolf
 ```
 WolfWave/
 ├── WolfWaveApp.swift              # @main + NSApplicationDelegateAdaptor
-├── AppDelegate+*.swift            # MenuBar / Services / Windows / DockMenu / StreamDeck splits
+├── AppDelegate+*.swift            # MenuBar / MenuSections / Services / Notifications / TwitchTokenValidation / Windows / DockMenu / StreamDeck splits
 ├── Core/                          # Constants, Keychain, Logger, StreamerMode, tray-menu state, DesignSystem tokens, …
 ├── Monitors/                      # AppleMusicSource + playback update delegate
 ├── Services/
@@ -94,7 +94,7 @@ Full Twitch integration using:
 - **EventSub WebSocket** for real-time chat message notifications.
 - **OAuth Device Code Flow** for secure authentication.
 - **Network path monitoring** for automatic reconnection.
-- **Same-actor seam files** keep the actor readable: `TwitchChatService+Auth`, `+Connection`, `+EventSub`, `+Redemptions` (teardown gate and helpers), `+RedemptionSubscriptions`, `+RedemptionHandlers`, `+RateLimiter` (a nested Helix rate-limit actor), and `+Sending` (chat send, announcements, and the bounded retry queue). `TwitchBootTokenValidationRunner` owns the app-lifetime token validation cadence.
+- **Same-actor seam files** keep the actor readable: `TwitchChatService+Auth`, `+Connection`, `+EventSub`, `+Redemptions` (teardown gate and helpers), `+RedemptionSubscriptions`, `+RedemptionHandlers`, `+RateLimiter` (a nested Helix rate-limit actor), `+Sending` (chat send, announcements, and the bounded retry queue), `+Types` (nested types and the dedup / connection-state helpers), `+Wiring`, `+ChannelLifecycle`, `+APIRequests`, `+WebSocket` (socket management and the keepalive watchdog), `+EventSubSubscriptions`, `+EventSubDecisions`, `+Polls`, `+RedemptionResolution`, and `+RedemptionTeardown`. Stored properties stay in `TwitchChatService.swift`. `TwitchCredentialStore` and `TwitchTokenRefresher` have their own files beside `TwitchDeviceAuth`, and the redemption outbox is split into `+Queues`, `+Intake`, and `+Persistence`. `TwitchBootTokenValidationRunner` owns the app-lifetime token validation cadence.
 - **Server back-off** goes through the shared `RetryAfter` helper (`Core/RetryAfter.swift`), which rejects invalid `Retry-After` values and caps every delay at 300 seconds. Twitch sign-in, Helix redemptions, the chat rate limiter, and `ArtworkService` all use it.
 - **Durable paid-event intake and resolution** via one atomic disk-backed outbox. Channel-point intake is saved before song lookup or queue work, then atomically replaced with the known fulfill/refund result before Helix delivery. Qualifying Bits cheers persist the complete replayable boost/request action before touching the in-memory queue, and atomically become a short-lived duplicate tombstone after completion. Relaunch refunds an unknown points intake conservatively and replays known point outcomes or pending Bits actions. Payment-bound processing survives socket reconnects while chat replies remain generation-scoped. A failed storage preflight pauses the managed reward; an already-paid Bits event falls back to process-owned execution and surfaces the same storage warning.
 
@@ -108,6 +108,7 @@ Coordinates chat song requests end-to-end:
 - **Blocklist**: `SongBlocklist` blocks by song title, artist, or requester (the person, not a song). An artist entry also matches inside a collaboration, including a comma-named act ("Tyler, The Creator" in "Tyler, The Creator & Kali Uchis") and "ft." / "featuring" credits.
 - **Skip**: `skip()` reports what it did (started, drained, busy, or retained), so `!skip` only says the queue is empty when it really drained.
 - **Approval screening**: opt-in "Require My Approval" (`isApprovalRequired`, `approve`/`decline`) holds each request in a pending state until the broadcaster acts, across chat, channel points, and bits.
+- **Files**: the service is split across `SongRequestService+SetupHealth`, `+PlaybackMonitoring`, `+QueueControl`, and `+Playback`; `AppleMusicController` keeps its AppleScript plumbing in `+AppleScript` and catalog search in `+Search`, and `SkipVoteManager` its settings and types in `+Configuration` and `+Types`.
 
 ### DiscordRPCService
 
@@ -119,7 +120,7 @@ Discord Rich Presence integration using:
 - **Auto-reconnect**: Detects Discord availability and reconnects on its own.
 - **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox.
 
-Payload construction is pure and lives in `DiscordPresenceBuilder`; the IPC framing sits in `DiscordRPCService+IPC`.
+Payload construction is pure and lives in `DiscordPresenceBuilder`; the IPC connect path sits in `DiscordRPCService+IPC`, frame reads and writes in `+FrameIO`, presence sends in `+Presence`, and the Discord `TMPDIR` lookup in `+TempDirectory`.
 
 #### Paused-state handling
 
@@ -153,6 +154,8 @@ Local WebSocket server for OBS stream overlays using:
 - **Role-authenticated**: Binds to all interfaces on the configured WebSocket port (`:8765` by default); `wolfwave.overlay.<hex>` clients may receive state from LAN or loopback, while the separate `wolfwave.control.<hex>` role is accepted only from loopback and alone authorizes commands — see [Security](/docs/security#websocket-server-security).
 
 Owns a `WidgetHTTPService` instance that starts and stops alongside it.
+
+The server is split into `WebSocketServerService+Lifecycle`, `+Connections`, and `+Broadcasting`; `WidgetHTTPService+Connections` holds the widget server's per-connection handling.
 
 ### WidgetHTTPService
 
