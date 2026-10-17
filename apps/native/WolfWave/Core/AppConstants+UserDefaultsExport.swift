@@ -245,9 +245,10 @@ nonisolated extension AppConstants.UserDefaults {
             "open", "subsOnly", "channelPointsOnly", "custom"
         ]),
         portableString(songRequestLimitStackMode, allowedValues: ["highest", "stacked"]),
-        portableInt(songRequestLimitSubscriber, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
-        portableInt(songRequestLimitVIP, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
-        portableInt(songRequestLimitModerator, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
+        // 0 is the Stacked-mode "None"; Everyone above has no such option.
+        portableInt(songRequestLimitSubscriber, allowedValues: [0, 1, 2, 3, 5, 10, 15, 20]),
+        portableInt(songRequestLimitVIP, allowedValues: [0, 1, 2, 3, 5, 10, 15, 20]),
+        portableInt(songRequestLimitModerator, allowedValues: [0, 1, 2, 3, 5, 10, 15, 20]),
         // Vote skip
         portableBool(voteSkipEnabled),
         portableInt(voteSkipMinVotes, allowedValues: [2, 3, 5, 7, 10]),
