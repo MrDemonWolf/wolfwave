@@ -11,6 +11,7 @@ import {
   repoUrl,
 } from "@/lib/site";
 import { buildFaqJsonLd, landingFaq } from "@/lib/faq";
+import { homeGraphLd, jsonLdScript } from "@/lib/seo";
 import {
   ArrowRight,
   Ban,
@@ -178,12 +179,17 @@ export default async function HomePage() {
   ]);
   const downloadPageUrl = pageUrl("/download");
   const faqJsonLd = buildFaqJsonLd();
+  const siteJsonLd = homeGraphLd(release?.version ?? null, downloadUrl);
 
   return (
     <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(siteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
       />
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">

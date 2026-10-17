@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { execFileSync } from "node:child_process";
 import { getLatestRelease, pageUrl } from "@/lib/site";
 import { source } from "@/lib/source";
+import { lastCommitDate } from "@/lib/seo";
 
 export const dynamic = "force-static";
 export const revalidate = false;
@@ -24,33 +24,19 @@ function classify(url: string): { priority: number; changeFrequency: Freq } {
   return { priority: 0.7, changeFrequency: "weekly" };
 }
 
-/**
- * Last commit that touched `filePath`, from git. File mtimes are useless here:
- * a CI checkout stamps every file with the checkout time, so they would all
- * claim "modified today". Returns undefined (and the entry omits lastModified)
- * when git is unavailable or the file is untracked, rather than guessing.
- */
-function lastCommitDate(filePath: string | undefined): Date | undefined {
-  if (!filePath) return undefined;
-  try {
-    const out = execFileSync("git", ["log", "-1", "--format=%cI", "--", filePath], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (!out) return undefined;
-    const date = new Date(out);
-    return Number.isNaN(date.getTime()) ? undefined : date;
-  } catch {
-    return undefined;
-  }
-}
-
 /** Spreads to nothing when the date is unknown, so the entry omits `lastModified` instead of lying. */
 function withDate(date: Date | undefined): { lastModified?: Date } {
   return date ? { lastModified: date } : {};
 }
 
-/** Sitemap for the static export: home, download, and every docs page. */
+/**
+ * Sitemap for the static export: home, download, and every docs page, each at
+ * the exact URL its canonical names. `llms.txt` / `llms-full.txt` are left out
+ * on purpose: they are plain-text files for AI tools, not pages for search
+ * results. Google ignores `changefreq` and `priority` (and uses `lastmod` only
+ * when it is accurate, which is why it comes from git); they stay for other
+ * crawlers that read them.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // The landing and download pages change meaningfully when a release ships
   // (new DMG link, new version), so they carry the release date. Fall back to

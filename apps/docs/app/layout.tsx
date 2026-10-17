@@ -1,8 +1,7 @@
 import { Instrument_Sans } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
-import { siteUrl, basePath, absoluteUrl, pageUrl, homepageSeo, repoUrl, orgUrl, getLatestVersion } from "@/lib/site";
-import { USER_THEMES, WIDGET_LAYOUTS } from "@/app/(home)/_widgets/widget-themes.generated";
+import { siteUrl, basePath, absoluteUrl, homepageSeo } from "@/lib/site";
 import "./global.css";
 
 // Display face for headlines (>= ~28px) only. Body/nav/UI text uses the
@@ -80,69 +79,17 @@ export const metadata: Metadata = {
 };
 
 /**
- * schema.org SoftwareApplication JSON-LD for the whole site.
- * @param softwareVersion latest release version, or null to omit the field.
- * Theme/layout counts in `featureList` come from the generated widget tokens so they track `tokens.json`.
+ * Root layout: font variable, skip link, and the Fumadocs provider. JSON-LD is
+ * per page (see `lib/seo.ts`), so a docs page or the 404 never claims to be the
+ * app itself.
  */
-function buildJsonLd(softwareVersion: string | null) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "WolfWave",
-    description: homepageSeo.description,
-    operatingSystem: "macOS 26.0",
-    applicationCategory: "MultimediaApplication",
-    applicationSubCategory: "Streaming",
-    processorRequirements: "Apple Silicon",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-    },
-    author: {
-      "@type": "Organization",
-      name: "MrDemonWolf, Inc.",
-      url: orgUrl,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "MrDemonWolf, Inc.",
-      url: orgUrl,
-    },
-    url: pageUrl("/"),
-    downloadUrl: `${repoUrl}/releases/latest`,
-    installUrl: pageUrl("/download"),
-    // Derived from the latest GitHub release at build time; omitted entirely
-    // when the fetch fails so we never ship a stale hardcoded version.
-    ...(softwareVersion ? { softwareVersion } : {}),
-    releaseNotes: pageUrl("/docs/changelog"),
-    screenshot: absoluteUrl("/opengraph-image.png"),
-    featureList: [
-      "Apple Music now-playing to Twitch chat (!song, !last)",
-      "Twitch song requests for Apple Music (!sr) with channel points and bits",
-      "Discord Rich Presence, Listening to WolfWave with Apple Music album art",
-      `OBS browser-source overlay with ${USER_THEMES.length} themes and ${Object.keys(WIDGET_LAYOUTS).length} layouts`,
-      "Optional Elgato Stream Deck plugin with live state on every key (manual install for now)",
-      "Vote-to-skip via chat or Twitch Polls",
-      "macOS menu bar app",
-    ],
-    license: `${repoUrl}/blob/main/LICENSE`,
-  };
-}
-
-/** Root layout: font variable, skip link, JSON-LD (fetched at build time), and the Fumadocs provider. */
-export default async function Layout({ children }: LayoutProps<"/">) {
-  const jsonLd = buildJsonLd(await getLatestVersion());
+export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={instrumentSans.variable} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <a href="#nd-page" className="skip-nav">
           Skip to content
         </a>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
         <Provider>{children}</Provider>
       </body>
     </html>

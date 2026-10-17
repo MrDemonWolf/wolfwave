@@ -1186,7 +1186,9 @@ html {
    ────────────────────────────────────────────────────────── */
 
 /* When the docs-hero block is used, suppress the auto-rendered frontmatter
-   title + description so the hero acts as the page header. */
+   title + description so the hero acts as the page header. The docs root no
+   longer renders them at all (one <h1> per page, see the docs page route);
+   this stays as a fallback for any other page that adopts the hero. */
 article:has(.docs-hero) > h1:first-of-type,
 article:has(.docs-hero) > p:first-of-type,
 [data-page]:has(.docs-hero) > h1:first-of-type,

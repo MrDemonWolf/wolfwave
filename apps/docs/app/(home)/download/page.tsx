@@ -6,7 +6,15 @@ import {
   Terminal,
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons";
-import { getLatestDmgUrl, pageUrl, repoUrl } from "@/lib/site";
+import {
+  absoluteUrl,
+  getLatestDmgUrl,
+  getLatestVersion,
+  homepageSeo,
+  pageUrl,
+  repoUrl,
+} from "@/lib/site";
+import { downloadGraphLd, jsonLdScript } from "@/lib/seo";
 import { SendToMac } from "../_widgets/SendToMac";
 import { CopyButton } from "./copy-button";
 
@@ -14,12 +22,25 @@ import { CopyButton } from "./copy-button";
 const REPO_URL = repoUrl;
 const BREW_CMD = "brew tap mrdemonwolf/den\nbrew install --cask wolfwave";
 
+const SOCIAL_TITLE = "Download WolfWave: Free for macOS 26+";
+const SOCIAL_DESCRIPTION =
+  "Free Mac app for Apple Music streamers. Twitch chat, Discord Rich Presence, and an OBS overlay. Signed DMG or Homebrew. Apple Silicon.";
+const SOCIAL_IMAGE = {
+  url: absoluteUrl("/opengraph-image.png"),
+  width: 1200,
+  height: 630,
+  alt: homepageSeo.ogImageAlt,
+};
+
 // `title.absolute`: the string already names WolfWave, so the root
-// "%s | WolfWave" template would brand it twice.
+// "%s | WolfWave" template would brand it twice. `openGraph` and `twitter` are
+// spelled out in full: Next replaces (does not merge) these objects, so a
+// partial `openGraph` here dropped the card image and the page inherited the
+// homepage's Twitter title.
 export const metadata: Metadata = {
   title: { absolute: "Download WolfWave: Free for macOS 26+ (DMG or Homebrew)" },
   description:
-    "Download WolfWave free for macOS 26+ on Apple Silicon. Install the signed .dmg or the Homebrew cask (mrdemonwolf/den/wolfwave). Apple Music required. Free and open source.",
+    "Download WolfWave free for macOS 26+ on Apple Silicon. Get the signed .dmg or install with Homebrew. Needs the Apple Music app. Free and open source.",
   keywords: [
     "download wolfwave",
     "wolfwave dmg",
@@ -30,19 +51,33 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: pageUrl("/download") },
   openGraph: {
+    type: "website",
     url: pageUrl("/download"),
-    title: "Download WolfWave: Free for macOS 26+",
-    description:
-      "Free macOS app. Apple Music to Twitch chat, Discord Rich Presence, OBS overlay. DMG or Homebrew. Apple Silicon.",
+    siteName: "WolfWave",
+    title: SOCIAL_TITLE,
+    description: SOCIAL_DESCRIPTION,
+    images: [SOCIAL_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@mrdemonwolf",
+    creator: "@mrdemonwolf",
+    title: SOCIAL_TITLE,
+    description: SOCIAL_DESCRIPTION,
+    images: [SOCIAL_IMAGE.url],
   },
 };
 
 /** Download page: latest DMG (resolved at build time) plus the Homebrew command. */
 export default async function DownloadPage() {
-  const downloadUrl = await getLatestDmgUrl();
+  const [downloadUrl, version] = await Promise.all([getLatestDmgUrl(), getLatestVersion()]);
 
   return (
     <main id="nd-page" tabIndex={-1} className="ww-font ww-bg-base">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(downloadGraphLd(version, downloadUrl)) }}
+      />
       {/* ═══════════════ HERO ═══════════════ */}
       <section className="relative overflow-hidden">
         <div className="ww-hero-glow" aria-hidden="true" />
@@ -127,9 +162,9 @@ export default async function DownloadPage() {
                   Recommended
                 </span>
               </div>
-              <h3 className="ww-display ww-text-1 text-xl mb-2">
+              <h2 className="ww-display ww-text-1 text-xl mb-2">
                 DMG installer
-              </h3>
+              </h2>
               <p className="ww-text-2 text-base leading-relaxed flex-1">
                 Drag to Applications. Auto-updates via Sparkle.
               </p>
@@ -160,9 +195,9 @@ export default async function DownloadPage() {
                 </div>
                 <span className="ww-pill">Homebrew</span>
               </div>
-              <h3 className="ww-display ww-text-1 text-xl mb-2">
+              <h2 className="ww-display ww-text-1 text-xl mb-2">
                 Command line
-              </h3>
+              </h2>
               <p className="ww-text-2 text-base leading-relaxed mb-4">
                 Auto-updates via <code className="ww-mono ww-text-1 whitespace-nowrap">brew upgrade --cask</code>.
               </p>
