@@ -101,7 +101,7 @@ final class VoteSkipCommandTests: WolfWaveTestCase {
             .pollNotAllowed,
             .pollStatusUnknown,
             .playbackUnavailable,
-            .skipUnavailable,
+            .skipUnavailable
         ]
         for outcome in outcomes {
             XCTAssertNotNil(VoteSkipCommand.format(outcome), "\(outcome) should produce a reply")

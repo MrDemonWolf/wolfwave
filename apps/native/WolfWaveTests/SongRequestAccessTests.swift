@@ -283,7 +283,9 @@ final class SongRequestLimitsTests: WolfWaveTestCase {
         )
     }
 
-    func testNonPositiveStoredLimitsFallBackToTwo() {
+    /// In Stacked mode a non-positive role value adds nothing; a bad Everyone
+    /// value still falls back to 2.
+    func testStackedNonPositiveRoleLimitsAddNothing() {
         defaults.set(
             QueueLimitMode.stacked.rawValue,
             forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
@@ -297,8 +299,111 @@ final class SongRequestLimitsTests: WolfWaveTestCase {
                 isBroadcaster: false,
                 in: defaults
             ),
-            8
+            2
         )
+    }
+
+    /// Highest mode keeps treating a non-positive stored value as 2.
+    func testHighestNonPositiveStoredLimitsFallBackToTwo() {
+        setLimits(everyone: 0, sub: -1, vip: 0, mod: -100)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: true, isModerator: true, isBroadcaster: false, in: defaults),
+            2)
+    }
+
+    /// Fresh install, Stacked: a subscriber gets the Everyone limit only, not 4.
+    func testStackedFreshInstallSubscriberGetsBaseOnly() {
+        defaults.set(QueueLimitMode.stacked.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            AppConstants.UserDefaults.Defaults.songRequestPerUserLimit)
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: true, isModerator: true, isBroadcaster: false, in: defaults),
+            AppConstants.UserDefaults.Defaults.songRequestPerUserLimit)
+    }
+
+    /// Stacked: only the role limits the streamer set add to the base.
+    func testStackedOnlyExplicitRoleLimitsAdd() {
+        defaults.set(QueueLimitMode.stacked.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        defaults.set(3, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+        defaults.set(2, forKey: AppConstants.UserDefaults.songRequestLimitSubscriber)
+
+        // everyone 3 + sub 2; the unset VIP limit adds nothing.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: true, isModerator: false, isBroadcaster: false, in: defaults),
+            5)
+        // A VIP who isn't a sub gets the base only.
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: false, isVIP: true, isModerator: false, isBroadcaster: false, in: defaults),
+            3)
+    }
+
+    /// Highest mode on a fresh install is unchanged: an unset role still counts as 2.
+    func testHighestFreshInstallUnchanged() {
+        defaults.set(1, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: false, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            1)
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            2)
+    }
+
+    // MARK: Role picker mapping
+
+    func testRolePickerShowsNoneForUnsetRoleInStackedMode() {
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: nil, mode: .stacked), SongRequestLimits.noRoleLimit)
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: 0, mode: .stacked), SongRequestLimits.noRoleLimit)
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: 5, mode: .stacked), 5)
+    }
+
+    func testRolePickerShowsTwoForUnsetRoleInHighestMode() {
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: nil, mode: .highest), 2)
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: -3, mode: .highest), 2)
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: 10, mode: .highest), 10)
+        // A value outside the picker's tags snaps instead of reaching SwiftUI.
+        XCTAssertEqual(SongRequestLimits.rolePickerValue(stored: 4, mode: .highest), 2)
+    }
+
+    func testRolePickerOptionsOfferNoneOnlyInStackedMode() {
+        XCTAssertEqual(SongRequestLimits.rolePickerOptions(for: .stacked).first, SongRequestLimits.noRoleLimit)
+        XCTAssertFalse(SongRequestLimits.rolePickerOptions(for: .highest).contains(SongRequestLimits.noRoleLimit))
+    }
+
+    /// "None" is stored as an explicit 0 so it survives import and iCloud sync
+    /// (neither removes keys). Stacked adds nothing for it; Highest reads it as 2.
+    func testExplicitNoneRoleLimit() {
+        XCTAssertEqual(SongRequestLimits.noRoleLimit, 0)
+        defaults.set(SongRequestLimits.noRoleLimit, forKey: AppConstants.UserDefaults.songRequestLimitSubscriber)
+        defaults.set(3, forKey: AppConstants.UserDefaults.songRequestPerUserLimit)
+
+        defaults.set(QueueLimitMode.stacked.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            3)
+
+        defaults.set(QueueLimitMode.highest.rawValue, forKey: AppConstants.UserDefaults.songRequestLimitStackMode)
+        XCTAssertEqual(
+            SongRequestLimits.effectiveLimit(
+                isSubscriber: true, isVIP: false, isModerator: false, isBroadcaster: false, in: defaults),
+            3)
+    }
+
+    func testRolePickerLabels() {
+        XCTAssertEqual(SongRequestLimits.rolePickerLabel(SongRequestLimits.noRoleLimit, mode: .stacked), "None")
+        XCTAssertEqual(SongRequestLimits.rolePickerLabel(3, mode: .stacked), "+3")
+        XCTAssertEqual(SongRequestLimits.rolePickerLabel(3, mode: .highest), "3")
     }
 
     func testNonChatLimitUsesEveryoneTier() {

@@ -337,7 +337,7 @@ struct SettingsBackupService {
             plan: plan,
             forceSongRequestsOff: true,
             warnings: [
-                "Song Requests weren't restored because setup isn't complete on this Mac.",
+                "Song Requests weren't restored because setup isn't complete on this Mac."
             ]
         )
     }

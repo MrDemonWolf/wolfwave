@@ -255,7 +255,7 @@ struct WidgetAppearanceConfig: Equatable {
             "layout": layout,
             "textColor": textColor,
             "backgroundColor": backgroundColor,
-            "fontFamily": fontFamily,
+            "fontFamily": fontFamily
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let string = String(data: data, encoding: .utf8) else {

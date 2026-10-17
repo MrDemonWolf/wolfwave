@@ -60,7 +60,7 @@ struct StatsAggregatorTests {
         let records = [
             record(track: "A", artist: "X", at: now, played: 100),
             record(track: "B", artist: "X", at: now, played: 200),
-            record(track: "C", artist: "Y", at: now, played: 50),
+            record(track: "C", artist: "Y", at: now, played: 50)
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.totalPlays == 3)
@@ -76,7 +76,7 @@ struct StatsAggregatorTests {
             record(track: "A1", artist: "Alpha", at: now),
             record(track: "A2", artist: "Alpha", at: now),
             record(track: "A3", artist: "Alpha", at: now),
-            record(track: "B1", artist: "Beta", at: now),
+            record(track: "B1", artist: "Beta", at: now)
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.topArtists.first?.name == "Alpha")
@@ -89,7 +89,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Echo", artist: "Alpha", at: now),
-            record(track: "echo", artist: "Alpha", at: now),
+            record(track: "echo", artist: "Alpha", at: now)
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.topTracks.count == 1)
@@ -102,7 +102,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "A", artist: "X", album: "", at: now),
-            record(track: "B", artist: "X", album: "Real Album", at: now),
+            record(track: "B", artist: "X", album: "Real Album", at: now)
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.topAlbums.count == 1)
@@ -114,7 +114,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Same", artist: "Beta", at: now),
-            record(track: "Same", artist: "Alpha", at: now),
+            record(track: "Same", artist: "Alpha", at: now)
         ]
 
         let forward = StatsAggregator.snapshot(
@@ -131,7 +131,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "same", artist: "ARTIST", at: now),
-            record(track: "Same", artist: "Artist", at: now),
+            record(track: "Same", artist: "Artist", at: now)
         ]
 
         let forward = StatsAggregator.snapshot(
@@ -195,7 +195,7 @@ struct StatsAggregatorTests {
         let records = [
             record(track: "A", artist: "X", at: date(2026, 5, 20, hour: 9)),
             record(track: "B", artist: "X", at: date(2026, 5, 20, hour: 9)),
-            record(track: "C", artist: "X", at: date(2026, 5, 20, hour: 14)),
+            record(track: "C", artist: "X", at: date(2026, 5, 20, hour: 14))
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.playsByHour[9] == 2)
@@ -211,7 +211,7 @@ struct StatsAggregatorTests {
         let records = [
             record(track: "Today1", artist: "X", at: date(2026, 5, 20, hour: 8)),
             record(track: "Today2", artist: "X", at: date(2026, 5, 20, hour: 18)),
-            record(track: "Yesterday", artist: "X", at: date(2026, 5, 19)),
+            record(track: "Yesterday", artist: "X", at: date(2026, 5, 19))
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.playsToday == 2)
@@ -224,7 +224,7 @@ struct StatsAggregatorTests {
         let records = [
             record(track: "Oldest", artist: "X", at: date(2026, 5, 18)),
             record(track: "Newest", artist: "X", at: date(2026, 5, 20)),
-            record(track: "Middle", artist: "X", at: date(2026, 5, 19)),
+            record(track: "Middle", artist: "X", at: date(2026, 5, 19))
         ]
         let snapshot = StatsAggregator.snapshot(from: records, now: now, calendar: calendar)
         #expect(snapshot.recent.first?.track == "Newest")
@@ -236,7 +236,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "Zulu", artist: "X", at: now),
-            record(track: "Alpha", artist: "X", at: now),
+            record(track: "Alpha", artist: "X", at: now)
         ]
 
         let forward = StatsAggregator.snapshot(
@@ -254,7 +254,7 @@ struct StatsAggregatorTests {
     func testLifetimeTotalsMerged() {
         let now = date(2026, 5, 20)
         let records = [
-            record(track: "Live", artist: "Wolf", at: now, played: 100),
+            record(track: "Live", artist: "Wolf", at: now, played: 100)
         ]
         var lifetime = LifetimeTally.empty
         lifetime.trimmedPlayCount = 42
@@ -274,7 +274,7 @@ struct StatsAggregatorTests {
         let now = date(2026, 5, 20)
         let records = [
             record(track: "T1", artist: "Wolf", at: date(2026, 5, 20)),
-            record(track: "T2", artist: "Fox", at: date(2026, 5, 20)),
+            record(track: "T2", artist: "Fox", at: date(2026, 5, 20))
         ]
         var lifetime = LifetimeTally.empty
         lifetime.artistCounts["wolf"] = .init(

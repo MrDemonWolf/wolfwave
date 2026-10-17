@@ -202,7 +202,7 @@ private func stableLeadingYAxis() -> some AxisContent {
         0, 0, 0, 0, 0, 0,       //  0-5: overnight
         2, 5, 9, 14, 18, 12,    //  6-11: morning
         20, 24, 22, 19, 16, 17, // 12-17: afternoon
-        21, 18, 12, 6, 3, 1,    // 18-23: evening
+        21, 18, 12, 6, 3, 1    // 18-23: evening
     ]
     let snapshot = StatsSnapshot(
         totalPlays: 129,

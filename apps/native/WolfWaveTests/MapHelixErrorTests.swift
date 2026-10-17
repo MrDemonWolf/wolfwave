@@ -52,7 +52,7 @@ final class MapHelixErrorTests: XCTestCase {
             (.unexpectedStatus(403, body: ""), .network("HTTP 403")),
             (.unexpectedStatus(429, body: ""), .network("HTTP 429")),
             (.unexpectedStatus(500, body: ""), .network("HTTP 500")),
-            (.invalidResponse, .network("No HTTP response")),
+            (.invalidResponse, .network("No HTTP response"))
         ]
 
         for (input, expected) in cases {

@@ -29,7 +29,7 @@ struct StatsWindowSummaryTests {
             PlayRecord(timestamp: recent, track: "Howl", artist: "Timber Wolf", album: "Pack", duration: 200, playedSeconds: 200),
             PlayRecord(timestamp: recent, track: "Howl", artist: "Timber Wolf", album: "Pack", duration: 200, playedSeconds: 200),
             PlayRecord(timestamp: recent, track: "Bay", artist: "Grey Wolf", album: "Moon", duration: 100, playedSeconds: 100),
-            PlayRecord(timestamp: older, track: "OldSong", artist: "Timber Wolf", album: "Pack", duration: 300, playedSeconds: 300),
+            PlayRecord(timestamp: older, track: "OldSong", artist: "Timber Wolf", album: "Pack", duration: 300, playedSeconds: 300)
         ]
     }
 

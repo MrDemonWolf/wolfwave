@@ -22,14 +22,14 @@ struct AlbumArtView: View {
     // MARK: - Properties
 
     /// Artwork already in memory. Takes precedence over `url`.
-    var image: NSImage? = nil
+    var image: NSImage?
     /// Remote artwork, loaded with `AsyncImage` (fades in unless Reduce Motion is on).
-    var url: URL? = nil
+    var url: URL?
     /// Edge length of the square tile, in points.
     var size: CGFloat = 64
     /// Corner radius override. `nil` scales the radius with `size`, with a small
     /// floor so tiny thumbnails stay rounded.
-    var cornerRadius: CGFloat? = nil
+    var cornerRadius: CGFloat?
 
     /// Disables the `AsyncImage` fade-in transaction.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

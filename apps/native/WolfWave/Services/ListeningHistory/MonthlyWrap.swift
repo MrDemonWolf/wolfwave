@@ -55,9 +55,9 @@ struct MonthlyWrapData: Sendable {
     /// An emotional one-liner that frames the headline number. `nil` for empty
     /// months. Defaulted (and `var` so the memberwise init accepts it) so
     /// existing call sites and tests stay source-stable.
-    var framingLine: String? = nil
+    var framingLine: String?
     /// A standout milestone for this month vs. the user's own history, or `nil`.
-    var milestone: MonthlyMilestone? = nil
+    var milestone: MonthlyMilestone?
 
     /// Whether the month has any recorded plays.
     var hasData: Bool { totalPlays > 0 }

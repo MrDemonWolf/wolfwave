@@ -202,7 +202,7 @@ final class NotificationService: NSObject {
             artist: artist,
             generationDomain: .skipVoteLifecycle,
             replacingDeliveredIdentifiers: [
-                AppConstants.UserNotification.skipVotePassedIdentifier,
+                AppConstants.UserNotification.skipVotePassedIdentifier
             ]
         )
     }
@@ -224,7 +224,7 @@ final class NotificationService: NSObject {
             artist: artist,
             generationDomain: .skipVoteLifecycle,
             replacingDeliveredIdentifiers: [
-                AppConstants.UserNotification.skipVoteStartedIdentifier,
+                AppConstants.UserNotification.skipVoteStartedIdentifier
             ]
         )
     }

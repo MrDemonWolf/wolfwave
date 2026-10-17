@@ -21,9 +21,9 @@ struct CopyButton: View {
     let text: String
     /// Text shown beside the icon. Text only renders when both `label` and
     /// `copiedLabel` are set; otherwise the button is icon-only.
-    var label: String? = nil
+    var label: String?
     /// Text shown in place of `label` during the feedback window.
-    var copiedLabel: String? = nil
+    var copiedLabel: String?
     /// Bordered (small control) or borderless (with pointer cursor).
     var buttonStyle: CopyButtonStyle = .bordered
     /// Disables the button, for example under Streamer Mode.
@@ -31,7 +31,7 @@ struct CopyButton: View {
     /// Required, because the icon-only form has no visible text.
     var accessibilityLabel: String
     /// Optional UI-test identifier; applied only when non-nil.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
     /// How long the checkmark stays up after a copy, in seconds.
     var feedbackDuration: TimeInterval = 2.0
     /// Clears this value from the general pasteboard after a short delay, but
@@ -45,7 +45,7 @@ struct CopyButton: View {
     /// Optional side effect fired right after the text is copied (e.g. a parent
     /// status update). The pasteboard write + checkmark feedback are handled
     /// internally regardless.
-    var action: (() -> Void)? = nil
+    var action: (() -> Void)?
 
     /// True during the feedback window; swaps the icon and label.
     @State private var copied = false

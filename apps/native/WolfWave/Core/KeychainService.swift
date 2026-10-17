@@ -491,7 +491,7 @@ nonisolated enum KeychainService {
             grant.refreshToken,
             grant.username,
             grant.userID,
-            grant.channelID,
+            grant.channelID
         ]
         guard values.compactMap({ $0 }).allSatisfy({ !$0.isEmpty }) else {
             throw KeychainError.invalidData
@@ -506,7 +506,7 @@ nonisolated enum KeychainService {
             twitchBotAccountRefreshToken,
             twitchBotAccountUsername,
             twitchBotAccountUserID,
-            twitchChannelIDAccount,
+            twitchChannelIDAccount
         ]
     }
 

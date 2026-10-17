@@ -63,7 +63,7 @@ nonisolated enum DiscordPresenceBuilder {
         )
 
         var activity: [String: Any] = [
-            "type": AppConstants.Discord.listeningActivityType,
+            "type": AppConstants.Discord.listeningActivityType
         ]
         if let details = activityText(track) { activity["details"] = details }
         if let state = activityText(stateLine(artist: artist, playlist: playlistDisplay, style: style)) {
@@ -80,7 +80,7 @@ nonisolated enum DiscordPresenceBuilder {
         var assets = [
             "large_image": largeImage,
             "small_image": smallImageKey,
-            "small_text": smallTextValue,
+            "small_text": smallTextValue
         ]
         if let album = activityText(album) { assets["large_text"] = album }
         activity["assets"] = assets
@@ -101,7 +101,7 @@ nonisolated enum DiscordPresenceBuilder {
             let maxEpochMilliseconds = 9e15
             activity["timestamps"] = [
                 "start": Int(min(max(start * 1000, 0), maxEpochMilliseconds)),
-                "end": Int(min(max(end * 1000, 0), maxEpochMilliseconds)),
+                "end": Int(min(max(end * 1000, 0), maxEpochMilliseconds))
             ]
         }
 
@@ -145,8 +145,8 @@ nonisolated enum DiscordPresenceBuilder {
                 "large_image": AppConstants.Discord.artAssetWolfWave,
                 "large_text": "WolfWave",
                 "small_image": AppConstants.Discord.artAssetAppleMusic,
-                "small_text": AppConstants.Discord.idleSmallText,
-            ],
+                "small_text": AppConstants.Discord.idleSmallText
+            ]
         ]
     }
 

@@ -127,7 +127,7 @@ struct BrandTile<Background: ShapeStyle, Glyph: View>: View {
                 LinearGradient(
                     colors: [
                         AppConstants.Brand.appleMusicGradientStart,
-                        AppConstants.Brand.appleMusicGradientEnd,
+                        AppConstants.Brand.appleMusicGradientEnd
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing

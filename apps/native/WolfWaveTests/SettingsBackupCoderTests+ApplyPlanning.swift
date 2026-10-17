@@ -1,0 +1,597 @@
+//
+//  SettingsBackupCoderTests+ApplyPlanning.swift
+//  WolfWave
+//
+//  Created by Nathanial Henniges on 2026-06-02.
+//  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
+//
+
+import Foundation
+import Testing
+
+@testable import WolfWave
+
+/// Apply planning, summaries, malformed-input rejection, and preference-noun pluralization.
+extension SettingsBackupCoderTests {
+    // MARK: - Apply planning
+
+    @Test func applyPlanRestoresPortableAndIgnoresOthers() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [keys.trackingEnabled: true])
+        // Sneak in a non-exportable account key and a since-removed unknown key.
+        backup.settings[keys.twitchChannelName] = .string("mrdemonwolf")
+        backup.settings["someRemovedLegacyKey"] = .bool(true)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.trackingEnabled] == .bool(true))
+        #expect(plan.set[keys.twitchChannelName] == nil)
+        #expect(plan.set["someRemovedLegacyKey"] == nil)
+        #expect(plan.ignoredKeyCount == 2)
+    }
+
+    @Test func applyPlanSkipsTwitchWhenNotOptedIn() {
+        let backup = makeBackup(snapshot: [:], twitchChannelName: "mrdemonwolf")
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportablePreferences: exportable
+        )
+        #expect(plan.reconnectTwitch == false)
+        #expect(plan.twitchChannelName == nil)
+    }
+
+    @Test func applyPlanReconnectsTwitchWhenOptedIn() {
+        let backup = makeBackup(snapshot: [:], twitchChannelName: "mrdemonwolf")
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+            exportablePreferences: exportable
+        )
+        #expect(plan.reconnectTwitch == true)
+        #expect(plan.twitchChannelName == "mrdemonwolf")
+    }
+
+    @Test func applyPlanTwitchOptInIsNoOpWithoutTwitchInBackup() {
+        let backup = makeBackup(snapshot: [:], twitchChannelName: nil)
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+            exportablePreferences: exportable
+        )
+        #expect(plan.reconnectTwitch == false)
+        #expect(plan.twitchChannelName == nil)
+    }
+
+    @Test func applyPlanDropsOutOfRangePortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        // A hand-edited backup can carry ports UInt16 can't hold. They must
+        // never reach UserDefaults, where a later UInt16 conversion would trap.
+        backup.settings[keys.websocketServerPort] = .int(70000)
+        backup.settings[keys.widgetPort] = .int(-5)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == nil)
+        #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 2)
+    }
+
+    @Test func applyPlanDropsNonIntegerPortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.widgetPort] = .string("8766")
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.widgetPort] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+    }
+
+    @Test func applyPlanDropsReservedPortValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.websocketServerPort] = .int(80)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == nil)
+        #expect(plan.ignoredKeyCount == 1)
+    }
+
+    @Test func applyPlanKeepsInRangePortValues() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.websocketServerPort: 8765,
+            keys.widgetPort: 0 // 0 = "use the default"; legal to restore
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: false),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.websocketServerPort] == .int(8765))
+        #expect(plan.set[keys.widgetPort] == .int(0))
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
+    @Test func applyPlanDropsOutOfRangeRoleLimits() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.songRequestPerUserLimit] = .int(0)
+        backup.settings[keys.songRequestLimitSubscriber] = .int(-1)
+        backup.settings[keys.songRequestLimitVIP] = .int(21)
+        backup.settings[keys.songRequestLimitModerator] = .int(Int.max)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 4)
+    }
+
+    @Test func applyPlanKeepsRoleLimitBoundaries() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestPerUserLimit: 1,
+            keys.songRequestLimitSubscriber: 20,
+            keys.songRequestLimitVIP: 1,
+            keys.songRequestLimitModerator: 20
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.count == 4)
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
+    /// Stacked mode treats a never-set role limit as "adds nothing", so a backup
+    /// must keep "never set" apart from "set": an explicit role limit round-trips,
+    /// and an unset one is left out rather than written as a default.
+    @Test func roleLimitsRoundTripOnlyWhenExplicitlySet() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestLimitStackMode: "stacked",
+            keys.songRequestLimitSubscriber: 3
+        ])
+
+        #expect(backup.settings[keys.songRequestLimitSubscriber] == .int(3))
+        #expect(backup.settings[keys.songRequestLimitVIP] == nil)
+        #expect(backup.settings[keys.songRequestLimitModerator] == nil)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.songRequestLimitSubscriber] == .int(3))
+        #expect(plan.set[keys.songRequestLimitVIP] == nil)
+        #expect(plan.set[keys.songRequestLimitModerator] == nil)
+    }
+
+    /// A role limit set to "None" (0) restores, so the choice follows the backup.
+    /// Everyone has no "None", so 0 there is still refused.
+    @Test func roleLimitNoneRoundTrips() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestLimitSubscriber: 0,
+            keys.songRequestLimitVIP: 0,
+            keys.songRequestLimitModerator: 0
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.songRequestLimitSubscriber] == .int(0))
+        #expect(plan.set[keys.songRequestLimitVIP] == .int(0))
+        #expect(plan.set[keys.songRequestLimitModerator] == .int(0))
+    }
+
+    /// A value with the wrong tagged shape for its preference (a string for a bool, a double
+    /// for an int, and so on) is dropped from the apply plan and counted as ignored.
+    @Test func applyPlanRejectsMismatchedTypesForEverySupportedShape() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            // Each value is representable in a backup, but has the wrong tagged
+            // shape for this particular preference.
+            keys.trackingEnabled: .string("true"),
+            keys.widgetFontFamily: .bool(true),
+            keys.websocketServerPort: .double(8_765),
+            keys.songCommandGlobalCooldown: .int(15),
+            keys.customCommands: .string("[]")
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 5)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
+    }
+
+    /// Strings that are not a known picker option or list member (dock visibility, update
+    /// channel, widget theme, audience, stats parts) are ignored rather than stored, because an
+    /// unknown tag would trap the picker.
+    @Test func applyPlanRejectsUnknownPickerAndStringListValues() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            keys.dockVisibility: .string("floating"),
+            keys.updateChannel: .string("beta"),
+            keys.widgetTheme: .string("Synthwave"),
+            keys.songRequestChatAudience: .string("friends"),
+            keys.statsCommandParts: .string("plays,secretMetric")
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 5)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
+    }
+
+    /// Numbers that the matching Settings control cannot offer (a queue size of 6, a
+    /// vote-skip window of 45 s, and similar) are ignored, so importing cannot put a control
+    /// into a state it cannot show.
+    @Test func applyPlanRejectsNumericValuesSettingsControlsCannotRepresent() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings = [
+            keys.songRequestMaxQueueSize: .int(6),
+            keys.songRequestPerUserLimit: .int(4),
+            keys.songRequestChannelPointsCost: .int(200),
+            keys.songRequestBitsMinimum: .int(2),
+            keys.voteSkipMinVotes: .int(4),
+            keys.voteSkipWindowSeconds: .int(45),
+            keys.voteSkipSessionCooldown: .double(10),
+            keys.voteSkipPollDuration: .int(15),
+            keys.historyRetentionDays: .int(1),
+            keys.songCommandGlobalCooldown: .double(7)
+        ]
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.isEmpty)
+        #expect(plan.ignoredKeyCount == 10)
+    }
+
+    /// Imported commands and blocklist entries are cleaned on the way in: triggers gain a
+    /// single leading `!` and lowercase, aliases lose `!`, and blocklist values are trimmed.
+    @Test func applyPlanNormalizesCustomCommandsAndBlocklist() throws {
+        let keys = AppConstants.UserDefaults.self
+        let command = CustomCommand(
+            trigger: "  !!HELLO ",
+            response: "Hi",
+            aliases: " Wave, !CHEER ",
+            globalCooldown: 15,
+            userCooldown: 30
+        )
+        let blocklistItem = BlocklistItem(
+            id: UUID(),
+            value: "  Artist Name\n",
+            type: .artist,
+            addedAt: Date(timeIntervalSince1970: 123)
+        )
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.customCommands] = .data(try JSONCoders.defaultEncoder.encode([command]))
+        backup.settings[keys.songRequestBlocklist] = .data(
+            try JSONCoders.camelCaseEncoder.encode([blocklistItem])
+        )
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        guard case .data(let commandData)? = plan.set[keys.customCommands],
+              case .data(let blocklistData)? = plan.set[keys.songRequestBlocklist] else {
+            Issue.record("Expected both portable collections in the apply plan")
+            return
+        }
+        let commands = try JSONCoders.default.decode([CustomCommand].self, from: commandData)
+        let blocklist = try JSONCoders.camelCase.decode([BlocklistItem].self, from: blocklistData)
+        #expect(commands.first?.trigger == "!hello")
+        #expect(commands.first?.aliases == "wave, cheer")
+        #expect(blocklist.first?.value == "Artist Name")
+        #expect(plan.ignoredKeyCount == 0)
+    }
+
+    @Test func exportPreservesLegacyCommandsWhileDroppingShadowedAliases() throws {
+        let keys = AppConstants.UserDefaults.self
+        let first = CustomCommand(trigger: "hug", aliases: "wave, hug, , cheer")
+        let second = CustomCommand(trigger: "wave", aliases: "cheer, salute")
+        let data = try JSONCoders.defaultEncoder.encode([first, second])
+
+        let backup = makeBackup(snapshot: [keys.customCommands: data])
+
+        guard case .data(let exported)? = backup.settings[keys.customCommands] else {
+            Issue.record("Expected legacy commands to remain exportable")
+            return
+        }
+        let commands = try JSONCoders.default.decode([CustomCommand].self, from: exported)
+        #expect(commands.count == 2)
+        #expect(commands[0].aliases == "cheer")
+        #expect(commands[1].aliases == "salute")
+    }
+
+    /// A reply under 500 Characters but over 500 Unicode scalars (Twitch's
+    /// measure, and the editor's) is refused on import too.
+    @Test func applyPlanMeasuresReplyLengthInScalars() throws {
+        let keys = AppConstants.UserDefaults.self
+        let limit = AppConstants.Twitch.maxMessageLength
+        let flags = String(repeating: "\u{1F1FA}\u{1F1F8}", count: limit / 2 + 1)
+        #expect(flags.count <= limit)
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.customCommands] = .data(
+            try JSONCoders.defaultEncoder.encode([CustomCommand(trigger: "!flags", response: flags)])
+        )
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+        #expect(plan.set[keys.customCommands] == nil)
+    }
+
+    /// A command list that is well-formed JSON but unusable is dropped whole: blank trigger,
+    /// bad alias, duplicate trigger, duplicate id, off-step or out-of-range cooldown, and
+    /// non-finite cooldowns.
+    @Test func applyPlanRejectsSemanticallyInvalidCustomCommands() throws {
+        let keys = AppConstants.UserDefaults.self
+        let sharedID = UUID()
+        let valid = CustomCommand(id: sharedID, trigger: "!hello")
+        let invalidCollections = [
+            [CustomCommand(trigger: "   ")],
+            [CustomCommand(trigger: "!hello", aliases: ",wave")],
+            [valid, CustomCommand(trigger: "hello")],
+            [valid, CustomCommand(id: sharedID, trigger: "!other")],
+            [CustomCommand(trigger: "!offstep", globalCooldown: 7)],
+            [CustomCommand(trigger: "!range", userCooldown: 65)]
+        ]
+
+        for commands in invalidCollections {
+            var backup = makeBackup(snapshot: [:])
+            backup.settings[keys.customCommands] = .data(
+                try JSONCoders.defaultEncoder.encode(commands)
+            )
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(),
+                exportablePreferences: exportable
+            )
+            #expect(plan.set[keys.customCommands] == nil)
+            #expect(plan.ignoredKeyCount == 1)
+        }
+
+        var nonfinite = CustomCommand(trigger: "!nonfinite")
+        nonfinite.globalCooldown = .infinity
+        #expect(CustomCommand.normalizedForImport([nonfinite]) == nil)
+        nonfinite.globalCooldown = .nan
+        #expect(CustomCommand.normalizedForImport([nonfinite]) == nil)
+    }
+
+    /// A blocklist with a blank value, a duplicate after normalization, or a repeated id is dropped
+    /// whole.
+    @Test func applyPlanRejectsSemanticallyInvalidBlocklist() throws {
+        let keys = AppConstants.UserDefaults.self
+        let sharedID = UUID()
+        let first = BlocklistItem(
+            id: sharedID,
+            value: "Artist Name",
+            type: .artist,
+            addedAt: .distantPast
+        )
+        let invalidCollections = [
+            [BlocklistItem(value: "  ", type: .song)],
+            [first, BlocklistItem(value: " artist name ", type: .artist)],
+            [first, BlocklistItem(
+                id: sharedID,
+                value: "Different Artist",
+                type: .artist,
+                addedAt: .distantFuture
+            )]
+        ]
+
+        for items in invalidCollections {
+            var backup = makeBackup(snapshot: [:])
+            backup.settings[keys.songRequestBlocklist] = .data(
+                try JSONCoders.camelCaseEncoder.encode(items)
+            )
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(),
+                exportablePreferences: exportable
+            )
+            #expect(plan.set[keys.songRequestBlocklist] == nil)
+            #expect(plan.ignoredKeyCount == 1)
+        }
+    }
+
+    @Test func twitchMetadataIsNormalizedBeforeStagingReconnect() throws {
+        var backup = makeBackup(snapshot: [:])
+        backup.integrations.twitch = .init(channelName: "  Mixed_CASE12  ")
+
+        let decoded = try coder.decode(coder.encode(backup))
+        let plan = coder.makeApplyPlan(
+            backup: decoded,
+            choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+            exportablePreferences: exportable
+        )
+
+        #expect(decoded.integrations.twitch?.channelName == "mixed_case12")
+        #expect(plan.reconnectTwitch)
+        #expect(plan.twitchChannelName == "mixed_case12")
+    }
+
+    @Test func twitchMetadataRejectsBlankAndInvalidChannels() throws {
+        for channelName in ["   ", "bad/channel"] {
+            var backup = makeBackup(snapshot: [:])
+            backup.integrations.twitch = .init(channelName: channelName)
+
+            let decoded = try coder.decode(coder.encode(backup))
+            let plan = coder.makeApplyPlan(
+                backup: backup,
+                choices: SettingsBackupCoder.ImportChoices(reconnectTwitch: true),
+                exportablePreferences: exportable
+            )
+
+            #expect(decoded.integrations.twitch == nil)
+            #expect(plan.reconnectTwitch == false)
+            #expect(plan.twitchChannelName == nil)
+        }
+    }
+
+    @Test func applyPlanRejectsMalformedPortableData() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [:])
+        backup.settings[keys.customCommands] = .data(Data("not custom-command JSON".utf8))
+        backup.settings[keys.songRequestBlocklist] = .data(Data("{}".utf8))
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.customCommands] == nil)
+        #expect(plan.set[keys.songRequestBlocklist] == nil)
+        #expect(plan.ignoredKeyCount == 2)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == 0
+        )
+    }
+
+    // MARK: - Summary
+
+    @Test func restorableCountCountsOnlyExportableKeys() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [keys.trackingEnabled: true, keys.widgetTheme: "Neon"])
+        backup.settings["unknownKey"] = .bool(true)
+        #expect(coder.restorableCount(backup: backup, exportablePreferences: exportable) == 2)
+    }
+
+    @Test func restorableCountUsesTheSameValidationAsApply() {
+        let keys = AppConstants.UserDefaults.self
+        var backup = makeBackup(snapshot: [keys.trackingEnabled: true])
+        backup.settings[keys.websocketServerPort] = .int(70_000)
+        backup.settings[keys.songRequestLimitSubscriber] = .int(Int.max)
+        backup.settings["unknownKey"] = .bool(true)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set.count == 1)
+        #expect(
+            coder.restorableCount(
+                backup: backup,
+                exportablePreferences: exportable
+            ) == plan.set.count
+        )
+    }
+
+    // MARK: - Decode rejects malformed input (surfaces an error, never crashes)
+
+    @Test func decodeRejectsGarbageBytesAsNotReadable() {
+        #expect(throws: SettingsBackupCoder.BackupError.notReadable) {
+            try coder.decode(Data("not a backup at all".utf8))
+        }
+    }
+
+    @Test func decodeRejectsWrongFormatAsNotWolfWaveFile() {
+        let json = #"{"format":"com.example.other","schemaVersion":1}"#
+        #expect(throws: SettingsBackupCoder.BackupError.notWolfWaveFile) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
+
+    @Test func decodeRejectsNewerSchemaAsUnsupported() {
+        let newer = SettingsBackup.currentSchemaVersion + 1
+        let json = """
+        {"format":"\(SettingsBackup.currentFormat)","schemaVersion":\(newer)}
+        """
+        #expect(throws: SettingsBackupCoder.BackupError.unsupportedNewerSchema(newer)) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
+
+    @Test func decodeRejectsValidHeaderButTruncatedBody() {
+        // Correct format + supported schema, but the required backup fields
+        // (appVersion, settings, integrations, …) are missing: the full decode
+        // fails and surfaces as `.notReadable` instead of crashing.
+        let json = """
+        {"format":"\(SettingsBackup.currentFormat)","schemaVersion":\(SettingsBackup.currentSchemaVersion)}
+        """
+        #expect(throws: SettingsBackupCoder.BackupError.notReadable) {
+            try coder.decode(Data(json.utf8))
+        }
+    }
+
+    // MARK: - Preference noun pluralization
+
+    @MainActor
+    @Test func preferenceNounPluralizesByCount() {
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(0) == "preferences")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(1) == "preference")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(2) == "preferences")
+        #expect(SettingsBackupService.ApplySummary.preferenceNoun(42) == "preferences")
+    }
+}

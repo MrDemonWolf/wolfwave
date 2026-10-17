@@ -60,12 +60,12 @@ struct AsyncActionButton: View {
     let title: String
 
     /// Optional leading SF Symbol for the idle label.
-    var systemImage: String? = nil
+    var systemImage: String?
 
     /// Set `.destructive` to tint the label with `DSColor.error`. Matches
     /// `DestructiveButton`: the red lives on the label, never as a `.tint`
     /// that would fill the whole control.
-    var role: ButtonRole? = nil
+    var role: ButtonRole?
 
     /// Button style applied through `AsyncActionButtonStyleModifier`.
     var style: Style = .bordered
@@ -80,7 +80,7 @@ struct AsyncActionButton: View {
 
     /// Semantic tint for the control (green "approve", orange "hold"). Left nil
     /// for the neutral bordered look most settings rows use.
-    var tint: Color? = nil
+    var tint: Color?
 
     /// Label point size. `DSFont.Size.body` matches the settings panes;
     /// `DSFont.Size.sm` matches the denser queue rows.
@@ -100,7 +100,7 @@ struct AsyncActionButton: View {
 
     /// UI-test identifier. Applied only when non-nil, via
     /// `accessibilityIdentifier(optional:)`.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
 
     /// The work to run. A thrown error returns the button to idle.
     let action: () async throws -> Void

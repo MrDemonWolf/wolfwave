@@ -15,7 +15,6 @@ final class PowerStateMonitorTests: XCTestCase {
 
     // MARK: - Initial State Tests
 
-
     func testSharedInstanceIsSingleton() {
         let a = PowerStateMonitor.shared
         let b = PowerStateMonitor.shared
@@ -23,7 +22,6 @@ final class PowerStateMonitorTests: XCTestCase {
     }
 
     // MARK: - State Property Tests
-
 
     func testIsReducedModeMatchesCurrentPowerState() {
         let info = ProcessInfo.processInfo

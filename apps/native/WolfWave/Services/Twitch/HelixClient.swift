@@ -188,7 +188,7 @@ nonisolated struct HelixClient: Sendable {
         HTTPClient.withDefaultUserAgent([
             "Authorization": "Bearer \(credentials.token)",
             "Client-Id": credentials.clientID,
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
         ])
     }
 

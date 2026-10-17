@@ -40,7 +40,7 @@ struct WhatsNewView: View {
         ("person.3.sequence.fill", .blue, "Fair-Share Queue", "Everyone's first request plays before anyone's second, and subs or VIPs can get a perk."),
         ("opticaldisc.fill", .pink, "Vinyl & Classic Overlays", "Two new looks for your stream: a spinning record, or art beside the track."),
         ("bolt.fill", .yellow, "Lighter on Your Mac", "Much less work between songs. Same features, less CPU and battery."),
-        ("checkmark.seal.fill", .green, "Steadier & Smoother", "Fixed UI freezes and crashes across requests, overlays, and stats."),
+        ("checkmark.seal.fill", .green, "Steadier & Smoother", "Fixed UI freezes and crashes across requests, overlays, and stats.")
     ]
 
     // MARK: - Body

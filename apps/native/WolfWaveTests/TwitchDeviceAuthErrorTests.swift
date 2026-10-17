@@ -24,7 +24,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
             .authorizationPending,
             .slowDown,
             .invalidClient,
-            .unknown("test"),
+            .unknown("test")
         ]
 
         for error in errors {
@@ -88,7 +88,7 @@ final class TwitchDeviceAuthErrorTests: XCTestCase {
             .expiredToken,
             .authorizationPending,
             .slowDown,
-            .invalidClient,
+            .invalidClient
         ]
 
         for error in errors {

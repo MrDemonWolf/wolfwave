@@ -27,7 +27,7 @@ struct DeviceCodeView: View {
     /// Called after the code is copied (the copy itself is done by `CopyButton`).
     let onCopy: () -> Void
     /// Called only when the activation URL actually opened in the browser.
-    var onActivate: (() -> Void)? = nil
+    var onActivate: (() -> Void)?
     /// When the code stops working. `nil` hides the countdown, which keeps
     /// call sites that don't track expiry (onboarding) unchanged.
     var expiresAt: Date?
@@ -46,7 +46,6 @@ struct DeviceCodeView: View {
                 .font(.system(size: DSFont.Size.sm, weight: .medium))
                 .foregroundStyle(.secondary)
                 .transition(.move(edge: .top).combined(with: .opacity))
-
 
             // Code container - monospaced, larger and calm
             HStack(spacing: DSSpace.s2) {

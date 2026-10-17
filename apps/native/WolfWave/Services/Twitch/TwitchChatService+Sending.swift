@@ -185,7 +185,7 @@ extension TwitchChatService {
         var body: [String: Any] = [
             "broadcaster_id": broadcasterID,
             "sender_id": botID,
-            "message": finalMessage,
+            "message": finalMessage
         ]
         if let parentMessageID, !parentMessageID.isEmpty {
             body["reply_parent_message_id"] = parentMessageID

@@ -120,7 +120,7 @@ final class WebSocketServerAuthTests: XCTestCase {
                 controlToken: controlToken,
                 offeredSubprotocols: [
                     "wolfwave.overlay." + overlayToken,
-                    "wolfwave.control." + controlToken,
+                    "wolfwave.control." + controlToken
                 ]
             ),
             .control

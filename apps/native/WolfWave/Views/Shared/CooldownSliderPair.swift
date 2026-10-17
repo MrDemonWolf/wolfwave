@@ -21,7 +21,7 @@ struct CooldownSliderField {
     /// Slider increment, in seconds.
     var step: Double = 5
     /// Optional UI-test identifier, passed through to ``LabeledSlider``.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
 }
 
 /// The Everyone / Per-person cooldown sliders laid out side by side instead of

@@ -122,8 +122,8 @@ extension Song {
                 "discNumber": 1,
                 "hasLyrics": false,
                 "playParams": ["id": id, "kind": "song"],
-                "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)",
-            ] as [String: Any],
+                "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)"
+            ] as [String: Any]
         ]
         do {
             let data = try JSONSerialization.data(withJSONObject: resource)

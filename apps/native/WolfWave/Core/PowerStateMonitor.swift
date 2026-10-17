@@ -64,7 +64,7 @@ final class PowerStateMonitor {
         let nc = NotificationCenter.default
         let names: [Notification.Name] = [
             .NSProcessInfoPowerStateDidChange,
-            ProcessInfo.thermalStateDidChangeNotification,
+            ProcessInfo.thermalStateDidChangeNotification
         ]
         for name in names {
             observers.append(

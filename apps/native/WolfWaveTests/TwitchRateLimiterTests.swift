@@ -24,14 +24,14 @@ struct TwitchRateLimiterTests {
         let now: TimeInterval = 1_000
         let headers: [AnyHashable: Any] = [
             "Retry-After": "10",
-            "Ratelimit-Reset": "1030",
+            "Ratelimit-Reset": "1030"
         ]
         let wait = RateLimiter.retryWaitSeconds(from: headers, now: now)
         #expect(wait == 30)
 
         let laterRetryAfter: [AnyHashable: Any] = [
             "Retry-After": "40",
-            "Ratelimit-Reset": "1030",
+            "Ratelimit-Reset": "1030"
         ]
         #expect(RateLimiter.retryWaitSeconds(
             from: laterRetryAfter, now: now) == 40)

@@ -25,17 +25,22 @@ disabled_rules:
 # Allow conventional short identifiers (coordinates, RGB, loop counters,
 # notification capture, view-model abbrev). These read as well as the long
 # form in their narrow context and are idiomatic across the codebase.
+# `id` is what `Identifiable` requires, `fd` is the POSIX file-descriptor
+# name the socket code uses, and `ok` is a success flag.
 identifier_name:
   excluded:
     - a
     - b
     - d
+    - fd
     - g
     - h
     - i
+    - id
     - ip
     - k
     - n
+    - ok
     - r
     - s
     - v

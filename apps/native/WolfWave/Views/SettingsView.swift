@@ -81,7 +81,7 @@ struct SettingsView: View {
         /// Cases: `.debug` only present in DEBUG builds.
         static var allCases: [SettingsSection] {
             var cases: [SettingsSection] = [
-                .general, .songRequests, .websocket, .streamDeck, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about,
+                .general, .songRequests, .websocket, .streamDeck, .historyStats, .twitchIntegration, .discord, .softwareUpdate, .advanced, .about
             ]
             #if DEBUG
             cases.append(.debug)
@@ -458,7 +458,7 @@ struct SettingsView: View {
             ("Integrations", [.twitchIntegration, .discord]),
             ("On Stream", [.websocket, .streamDeck, .songRequests]),
             ("Insights", [.historyStats]),
-            ("App", app),
+            ("App", app)
         ]
     }
 

@@ -50,7 +50,7 @@ final class StreamerModeMaskingSweepTests: XCTestCase {
         let samples: [(String, StreamerMode.Style)] = [
             ("mrdemonwolf", .channel),
             ("a1b2c3d4e5f6", .token),
-            ("http://192.168.1.42:8766/", .url),
+            ("http://192.168.1.42:8766/", .url)
         ]
         for (value, style) in samples {
             XCTAssertEqual(StreamerMode.mask(value, style: style, isOn: false), value)

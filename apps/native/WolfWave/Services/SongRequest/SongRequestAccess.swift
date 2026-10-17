@@ -265,7 +265,7 @@ enum QueueLimitMode: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .highest: return "A viewer gets the limit of their best role."
-        case .stacked: return "Limits add up across every role a viewer holds."
+        case .stacked: return "Each role adds its own amount on top of Everyone."
         }
     }
 }
@@ -291,9 +291,12 @@ enum SongRequestLimits {
     /// In `.highest` mode the largest applicable tier wins; in `.stacked` mode
     /// the applicable tiers are summed.
     ///
-    /// Every tier that is unset or non-positive counts as 2 (see
-    /// ``positiveLimit(_:)``), so under `.stacked` a subscriber on a fresh
-    /// install gets 4, not 2.
+    /// The Everyone tier counts as 2 when unset or non-positive (see
+    /// ``positiveLimit(_:)``) in both modes. A role tier differs by mode:
+    /// - `.highest`: unset or non-positive counts as 2, as it always has.
+    /// - `.stacked`: only a role limit the streamer set to a positive value adds.
+    ///   Unset (never chosen) or ``noRoleLimit`` adds nothing, so a subscriber on
+    ///   a fresh install gets the Everyone limit, not double it.
     ///
     /// - Returns: A positive limit; saturates at `Int.max` instead of trapping.
     static func effectiveLimit(
@@ -305,21 +308,78 @@ enum SongRequestLimits {
     ) -> Int {
         let everyone = positiveLimit(
             defaults.object(forKey: AppConstants.UserDefaults.songRequestPerUserLimit) as? Int)
-        let sub = positiveLimit(
-            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitSubscriber) as? Int)
-        let vip = positiveLimit(
-            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitVIP) as? Int)
-        let mod = positiveLimit(
-            defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitModerator) as? Int)
+        // `object(forKey:)` keeps "never set" (nil) apart from "set to N".
+        let sub = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitSubscriber) as? Int
+        let vip = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitVIP) as? Int
+        let mod = defaults.object(forKey: AppConstants.UserDefaults.songRequestLimitModerator) as? Int
 
-        var applicable = [everyone]
-        if isSubscriber { applicable.append(sub) }
-        if isVIP { applicable.append(vip) }
-        if isModerator || isBroadcaster { applicable.append(mod) }
+        var roles: [Int?] = []
+        if isSubscriber { roles.append(sub) }
+        if isVIP { roles.append(vip) }
+        if isModerator || isBroadcaster { roles.append(mod) }
 
         switch mode(in: defaults) {
-        case .highest: return applicable.max() ?? everyone
-        case .stacked: return applicable.reduce(0, saturatingAdd)
+        case .highest:
+            return ([everyone] + roles.map(positiveLimit)).max() ?? everyone
+        case .stacked:
+            return roles.map(stackedContribution).reduce(everyone, saturatingAdd)
+        }
+    }
+
+    /// A role tier's share of a `.stacked` total: its stored value when the
+    /// streamer set a positive one, otherwise nothing.
+    private static func stackedContribution(_ stored: Int?) -> Int {
+        guard let stored, stored > 0 else { return 0 }
+        return stored
+    }
+
+    // MARK: Role limit picker
+
+    /// The picker value for a role that adds nothing under `.stacked` ("None").
+    /// Stored explicitly (rather than removing the key) so the choice survives
+    /// a backup import and iCloud sync, neither of which ever removes a key.
+    static let noRoleLimit = 0
+
+    /// Positive per-role limits the settings picker offers.
+    static let roleLimitValues = [1, 2, 3, 5, 10, 15, 20]
+
+    /// What a role reads as in `.highest` mode when unset or non-positive.
+    static let unsetRoleLimitHighest = 2
+
+    /// The role picker's tags for a combine mode. `.stacked` leads with
+    /// ``noRoleLimit``; `.highest` has no "None" (an unset role counts as 2 there).
+    static func rolePickerOptions(for mode: QueueLimitMode) -> [Int] {
+        switch mode {
+        case .highest: return roleLimitValues
+        case .stacked: return [noRoleLimit] + roleLimitValues
+        }
+    }
+
+    /// The tag a role picker shows for a stored value, always one of
+    /// ``rolePickerOptions(for:)`` so the picker never gets an unmatched tag.
+    ///
+    /// Mirrors ``effectiveLimit(isSubscriber:isVIP:isModerator:isBroadcaster:in:)``:
+    /// under `.stacked` an unset or non-positive role shows "None", under
+    /// `.highest` it shows 2.
+    static func rolePickerValue(stored: Int?, mode: QueueLimitMode) -> Int {
+        switch mode {
+        case .highest:
+            guard let stored else { return unsetRoleLimitHighest }
+            return Preferences.resolveAllowed(
+                stored, allowed: Set(roleLimitValues), default: unsetRoleLimitHighest)
+        case .stacked:
+            guard let stored, stored > 0 else { return noRoleLimit }
+            return Preferences.resolveAllowed(
+                stored, allowed: Set(roleLimitValues), default: unsetRoleLimitHighest)
+        }
+    }
+
+    /// The menu label for a role picker tag: "None" / "+N" under `.stacked`
+    /// (each role adds to Everyone), a plain number under `.highest`.
+    static func rolePickerLabel(_ value: Int, mode: QueueLimitMode) -> String {
+        switch mode {
+        case .highest: return "\(value)"
+        case .stacked: return value == noRoleLimit ? "None" : "+\(value)"
         }
     }
 

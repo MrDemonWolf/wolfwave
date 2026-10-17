@@ -27,9 +27,9 @@ struct NowPlayingHeroCard: View {
     let album: String?
     /// Already-loaded artwork. Takes precedence over `artworkURL` in
     /// `AlbumArtView`.
-    var artwork: NSImage? = nil
+    var artwork: NSImage?
     /// Remote artwork to fetch when no `artwork` image is supplied.
-    var artworkURL: URL? = nil
+    var artworkURL: URL?
     /// Playback position, in seconds.
     var elapsed: TimeInterval = 0
     /// Track length, in seconds. `0` (unknown) hides the scrubber.

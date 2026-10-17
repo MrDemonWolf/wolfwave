@@ -30,7 +30,7 @@ struct CommandAliasField: View {
     var accessibilityLabel: String = "Custom aliases"
     /// Optional UI-test identifier. Applied only when non-nil so call sites that
     /// never set one (and don't need unique targeting) emit no identifier.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
 
     // MARK: - Body
 
