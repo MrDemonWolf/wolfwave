@@ -30,5 +30,4 @@ final class StatTileTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
-
 }

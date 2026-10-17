@@ -117,7 +117,7 @@ struct TwitchEventSubLifecycleTests {
     func testKeepaliveRejectsUnsafeValues() {
         let unsafeValues: [Any] = [
             Int.max, Double.infinity, Double.nan, 1e308,
-            "1e309", "nan", 10.5, "10.5", 9, 601,
+            "1e309", "nan", 10.5, "10.5", 9, 601
         ]
         for value in unsafeValues {
             #expect(TwitchChatService.keepaliveTimeoutSeconds(
@@ -197,7 +197,7 @@ struct TwitchEventSubLifecycleTests {
             ("websocket_internal_error", .reconnect),
             ("websocket_network_timeout", .reconnect),
             ("websocket_network_error", .reconnect),
-            ("websocket_failed_to_reconnect", .reconnect),
+            ("websocket_failed_to_reconnect", .reconnect)
         ]
 
         for testCase in cases {
@@ -283,7 +283,7 @@ struct TwitchEventSubLifecycleTests {
                 payload: [
                     "session": [
                         "id": "source-session",
-                        "reconnect_url": "wss://eventsub.wss.twitch.tv/target",
+                        "reconnect_url": "wss://eventsub.wss.twitch.tv/target"
                     ]
                 ]
             ),
@@ -315,8 +315,8 @@ struct TwitchEventSubLifecycleTests {
                     "chatter_user_id": "viewer-id",
                     "broadcaster_user_id": "broadcaster-id",
                     "message": ["text": "hello"],
-                    "badges": [],
-                ],
+                    "badges": []
+                ]
             ]
         )
         await service.handleWebSocketMessage(
@@ -338,7 +338,7 @@ struct TwitchEventSubLifecycleTests {
                 payload: [
                     "session": [
                         "id": "target-session",
-                        "keepalive_timeout_seconds": 10,
+                        "keepalive_timeout_seconds": 10
                     ]
                 ]
             ),
@@ -397,7 +397,7 @@ struct TwitchEventSubLifecycleTests {
             payload: [
                 "session": [
                     "id": "source-long-session",
-                    "reconnect_url": "wss://eventsub.wss.twitch.tv/target-short",
+                    "reconnect_url": "wss://eventsub.wss.twitch.tv/target-short"
                 ]
             ]
         )
@@ -413,7 +413,7 @@ struct TwitchEventSubLifecycleTests {
             payload: [
                 "session": [
                     "id": "target-short-session",
-                    "keepalive_timeout_seconds": targetTimeout,
+                    "keepalive_timeout_seconds": targetTimeout
                 ]
             ]
         )
@@ -452,9 +452,9 @@ struct TwitchEventSubLifecycleTests {
                 "message_type": type,
                 "message_id": id,
                 "message_timestamp": timestamp
-                    ?? ISO8601DateFormatter().string(from: Date()),
+                    ?? ISO8601DateFormatter().string(from: Date())
             ],
-            "payload": payload,
+            "payload": payload
         ]
         let data = try JSONSerialization.data(withJSONObject: object)
         return try #require(String(data: data, encoding: .utf8))

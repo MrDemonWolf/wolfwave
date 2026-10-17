@@ -682,12 +682,12 @@ final class DiscordRPCServiceTests: XCTestCase {
         await service.installTestSocket(sockets[0])
         let peerReady = DispatchSemaphore(value: 0)
         let peerFD = sockets[1]
-        let peer = Task.detached { () throws -> Void in
+        let peer = Task.detached { () throws in
             peerReady.signal()
             _ = try readRPCPayload(from: peerFD)
             guard let staleBody = JSONObjectSerialization.data(from: [
                 "cmd": "SET_ACTIVITY",
-                "nonce": "stale",
+                "nonce": "stale"
             ]) else {
                 throw DiscordTestSocketError.invalidPayload
             }
@@ -756,7 +756,7 @@ final class DiscordRPCServiceTests: XCTestCase {
     func testHandshakeAcceptsOnlyFrameDispatchReady() {
         let ready: [String: Any] = [
             "cmd": "DISPATCH",
-            "evt": "READY",
+            "evt": "READY"
         ]
         XCTAssertTrue(
             DiscordRPCService.isReadyHandshakeResponse(
@@ -796,7 +796,7 @@ final class DiscordRPCServiceTests: XCTestCase {
     func testCommandResponseRequiresFrameMatchingCommandAndNonce() {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
-            "nonce": "expected",
+            "nonce": "expected"
         ]
         XCTAssertTrue(
             DiscordRPCService.isCommandResponse(

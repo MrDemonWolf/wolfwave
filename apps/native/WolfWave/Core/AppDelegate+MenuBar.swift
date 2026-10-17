@@ -172,7 +172,7 @@ extension AppDelegate {
                 artView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: horizontalPadding),
                 artView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
                 artView.widthAnchor.constraint(equalToConstant: artSize),
-                artView.heightAnchor.constraint(equalToConstant: artSize),
+                artView.heightAnchor.constraint(equalToConstant: artSize)
             ])
             leadingForText = artView.trailingAnchor
             leadingTextConstant = artTextSpacing
@@ -186,7 +186,7 @@ extension AppDelegate {
             textStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -horizontalPadding),
             textStack.topAnchor.constraint(equalTo: container.topAnchor, constant: verticalPadding),
             textStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -verticalPadding),
-            container.widthAnchor.constraint(equalToConstant: totalWidth),
+            container.widthAnchor.constraint(equalToConstant: totalWidth)
         ])
 
         // Read `fittingSize` to size the menu item from its constraints. Do NOT
@@ -253,14 +253,14 @@ extension AppDelegate {
             string: "Copy Song Link",
             attributes: [
                 .font: NSFont.menuFont(ofSize: 0),
-                .foregroundColor: NSColor.labelColor,
+                .foregroundColor: NSColor.labelColor
             ]
         )
         attributed.append(NSAttributedString(
             string: attempted ? "  No link found" : "  Resolving\u{2026}",
             attributes: [
                 .font: NSFont.menuFont(ofSize: NSFont.systemFontSize(for: .small)),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: NSColor.secondaryLabelColor
             ]
         ))
         item.attributedTitle = attributed
@@ -290,14 +290,14 @@ extension AppDelegate {
             string: title,
             attributes: [
                 .font: NSFont.menuFont(ofSize: 0),
-                .foregroundColor: NSColor.labelColor,
+                .foregroundColor: NSColor.labelColor
             ]
         )
         attributed.append(NSAttributedString(
             string: "  " + status,
             attributes: [
                 .font: NSFont.menuFont(ofSize: NSFont.systemFontSize(for: .small)),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .foregroundColor: NSColor.secondaryLabelColor
             ]
         ))
         item.attributedTitle = attributed

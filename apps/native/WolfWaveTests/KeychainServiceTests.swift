@@ -451,7 +451,7 @@ final class KeychainServiceTests {
             (AppConstants.Keychain.twitchBotAccountRefreshToken, "REFRESH"),
             ("twitchBotAccountUsername", "wolf"),
             ("twitchBotAccountUserID", "123"),
-            ("twitchChannelIDAccount", "channel"),
+            ("twitchChannelIDAccount", "channel")
         ]
         for (account, value) in legacyFields {
             backend.seed(account: account, value: value)
@@ -482,7 +482,7 @@ final class KeychainServiceTests {
             AppConstants.Keychain.twitchBotAccountRefreshToken,
             "twitchBotAccountUsername",
             "twitchBotAccountUserID",
-            "twitchChannelIDAccount",
+            "twitchChannelIDAccount"
         ]
         let grant = KeychainService.TwitchCredentialGrant(
             accessToken: "ACCESS",
@@ -524,7 +524,7 @@ final class KeychainServiceTests {
             "twitchBotAccountUsername",
             "twitchBotAccountUserID",
             "twitchChannelIDAccount",
-            KeychainService.twitchCredentialGrantAccount,
+            KeychainService.twitchCredentialGrantAccount
         ]
         let versionOne = KeychainService.TwitchCredentialGrant(
             accessToken: "ACCESS",
@@ -572,7 +572,7 @@ final class KeychainServiceTests {
             AppConstants.Keychain.twitchBotAccountRefreshToken: "REFRESH",
             "twitchBotAccountUsername": "wolf",
             "twitchBotAccountUserID": "123",
-            "twitchChannelIDAccount": "channel",
+            "twitchChannelIDAccount": "channel"
         ]
         let deleteAccounts = [
             KeychainService.legacyTwitchCredentialGrantAccount,
@@ -581,7 +581,7 @@ final class KeychainServiceTests {
             "twitchBotAccountUsername",
             "twitchBotAccountUserID",
             "twitchChannelIDAccount",
-            KeychainService.twitchCredentialGrantAccount,
+            KeychainService.twitchCredentialGrantAccount
         ]
         let expected = KeychainService.TwitchCredentialGrant(
             accessToken: "ACCESS",
@@ -623,7 +623,7 @@ final class KeychainServiceTests {
             "twitchBotAccountUsername",
             "twitchBotAccountUserID",
             "twitchChannelIDAccount",
-            KeychainService.twitchCredentialGrantAccount,
+            KeychainService.twitchCredentialGrantAccount
         ]
 
         for failingAccount in deleteAccounts {
@@ -661,7 +661,7 @@ final class KeychainServiceTests {
             AppConstants.Keychain.twitchBotAccountRefreshToken: "REFRESH",
             "twitchBotAccountUsername": "wolf",
             "twitchBotAccountUserID": "123",
-            "twitchChannelIDAccount": "channel",
+            "twitchChannelIDAccount": "channel"
         ]
         for (account, value) in fields {
             backend.seed(account: account, value: value)
@@ -878,7 +878,7 @@ final class KeychainServiceTests {
             AppConstants.Keychain.twitchBotAccountRefreshToken,
             "twitchBotAccountUsername",
             "twitchBotAccountUserID",
-            "twitchChannelIDAccount",
+            "twitchChannelIDAccount"
         ]
         try KeychainService.saveTwitchCredentialGrant(
             .init(

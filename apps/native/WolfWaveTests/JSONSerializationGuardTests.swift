@@ -36,7 +36,7 @@ final class JSONSerializationGuardTests: XCTestCase {
         let payload: [String: Any] = [
             "v": 1,
             "client_id": "0123456789",
-            "nonce": "abc-123",
+            "nonce": "abc-123"
         ]
         XCTAssertTrue(JSONSerialization.isValidJSONObject(payload))
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: payload))
@@ -48,7 +48,7 @@ final class JSONSerializationGuardTests: XCTestCase {
             "type": "playback_state",
             "playing": true,
             "title": "Howl at the Moon",
-            "progress": 42.5,
+            "progress": 42.5
         ]
         XCTAssertTrue(JSONSerialization.isValidJSONObject(dict))
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: dict))

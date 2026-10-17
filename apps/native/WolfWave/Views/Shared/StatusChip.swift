@@ -35,7 +35,7 @@ struct StatusChip: View {
     let color: Color
     /// Optional leading SF Symbol. When set, the symbol replaces the colored
     /// dot so state is conveyed by shape and color together, not color alone.
-    var systemImage: String? = nil
+    var systemImage: String?
 
     /// Picks the light- or dark-appearance glyph color.
     @Environment(\.colorScheme) private var colorScheme

@@ -610,7 +610,7 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
         let backup = makeBackup(settings: [
             keys.discordPresenceEnabled: .bool(true),
             keys.websocketEnabled: .bool(true),
-            keys.updateChannel: .string("nightly"),
+            keys.updateChannel: .string("nightly")
         ])
         let service = SettingsBackupService(defaults: defaults, center: NotificationCenter())
 

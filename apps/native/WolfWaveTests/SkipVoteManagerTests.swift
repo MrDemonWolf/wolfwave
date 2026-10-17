@@ -158,7 +158,7 @@ final class SkipVoteManagerTests: WolfWaveTestCase {
         AppConstants.UserDefaults.voteSkipSessionCooldown,
         AppConstants.UserDefaults.voteSkipSubscriberOnly,
         AppConstants.UserDefaults.voteSkipUsePolls,
-        AppConstants.UserDefaults.voteSkipPollDuration,
+        AppConstants.UserDefaults.voteSkipPollDuration
     ]
 
     override func setUp() {

@@ -48,9 +48,9 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
 
         /// Optional so files written before dead-lettering existed still decode.
         /// Read through ``deadLetter``.
-        var isDeadLetter: Bool? = nil
+        var isDeadLetter: Bool?
         /// Optional for the same reason. Read through ``attemptCount``.
-        var failureAttempts: Int? = nil
+        var failureAttempts: Int?
 
         /// True once the retry worker gave up. Excluded from ``pendingItems()``.
         var deadLetter: Bool { isDeadLetter == true }
@@ -91,7 +91,7 @@ nonisolated final class TwitchRedemptionResolutionOutbox: @unchecked Sendable {
         let query: String
         let createdAt: Date
         /// Optional so older files decode; newer intake records the login.
-        var userLogin: String? = nil
+        var userLogin: String?
 
         /// Same rule ``enqueueBits`` enforces on input. `query` may be empty.
         var isValid: Bool {

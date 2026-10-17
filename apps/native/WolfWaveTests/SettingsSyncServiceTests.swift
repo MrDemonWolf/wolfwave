@@ -277,7 +277,7 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
                 keys.websocketEnabled: .bool(true),
                 keys.widgetHTTPEnabled: .bool(true),
                 keys.websocketServerPort: .int(9_123),
-                keys.updateChannel: .string("nightly"),
+                keys.updateChannel: .string("nightly")
             ],
             integrations: .init(twitch: nil)
         )

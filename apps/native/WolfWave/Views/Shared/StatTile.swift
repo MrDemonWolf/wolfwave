@@ -23,11 +23,11 @@ struct StatTile: View {
     /// The large primary value, already formatted.
     let value: String
     /// Optional smaller line under the value (for example a duration).
-    var secondary: String? = nil
+    var secondary: String?
     /// Sentence-case label under the value(s).
     let caption: String
     /// UI-test identifier. Defaults to `statTile.<caption>`.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
 
     // MARK: - Body
 

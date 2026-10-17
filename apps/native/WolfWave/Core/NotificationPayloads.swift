@@ -140,7 +140,7 @@ extension NotificationCenter {
     nonisolated func postUpdateState(isUpdateAvailable: Bool, latestVersion: String, releaseURL: String? = nil) {
         var info: [String: Any] = [
             NotificationKeys.isUpdateAvailable: isUpdateAvailable,
-            NotificationKeys.latestVersion: latestVersion,
+            NotificationKeys.latestVersion: latestVersion
         ]
         if let releaseURL { info[NotificationKeys.releaseURL] = releaseURL }
         post(name: .updateStateChanged, object: nil, userInfo: info)

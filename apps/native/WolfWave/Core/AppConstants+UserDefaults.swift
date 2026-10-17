@@ -139,7 +139,6 @@ extension AppConstants {
         /// Last app version the user has seen the What's New sheet for (String)
         static let lastSeenWhatsNewVersion = "lastSeenWhatsNewVersion"
 
-
         /// Global cooldown for !song command in seconds (Double, default: 15.0)
         static let songCommandGlobalCooldown = "songCommandGlobalCooldown"
 
@@ -475,7 +474,7 @@ extension AppConstants {
         /// do not exist.
         private static let debugKeys = [
             debugTreatAllChattersAsViewers,
-            debugViewerUsernames,
+            debugViewerUsernames
         ]
         #else
         private static let debugKeys: [String] = []
@@ -608,7 +607,7 @@ extension AppConstants {
             historyRetentionDays,
             streamerModeEnabled,
             sponsorLinksEnabled,
-            appearancePreference,
+            appearancePreference
         ] + debugKeys
 
         // MARK: Export / Import Classification
@@ -740,13 +739,13 @@ extension AppConstants {
             portableString(dockVisibility, allowedValues: [
                 AppConstants.DockVisibility.menuOnly,
                 AppConstants.DockVisibility.dockOnly,
-                AppConstants.DockVisibility.both,
+                AppConstants.DockVisibility.both
             ]),
             portableBool(launchAtLogin),
             portableString(appearancePreference, allowedValues: [
                 AppConstants.Appearance.system,
                 AppConstants.Appearance.light,
-                AppConstants.Appearance.dark,
+                AppConstants.Appearance.dark
             ]),
             portableBool(streamerModeEnabled),
             portableBool(sponsorLinksEnabled),
@@ -771,7 +770,7 @@ extension AppConstants {
             portableDouble(wolfwaveCommandUserCooldown, in: 0...60, step: 5),
             portableString(wolfwaveCommandAliases),
             portableString(wolfwaveCommandReplyStyle, allowedValues: [
-                "credit", "howto", "pitch", "short",
+                "credit", "howto", "pitch", "short"
             ]),
             // Discord Rich Presence (local IPC, no account/login)
             portableBool(discordPresenceEnabled),
@@ -825,7 +824,7 @@ extension AppConstants {
             portableString(songRequestFallbackPlaylist),
             portableBool(songRequestHoldEnabled),
             portableString(songRequestChatAudience, allowedValues: [
-                "everyone", "subscribers", "vipsAndSubs", "modsOnly",
+                "everyone", "subscribers", "vipsAndSubs", "modsOnly"
             ]),
             portableBool(songRequestChannelPointsEnabled),
             portableInt(
@@ -837,7 +836,7 @@ extension AppConstants {
             portableBool(songRequestBitsBoostEnabled),
             portableBool(songRequestDisabledReplyEnabled),
             portableString(songRequestPolicyMode, allowedValues: [
-                "open", "subsOnly", "channelPointsOnly", "custom",
+                "open", "subsOnly", "channelPointsOnly", "custom"
             ]),
             portableString(songRequestLimitStackMode, allowedValues: ["highest", "stacked"]),
             portableInt(songRequestLimitSubscriber, allowedValues: [1, 2, 3, 5, 10, 15, 20]),
@@ -866,9 +865,9 @@ extension AppConstants {
             portableString(statsCommandAliases),
             portableString(statsCommandWindow, allowedValues: ["today", "session", "week", "allTime"]),
             portableStringList(statsCommandParts, allowedValues: [
-                "plays", "listeningTime", "topTrack", "topArtist",
+                "plays", "listeningTime", "topTrack", "topArtist"
             ]),
-            portableInt(historyRetentionDays, allowedValues: [0, 7, 30, 90, 180, 365]),
+            portableInt(historyRetentionDays, allowedValues: [0, 7, 30, 90, 180, 365])
         ]
 
         /// Keys safe to write to a backup, derived from the validation schema so
@@ -903,7 +902,7 @@ extension AppConstants {
         static let accountLinkedKeys: [String] = [
             twitchChannelName,
             twitchPendingImportedChannelName,
-            twitchReauthNeeded,
+            twitchReauthNeeded
         ]
 
         /// Per-install runtime/UI state that must never travel in a backup:
@@ -926,7 +925,7 @@ extension AppConstants {
             songRequestPlaylistStatus,
             songRequestPlaylistID,
             iCloudSettingsSyncEnabled,
-            iCloudSettingsSyncLastAppliedAt,
+            iCloudSettingsSyncLastAppliedAt
         ] + debugKeys
 
         /// Canonical default values for settings whose default was otherwise

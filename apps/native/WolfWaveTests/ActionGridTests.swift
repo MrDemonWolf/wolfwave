@@ -29,5 +29,4 @@ final class ActionGridTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
-
 }

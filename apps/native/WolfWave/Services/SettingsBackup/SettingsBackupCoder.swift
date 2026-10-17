@@ -340,7 +340,7 @@ nonisolated struct SettingsBackupCoder {
         AppConstants.UserDefaults.widgetHTTPEnabled,
         AppConstants.UserDefaults.streamDeckControlEnabled,
         AppConstants.UserDefaults.websocketServerPort,
-        AppConstants.UserDefaults.widgetPort,
+        AppConstants.UserDefaults.widgetPort
     ]
 
     /// How many portable preferences a backup would restore (for the import

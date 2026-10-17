@@ -272,7 +272,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             URLQueryItem(name: "media", value: "music"),
             URLQueryItem(name: "entity", value: "song"),
             URLQueryItem(name: "limit", value: "5"),
-            URLQueryItem(name: "term", value: "\(track) \(artist)".addingPercentEncoding(withAllowedCharacters: queryCharacters)),
+            URLQueryItem(name: "term", value: "\(track) \(artist)".addingPercentEncoding(withAllowedCharacters: queryCharacters))
         ]
         guard let url = components.url else {
             finishInFlight(

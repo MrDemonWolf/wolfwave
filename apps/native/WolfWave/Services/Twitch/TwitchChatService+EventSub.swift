@@ -726,9 +726,9 @@ extension TwitchChatService {
             "title": String(title.prefix(60)),
             "choices": [
                 ["title": TwitchChatService.skipPollSkipChoice],
-                ["title": TwitchChatService.skipPollKeepChoice],
+                ["title": TwitchChatService.skipPollKeepChoice]
             ],
-            "duration": duration,
+            "duration": duration
         ]
 
         let request: URLRequest
@@ -971,7 +971,7 @@ extension TwitchChatService {
             "type": type,
             "version": "1",
             "condition": condition,
-            "transport": ["method": "websocket", "session_id": sessionID],
+            "transport": ["method": "websocket", "session_id": sessionID]
         ]
     }
 

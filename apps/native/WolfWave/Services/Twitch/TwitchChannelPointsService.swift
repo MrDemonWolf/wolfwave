@@ -473,7 +473,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
                 URLQueryItem(name: "reward_id", value: rewardID),
                 URLQueryItem(name: "status", value: "UNFULFILLED"),
                 URLQueryItem(name: "sort", value: "OLDEST"),
-                URLQueryItem(name: "first", value: "50"),
+                URLQueryItem(name: "first", value: "50")
             ]
             if let after {
                 queryItems.append(URLQueryItem(name: "after", value: after))
@@ -567,7 +567,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         components?.queryItems = [
             URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
             URLQueryItem(name: "reward_id", value: rewardID),
-            URLQueryItem(name: "id", value: redemptionID),
+            URLQueryItem(name: "id", value: redemptionID)
         ]
         guard let url = components?.url else { throw RedemptionResolutionError.malformedResponse }
         do {
@@ -611,7 +611,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
         components?.queryItems = [
             URLQueryItem(name: "broadcaster_id", value: credentials.broadcasterID),
             URLQueryItem(name: "reward_id", value: rewardID),
-            URLQueryItem(name: "id", value: redemptionID),
+            URLQueryItem(name: "id", value: redemptionID)
         ]
         guard let url = components?.url else {
             throw RedemptionResolutionError.malformedResponse
@@ -777,7 +777,7 @@ nonisolated struct TwitchChannelPointsService: Sendable {
             "cost": cost,
             "prompt": "Type a song name or paste an Apple Music / Spotify / YouTube link.",
             "is_user_input_required": true,
-            "is_enabled": false,
+            "is_enabled": false
         ]
 
         let json: [String: Any]?

@@ -80,7 +80,7 @@ struct DebugInspectorsCard: View {
                     "twitchToken": KeychainService.loadTwitchToken() != nil,
                     "twitchUsername": KeychainService.loadTwitchUsername() != nil,
                     "twitchBotUserID": KeychainService.loadTwitchBotUserID() != nil,
-                    "twitchChannelID": KeychainService.loadTwitchChannelID() != nil,
+                    "twitchChannelID": KeychainService.loadTwitchChannelID() != nil
                 ]
             }.value
             await MainActor.run {
@@ -335,7 +335,7 @@ struct DebugInspectorsCard: View {
             "bundleID": Bundle.main.bundleIdentifier ?? "",
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
             "locale": Locale.current.identifier,
-            "configuration": configurationString,
+            "configuration": configurationString
         ]
         // A `[String: String]` is always a valid JSON object; the guard is here
         // for symmetry with the other call sites so the pattern reads the same.

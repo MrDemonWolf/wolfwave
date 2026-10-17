@@ -29,11 +29,11 @@ struct ToggleSettingRow: View {
     /// UI-test identifier for the switch.
     var accessibilityIdentifier: String
     /// Optional VoiceOver hint; omitted entirely when `nil`.
-    var accessibilityHint: String? = nil
+    var accessibilityHint: String?
     /// Called with the new value whenever `isOn` changes. Fires for any change
     /// to the binding, not only a click on this switch, so a write from
     /// elsewhere (another view, a defaults change) triggers it too.
-    var onChange: ((Bool) -> Void)? = nil
+    var onChange: ((Bool) -> Void)?
 
     /// Inherited enabled state. The row dims when either this or `isDisabled`
     /// turns it off, so a `.disabled(_:)` on an ancestor dims it too.

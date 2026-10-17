@@ -73,7 +73,7 @@ struct AppleMusicLibraryServiceTests {
                 id: "p.owned",
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = PagingPlaylistTransport(
             responses: ["/me/library/playlists?limit=100": data])
@@ -95,7 +95,7 @@ struct AppleMusicLibraryServiceTests {
                 id: "p.user",
                 name: AppConstants.Music.requestsPlaylistName,
                 description: nil
-            ),
+            )
         ])
         let transport = PagingPlaylistTransport(
             responses: ["/me/library/playlists?limit=100": data])
@@ -120,7 +120,7 @@ struct AppleMusicLibraryServiceTests {
                 id: playlistID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: "Streamer edited this description"
-            ),
+            )
         ])
         let service = AppleMusicLibraryService(
             defaults: defaults,
@@ -149,7 +149,7 @@ struct AppleMusicLibraryServiceTests {
                 id: recoveredID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let service = AppleMusicLibraryService(
             defaults: defaults,
@@ -183,14 +183,14 @@ struct AppleMusicLibraryServiceTests {
                 id: oldID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: "An edited description is still the persisted resource"
-            ),
+            )
         ])
         let newData = try libraryData([
             (
                 id: newID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = PlaylistRecoveryTransport(
             oldID: oldID,
@@ -208,11 +208,11 @@ struct AppleMusicLibraryServiceTests {
         let calls = await transport.calls()
         #expect(calls.get == [
             "/me/library/playlists/\(oldID)",
-            "/me/library/playlists?limit=100",
+            "/me/library/playlists?limit=100"
         ])
         #expect(calls.post == [
             "/me/library/playlists/\(oldID)/tracks",
-            "/me/library/playlists/\(newID)/tracks",
+            "/me/library/playlists/\(newID)/tracks"
         ])
         #expect(defaults.string(forKey: AppConstants.UserDefaults.songRequestPlaylistID) == newID)
     }
@@ -229,14 +229,14 @@ struct AppleMusicLibraryServiceTests {
                 id: oldID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: "Edited after ownership was established"
-            ),
+            )
         ])
         let newData = try libraryData([
             (
                 id: newID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = ConcurrentPlaylistRecoveryTransport(
             oldID: oldID,
@@ -274,7 +274,7 @@ struct AppleMusicLibraryServiceTests {
                 id: playlistID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: "User edited"
-            ),
+            )
         ])
         let transport = PlaylistRecoveryTransport(
             oldID: playlistID,
@@ -313,14 +313,14 @@ struct AppleMusicLibraryServiceTests {
                 id: oldID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: nil
-            ),
+            )
         ])
         let newData = try libraryData([
             (
                 id: newID,
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = PlaylistRecoveryTransport(
             oldID: oldID,
@@ -344,7 +344,7 @@ struct AppleMusicLibraryServiceTests {
         let calls = await transport.calls()
         #expect(calls.post == [
             "/me/library/playlists/\(oldID)/tracks",
-            "/me/library/playlists/\(newID)/tracks",
+            "/me/library/playlists/\(newID)/tracks"
         ])
         #expect(defaults.string(forKey: AppConstants.UserDefaults.songRequestPlaylistID) == newID)
     }
@@ -430,7 +430,7 @@ struct AppleMusicLibraryServiceTests {
                 id: "p.retry",
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = RetryPlaylistTransport(recoveredData: recoveredData)
         let service = AppleMusicLibraryService(
@@ -459,7 +459,7 @@ struct AppleMusicLibraryServiceTests {
                 id: "p.new",
                 name: AppConstants.Music.requestsPlaylistName,
                 description: AppConstants.Music.requestsPlaylistDescription
-            ),
+            )
         ])
         let transport = ResetRacePlaylistTransport(newData: newData)
         let service = AppleMusicLibraryService(
@@ -550,7 +550,7 @@ struct AppleMusicLibraryServiceTests {
             return [
                 "id": resource.id,
                 "type": "library-playlists",
-                "attributes": attributes,
+                "attributes": attributes
             ]
         }
         var page: [String: Any] = ["data": jsonResources]

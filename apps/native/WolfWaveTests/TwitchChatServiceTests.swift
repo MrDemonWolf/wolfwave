@@ -353,7 +353,7 @@ struct TwitchChatServiceTests {
                     "bits": 100,
                     "broadcaster_user_id": "channel",
                     "user_name": "Viewer",
-                    "message": ["text": "Cheer100 a song"],
+                    "message": ["text": "Cheer100 a song"]
                 ]
             ],
             eventSubMessageID: "bits-reconnect")
@@ -409,8 +409,8 @@ struct TwitchChatServiceTests {
                     "bits": 100,
                     "broadcaster_user_id": "channel",
                     "user_name": "Viewer",
-                    "message": ["text": "Cheer100 a song"],
-                ],
+                    "message": ["text": "Cheer100 a song"]
+                ]
             ])
         let firstOutbox = TwitchRedemptionResolutionOutbox(fileURL: file)
         let firstService = TwitchChatService(
@@ -480,8 +480,8 @@ struct TwitchChatServiceTests {
                     "bits": 100,
                     "broadcaster_user_id": "channel",
                     "user_name": "Viewer",
-                    "message": ["text": "Cheer100 a song"],
-                ],
+                    "message": ["text": "Cheer100 a song"]
+                ]
             ])
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
@@ -766,7 +766,7 @@ struct TwitchChatServiceTests {
                 payload: [
                     "subscription": [
                         "type": "channel.chat.message",
-                        "status": "user_removed",
+                        "status": "user_removed"
                     ]
                 ]))
 
@@ -814,7 +814,7 @@ struct TwitchChatServiceTests {
                         "bits": 100,
                         "broadcaster_user_id": "channel",
                         "user_name": "Viewer",
-                        "message": ["text": "a song"],
+                        "message": ["text": "a song"]
                     ]
                 ],
                 eventSubMessageID: "bits-\(type)")
@@ -863,7 +863,7 @@ struct TwitchChatServiceTests {
                 "broadcaster_user_id": "broadcaster",
                 "user_name": "Viewer",
                 "user_input": "A song",
-                "reward": ["id": "reward"],
+                "reward": ["id": "reward"]
             ]
         ])
 
@@ -1361,7 +1361,7 @@ struct TwitchChatServiceTests {
                 "bits": 100,
                 "broadcaster_user_id": "channel",
                 "user_name": "Viewer",
-                "message": ["text": "Cheer100 a song"],
+                "message": ["text": "Cheer100 a song"]
             ]
         ]
     }
@@ -1375,7 +1375,7 @@ struct TwitchChatServiceTests {
                 "broadcaster_user_id": "broadcaster",
                 "user_name": "Viewer",
                 "user_input": "A song",
-                "reward": ["id": "reward"],
+                "reward": ["id": "reward"]
             ]
         ]
     }
@@ -1391,9 +1391,9 @@ struct TwitchChatServiceTests {
             "metadata": [
                 "message_type": messageType,
                 "message_id": messageID,
-                "message_timestamp": ISO8601DateFormatter().string(from: Date()),
+                "message_timestamp": ISO8601DateFormatter().string(from: Date())
             ],
-            "payload": payload,
+            "payload": payload
         ]
         let data = try JSONSerialization.data(withJSONObject: object)
         return String(decoding: data, as: UTF8.self)
@@ -1435,7 +1435,7 @@ struct TwitchChatServiceTests {
             "user:write:chat",
             AppConstants.Twitch.pollsScope,
             AppConstants.Twitch.channelPointsScope,
-            AppConstants.Twitch.bitsScope,
+            AppConstants.Twitch.bitsScope
         ]
         let body = try JSONSerialization.data(withJSONObject: ["scopes": scopes])
 
@@ -1497,10 +1497,10 @@ struct TwitchChatServiceTests {
     func testTokenValidationClientIDBinding() async throws {
         let scopes = ["user:read:chat", "user:write:chat"]
         let matching = try JSONSerialization.data(withJSONObject: [
-            "client_id": "expected", "scopes": scopes,
+            "client_id": "expected", "scopes": scopes
         ])
         let mismatch = try JSONSerialization.data(withJSONObject: [
-            "client_id": "different", "scopes": scopes,
+            "client_id": "different", "scopes": scopes
         ])
         let missing = try JSONSerialization.data(withJSONObject: ["scopes": scopes])
 
@@ -1670,7 +1670,7 @@ struct TwitchChatServiceTests {
             .invalidCredentials,
             .missingClientID,
             .networkError("test"),
-            .authenticationFailed,
+            .authenticationFailed
         ]
 
         let descriptions = errors.compactMap { $0.errorDescription }
@@ -2035,13 +2035,13 @@ struct TwitchChatServiceTests {
     func testSkipPollEndParsing() {
         let choices: [[String: Any]] = [
             ["title": TwitchChatService.skipPollSkipChoice, "votes": 7],
-            ["title": TwitchChatService.skipPollKeepChoice, "votes": 2],
+            ["title": TwitchChatService.skipPollKeepChoice, "votes": 2]
         ]
         let valid: [String: Any] = [
             "event": [
                 "id": "poll-123",
                 "title": TwitchChatService.skipPollTitle,
-                "choices": choices,
+                "choices": choices
             ]
         ]
         let result = TwitchChatService.skipPollResult(from: valid)
@@ -2053,7 +2053,7 @@ struct TwitchChatServiceTests {
         let missingID: [String: Any] = [
             "event": [
                 "title": TwitchChatService.skipPollTitle,
-                "choices": choices,
+                "choices": choices
             ]
         ]
         #expect(TwitchChatService.skipPollResult(from: missingID) == nil)
@@ -2156,14 +2156,14 @@ struct TwitchChatServiceTests {
             "metadata": [
                 "message_type": "session_welcome",
                 "message_id": "welcome-reset-test",
-                "message_timestamp": ISO8601DateFormatter().string(from: Date()),
+                "message_timestamp": ISO8601DateFormatter().string(from: Date())
             ],
             "payload": [
                 "session": [
                     "id": "test-session",
-                    "keepalive_timeout_seconds": 60,
+                    "keepalive_timeout_seconds": 60
                 ]
-            ],
+            ]
         ]
         let data = try JSONSerialization.data(withJSONObject: message)
         let text = String(decoding: data, as: UTF8.self)
@@ -2363,7 +2363,7 @@ struct TwitchChatServiceTests {
                 "chatter_user_id": "viewer-1",
                 "broadcaster_user_id": broadcasterID,
                 "message": ["text": text],
-                "badges": [],
+                "badges": []
             ]
         ]
     }
@@ -2377,7 +2377,7 @@ struct TwitchChatServiceTests {
             AppConstants.UserDefaults.songRequestPerUserLimit,
             AppConstants.UserDefaults.songRequestGlobalCooldown,
             AppConstants.UserDefaults.songRequestUserCooldown,
-            AppConstants.UserDefaults.srCommandEnabled,
+            AppConstants.UserDefaults.srCommandEnabled
         ]
         defer { keys.forEach { defaults.removeObject(forKey: $0) } }
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
@@ -2398,7 +2398,7 @@ struct TwitchChatServiceTests {
                     "message_id": "identity-\(index)", "chatter_user_name": displayName,
                     "chatter_user_login": "viewer", "chatter_user_id": "viewer-1",
                     "broadcaster_user_id": "channel", "message": ["text": "!sr song-\(index)"],
-                    "badges": [],
+                    "badges": []
                 ]
             ])
             #expect(await waitUntil { await service.activeCommandTaskCount == 0 })

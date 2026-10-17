@@ -22,8 +22,8 @@ final class TwitchBitsParsingTests: XCTestCase {
             "text": "Cheer100 Bohemian Rhapsody",
             "fragments": [
                 ["type": "cheermote", "text": "Cheer100"],
-                ["type": "text", "text": " Bohemian Rhapsody"],
-            ],
+                ["type": "text", "text": " Bohemian Rhapsody"]
+            ]
         ]
         XCTAssertEqual(
             TwitchChatService.cleanBitsMessage(message), "Bohemian Rhapsody")
@@ -36,8 +36,8 @@ final class TwitchBitsParsingTests: XCTestCase {
                 ["type": "cheermote", "text": "Cheer50"],
                 ["type": "text", "text": " take "],
                 ["type": "cheermote", "text": "Cheer100"],
-                ["type": "text", "text": " on me"],
-            ],
+                ["type": "text", "text": " on me"]
+            ]
         ]
         XCTAssertEqual(
             TwitchChatService.cleanBitsMessage(message), "take  on me")

@@ -642,7 +642,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
 
         let params: [String: String] = [
             "client_id": clientID,
-            "scopes": scopes.joined(separator: " "),
+            "scopes": scopes.joined(separator: " ")
         ]
 
         let request = makeFormPOST(url: url, params: params)
@@ -801,7 +801,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
                 "client_id": clientID,
                 "grant_type": grantType,
                 "device_code": deviceCode,
-                "scopes": scopes.joined(separator: " "),
+                "scopes": scopes.joined(separator: " ")
             ]
 
             var request = makeFormPOST(url: tokenURL, params: params)
@@ -1122,7 +1122,7 @@ nonisolated final class TwitchDeviceAuth: Sendable {
         let params: [String: String] = [
             "client_id": clientID,
             "grant_type": "refresh_token",
-            "refresh_token": refreshToken,
+            "refresh_token": refreshToken
         ]
         let request = makeFormPOST(url: tokenURL, params: params)
 

@@ -148,7 +148,6 @@ struct WolfWaveApp: App {
     }
 }
 
-
 // MARK: - App Delegate
 
 /// Orchestrates the menu bar, services, and window lifecycle.

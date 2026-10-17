@@ -29,10 +29,10 @@ struct DestructiveButton: View {
     /// Visible label and VoiceOver label.
     let title: String
     /// Optional leading SF Symbol; `nil` shows the title alone.
-    var systemImage: String? = nil
+    var systemImage: String?
     /// UI-test identifier. Defaults to `destructiveButton.<title>`, so changing
     /// the title also changes the default identifier.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
     /// Runs on click. This button does not confirm; the action should present
     /// the confirmation dialog itself.
     let action: () -> Void

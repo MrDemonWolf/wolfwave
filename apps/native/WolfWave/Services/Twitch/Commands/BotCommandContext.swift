@@ -44,7 +44,7 @@ nonisolated struct BotCommandContext: Sendable {
     let messageID: String
 
     /// Stable login used for queue ownership; legacy callers fall back to the display name.
-    var login: String? = nil
+    var login: String?
 
     /// The identity to key queue ownership on: `login` when present and
     /// non-empty, otherwise the display name. Logins are stable across

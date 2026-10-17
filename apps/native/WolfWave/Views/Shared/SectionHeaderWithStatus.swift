@@ -49,13 +49,13 @@ struct SectionHeaderWithStatus: View {
     /// Heading level; pane title by default.
     var prominence: Prominence = .pane
     /// Chip label. The chip shows only when both this and `statusColor` are set.
-    var statusText: String? = nil
+    var statusText: String?
     /// Chip tint. Use a `DSColor` semantic token (the `raw-status-color` lint
     /// rule rejects raw system colors here).
-    var statusColor: Color? = nil
+    var statusColor: Color?
     /// Optional leading SF Symbol for the status chip, so state is not conveyed
     /// by color alone. Passed straight through to `StatusChip`.
-    var statusSymbol: String? = nil
+    var statusSymbol: String?
 
     // MARK: - Body
 

@@ -84,7 +84,7 @@ struct DiscordProcArgsParsingTests {
         [],
         [1, 0, 0],
         header(-1, Array("/Discord".utf8) + [0]),
-        header(5, Array("/Discord".utf8) + [0, 0, 0x61, 0]),
+        header(5, Array("/Discord".utf8) + [0, 0, 0x61, 0])
     ]
 
     @Test("Malformed buffers return nil", arguments: malformedBuffers)

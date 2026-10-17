@@ -29,7 +29,7 @@ struct LabeledSlider<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatin
     /// clamped, finite value.
     var format: (V) -> String = { String(Int($0)) }
     /// UI-test identifier. Defaults to `labeledSlider.<label>`.
-    var accessibilityIdentifier: String? = nil
+    var accessibilityIdentifier: String?
 
     // MARK: - Body
 

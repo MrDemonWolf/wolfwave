@@ -116,7 +116,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         let searchQuery = queryFor(account: account)
         let updateAttributes: [String: Any] = [
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
 
         let updateStatus = SecItemUpdate(searchQuery as CFDictionary, updateAttributes as CFDictionary)
@@ -197,7 +197,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
     func deleteAll() throws {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: service
         ]
         if useDataProtectionKeychain {
             query[kSecUseDataProtectionKeychain as String] = true
@@ -222,7 +222,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
         ]
         if useDataProtectionKeychain {
             query[kSecUseDataProtectionKeychain as String] = true
@@ -247,7 +247,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
             kSecAttrAccount as String: probeAccount,
             kSecValueData as String: probeData,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-            kSecUseDataProtectionKeychain as String: true,
+            kSecUseDataProtectionKeychain as String: true
         ]
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
 
@@ -259,7 +259,7 @@ nonisolated final class SystemKeychainBackend: KeychainBackend {
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: probeAccount,
-                kSecUseDataProtectionKeychain as String: true,
+                kSecUseDataProtectionKeychain as String: true
             ]
             _ = SecItemDelete(deleteQuery as CFDictionary)
         }

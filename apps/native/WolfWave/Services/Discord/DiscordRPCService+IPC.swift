@@ -325,7 +325,7 @@ extension DiscordRPCService {
     func performHandshake() async -> Bool {
         let handshake: [String: Any] = [
             "v": AppConstants.Discord.rpcVersion,
-            "client_id": clientID,
+            "client_id": clientID
         ]
 
         guard let outbound = Self.encodeFrame(opcode: .handshake, payload: handshake) else {

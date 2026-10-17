@@ -49,7 +49,7 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
             AppConstants.UserDefaults.songRequestChannelPointsRewardIdentity,
             AppConstants.UserDefaults.songRequestChannelPointsCost,
             AppConstants.UserDefaults.songRequestRedemptionStatus,
-            AppConstants.UserDefaults.twitchPendingImportedChannelName,
+            AppConstants.UserDefaults.twitchPendingImportedChannelName
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 

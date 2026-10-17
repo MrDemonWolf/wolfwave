@@ -73,7 +73,7 @@ final class StreamerModeTests: WolfWaveTestCase {
             "a",
             String(repeating: "x", count: 5_000),
             "üñîçødé-channel",
-            "https://example.com/?token=\u{1F600}",
+            "https://example.com/?token=\u{1F600}"
         ]
         for input in inputs {
             for style: StreamerMode.Style in [.url, .token, .channel, .generic] {

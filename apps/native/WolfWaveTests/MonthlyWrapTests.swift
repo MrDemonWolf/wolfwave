@@ -50,7 +50,7 @@ struct MonthlyWrapTests {
             record(track: "May A", artist: "X", at: date(2026, 5, 3)),
             record(track: "May B", artist: "X", at: date(2026, 5, 20)),
             record(track: "April", artist: "X", at: date(2026, 4, 28)),
-            record(track: "June", artist: "X", at: date(2026, 6, 1)),
+            record(track: "June", artist: "X", at: date(2026, 6, 1))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.totalPlays == 2)
@@ -106,7 +106,7 @@ struct MonthlyWrapTests {
             record(track: "LastDay", artist: "X", at: date(2026, 5, 31)),
             // Just outside the May window on either side (must be excluded).
             record(track: "AprilEnd", artist: "X", at: date(2026, 4, 30)),
-            record(track: "JuneStart", artist: "X", at: date(2026, 6, 1)),
+            record(track: "JuneStart", artist: "X", at: date(2026, 6, 1))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.totalPlays == 2)
@@ -119,7 +119,7 @@ struct MonthlyWrapTests {
             record(track: "Hit", artist: "Star", at: date(2026, 5, 1)),
             record(track: "Hit", artist: "Star", at: date(2026, 5, 2)),
             record(track: "Hit", artist: "Star", at: date(2026, 5, 3)),
-            record(track: "Other", artist: "Nobody", at: date(2026, 5, 4)),
+            record(track: "Other", artist: "Nobody", at: date(2026, 5, 4))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.topArtist?.name == "Star")
@@ -134,7 +134,7 @@ struct MonthlyWrapTests {
         let records = [
             record(track: "A", artist: "X", at: date(2026, 5, 10)),
             record(track: "B", artist: "X", at: date(2026, 5, 10)),
-            record(track: "C", artist: "X", at: date(2026, 5, 11)),
+            record(track: "C", artist: "X", at: date(2026, 5, 11))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.busiestDay?.count == 2)
@@ -148,7 +148,7 @@ struct MonthlyWrapTests {
             record(track: "C", artist: "X", at: date(2026, 5, 11), played: 150),
             record(track: "D", artist: "X", at: date(2026, 5, 11), played: 150),
             record(track: "E", artist: "X", at: date(2026, 5, 12), played: 150),
-            record(track: "F", artist: "X", at: date(2026, 5, 12), played: 150),
+            record(track: "F", artist: "X", at: date(2026, 5, 12), played: 150)
         ]
 
         let forward = MonthlyWrap.data(
@@ -216,7 +216,7 @@ struct MonthlyWrapTests {
     func testMilestoneSingleMonth() {
         let records = [
             record(track: "A", artist: "X", at: date(2026, 5, 1)),
-            record(track: "B", artist: "X", at: date(2026, 5, 2)),
+            record(track: "B", artist: "X", at: date(2026, 5, 2))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.milestone == nil)
@@ -228,7 +228,7 @@ struct MonthlyWrapTests {
             record(track: "Apr", artist: "X", at: date(2026, 4, 10)),   // April: 1 play
             record(track: "A", artist: "X", at: date(2026, 5, 1)),      // May: 3 plays
             record(track: "B", artist: "X", at: date(2026, 5, 2)),
-            record(track: "C", artist: "X", at: date(2026, 5, 3)),
+            record(track: "C", artist: "X", at: date(2026, 5, 3))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.milestone == .bestMonthYet)
@@ -240,7 +240,7 @@ struct MonthlyWrapTests {
             record(track: "Apr", artist: "X", at: date(2026, 4, 10)),   // April: 1 play, fewer seconds
             record(track: "A", artist: "X", at: date(2026, 5, 1)),      // May: 3 plays
             record(track: "B", artist: "X", at: date(2026, 5, 2)),
-            record(track: "C", artist: "X", at: date(2026, 5, 3)),
+            record(track: "C", artist: "X", at: date(2026, 5, 3))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 4, 15), calendar: calendar)
         #expect(wrap.milestone == nil)
@@ -252,7 +252,7 @@ struct MonthlyWrapTests {
         // "more plays than any other recorded month" requires strictly more.
         let records = [
             record(track: "Apr", artist: "X", at: date(2026, 4, 10)),
-            record(track: "May", artist: "X", at: date(2026, 5, 10)),
+            record(track: "May", artist: "X", at: date(2026, 5, 10))
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.milestone == nil)
@@ -267,7 +267,7 @@ struct MonthlyWrapTests {
             PlayRecord(timestamp: date(2026, 4, 2), track: "b", artist: "X", album: "Al",
                        duration: 200, playedSeconds: 60),
             PlayRecord(timestamp: date(2026, 5, 1), track: "c", artist: "X", album: "Al",
-                       duration: 600, playedSeconds: 600),
+                       duration: 600, playedSeconds: 600)
         ]
         let wrap = MonthlyWrap.data(from: records, month: date(2026, 5, 15), calendar: calendar)
         #expect(wrap.milestone == .mostListeningYet)

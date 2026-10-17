@@ -82,7 +82,7 @@ struct SettingsBackupCoderTests {
         var backup = makeBackup(snapshot: [
             keys.shareDiagnosticsEnabled: true,
             keys.websocketEnabled: true,
-            keys.widgetPort: 8765,
+            keys.widgetPort: 8765
         ])
         let plan = coder.makeApplyPlan(
             backup: backup,
@@ -134,7 +134,7 @@ struct SettingsBackupCoderTests {
             keys.songCommandGlobalCooldown: 15.0,
             keys.widgetTheme: "Neon",
             keys.customCommands: customCommands,
-            keys.songRequestBlocklist: blocklist,
+            keys.songRequestBlocklist: blocklist
         ]
         let data = try coder.encode(makeBackup(snapshot: snapshot))
         let decoded = try coder.decode(data)
@@ -193,7 +193,7 @@ struct SettingsBackupCoderTests {
         let backup = makeBackup(snapshot: [
             keys.trackingEnabled: "true",
             keys.dockVisibility: "floating",
-            keys.customCommands: commandData,
+            keys.customCommands: commandData
         ])
 
         #expect(backup.settings[keys.trackingEnabled] == nil)
@@ -385,7 +385,7 @@ struct SettingsBackupCoderTests {
         let keys = AppConstants.UserDefaults.self
         let backup = makeBackup(snapshot: [
             keys.websocketServerPort: 8765,
-            keys.widgetPort: 0, // 0 = "use the default"; legal to restore
+            keys.widgetPort: 0 // 0 = "use the default"; legal to restore
         ])
 
         let plan = coder.makeApplyPlan(
@@ -423,7 +423,7 @@ struct SettingsBackupCoderTests {
             keys.songRequestPerUserLimit: 1,
             keys.songRequestLimitSubscriber: 20,
             keys.songRequestLimitVIP: 1,
-            keys.songRequestLimitModerator: 20,
+            keys.songRequestLimitModerator: 20
         ])
 
         let plan = coder.makeApplyPlan(
@@ -448,7 +448,7 @@ struct SettingsBackupCoderTests {
             keys.widgetFontFamily: .bool(true),
             keys.websocketServerPort: .double(8_765),
             keys.songCommandGlobalCooldown: .int(15),
-            keys.customCommands: .string("[]"),
+            keys.customCommands: .string("[]")
         ]
 
         let plan = coder.makeApplyPlan(
@@ -478,7 +478,7 @@ struct SettingsBackupCoderTests {
             keys.updateChannel: .string("beta"),
             keys.widgetTheme: .string("Synthwave"),
             keys.songRequestChatAudience: .string("friends"),
-            keys.statsCommandParts: .string("plays,secretMetric"),
+            keys.statsCommandParts: .string("plays,secretMetric")
         ]
 
         let plan = coder.makeApplyPlan(
@@ -513,7 +513,7 @@ struct SettingsBackupCoderTests {
             keys.voteSkipSessionCooldown: .double(10),
             keys.voteSkipPollDuration: .int(15),
             keys.historyRetentionDays: .int(1),
-            keys.songCommandGlobalCooldown: .double(7),
+            keys.songCommandGlobalCooldown: .double(7)
         ]
 
         let plan = coder.makeApplyPlan(

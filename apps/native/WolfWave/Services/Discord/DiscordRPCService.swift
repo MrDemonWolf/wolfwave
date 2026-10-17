@@ -508,7 +508,6 @@ actor DiscordRPCService {
         }
     }
 
-
     /// Updates the Rich Presence to show the currently playing track.
     ///
     /// Fetches album artwork from the iTunes Search API on cache miss and
@@ -684,9 +683,9 @@ actor DiscordRPCService {
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
-                "pid": pid,
+                "pid": pid
             ],
-            "nonce": UUID().uuidString,
+            "nonce": UUID().uuidString
         ]
 
         await sendCommandFrame(payload)
@@ -800,9 +799,9 @@ actor DiscordRPCService {
             "cmd": "SET_ACTIVITY",
             "args": [
                 "pid": pid,
-                "activity": activity,
+                "activity": activity
             ],
-            "nonce": nonce,
+            "nonce": nonce
         ]
 
         await sendCommandFrame(payload)
@@ -926,7 +925,7 @@ actor DiscordRPCService {
     private static let discordBundleIDs = [
         "com.hnc.Discord",
         "com.hnc.Discord.Canary",
-        "com.hnc.Discord.PTB",
+        "com.hnc.Discord.PTB"
     ]
 
     /// Returns candidate temp directory paths for locating Discord's IPC socket.

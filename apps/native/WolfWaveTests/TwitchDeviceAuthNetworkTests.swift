@@ -142,7 +142,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
             #"""
             {"device_code":"DEV","user_code":"WXYZ","verification_uri":"https://twitch.tv/activate",
              "expires_in":1800,"interval":9223372036854775807}
-            """#,
+            """#
         ]
 
         for json in responses {
@@ -626,7 +626,7 @@ final class TwitchDeviceAuthNetworkTests: XCTestCase {
     func testPollForTokenRejectsUnsafeTimingMetadataBeforeRequest() async {
         for timing in [
             (interval: Int.max, expiresIn: 600),
-            (interval: 5, expiresIn: Int.max),
+            (interval: 5, expiresIn: Int.max)
         ] {
             do {
                 _ = try await makeAuth().pollForToken(

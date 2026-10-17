@@ -173,7 +173,7 @@ extension AppConstants {
             musicPermissionDenied,
             streamerModeChanged,
             openSettingsRequested,
-            iCloudSettingsSyncSettingChanged,
+            iCloudSettingsSyncSettingChanged
         ]
     }
 }

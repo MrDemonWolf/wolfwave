@@ -163,8 +163,7 @@ extension AppDelegate {
                 let overlay = WebSocketAuthToken.currentOrCreate(for: .overlay)
                 var control = WebSocketAuthToken.currentOrCreate(for: .control)
                 if WebSocketAuthToken.constantTimeEquals(overlay, control) {
-                    do { control = try WebSocketAuthToken.rotate(.control) }
-                    catch { Log.error("AppDelegate: Could not separate WebSocket credentials", category: .websocket) }
+                    do { control = try WebSocketAuthToken.rotate(.control) } catch { Log.error("AppDelegate: Could not separate WebSocket credentials", category: .websocket) }
                 }
                 return (overlay, control)
             }.value
@@ -590,7 +589,7 @@ extension AppDelegate {
         // hold changed anywhere else.
         for name in [
             Notification.Name.songRequestQueueChanged,
-            Notification.Name.songRequestHoldChanged,
+            Notification.Name.songRequestHoldChanged
         ] {
             notificationObservers.append(
                 nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in

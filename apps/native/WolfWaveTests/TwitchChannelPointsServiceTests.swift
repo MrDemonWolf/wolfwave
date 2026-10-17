@@ -143,17 +143,17 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
                 body = [
                     "data": [
                         ["id": "redemption-1"],
-                        ["id": "redemption-2"],
+                        ["id": "redemption-2"]
                     ],
-                    "pagination": ["cursor": "next-page"],
+                    "pagination": ["cursor": "next-page"]
                 ]
             } else {
                 body = [
                     "data": [
                         ["id": "redemption-2"],
-                        ["id": "redemption-3"],
+                        ["id": "redemption-3"]
                     ],
-                    "pagination": [String: Any](),
+                    "pagination": [String: Any]()
                 ]
             }
             return (
@@ -207,7 +207,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         handlerStore.handler = { request in
             let body: [String: Any] = [
                 "data": [["id": "redemption"]],
-                "pagination": ["cursor": 42],
+                "pagination": ["cursor": 42]
             ]
             return (
                 MockURLProtocol.httpResponse(for: request, status: 200),
@@ -284,7 +284,7 @@ final class TwitchChannelPointsServiceTests: WolfWaveTestCase {
         handlerStore.handler = { request in
             let body: [String: Any] = [
                 "data": [["id": UUID().uuidString]],
-                "pagination": ["cursor": "stuck"],
+                "pagination": ["cursor": "stuck"]
             ]
             return (
                 MockURLProtocol.httpResponse(for: request, status: 200),

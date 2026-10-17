@@ -640,7 +640,7 @@ final class ListeningHistoryService {
             // then distinguished exactly by sequence.
             if preserveLifetime,
                tally.lastFoldedSequence == nil,
-               (!tally.isEmpty || tally.lastFoldedTimestamp != nil) {
+               !tally.isEmpty || tally.lastFoldedTimestamp != nil {
                 let baseline: UInt64
                 if let firstSequence = all.first?.sequence {
                     baseline = firstSequence > 0 ? firstSequence - 1 : 0

@@ -519,8 +519,8 @@ actor WebSocketServerService {
                 "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? AppConstants.Widget.Defaults.layout,
                 "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? AppConstants.Widget.Defaults.textColor,
                 "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? AppConstants.Widget.Defaults.backgroundColor,
-                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily,
-            ],
+                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily
+            ]
         ]
     }
 
@@ -544,8 +544,8 @@ actor WebSocketServerService {
         broadcastJSON([
             "type": "queue_state",
             "data": [
-                "count": count, "pending": pending, "held": held, "audience": audience,
-            ],
+                "count": count, "pending": pending, "held": held, "audience": audience
+            ]
         ])
     }
 
@@ -557,7 +557,7 @@ actor WebSocketServerService {
             "type": "queue_upcoming",
             "data": ["items": currentQueueUpcoming.map {
                 ["title": $0.title, "requesterUsername": $0.requesterUsername]
-            }],
+            }]
         ]
     }
 
@@ -596,8 +596,8 @@ actor WebSocketServerService {
             "type": "health",
             "data": [
                 "music": music, "twitch": twitch, "discord": discord,
-                "discordState": discordState, "overlay": overlay,
-            ] as [String: Any],
+                "discordState": discordState, "overlay": overlay
+            ] as [String: Any]
         ]
     }
 
@@ -1209,8 +1209,8 @@ actor WebSocketServerService {
             "data": [
                 "track": track, "artist": artist, "album": album,
                 "duration": currentDuration, "elapsed": elapsed,
-                "isPlaying": isPlaying, "artworkURL": currentArtworkURL ?? "",
-            ],
+                "isPlaying": isPlaying, "artworkURL": currentArtworkURL ?? ""
+            ]
         ]
     }
 
@@ -1230,7 +1230,7 @@ actor WebSocketServerService {
             Self.sendJSON(
                 [
                     "type": "playback_state",
-                    "data": ["isPlaying": false, "track": "", "artist": "", "album": ""],
+                    "data": ["isPlaying": false, "track": "", "artist": "", "album": ""]
                 ],
                 to: connection
             )
@@ -1281,8 +1281,8 @@ actor WebSocketServerService {
                 "isPlaying": isPlaying,
                 "track": currentTrack ?? "",
                 "artist": currentArtist ?? "",
-                "album": currentAlbum ?? "",
-            ],
+                "album": currentAlbum ?? ""
+            ]
         ])
     }
 
@@ -1303,8 +1303,8 @@ actor WebSocketServerService {
             "data": [
                 "elapsed": estimatedElapsed(),
                 "duration": currentDuration,
-                "isPlaying": isPlaying,
-            ],
+                "isPlaying": isPlaying
+            ]
         ])
     }
 

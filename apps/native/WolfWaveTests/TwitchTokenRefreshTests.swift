@@ -55,7 +55,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
             AppConstants.UserDefaults.songRequestChannelPointsRewardID,
             AppConstants.UserDefaults.songRequestChannelPointsRewardIdentity,
             AppConstants.UserDefaults.songRequestChannelPointsCost,
-            AppConstants.UserDefaults.songRequestRedemptionStatus,
+            AppConstants.UserDefaults.songRequestRedemptionStatus
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 
@@ -1340,7 +1340,7 @@ final class TwitchTokenRefreshTests: WolfWaveTestCase {
                 "broadcaster_user_id": "broadcaster",
                 "user_name": "Viewer",
                 "user_input": "A song",
-                "reward": ["id": "reward"],
+                "reward": ["id": "reward"]
             ]
         ])
         let retryDidSuspend = await waitUntil { await retryGate.suspended }
