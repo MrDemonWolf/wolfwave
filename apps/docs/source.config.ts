@@ -12,6 +12,9 @@ const extendedFrontmatter = pageSchema.extend({
   ogEyebrow: z.string().optional(),
   ogTitle: z.string().optional(),
   ogDescription: z.string().optional(),
+  // `<title>` override for search results when the sidebar/visible title is
+  // too short to say what the page is for ("Install"). Not shown on the page.
+  metaTitle: z.string().optional(),
 });
 
 // You can customise Zod schemas for frontmatter and `meta.json` here

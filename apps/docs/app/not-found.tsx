@@ -12,6 +12,8 @@ import { NotFoundRedirect } from "./not-found-redirect";
  */
 export const metadata: Metadata = {
   title: "Page not found",
+  // Its own description, so a shared broken link does not preview as the homepage.
+  description: "This WolfWave page does not exist or has moved. Try the docs home.",
 };
 
 export default function NotFound() {

@@ -463,7 +463,7 @@ scripts, so a green run locally means the same thing it means on a runner.
   | `changes` | Detect changes | One paths-filter pass feeding every other job's `if:`. Add a new path filter here, not in the consuming job. |
   | `test` | Build & Test | `make test-ci` on `macos-26`, plus `scripts/check-generated-drift.sh` (widget, design tokens, SponsorConfig) and the widget's own tests (`bun run --filter widget test`). Sets `MallocNanoZone=0` as insurance against a since-fixed runner-image allocator crash. |
   | `ui-test` | UI Tests | `make test-ui` on `macos-26`. Separate job on purpose: it launches the real app, so it runs in minutes and fails for a different class of reason than `test`. Needs no account or network (see `UITestMode`). |
-  | `docs` | Docs Build | `types:check`, `lint`, and a full docs build |
+  | `docs` | Docs Build | `types:check`, `lint`, a full docs build, then `bun run --filter docs test` (unit tests plus the SEO guard over the built `out/`) |
   | `streamdeck` | Stream Deck Plugin | `typecheck`, `bun test`, `pack`, and an icon-generator drift check for `apps/streamdeck/`. Keeps the TS protocol mirror honest against `StreamDeckCommand.swift`, which is in the path filter so a Swift-only change still re-runs the TS tests; `assets/logo-mono.svg`, the icon generator's input, is in the filter too |
   | `lint` | SwiftLint | SwiftLint against `swiftlint-baseline.json` |
   | `lint-crash-safety` | SwiftLint (crash-safety) | **Blocking.** No new force unwrap, `try!`, or `as!` |
@@ -543,6 +543,7 @@ The docs site generates Open Graph / Twitter card images at build time. Both pat
 | `ogEyebrow` | pill | preset by first slug segment |
 | `ogChips` | chip row | preset by first slug segment |
 | `keywords` | `<meta keywords>` | none |
+| `metaTitle` | `<title>` only: search-intent wording ("Install on Mac: DMG, Homebrew & Setup Wizard"), never shown on the page or in the sidebar | `title` |
 
 The changelog page is special-cased: its card is built from the latest `## vX.Y.Z` block in `changelog.mdx`, not from chips. The shared card visual lives in `apps/docs/app/og/_components/og-card.tsx` (`OgCard` + `ChangelogOgCard`).
 
@@ -556,6 +557,8 @@ The changelog page is special-cased: its card is built from the latest `## vX.Y.
 - Changed the homepage or landing pitch: edit `homepageSeo` in `lib/site.ts`. Never hardcode homepage strings back into `layout.tsx`, `opengraph-image.tsx`, or `twitter-image.tsx`.
 - Added a new docs page: start from the frontmatter template below so the card and SEO match the rest of the site.
 - Page URLs in metadata (canonical, `og:url`, JSON-LD, the sitemap) go through `pageUrl()`: absolute, trailing slash, base path included. `absoluteUrl()` is for assets. The root layout deliberately sets no canonical or `og:url`, because every route would inherit the homepage's; each page sets its own. A title that already names WolfWave uses `title.absolute` so the root template doesn't brand it twice.
+
+**Structured data** lives in `apps/docs/lib/seo.ts` and is emitted per page, never from the root layout (a docs page or the 404 must not claim to be the app). Home: `WebSite` + `Organization` + `SoftwareApplication` in one `@graph`, plus the `FAQPage` from `lib/faq.tsx`. Download: the same `SoftwareApplication`. Docs: `TechArticle` (git-derived `dateModified`) + a Home › Docs › Page `BreadcrumbList`. Do **not** add `HowTo` (Google retired that rich result) or a `FAQPage` whose questions are not visible on that page, and never invent a rating or review for `SoftwareApplication`. A docs `<title>` that already says "WolfWave" goes out as `title.absolute`, so the template never brands it twice.
 
 **New-page frontmatter template:**
 
@@ -589,8 +592,9 @@ keywords:
 **Validate after a change:**
 
 1. `bun run build --filter docs`. The OG routes are `force-static`, so they build here and fail the build on a code error.
-2. Eyeball the PNGs locally (`bun run dev --filter docs`): `/opengraph-image.png`, `/twitter-image.png`, and a page card such as `/og/docs/installation/image.png`.
-3. After deploy, re-scrape with opengraph.xyz, the Facebook Sharing Debugger, the X Card Validator, and the LinkedIn Post Inspector. Social platforms cache cards hard, so a rebuild alone will not refresh what people already saw.
+2. `bun run --filter docs test`. Runs the SEO guard (`apps/docs/lib/seo.test.ts`) over the built `out/`: one `<h1>`, a unique title of at most 65 characters naming WolfWave once, a unique 50-160 character description, a canonical equal to the page's own trailing-slash URL, full OG/Twitter tags with a 1200x630 image, valid JSON-LD of the right types, a noindex 404, and a sitemap listing exactly the indexable pages. The CI `docs` job runs it after the build.
+3. Eyeball the PNGs locally (`bun run dev --filter docs`): `/opengraph-image.png`, `/twitter-image.png`, and a page card such as `/og/docs/installation/image.png`.
+4. After deploy, re-scrape with opengraph.xyz, the Facebook Sharing Debugger, the X Card Validator, and the LinkedIn Post Inspector. Social platforms cache cards hard, so a rebuild alone will not refresh what people already saw.
 
 ## Marketing
 

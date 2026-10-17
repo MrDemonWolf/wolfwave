@@ -288,6 +288,12 @@ jobs:
       - name: Build docs
         run: bunx turbo build --filter docs
 
+      # Unit tests plus the SEO guard (lib/seo.test.ts), which reads the built
+      # `out/`, so it must run after the build. It fails under CI if `out/` is
+      # missing rather than skipping.
+      - name: Test docs
+        run: bun run --filter docs test
+
   streamdeck:
     name: Stream Deck Plugin
     needs: changes
