@@ -1,6 +1,6 @@
 ---
 title: Component Catalog
-description: Every reusable SwiftUI component shipped in the WolfWave macOS app. Status chips, cards, action grids, banners. Each entry has API, tokens, accessibility notes, and a do/don't list.
+description: The reusable SwiftUI components in the WolfWave macOS app, like status chips, callouts, and buttons. Each has API, tokens, accessibility notes, and do/don'ts.
 ogTitle: WolfWave Component Catalog
 ogDescription: Reusable SwiftUI components. Status chips, cards, action grids, banners. With tokens, API, and accessibility notes.
 keywords:
@@ -16,6 +16,8 @@ ogChips:
   - Chips
 ogEyebrow: Components
 ---
+
+**TL;DR:** before building a new SwiftUI view, check the catalog. A shared component probably exists, and each one documents its API, tokens, and accessibility.
 
 WolfWave's native macOS app ships a library of reusable SwiftUI components under
 `apps/native/WolfWave/Views/Shared/`, `Views/Onboarding/Components/`, and
@@ -44,7 +46,10 @@ A few representative entries:
 ## How to add a component
 
 1. Build the SwiftUI view under `Views/Shared/`, `Views/Onboarding/Components/`, or `Views/HistoryStats/`.
-2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` tokens. No hardcoded numbers, and no raw system colors as a status tint (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral` only). `bun run ds:lint` enforces both.
+2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` / `DSMotion` tokens. No hardcoded numbers, and no raw system colors as a status tint (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral` only). `bun run ds:lint` enforces both.
 3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md).
 4. Add the entry to the catalog README index.
-5. Run `make lint-sync`; it blocks missing source/catalog pairs and incomplete templates.
+5. Add a `#Preview` for each state. A `Views/Shared/` view also goes in the Debug tab's component gallery (`Views/Debug/DesignSystem/`).
+6. Run `make lint-sync`; it blocks missing source/catalog pairs and incomplete templates.
+
+Changing an existing component? Update its catalog entry in the same PR.

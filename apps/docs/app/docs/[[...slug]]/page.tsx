@@ -104,10 +104,10 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       : null;
 
   const faqByPage: Record<string, Array<{ q: string; a: string }>> = {
-    usage: [
+    features: [
       {
         q: 'How do I show what I am listening to in Apple Music on Twitch?',
-        a: 'Install WolfWave, sign in to Twitch, and enable the !song command. Chat replies with the live Apple Music track.',
+        a: 'Install WolfWave, sign in to Twitch, join your channel, and turn on the !song command. When a viewer types !song, the bot replies with the Apple Music track playing now.',
       },
       {
         q: 'Do I need a Spotify account or premium?',
@@ -115,7 +115,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       },
       {
         q: 'How do Twitch song requests work?',
-        a: 'Enable Song Requests in WolfWave. Viewers type !sr <song name or Apple Music link> in chat and the track is added to the Apple Music queue.',
+        a: 'Turn on Enable Song Requests in Settings, Song Requests. Viewers type !sr followed by a song name or an Apple Music, Spotify, or YouTube link, and WolfWave finds the song on Apple Music and adds it to the request queue.',
       },
       {
         q: 'Can I show Apple Music in my Discord profile?',
@@ -123,7 +123,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       },
       {
         q: 'Does WolfWave work as an OBS overlay?',
-        a: 'Yes. WolfWave runs a local WebSocket + HTTP widget you add to OBS as a Browser Source. Six themes, three layouts.',
+        a: 'Yes. WolfWave serves a now-playing widget from your Mac that you add to OBS as a Browser Source. It has five themes and five layouts.',
       },
     ],
     support: [
@@ -143,11 +143,11 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     'bot-commands': [
       {
         q: 'What chat commands does WolfWave support?',
-        a: '!song / !nowplaying for the current track, !last for the previous track, !sr to request a song, !queue and !myqueue to view the queue, !skip and !voteskip to skip.',
+        a: 'Viewers can type !song for the current track, !last for the previous one, !sr to request a song, !queue and !myqueue to see the queue, !voteskip to vote to skip, !playlist for the song list, !stats for listening stats, and !wolfwave for app info. Mods can use !skip, !hold, and !clearqueue.',
       },
       {
         q: 'Can viewers redeem songs with channel points or bits?',
-        a: 'Yes. WolfWave can auto-create a "Request a Song" channel-point reward and accept bit-cheer boosts to jump the queue.',
+        a: 'Yes, on Affiliate and Partner channels. WolfWave can create a "Request a Song" channel-point reward, take a song request from a Bits cheer, and let a cheer boost a viewer\'s queued song to the front.',
       },
     ],
   };

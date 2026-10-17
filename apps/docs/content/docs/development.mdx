@@ -1,32 +1,45 @@
 ---
 title: Development
-description: Build WolfWave from source and contribute. Xcode 26, macOS 26, Config.xcconfig setup, make targets, the test suite, notarization, and the release pipeline.
+description: Build WolfWave from source and send a pull request. Prerequisites, Config.xcconfig, make targets, tests, lint gates, release builds, and CI.
 keywords:
   - build wolfwave from source
   - contribute to wolfwave
-  - wolfwave development
+  - wolfwave development setup
   - swift open source mac app
-  - swiftui menu bar contribute
-  - macos test suite xctest
+  - swiftui menu bar app contribute
+  - macos xctest swift testing
 ogTitle: Build & Contribute to WolfWave
-ogDescription: Clone, configure Twitch + Discord IDs, build in Xcode, run the test suite, and ship a PR to the open-source Apple Music streamer app.
-ogChips:
-  - Swift
-  - SwiftUI
-  - Xcode 26
-  - XCTest
+ogDescription: Clone, add your Twitch and Discord IDs, build in Xcode, run the tests and lint gates, and open a PR.
 ogEyebrow: Developers
+ogChips:
+  - Swift 6
+  - Xcode 26
+  - make test
+  - Pull requests
 ---
 
-Everything you need to build WolfWave from source and contribute. Just want to
-use the app? See [Installation](/docs/installation).
+**TL;DR:** clone the repo, copy `Config.xcconfig`, run `make build` and `make test`, then open a PR.
+This page is for contributors. Just want to use the app? See [Installation](/docs/installation).
+
+## The path
+
+1. [Check the prerequisites](#prerequisites).
+2. [Clone the repo](#clone-the-repo).
+3. [Add your API keys](#configure-api-keys) in `Config.xcconfig`.
+4. [Build and run](#build-and-run) the Debug app.
+5. [Run the tests](#testing) and the [lint gates](#lint-gates).
+6. [Open a pull request](#open-a-pull-request).
 
 ## Prerequisites
 
-- **macOS 26.0+** (Tahoe)
-- **Apple Silicon** (M1 or later)
-- **Xcode 26+**
-- **Command Line Tools.** Run `xcode-select --install` if you haven't.
+- **macOS 26.0+** (Tahoe) on **Apple Silicon** (M1 or later).
+- **Xcode 26+**, with Command Line Tools (`xcode-select --install`).
+- **Docker Desktop**, only for `make lint` and `make lint-crash-safety` (they run a pinned SwiftLint image).
+- **bun 1.3.11**, only if you touch the docs site, OBS widget, Stream Deck plugin, or design tokens.
+  - Use exactly the version in the root `package.json` `packageManager` field.
+  - Other bun releases minify the widget differently, so CI's drift check fails.
+
+Only editing Swift? You don't need bun. Xcode ships the committed `widget.html` as-is.
 
 ## Clone the repo
 
@@ -35,51 +48,59 @@ git clone https://github.com/MrDemonWolf/wolfwave.git
 cd wolfwave
 ```
 
+Touching web code too? Install the workspaces with the pinned bun:
+
+```bash
+bunx bun@1.3.11 install --frozen-lockfile
+```
+
+`--frozen-lockfile` keeps `bun.lock` unchanged. Don't commit lockfile churn.
+
 ## Configure API keys
 
-Copy the example config and set your keys:
+Copy the example config:
 
 ```bash
 cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcconfig
 ```
 
+Then fill in the two required keys:
+
 ```
 TWITCH_CLIENT_ID = your_twitch_client_id_here
-DISCORD_CLIENT_ID = your_discord_client_id_here
-
-# Optional. Fork/whitelabel branding overrides. Leave as-is for the upstream defaults.
-DOCS_URL = https://mrdemonwolf.github.io/wolfwave
-COMMUNITY_DISCORD_URL = https://mrdwolf.net/discord
-COPYRIGHT_HOLDER = MrDemonWolf, Inc.
+DISCORD_CLIENT_ID = your_discord_application_id_here
 ```
 
-<Callout type="info">
-  Get a Twitch Client ID at
-  [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps). Get a Discord
-  Application ID at
-  [discord.com/developers/applications](https://discord.com/developers/applications).
-</Callout>
+- **Twitch Client ID:** create an app at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps).
+- **Discord Application ID:** create an app at [discord.com/developers/applications](https://discord.com/developers/applications).
+- **Discord art assets:** upload `apple_music` and `pause` to your Discord app. See [Rich Presence art assets](#rich-presence-art-assets-fork-maintainers).
 
 <Callout type="warn">
-  `Config.xcconfig` is gitignored. Each contributor uses their own.
+  `Config.xcconfig` is gitignored. Every contributor uses their own. Never commit it.
 </Callout>
 
-### Branding overrides
+### Optional keys
 
-`DOCS_URL`, `COMMUNITY_DISCORD_URL`, and `COPYRIGHT_HOLDER` control the docs
-link, community Discord invite, and legal entity shown in About + Monthly Wrap.
-Three levels, in priority order:
+| Key | What it sets | Default when blank |
+|---|---|---|
+| `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` | Repo used for update checks and issue links | Upstream repo |
+| `DOCS_URL` | Docs site root (privacy, terms, changelog links derive from it) | Upstream docs |
+| `COMMUNITY_DISCORD_URL` | Tray menu **Community Discord** link | Upstream invite |
+| `COPYRIGHT_HOLDER` | Legal name in About and Monthly Wrap footers | `MrDemonWolf, Inc.` |
 
-1. **Per-machine / fork**: set them in `Config.xcconfig`. Gitignored, affects
-   only your local builds.
-2. **Project-wide default**: the fallback strings in `Core/AppConstants.swift`.
-   This is the source of truth shipped to every user.
-3. **CI**: the release and test workflows write these keys into the generated
-   `Config.xcconfig` so built apps carry literal values.
+<Callout type="warn">
+  Escape `//` in URL values with `$()`, like `DOCS_URL = https:/$()/example.com`.
+  xcconfig reads a bare `//` as a comment and silently cuts the value to `https:`.
+</Callout>
 
-Each key falls back to the `AppConstants` default when blank, so leaving them
-out never breaks a build. To rename the app itself, edit `CFBundleDisplayName`
-in `Info.plist` (or set `PRODUCT_NAME` in an xcconfig overlay).
+Where these values come from, in priority order:
+
+1. **Your `Config.xcconfig`.** Local builds only.
+2. **CI.** Release and test workflows write the keys into a generated `Config.xcconfig`.
+3. **`Core/AppConstants`.** The fallback when a key is blank.
+
+To rename the app itself, set `PRODUCT_NAME` and `INFOPLIST_KEY_CFBundleDisplayName` in the build configuration.
+Keep the Debug and Release names different.
 
 ## Build and run
 
@@ -87,80 +108,127 @@ in `Info.plist` (or set `PRODUCT_NAME` in an xcconfig overlay).
 make open-xcode
 ```
 
-Hit **⌘R** in Xcode. That's it.
+Press **⌘R** in Xcode. Or build from the terminal with `make build`.
 
-| Command                | Description                                |
-| ---------------------- | ------------------------------------------ |
-| `make build`           | Debug build                                |
-| `make clean`           | Clean build artifacts                      |
-| `make clean-dev`       | Reset WolfWave Dev (quit it, wipe its defaults + Keychain entry, clean builds) |
-| `make test`            | Run unit tests (XCTest + Swift Testing)    |
-| `make test-verbose`    | Unit tests with full `xcodebuild` output   |
-| `make test-ui`         | XCUITest suite (launches the real app)     |
-| `make test-ci`         | Unit tests in CI mode, writes `.xcresult`  |
-| `make lint`            | SwiftLint against the tracked baseline     |
-| `make lint-crash-safety` | No new force unwrap, `try!`, or `as!`    |
-| `make lint-headers`    | Swift file-header convention               |
-| `make lint-sync`       | Source-derived lists, catalog, docs values (incl. ports), lint claims, release-notes and version script tests |
-| `make check-drift`     | Regenerate widget/tokens/icons, fail on drift |
-| `make update-deps`     | Resolve SwiftPM dependencies               |
-| `make open-xcode`      | Open the Xcode project                     |
-| `make ci`              | CI-friendly build                          |
-| `make prod-build`      | Release build + DMG in `builds/`           |
-| `make prod-install`    | Release build + install to `/Applications` |
-| `make notarize`        | Notarize the DMG (requires Developer ID)   |
-| `make verify-notarize` | Verify the DMG's stapled ticket and Gatekeeper acceptance |
+- Debug builds are a separate app: **WolfWave Dev** (`com.mrdemonwolf.wolfwave.dev`), with a `DEV` badge on its icon.
+- It lives beside a real WolfWave install without touching its settings or Keychain.
+- `make clean-dev` resets WolfWave Dev to a fresh first run. It never touches the production app.
+
+### Make targets
+
+| Command | What it does |
+|---|---|
+| `make build` | Debug build |
+| `make clean` | Clean build artifacts |
+| `make clean-dev` | Quit WolfWave Dev, wipe its settings and Keychain entry, clean builds |
+| `make test` | Unit tests (XCTest + Swift Testing) |
+| `make test-verbose` | Unit tests with full `xcodebuild` output |
+| `make test-ui` | XCUITest suite (launches the real app) |
+| `make test-ci` | Unit tests the way CI runs them, writes `TestResults.xcresult` |
+| `make ci` | Alias for `make test-ci` |
+| `make lint` | SwiftLint against the tracked baseline (needs Docker) |
+| `make lint-baseline` | Regenerate the baseline. It may only shrink |
+| `make lint-crash-safety` | No new force unwrap, `try!`, or `as!` (needs Docker) |
+| `make lint-headers` | Swift file-header convention |
+| `make lint-sync` | Source-derived lists, component catalog, docs values (incl. ports), lint claims, release-notes and version script tests |
+| `make widget` | Rebuild the OBS widget into `Resources/widget.html` |
+| `make icons` | Regenerate the Debug app icon from `AppIcon.icon` |
+| `make sponsor-config` | Regenerate `SponsorConfig.generated.swift` from `FUNDING.yml` |
+| `make check-drift` | Regenerate widget, tokens, SponsorConfig, and Debug icon; fail on drift |
+| `make update-deps` | Resolve SwiftPM dependencies |
+| `make open-xcode` | Open the Xcode project |
+| `make prod-build` | Release build + DMG in `builds/` |
+| `make prod-install` | Release build + install to `/Applications` |
+| `make notarize` | Sign, notarize, and staple the DMG (needs Developer ID) |
+| `make verify-notarize` | Check the DMG's stapled ticket and Gatekeeper acceptance |
+
+`make build`, every `make test*` target, and `make prod-build` run `sponsor-config` first, so you rarely call it yourself.
 
 ## Testing
 
-Run the suite with `make test` or **Cmd+U** in Xcode. The test target
-(`WolfWaveTests`) is a hosted unit test bundle that runs inside the app process.
+Run `make test` (or **⌘U** in Xcode). It prints the file and pass count.
 
-Tests live in
-[`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests)
-and cover the playback parser, command dispatcher, Twitch + Discord services,
-WebSocket auth handshake, Keychain wrapper, onboarding state machine, listening
-history pipeline, and the Sparkle updater. For the live pass count, run
-`make test` locally — enumerating numbers here just rots on every PR.
+- **Unit tests** live in [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests).
+- **New test file?** Drop a `.swift` file in that folder and `@testable import WolfWave`. No Xcode project edit needed.
+- **Your real data is safe.** Tests use a throwaway settings suite and an in-memory Keychain. Never use `UserDefaults.standard` in a test.
+- **Isolated output.** `make test*` builds into the gitignored `DerivedData/Tests`, so the unsigned test host never replaces your signed Debug app.
 
-Test files are auto-discovered: drop a `.swift` file into
-`apps/native/WolfWaveTests/` and use `@testable import WolfWave`. No Xcode
-project edit needed.
-
-The OBS widget and the Stream Deck plugin have their own bun suites:
-`bun run --filter widget test` and `bun run --filter streamdeck test`. CI runs
-the widget's with the native tests and the plugin's in its own job.
+The rules for shared test state (the `SharedTestStateIsolation` lock, `WolfWaveTestCase`) are in the repo's [`CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#writing-tests).
 
 ### UI tests
 
-`make test-ui` runs the XCUITest target (`WolfWaveUITests`), which launches
-the real app and drives it: the onboarding wizard end to end, and every
-settings pane rendered for real, with a screenshot of each attached to the
-result bundle. The app is launched with `WOLFWAVE_UI_TEST=1`, which routes
-settings and the Keychain to throwaway storage and keeps Apple Music, Twitch,
-Discord, and Sparkle down, so a run never touches your real account or
-preferences. It runs as its own CI job and is not part of a release build.
-The what-and-why is in
-[`apps/native/docs/end-to-end-testing.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/docs/end-to-end-testing.md).
+`make test-ui` runs `WolfWaveUITests`. It launches the real app and drives it:
 
-## Building the OBS widget
+- the onboarding wizard, end to end;
+- every settings pane, with a screenshot of each attached to the result.
 
-The bundled `widget.html` is a generated artifact from the `apps/widget/`
-workspace, committed so Xcode-only builds keep working. If you touch widget
-source or design tokens, rebuild with `make widget` and commit the output. The
-full pipeline, rebuild triggers, and dev loop live in the
-[widget guide](/docs/widget#dev-loop).
+The app runs with `WOLFWAVE_UI_TEST=1`, which swaps in throwaway settings and Keychain storage and keeps Apple Music, Twitch, Discord, and Sparkle off.
+UI tests run as their own CI job and never gate a release.
+Details: [`apps/native/docs/end-to-end-testing.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/docs/end-to-end-testing.md).
+
+### Web workspace tests
+
+```bash
+bun run --filter widget test       # OBS widget (bun test + happy-dom)
+bun run --filter streamdeck test   # Stream Deck plugin
+bun run ds:test                    # design-system lint rules
+```
+
+## Lint gates
+
+Run these before you push. CI runs the same ones.
+
+```bash
+make lint                # SwiftLint against the tracked baseline
+make lint-crash-safety   # Blocking: no new force unwrap, try!, or as!
+make lint-headers        # Blocking: Swift file headers match the Xcode template
+make lint-sync           # Blocking: source, catalog, and docs stay in sync
+bun run ds:lint          # Blocking: no literal font sizes, spacing, padding, or radius in views
+bun run ds:schema        # Validate tokens.json against its schema
+```
+
+## Generated files
+
+Some committed files are generated. Never edit them by hand.
+
+| Generated file | Source | Regenerate with |
+|---|---|---|
+| `Resources/widget.html` | `apps/widget/` | `make widget` |
+| `Tokens.generated.swift`, `tokens.generated.css`, `widget-tokens.generated.js`, `widget-themes.generated.ts` | `design-system/tokens.json` | `bun run tokens` |
+| `Resources/AppIcon-Dev.icon` | `Resources/AppIcon.icon` | `make icons` |
+| `Core/SponsorConfig.generated.swift` | `.github/FUNDING.yml` | `make sponsor-config` |
+
+Commit the regenerated output with your source change. `make check-drift` runs CI's drift check locally.
+The widget pipeline is covered on the [OBS Widget](/docs/widget#dev-loop) page.
+
+## Open a pull request
+
+1. Branch off `main`. One concern per PR.
+2. Run `make test` and the [lint gates](#lint-gates).
+3. Fill in the [PR template](https://github.com/MrDemonWolf/wolfwave/blob/main/.github/PULL_REQUEST_TEMPLATE.md) checklists.
+4. User-facing change? Add a one-line bullet to `CHANGELOG.md` under the top `## [x.y.z]` heading, and to the top block of [`changelog.mdx`](/docs/changelog).
+5. Contributor-only change? Put it under `### Developer` in `CHANGELOG.md`. It skips the in-app notes and the docs changelog.
+6. Update the docs your change touches (`features`, `settings`, `bot-commands`, `architecture`).
+7. Attach a screenshot or recording for any UI change.
+
+Don't bump `CURRENT_PROJECT_VERSION`. CI sets the build number from `scripts/version.sh`.
+
+More detail: [`CONTRIBUTING.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CONTRIBUTING.md) and [`CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md).
 
 ## Rich Presence art assets (fork maintainers)
 
-Discord Rich Presence references two asset names registered against the Discord
-application: `apple_music` (large image fallback + playing badge) and `pause`
-(the paused badge). The PNGs live in
-[`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets)
-and are **not** bundled with the app. If you ship a fork with your own
-`DISCORD_CLIENT_ID`, upload both to your Discord application's
-**Rich Presence → Art Assets** page or presence won't render. See
-[`discord-assets/README.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/discord-assets/README.md).
+Rich Presence shows two images registered on the Discord app. They are **not** bundled with WolfWave.
+
+| Asset name | Shown when |
+|---|---|
+| `apple_music` | Fallback large image, and the small badge while playing |
+| `pause` | Small badge while paused |
+
+Shipping a fork with your own `DISCORD_CLIENT_ID`?
+
+1. Open your Discord app's **Rich Presence → Art Assets** page.
+2. Upload both PNGs from [`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets) with those exact lowercase names.
+3. Wait about 10 minutes for Discord's CDN.
 
 ## Production build
 
@@ -168,15 +236,10 @@ and are **not** bundled with the app. If you ship a fork with your own
 make prod-build
 ```
 
-The DMG lands at `builds/WolfWave-{version}.dmg`. With a Developer ID
-Application certificate in your Keychain, the app is re-signed for distribution
-as part of the build (inside-out, with the same `scripts/codesign-app.sh` CI
-uses). `make prod-install` builds and drops straight into `/Applications`.
-
-The DMG window background (`assets/dmg-background.png` and `@2x`) is generated
-by `scripts/generate-dmg-background.swift`. Run
-`swift scripts/generate-dmg-background.swift assets` to regenerate it, then
-commit the PNGs.
+- The DMG lands at `builds/WolfWave-{version}.dmg`.
+- With a Developer ID Application certificate in your Keychain, the app is re-signed for distribution (inside-out, via `scripts/codesign-app.sh`, the same script CI uses).
+- `make prod-install` builds and copies the app to `/Applications`.
+- The DMG background comes from `scripts/generate-dmg-background.swift`. Regenerate with `swift scripts/generate-dmg-background.swift assets` and commit the PNGs.
 
 ### Notarization
 
@@ -187,67 +250,60 @@ APPLE_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx \
 make notarize
 ```
 
-`make notarize` signs, submits, and staples the DMG, then runs `stapler validate`
-and `spctl --assess` so a bad ticket fails there. `make verify-notarize` reruns
-those two checks on an existing DMG.
+- `make notarize` signs, submits, and staples the DMG.
+- It then runs `stapler validate` and `spctl --assess`, so a bad ticket fails here, not on a user's Mac.
+- `make verify-notarize` reruns those two checks on an existing DMG.
 
 <Callout type="info">
-  Generate an app-specific password at
+  Create an app-specific password at
   [appleid.apple.com](https://appleid.apple.com/account/manage) under **Sign-In and
   Security → App-Specific Passwords**.
 </Callout>
 
 ## CI/CD
 
-- **Test** (`test.yml`): `xcodebuild test`, generated-file drift checks, and the
-  OBS widget tests on every push and PR to `main`, plus lint, docs, and Stream
-  Deck jobs that only run when their files change.
-- **Build & Release** (`build_release.yml`): on a `v*` tag push, builds, signs,
-  notarizes, embeds release notes in the Sparkle appcast, and uploads the DMG to
-  a **draft** GitHub Release for review.
-- **Update Homebrew** (`update_homebrew.yml`): bumps the Homebrew cask after a
-  Release is published.
-- **Docs** (`docs.yml`): deploys this site to GitHub Pages when docs change, and
-  again after a stable release is published, so the latest DMG link and version
-  refresh.
-- **Nightly** (`nightly.yml`): daily signed build off `main` feeding the
-  opt-in [Nightly channel](/docs/nightly). Skipped when only docs or
-  housekeeping files changed.
-- **Dependabot** (`.github/dependabot.yml`): weekly grouped updates for GitHub
-  Actions, SwiftPM, and bun.
+| Workflow | When it runs | What it does |
+|---|---|---|
+| `test.yml` (CI) | Every push and PR to `main` | Unit tests, drift checks, widget tests, UI tests, docs build, Stream Deck plugin, SwiftLint, crash-safety, headers, sync, design-system lint. Each job runs only when its files change |
+| `build_release.yml` | `v*` tag push | Build, sign, notarize, embed release notes in the Sparkle appcast, upload the DMG to a **draft** GitHub Release |
+| `update_homebrew.yml` | After a release is published | Opens a PR bumping the Homebrew cask |
+| `docs.yml` | Docs changes, or a published stable release | Deploys this site to GitHub Pages |
+| `nightly.yml` | Daily at 05:00 UTC | Signed build off `main` for the [Nightly channel](/docs/nightly). Skipped when nothing that ships changed |
+| `dependabot.yml` | Weekly | Grouped updates for GitHub Actions, SwiftPM, and bun |
 
 ### Required GitHub secrets
 
-| Secret                       | Description                             |
-| ---------------------------- | --------------------------------------- |
-| `TWITCH_CLIENT_ID`           | Twitch application Client ID            |
-| `DISCORD_CLIENT_ID`          | Discord application ID                  |
-| `DEVELOPER_ID_CERT_P12`      | Base64-encoded Developer ID certificate |
-| `DEVELOPER_ID_CERT_PASSWORD` | Password for the P12 certificate        |
-| `APPLE_ID`                   | Apple ID for notarization               |
-| `APPLE_TEAM_ID`              | Apple Developer Team ID                 |
-| `APPLE_APP_PASSWORD`         | App-specific password for notarization  |
-| `SPARKLE_PRIVATE_KEY`        | EdDSA private key for appcast signing   |
+| Secret | What it is |
+|---|---|
+| `TWITCH_CLIENT_ID` | Twitch application Client ID |
+| `DISCORD_CLIENT_ID` | Discord application ID |
+| `DEVELOPER_ID_CERT_P12` | Base64 Developer ID certificate |
+| `DEVELOPER_ID_CERT_PASSWORD` | Password for that certificate |
+| `APPLE_ID` | Apple ID for notarization |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `APPLE_APP_PASSWORD` | App-specific password for notarization |
+| `SPARKLE_PRIVATE_KEY` | EdDSA key that signs the appcast |
+| `PROVISIONING_PROFILE_B64` | Optional. Developer ID profile with iCloud, for "Sync with iCloud" |
 
-### Triggering a release
+### Cutting a release
 
-Push a version tag matching the app's `MARKETING_VERSION`:
+Push a tag that matches `MARKETING_VERSION`:
 
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The workflow builds, signs, notarizes, and uploads to a draft Release.
-Rerunning it updates the draft's assets; it refuses to replace an
-already-published release. Review the draft, publish, and the Homebrew cask
-updates on its own. The full checklist lives in the repo's
-[Release Checklist](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#release-checklist).
+1. The workflow uploads to a draft release. Rerunning updates the draft; it never replaces a published release.
+2. Review the draft and publish it.
+3. The Homebrew cask and the docs site update on their own.
+
+The full list is the [Release Checklist](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#release-checklist).
 
 ## Next steps
 
 <Cards>
   <Card title="Architecture" href="/docs/architecture" description="How the app is put together, service by service." />
   <Card title="OBS Widget" href="/docs/widget" description="Widget build pipeline and message contract." />
-  <Card title="Stream Deck Control API" href="/docs/stream-deck" description="Drive WolfWave over the overlay socket." />
+  <Card title="Stream Deck Control API" href="/docs/stream-deck" description="Drive WolfWave from a same-Mac client." />
 </Cards>

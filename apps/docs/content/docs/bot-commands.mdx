@@ -1,208 +1,313 @@
 ---
 title: Bot Commands
-description: "Full !song, !sr, !queue, !skip, and vote-to-skip command reference for WolfWave. With cooldowns, permissions, and channel-point and bits redemptions."
-ogTitle: "!song, !sr, !queue, !skip. Apple Music for Twitch"
-ogDescription: "Every WolfWave chat command. Song requests via !sr, channel-point + bits boosts, chat or Twitch Polls vote-to-skip. No Spotify required."
-keywords:
-  - "!song command twitch apple music"
-  - twitch song requests apple music
-  - "!sr command apple music"
-  - twitch vote skip command
-  - twitch song requests without spotify premium
-  - channel point song requests twitch
-  - bit cheer song boost twitch
-  - twitch song request playlist link apple music
+description: "Every WolfWave chat command: !song, !sr, !queue, !voteskip and more. What viewers can type, what the bot replies, plus streamer setup for cooldowns and custom commands."
+ogTitle: "!song, !sr, !queue, !voteskip. Apple Music in Twitch chat"
+ogDescription: "What viewers can type in chat, what the bot says back, and how streamers set up cooldowns, aliases, and custom commands."
+ogEyebrow: Chat commands
 ogChips:
   - "!song"
   - "!sr"
   - "!queue"
   - "!voteskip"
-ogEyebrow: For Apple Music
+keywords:
+  - "!song command twitch apple music"
+  - "!sr command apple music"
+  - twitch song requests apple music
+  - twitch vote skip command
+  - channel point song requests twitch
+  - bits song request twitch
+  - twitch custom commands mac
+  - what can i type in twitch chat song request
 ---
 
-Connect your Twitch account and these commands are ready to go. Song requests are on out of the box; most other commands start **off** until you enable them in **Settings → Twitch → Bot Commands**. Replies cap at 500 characters, and an optional global gate keeps all commands quiet unless you're live.
+This page has two parts.
 
----
-
-## Current Song
-
-Replies with what you're playing right now. Off by default.
-
-| Command        | Description      |
-| -------------- | ---------------- |
-| `!song`        | Now Playing info |
-| `!currentsong` | Now Playing info |
-| `!nowplaying`  | Now Playing info |
-
----
-
-## Last Song
-
-Replies with the last track you finished. Off by default.
-
-| Command     | Description            |
-| ----------- | ---------------------- |
-| `!last`     | Previously Played info |
-| `!lastsong` | Previously Played info |
-| `!prevsong` | Previously Played info |
+- **Watching a stream?** Read [What can I type in chat?](#what-can-i-type-in-chat). It lists every command and what happens.
+- **Streaming?** Read [For streamers](#for-streamers). It shows how to turn commands on, set cooldowns, and make your own.
 
 ---
 
-## Song Requests
+## What can I type in chat?
 
-Viewers add tracks to your queue; mods get the controls. `!sr` is on by default and audience-gated, so you pick who can request. Queue behavior — fair-share ordering, approval screening, Sub/VIP priority — is covered in [Song Requests](/docs/features#song-requests).
+The streamer uses WolfWave to share their Apple Music in Twitch chat. Type a command as the **first word** of your message. Capitals don't matter.
 
-| Command                  | Who          | What it does                                      |
-| ------------------------ | ------------ | ------------------------------------------------- |
-| `!sr` / `!request` / `!songrequest <query>` | Everyone (audience-gated) | Request a track by name, or by an Apple Music, Spotify, or YouTube link. On by default |
-| `!queue` / `!songlist` / `!requests` | Everyone     | Show how many tracks are queued. On               |
-| `!myqueue` / `!mysongs`  | Everyone     | Show your own pending requests. On                |
-| `!skip` / `!next`        | Mods + broadcaster | Skip the current song. On                    |
-| `!hold` / `!resume` / `!unhold` | Mods + broadcaster | Pause and resume new requests. Always available |
-| `!clearqueue` / `!cq`    | Mods + broadcaster | Wipe the entire queue. On                    |
-| `!playlist`              | Everyone     | Link your WolfWave Requests playlist. Off by default |
+Not every command is on for every stream. The streamer picks which ones work. If nothing happens, the command is probably off, on cooldown, or you're not allowed to use it.
 
-Configure the queue, blocklist, and which commands are enabled in **Settings → Song Requests**.
+### See what's playing
 
-**What the bot says back.** `!skip` names the next song, says "Queue is now empty" only when the queue really drained, and says "Couldn't skip right now, try again." if Music is closed or busy. A viewer who isn't allowed to request gets a short refusal ("Song requests are subscriber-only right now."), and so does `!sr` while requests are off if you turned on **Reply When Off**. Refusals never start the `!sr` cooldown, so allowed viewers aren't held up, and they're throttled per viewer and across the whole channel so a crowd can't flood chat.
+| Type | What you get back |
+|---|---|
+| `!song` (or `!currentsong`, `!nowplaying`) | The song playing now. Example: `🐺 ▶️ Playing: Howl at the Moon by Gray Wolf` |
+| `!last` (or `!lastsong`, `!prevsong`) | The song before it. Example: `🐺 Previous: Pack Run by Arctic Wolf` |
+| `!stats` (or `!musicstats`) | The streamer's listening stats, like plays and top track |
+| `!wolfwave` | A short line about WolfWave and where to get it |
 
-<Callout type="warn">
-  `!playlist` needs one-time setup (**Settings → Song Requests → Set Up**) because macOS can't share a playlist for you. If you later delete or un-share the playlist, WolfWave turns the command off so chat never gets a dead link. Details in [Song Requests](/docs/features#song-requests).
-</Callout>
+- A paused song shows as `⏸️ Paused:` instead of `▶️ Playing:`.
+- Some streamers add a song.link URL so you can open the song on any music service.
+
+### Request a song [#song-requests]
+
+Type `!sr` followed by a song name or a link.
+
+| Type | What happens |
+|---|---|
+| `!sr Howl at the Moon` | WolfWave searches Apple Music and adds the best match to the queue |
+| `!sr` + an Apple Music link | Adds that exact song |
+| `!sr` + a Spotify or YouTube link | WolfWave reads the song's title and finds it on Apple Music |
+| `!request` or `!songrequest` | Same as `!sr` |
+
+The bot replies with one of these:
+
+- **Added.** `Added "Howl at the Moon" by Gray Wolf, #3 in queue`
+- **Waiting for the streamer.** `Sent "…" to the streamer for approval.` The streamer screens requests first.
+- **Not found.** `No results for "…". Try a different search!` Try fewer words, or add the artist.
+- **Blocked.** `Sorry, that song/artist is on the blocklist.`
+- **Too many.** `You already have 2 songs queued. Wait for one to play!` (the number is set by the streamer)
+- **Full.** `Queue is full (10/10). Try again later!`
+- **Duplicate.** `That song is already in your queue.`
+- **Not allowed.** For example `Song requests are subscriber-only right now.`
+
+Links that work:
+
+- Apple Music: a song link, or an album link that points at one track.
+- Spotify: a track link (`open.spotify.com/track/…` or `spotify.link`).
+- YouTube: a video link (`youtube.com/watch`, `music.youtube.com`, or `youtu.be`).
+
+### Check the queue
+
+| Type | What you get back |
+|---|---|
+| `!queue` (or `!songlist`, `!requests`) | The song playing now and the next 5 requests, with who asked for each |
+| `!myqueue` (or `!mysongs`) | Only your requests and their spots in line |
+| `!playlist` | A link to the streamer's requests playlist (only if they set one up) |
+
+### Vote to skip a song [#vote-skip]
+
+If the streamer turned on vote-skip, chat can skip a song together.
+
+1. Someone types `!voteskip` (or `!vs`). A vote starts.
+2. Others type `!voteskip` too. Each person counts once.
+3. Enough votes in time skips the song. If time runs out, the song stays.
+
+The bot shows the count, like `🗳️ 2/3 votes to skip this song.`
+
+Some streamers use **Twitch Polls** instead. Then only the streamer or a mod can start the vote with `!voteskip`, and everyone votes in the Twitch poll. The song is skipped when "skip" wins and has at least the minimum number of votes.
+
+After a vote ends, there's a short wait before the next one can start.
+
+### Use channel points or Bits
+
+Some channels let you request without typing a command.
+
+- **Channel points.** Redeem the **Request a Song** reward and type a song name or link in the box. If the request fails (not found, blocked, queue full), your points are refunded.
+- **Bits.** Cheer at least the streamer's minimum and add a song name in the same message. Example: `Cheer100 Howl at the Moon`. Bits can't be refunded, so double-check the song name.
+- **Bits boost.** If the streamer turned it on, a cheer moves **your** oldest queued song to the front instead of adding a new one. If you have nothing queued, your cheer's song name is requested instead.
+
+Channel points and Bits are Twitch Affiliate and Partner features, so not every channel has them.
+
+### Who can use what
+
+| Command | Who can use it |
+|---|---|
+| `!song`, `!last`, `!stats`, `!wolfwave`, `!queue`, `!myqueue`, `!playlist` | Everyone |
+| `!sr` | Whoever the streamer allows: everyone, subscribers, VIPs and subscribers, or mods only. Mods and the streamer can always request. |
+| `!voteskip` | Everyone, or subscribers only if the streamer chose that. Mods and the streamer can always vote. |
+| `!skip`, `!next`, `!clearqueue`, `!cq`, `!hold`, `!resume`, `!unhold` | Mods and the streamer only. Anyone else gets no reply. |
+
+### Why didn't the bot answer?
+
+- **Cooldown.** Each command has a short wait between uses, for the whole chat and for each person. The bot stays quiet until it's over. Mods and the streamer skip cooldowns.
+- **The command is off.** The streamer chose not to use it.
+- **The stream is offline.** Some streamers set every command to work only while live.
+- **It wasn't the first word.** `hey !song` won't work. `!song` will.
 
 ---
 
-## Vote-Skip
+## For streamers
 
-Chat votes a track off together — no mod needed. The whole feature is off by default; turn it on in **Settings → Song Requests → Chat Vote-Skip**.
+Everything below is set up in WolfWave's **Settings** window. Commands only work after you [connect Twitch](/docs/installation).
 
-| Command       | Who      | What it does                          |
-| ------------- | -------- | ------------------------------------- |
-| `!voteskip`   | Everyone (or subs-only) | Cast a vote to skip the current song  |
-| `!vs`         | Everyone (or subs-only) | Short alias for `!voteskip`           |
+### Turn commands on
 
-Enough votes within the time window skips the song — the queued request if one is playing, otherwise the current Apple Music track. If the window runs out first, the song stays.
+Most commands start **off**. Turn on the ones you want.
 
-Two ways to run a vote:
+| Command | Default | Where to turn it on |
+|---|---|---|
+| `!song`, `!last`, `!wolfwave` | Off | Settings → Twitch → Bot Commands |
+| `!stats` | Off | Settings → History & Stats → **!stats command** (needs Listening History and **Show Stats & Charts** on) |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On, but nothing works until Song Requests is on | Settings → Song Requests → Song Request Commands |
+| `!playlist` | Off | Settings → Song Requests (turned on by the guided setup) |
+| `!voteskip` | On, but nothing works until vote-skip is on | Settings → Song Requests → Chat Vote-Skip |
+| `!hold`, `!resume`, `!unhold` | Always on | No switch. Mods and you only. |
 
-- **Chat tally.** `!voteskip` votes are counted until the minimum is reached.
-- **Twitch Polls.** A mod's `!voteskip` opens a native Twitch poll (Affiliate/Partner only).
+Song requests have a master switch: **Enable Song Requests** in Settings → Song Requests. It's off until you turn it on. The first time, **Set up Song Requests** walks you through it. Details are in [Song requests](/docs/features#song-requests).
 
-Minimum votes, vote window, cooldown, and subscriber-only voting all live in the same Settings pane.
+**Only reply while live.** In Settings → Twitch → Chat commands, this one switch keeps every command quiet until your stream goes live. It's off by default, so commands reply anytime.
 
----
+### What the mod commands do
 
-## Live Stats
+- **`!skip` / `!next`** plays the next request. Chat sees the new song. If the queue is empty, it says `Skipped. Queue is now empty.` If Music is busy, it says `Couldn't skip right now, try again.`
+- **`!clearqueue` / `!cq`** removes every request and says how many were removed.
+- **`!hold`** pauses request playback. New requests still join the queue but don't play. **`!resume`** or **`!unhold`** starts them again. This is the same as the **Hold Queue** switch.
 
-Viewers pull your listening stats on demand. Off by default; needs the opt-in Listening History plus the command enabled in **Settings → History & Stats**.
+### Who can request
 
-| Command   | Who      | What it does                                                                                  |
-| --------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `!stats` / `!musicstats` | Everyone | Replies with your listening stats for the window you picked in Settings       |
+Set this in Settings → Song Requests → **Who Can Request**. Pick a preset:
 
-Windows: **Today** (default), **This stream**, **Last 7 days**, or **All time**. Pick any mix of play count, listening time, top track, and top artist; a live preview in Settings shows the exact reply. At least one stays selected: the last chip locks.
+| Preset | What it does |
+|---|---|
+| **Open** | Anyone can use `!sr`. Channel points and Bits are on. Bits boost a queued song. |
+| **Sub Only** | Only subscribers can use `!sr`. Channel points and Bits are off. |
+| **Channel Point Only** | `!sr` is off. Viewers use the channel-point reward. |
+| **Custom** | Pick the `!sr` audience yourself: Everyone, Subscribers, VIPs & Subscribers, or Mods Only. |
 
-<Callout type="warn">
-  `!stats` only replies while your stream is online. Offline, it stays quiet — that's by design, not a bug.
-</Callout>
+- Mods and you can always request.
+- The audience only limits `!sr`. Channel points and Bits accept anyone who pays.
+- A viewer who isn't allowed gets a short "not allowed" reply. That reply is rate-limited, and it never starts the `!sr` cooldown for everyone else.
+- **Reply When Off** makes `!sr` say "Song requests are off right now." while requests are off. Off by default, so `!sr` stays silent.
+- **Require My Approval** holds every request until you approve or decline it.
 
----
+### Channel points and Bits
 
-## About WolfWave
+Turn these on in Settings → Song Requests → **Channel Points & Bits**.
 
-A one-tap shoutout for the app. Off by default; enable it and pick a reply in **Settings → Twitch → Bot Commands**.
+- **Channel Point Requests.** WolfWave adds a **Request a Song** reward to your channel. Pick the cost (default 500). Failed requests are refunded automatically.
+- **Bit Requests.** A cheer with a song name requests it. Pick the minimum (default 100 Bits).
+- **Boost With Bits.** A cheer moves the viewer's queued song to the front instead.
 
-| Command     | Who      | What it does                                      |
-| ----------- | -------- | ------------------------------------------------- |
-| `!wolfwave` | Everyone | Replies with what WolfWave is and where to get it |
+You need:
 
-Four ready-made replies, each crediting MrDemonWolf and linking to the site:
+- Twitch Affiliate or Partner.
+- To sign in with your **broadcaster** account, not a separate bot account.
+- The channel-point and Bits permissions. If they're missing, WolfWave asks you to reconnect once.
 
-- **Credit + maker** (default). Names the app, the maker, and what it does.
+### Vote-skip settings
+
+Settings → Song Requests → **Chat Vote-Skip**. Turn on **Enable Vote-Skip** first.
+
+| Setting | Default | Choices |
+|---|---|---|
+| Minimum votes to skip | 3 | 2, 3, 5, 7, 10 |
+| Vote window | 60s | 30, 60, 90, 120s |
+| Cooldown between votes | 30s | 0 to 120s |
+| Subscriber-Only Voting | Off | |
+| Use Twitch Polls | Off | Affiliate/Partner only. Poll duration 30s to 5 min. |
+
+A vote skips the request playing now. If no request is playing, it skips the current Apple Music track.
+
+### `!stats` settings
+
+In Settings → History & Stats → **!stats command**:
+
+- **Window:** Today (default), This stream, Last 7 days, or All time. "This stream" uses Today while you're offline.
+- **What to show:** Plays, Listening time, Top track, Top artist. Plays and Top track are on by default. At least one stays on.
+- A live preview shows the exact reply.
+
+### `!wolfwave` reply styles
+
+Pick one in Settings → Twitch → Bot Commands. Each one credits MrDemonWolf and links the WolfWave site.
+
+- **Credit + maker** (default)
 - **Viewer how-to.** Points viewers at `!song`, `!last`, and `!sr`.
-- **Open-source pitch.** Leads with free and open source for other streamers.
-- **Short & friendly.** A one-liner plus the link.
+- **Open-source pitch**
+- **Short & friendly**
 
-Cooldowns and custom aliases live in the same pane.
+### Cooldowns
 
----
+A cooldown is how long a command waits before it answers again.
 
-## Channel Points &amp; Bits
+- **Everyone:** how long the whole chat waits after anyone uses it.
+- **Per person:** how long one viewer waits after they use it.
+- Mods and you always skip cooldowns.
+- Aliases share their command's cooldown. `!song` and `!np` count as one.
 
-Two more ways for viewers to add a track, no command needed. Both feed the same queue, blocklist, and audience rules as `!sr`.
+| Command | Everyone | Per person | Can you change it? |
+|---|---|---|---|
+| `!song`, `!last`, `!wolfwave` | 15s | 15s | Yes. Everyone 0 to 30s, per person 0 to 60s, in 5s steps |
+| `!stats` | 15s | 15s | Yes. Both 0 to 60s, in 5s steps |
+| `!sr` | 5s | 30s | Yes. Everyone 0 to 30s, per person 0 to 60s |
+| `!queue`, `!myqueue` | 10s | 15s | No |
+| `!playlist` | 15s | 15s | No |
+| `!skip`, `!hold` | 3s | 3s | No (mods skip it anyway) |
+| `!clearqueue` | 5s | 5s | No (mods skip it anyway) |
+| `!voteskip` | none | none | Uses the vote-skip cooldown instead |
 
-- **Channel Points.** Viewers redeem the WolfWave-managed "Request a Song" reward; it acts like a `!sr` from that viewer.
-- **Bit Boost.** A viewer cheers bits and their most-recent queued request jumps to the front.
+**Sub / VIP priority** (Settings → Song Requests) can let subs and VIPs skip the `!sr` cooldown, or skip it and jump ahead in the queue. Off by default.
 
-Enable both from **Settings → Song Requests → Channel Points & Bits** (Twitch Affiliate or Partner required). Reward management and the fine print are in [Channel points and bits](/docs/features#channel-points-and-bits).
+### Custom aliases
 
----
+Add extra words for a built-in command. Type them comma-separated, without `!`. Example: add `np, track` to `!song` and viewers can also type `!np` or `!track`.
 
-## Custom Commands
+| Command | Where |
+|---|---|
+| `!song`, `!last`, `!wolfwave` | Settings → Twitch → Bot Commands |
+| `!stats` | Settings → History & Stats |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!playlist`, `!voteskip` | Settings → Song Requests |
 
-Build your own chat commands in **Settings → Twitch → Custom Commands**. Give each one a trigger, a reply, and pick who can use it. Aliases and cooldowns work just like the built-ins. You can set them up before you connect Twitch; they start replying once you do. A trigger or alias is one word, so it can't contain spaces. The reply is required and holds up to 500 characters; a live counter shows how many you've used.
+- Aliases follow the same on/off, cooldown, audience, and live-only rules as the command.
+- `!hold` and `!resume` have no aliases.
+
+### Custom commands
+
+Make your own commands in Settings → Twitch → **Custom Commands**. Click **Add command**.
+
+Each command has:
+
+- **Trigger.** One word, no spaces. Like `!hug`.
+- **Aliases** (optional). Extra words for the same command.
+- **Reply.** Up to 500 characters. A counter shows how many you've used.
+- **Who can use it.** Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. Higher roles always pass a lower bar. A mod can use a Subscribers command.
+- **How it's sent.** See the table below.
+- **Cooldowns.** Default 15s each. Everyone up to 30s, per person up to 60s.
+
+You can make commands before you connect Twitch. They start replying once you connect.
 
 **Variables** fill in when the command runs:
 
 | Variable | Fills in with |
-| --- | --- |
+|---|---|
 | `$user`, `$sender` | The name of whoever ran the command |
-| `$touser` | The first word they typed (a leading `@` is stripped), or their own name if they typed nothing |
+| `$touser` | The first word they typed after the command (a leading `@` is removed). If they typed nothing, their own name. |
 | `$args` | Everything they typed after the command |
-| `$1`–`$9` | A single word by position |
-| `$song` | Your current track |
-| `$lastsong` | The track you played before it |
+| `$1` to `$9` | One word, by position |
+| `$song` | Your current song |
+| `$lastsong` | The song before it |
 
-**Example.** Trigger `!hug`, reply `$user gives $touser a big hug!`. A viewer types `!hug @Luna` and chat sees `MrDemonWolf gives Luna a big hug!`.
+**Example.** Trigger `!hug`, reply `$user gives $touser a big hug!`. A viewer named Luna types `!hug @Fang`. Chat sees `Luna gives Fang a big hug!`
 
-**Who can use it.** Set each command to Everyone, Subscribers, VIPs, Moderators, or Broadcaster only. More privileged viewers always clear a lower bar (a mod passes a Subscribers-only command).
+**How it's sent:**
 
-**How it's sent.** Each command picks one of three delivery modes:
+| Option | What chat sees |
+|---|---|
+| **Reply to chatter** (default) | A threaded reply under the viewer's message |
+| **Plain chat message** | A normal message, not tied to anyone |
+| **Announcement** | Twitch's highlighted announcement box |
 
-| Mode | What chat sees |
-| --- | --- |
-| Reply to chatter | A threaded reply under the message that ran the command. The default, and what every command you made before this setting existed keeps doing. |
-| Plain chat message | A normal bot message, not tied to anyone. |
-| Announcement | Twitch's highlighted announcement box. |
+Announcements need two things:
 
-Announcements have two requirements: the account you signed in with must be a moderator of the channel (type `/mod <account>` in chat if it's a separate bot account), and your Twitch sign-in must include the announcements permission. Sign-ins from before this feature exist without it; when an enabled command uses Announcement, WolfWave asks you to reconnect once to grant it. If Twitch refuses an announcement for any reason, the command falls back to a reply so nobody is left unanswered, and the Custom Commands card tells you why.
+1. The account WolfWave signed in with must be a mod in your channel. Type `/mod <account>` in chat if it's a separate bot account.
+2. The announcements permission on your Twitch sign-in. Older sign-ins don't have it. WolfWave asks you to reconnect once.
 
-**No two commands can answer the same word.** The editor names the command that already uses a trigger or alias, and says what's wrong under the field to fix, so one of the pair can never be left dead. Cooldowns are limited to what the sliders set: up to 30s for Everyone and 60s per person, in 5s steps.
+If Twitch refuses an announcement, WolfWave sends a normal reply instead and the Custom Commands card says why.
 
-Custom commands travel with your [settings backup](/docs/backup). A backup holding a command that breaks these rules (a duplicate trigger, a space in a trigger or alias, or cooldowns the sliders can't set) is refused rather than partly imported.
+**Rules the editor checks:**
 
----
+- No two custom commands can use the same trigger or alias. The editor names the command that already has it.
+- A trigger or alias can't have spaces. Chat only matches the first word.
+- A custom command with the same trigger as a built-in one answers instead of the built-in while it's on.
 
-## Custom Aliases
+Custom commands are included in your [settings backup](/docs/backup). A backup with a broken command (a duplicate trigger, a space in a trigger, or a cooldown the sliders can't set) is refused instead of half-imported.
 
-Supported commands take comma-separated aliases. Add `np, track` to `!song` and viewers can use `!np` or `!track` too.
+### Limits
 
-| Command     | Where to set                                      |
-| ----------- | ------------------------------------------------- |
-| `!song`     | Settings → Twitch → Bot Commands                  |
-| `!last`     | Settings → Twitch → Bot Commands                  |
-| `!wolfwave` | Settings → Twitch → Bot Commands                  |
-| `!stats`    | Settings → History & Stats → `!stats` Twitch command |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!voteskip`, `!playlist` | Settings → Song Requests |
-
-Aliases honor the same enable, cooldown, audience, and live-gate rules as the canonical command. The `!` prefix is added for you. `!hold` and `!resume` are fixed — no custom aliases.
-
-An alias that shadows another custom command's trigger or alias is refused. If you saved one before WolfWave checked for this, it gets dropped the next time your commands load, and the command it was shadowing keeps working. An alias with a space in it is dropped the same way. A saved command whose trigger has a space gets the spaces removed and is turned off so you can check it (it is dropped only if that name is already taken).
-
----
-
-## Cooldowns &amp; Spam
-
-Set **Global** and **Per-User** cooldowns in Settings to keep chat clean.
-
-- **Global Cooldown** (default 15s): how long everyone waits between commands.
-- **User Cooldown** (default 15s): how long one person waits after using a command.
-
-Mods and the broadcaster always bypass cooldowns. The optional Sub/VIP priority perk (cooldown skip, plus an optional queue jump) is song-request behavior — see [Song Requests](/docs/features#song-requests).
+- Replies are capped at 500 characters, Twitch's limit. Longer text is cut cleanly, never mid-emoji.
+- A command must be the first word of the message.
 
 ---
 
 <Cards>
-  <Card title="FAQ" href="/docs/faq" description="Short answers to common questions." />
   <Card title="Features" href="/docs/features" description="Every feature, in one place." />
+  <Card title="Settings" href="/docs/settings" description="Every setting, pane by pane." />
+  <Card title="Troubleshooting" href="/docs/troubleshooting" description="When commands go quiet." />
+  <Card title="FAQ" href="/docs/faq" description="Short answers to common questions." />
 </Cards>

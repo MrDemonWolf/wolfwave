@@ -1,136 +1,183 @@
 ---
 title: Stream Deck Control API
-description: Control WolfWave from a same-Mac Stream Deck client. Protocol v3 command envelope, 12 actions, acks, and live queue and health broadcasts.
+description: The WebSocket protocol behind WolfWave's Stream Deck keys. Protocol v3 command envelope, 12 actions, acks, error codes, and live queue and health frames.
 ogTitle: WolfWave Stream Deck Control API
-ogDescription: Drive playback, the request queue, and toggles over a loopback-only control role. 12 actions, acks, live state broadcasts.
+ogDescription: Drive playback, the request queue, and the overlay from a same-Mac client. 12 actions, acks, live state frames.
 ogEyebrow: Developers
 ogChips:
   - Protocol v3
   - 12 actions
-  - WebSocket
+  - Loopback only
   - Live state
 keywords:
-  - wolfwave stream deck
+  - wolfwave stream deck api
   - stream deck apple music control
   - wolfwave websocket commands
-  - obs overlay control api
+  - wolfwave control token
+  - local websocket control protocol
 ---
 
-WolfWave exposes a command-capable WebSocket role only to clients on the same
-Mac. The official [Stream Deck plugin](/docs/streamdeck), a Loupedeck profile,
-or your own local script can send commands and receive live state, so physical
-keys can skip tracks, hold the queue, or flip toggles without touching the app.
+**TL;DR:** a client on the same Mac connects to WolfWave's WebSocket with the control token, sends JSON commands, and gets an ack for each.
+This page is the wire protocol, for people building their own client.
 
-Just want to use a Stream Deck? Install the [Stream Deck plugin](/docs/streamdeck)
-instead — this page is the wire protocol for anyone building their own client.
-A now-playing dial (album art plus a volume encoder) is a planned follow-up and not documented here.
+Just want Stream Deck keys? Install the [Stream Deck plugin](/docs/streamdeck) instead. You don't need this page.
 
 ## Connect
 
-Commands use the same listener as the overlay, but a separate role and secret:
+Commands share the overlay's WebSocket listener but use their own role and secret.
 
-- **URL**: `ws://127.0.0.1:8765` (port configurable in **Settings → Stream Widgets**).
-- **Auth**: present the **Stream Deck Control Token** as the WebSocket
-  subprotocol `wolfwave.control.<hex>`. The server accepts this role only from a
-  literal loopback peer and revalidates the selected handshake subprotocol.
-- **Read-only separation**: `wolfwave.overlay.<hex>` clients may receive state
-  over the LAN but cannot run commands.
+| Setting | Value |
+|---|---|
+| URL | `ws://127.0.0.1:8765` (port is set in **Settings → Stream Widgets**) |
+| Subprotocol | `wolfwave.control.<hex>` |
+| Where the token lives | **Settings → Stream Deck → Stream Deck Control Token** |
+| Who may connect | Literal loopback only (`127.0.0.0/8` or `::1`) |
 
-Copy **Stream Deck Control Token** from **Settings → Stream Deck**. There is
-no per-command token. See [WebSocket security](/docs/security#websocket-server-security).
+- The server rechecks the selected subprotocol after the handshake.
+- An overlay client (`wolfwave.overlay.<hex>`) can read state, even over the LAN, but **cannot** run commands.
+- There is no per-command token. The connection's role decides.
+- Regenerating the control token disconnects current clients.
+
+Full auth model: [Security](/docs/security#websocket-server-security).
+
+## Before commands will run
+
+Two switches must be on:
+
+1. **Stream Widgets** server is running (**Settings → Stream Widgets**).
+2. **Allow Stream Deck commands** is on (**Settings → Stream Deck**). It's on by default.
+
+If the second switch is off, every command gets `error: "disabled"`. The overlay keeps working.
 
 ## Send a command
 
-Text frame, JSON:
+Send one JSON text frame:
 
 ```json
 { "type": "command", "action": "skip", "protocol": 3, "args": {} }
 ```
 
-- `type` must be `"command"`; anything else is ignored (no ack).
-- `protocol` must be `3`. A mismatch is rejected with `error: "protocol"`, so an
-  out-of-date client can show an "update me" state.
-- `action` must be one of the actions below; unknown actions get `error: "unknown_action"`.
-- `args` is optional and unused by v3 actions (reserved for future parameters).
+| Field | Rule |
+|---|---|
+| `type` | Must be `"command"`. Anything else is ignored, with no ack |
+| `protocol` | Must be `3`. A mismatch gets `error: "protocol"` |
+| `action` | One of the [actions](#actions). Unknown gets `error: "unknown_action"` |
+| `args` | Optional. Unused in v3. Reserved for later |
 
-Every command gets an ack on the same connection:
+WolfWave checks in that order, so an out-of-date client always learns about the version first.
+
+## Acks
+
+Every command frame gets one ack, on the same connection:
 
 ```json
 { "type": "ack", "action": "skip", "ok": true }
 { "type": "ack", "action": "skip", "ok": false, "error": "music" }
 ```
 
+- `action` echoes the token you sent, even an unknown one.
+- `error` appears only when `ok` is `false`.
+
 ## Actions
 
-| `action` | What it does | Fail `error` |
+| `action` | What it does | Possible `error` |
 |---|---|---|
-| `play_pause` | Apple Music play/pause | `unavailable` / `music` |
-| `skip` | Skip to the next track | `unavailable` / `music` |
-| `hold_queue` | Hold the song-request queue | — |
-| `resume_queue` | Resume the song-request queue | — |
-| `approve_next` | Approve the first pending request | `empty` / `full` |
-| `clear_queue` | Clear the request queue | — |
-| `block_current` | Add the current song to the blocklist | `empty` |
-| `overlay_toggle` | Hide/show the overlay cards (connection stays alive) | `unavailable` |
-| `announce_song` | Post the current track to Twitch chat | `twitch` / `empty` |
-| `reject_current` | Drop the playing request and announce it | `unavailable` / `empty` |
-| `block_requester` | Blocklist whoever requested the playing song | `empty` |
-| `cycle_audience` | Advance the request audience, wrapping | `unavailable` |
+| `play_pause` | Play or pause Apple Music | `unavailable`, `music` |
+| `skip` | Skip to the next track | `unavailable`, `music` |
+| `hold_queue` | Hold the song-request queue | none |
+| `resume_queue` | Resume the song-request queue | none |
+| `approve_next` | Approve the oldest pending request | `empty`, `full` |
+| `clear_queue` | Clear the request queue (and Music.app's queue) | `unavailable` |
+| `block_current` | Add the current song title to the blocklist | `empty` |
+| `overlay_toggle` | Hide or show the overlay cards. The connection stays open | `unavailable` |
+| `announce_song` | Post the current track to Twitch chat | `twitch`, `empty` |
+| `reject_current` | Announce "Request removed" in chat, then skip the playing request | `unavailable`, `empty` |
+| `block_requester` | Block whoever requested the playing song | `empty` |
+| `cycle_audience` | Move to the next request audience, wrapping around | `unavailable` |
 
-Errors that can come back for any action:
+`cycle_audience` steps through `everyone` → `subscribers` → `vipsAndSubs` → `modsOnly`.
 
-- `protocol`: the client's protocol version does not match WolfWave's.
-- `unknown_action`: the action token is not one WolfWave knows.
-- `unauthorized`: the sender used the overlay token, or is not on loopback.
-- `disabled`: **Allow Stream Deck commands** is off in Settings → Stream Deck.
-- `unavailable`: the server or handler was not ready for that action.
+## Error codes
 
-`discord_toggle`, `music_sync_toggle`, and `cycle_theme` were removed in
-protocol v3. They flipped set-once preferences that never earned a key. A client
-still sending one gets `error: "unknown_action"` — and a v2 client gets
-`error: "protocol"` before that, since the version is checked first.
+| `error` | Meaning |
+|---|---|
+| `protocol` | Your `protocol` number doesn't match WolfWave's |
+| `unknown_action` | WolfWave doesn't know that action token |
+| `unauthorized` | Sent with the overlay token, or not from loopback |
+| `disabled` | **Allow Stream Deck commands** is off |
+| `unavailable` | The service behind that action isn't ready |
+| `music` | Music.app refused the AppleScript call |
+| `empty` | Nothing to act on (no song, no pending request, no requester) |
+| `full` | The live request queue is at its cap; the request stays pending |
+| `twitch` | Not connected to Twitch chat |
 
-The plugin refuses to send `clear_queue` or `block_requester` unless the key is
-held. That is a plugin behaviour, not a protocol rule: the app runs either
-command whenever it arrives.
+### Removed in v3
 
-## Live state broadcasts
+`discord_toggle`, `music_sync_toggle`, and `cycle_theme` are gone.
 
-WolfWave pushes two broadcast frames to every connected client, so counter and
-health keys render without polling:
+- A v3 client sending one gets `unknown_action`.
+- A v2 client gets `protocol` first, since the version is checked first.
+
+## Live state frames
+
+WolfWave pushes two frames to every connected client, so keys render without polling:
 
 ```json
 { "type": "queue_state", "data": { "count": 3, "pending": 1, "held": false, "audience": "everyone" } }
 { "type": "health", "data": { "music": true, "twitch": true, "discord": false, "discordState": "disconnected", "overlay": true } }
 ```
 
-They fire when the request queue changes, when Twitch or Discord connects or
-disconnects, when a new client connects, and after any successful command.
-`discord` is true only while Rich Presence is really connected; `discordState`
-(`off`, `connecting`, `connected`, `disconnected`) tells "switched off" from
-"broken".
+**`queue_state` fields:**
+
+- `count`: requests in the queue.
+- `pending`: requests waiting for approval.
+- `held`: whether the queue is on hold.
+- `audience`: who may use `!sr`.
+
+**`health` fields:**
+
+- `music`: a track is loaded in Music.app.
+- `twitch`: connected to Twitch chat.
+- `discord`: Rich Presence is really connected.
+- `discordState`: `off`, `connecting`, `connected`, or `disconnected`. Tells "switched off" from "broken".
+- `overlay`: the server is listening and the overlay is visible.
+
+**They're sent when:**
+
+- the request queue changes;
+- Twitch or Discord connects or disconnects;
+- a client connects;
+- a command succeeds.
+
+Control clients also receive the overlay frames (`now_playing`, `progress`, and so on).
+While the overlay is hidden, they still get `now_playing` on every track change, so keys never go stale.
+The overlay frames are documented on the [OBS Widget](/docs/widget#message-contract) page.
 
 ## Try it from a terminal
 
-With the server on and Music playing, connect from the same Mac with the control
-subprotocol and send a command. Using [`websocat`](https://github.com/vi/websocat):
+With the server on and Music playing, use [`websocat`](https://github.com/vi/websocat) on the same Mac:
 
 ```bash
 websocat --protocol "wolfwave.control.<your-control-token>" ws://127.0.0.1:8765
 ```
 
-Paste:
+Paste this and press Return:
 
 ```json
 {"type":"command","action":"skip","protocol":3}
 ```
 
-You should see the ack frame and hear the track skip. Leave the connection open
-to watch `queue_state` and `health` frames arrive as things change.
+You should see an ack and hear the track skip. Leave it open to watch `queue_state` and `health` arrive.
+
+## Keeping the plugin in sync
+
+- The Swift side lives in `Services/WebSocket/StreamDeckCommand.swift` (`StreamDeckControl.protocolVersion`).
+- The plugin mirror lives in `apps/streamdeck/src/wolfwave/protocol.ts` (`PROTOCOL_VERSION`, `ACTIONS`).
+- Change one, change the other in the same PR. Bump the version on any breaking change.
+- The plugin's hold-to-confirm on **Clear Queue** and **Block Requester** is plugin behavior. The app runs those commands whenever they arrive.
 
 ## See also
 
-- [Stream Deck](/docs/streamdeck) — install and set up the official plugin.
-- [OBS Widget architecture](/docs/widget) — the overlay side of the same socket,
-  including the now-playing message contract.
-- [Security](/docs/security#websocket-server-security) — the token handshake.
+- [Stream Deck](/docs/streamdeck): install and set up the official plugin.
+- [OBS Widget](/docs/widget): the overlay side of the same socket.
+- [Security](/docs/security#websocket-server-security): the token handshake.

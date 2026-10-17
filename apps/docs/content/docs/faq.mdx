@@ -1,166 +1,207 @@
 ---
 title: FAQ
-description: Common questions about WolfWave. Spotify support, performance, security, Twitch tokens, Intel Mac compatibility, multi-PC setups, and updates.
+description: "Short answers about WolfWave: Spotify support, Mac requirements, cost, what viewers can type, stream performance, second-PC OBS setups, privacy, and updates."
+ogTitle: WolfWave FAQ. Short answers before you install
+ogDescription: Spotify, Mac requirements, viewer commands, performance, second-PC setups, privacy, and updates.
+ogEyebrow: Frequently asked
+ogChips:
+  - Requirements
+  - Viewers
+  - Privacy
+  - Updates
 keywords:
   - wolfwave faq
-  - wolfwave questions
-  - apple music twitch bot faq
-  - wolfwave vs spotchbot
   - wolfwave spotify
+  - wolfwave intel mac
+  - apple music twitch bot faq
   - wolfwave second pc obs
-ogTitle: WolfWave FAQ. Spotify, security, performance, multi-PC setups
-ogDescription: Short answers to the questions people ask before installing WolfWave.
-ogChips:
-  - Spotify
-  - Security
-  - Performance
-  - Multi-PC
-ogEyebrow: Frequently asked
+  - wolfwave privacy
+  - wolfwave app store
 ---
 
-The short answers live here. Anything more in-depth links out to the full docs.
+Quick answers to common questions. Each one links to the full page if you want more.
 
-## General
+## The basics
 
 <Accordions type="single">
 
-<Accordion title="Does WolfWave work with Spotify?">
+<Accordion title="What does WolfWave do?">
 
-No. WolfWave reads Apple Music via `ScriptingBridge`. The same framework Apple uses internally for its own integrations. There is no Spotify hook, and we don't plan to add one. If your streaming setup is Spotify-first, SpotchBot and other Spotify-only tools are a better fit.
+WolfWave is a menu bar app for your Mac. It watches the Apple Music app and shares the song you're playing in three places:
+
+- **Twitch chat.** Viewers type `!song` to see it, or `!sr` to request a song.
+- **Discord.** Your profile shows "Listening to WolfWave" with the album art.
+- **Your stream.** An overlay you add to OBS as a browser source.
+
+See [Features](/docs/features) for everything it does.
+
+</Accordion>
+
+<Accordion title="What do I need to run it?">
+
+- A Mac with Apple Silicon (M1 or later). Intel Macs aren't supported.
+- macOS 26 (Tahoe) or newer.
+- The Apple Music app. Song requests also need an Apple Music subscription.
+
+Start with [Installation](/docs/installation).
+
+</Accordion>
+
+<Accordion title="Does it work with Spotify?">
+
+No. WolfWave only works with the Apple Music app on your Mac. Viewers can paste a Spotify or YouTube link into `!sr`, and WolfWave finds that song on Apple Music. But it can't play from or read Spotify.
 
 </Accordion>
 
 <Accordion title="Is it really free?">
 
-Yes. GPL-3.0 licensed, no paywall, no premium tier, no upsell screens. The full source lives on [GitHub](https://github.com/MrDemonWolf/wolfwave). If you'd like to give back, [sponsor the project](/docs/support).
+Yes. It's open source under the GPL-3.0 license. No paywall, no premium tier, no ads. The code is on [GitHub](https://github.com/MrDemonWolf/wolfwave). If you want to give back, see [Support](/docs/support).
 
 </Accordion>
 
-<Accordion title="Does it work on Intel Macs?">
+<Accordion title="Why isn't it on the Mac App Store?">
 
-No. WolfWave requires Apple Silicon (M1 or later) running macOS 26 (Tahoe) or newer. Intel Macs are not supported.
+WolfWave needs sandbox exceptions to talk to Discord on your Mac, and the Mac App Store doesn't normally allow those. So it ships as a download instead. Every release is signed with a Developer ID and notarized by Apple.
 
 </Accordion>
 
-<Accordion title="What does the menu bar app actually do?">
+</Accordions>
 
-It watches Apple Music for the current track, then pushes that data into three places at once:
+## For your viewers
 
-- **Twitch chat**. Replies to `!song`, `!last`, and the rest.
-- **Discord**. A "Listening to WolfWave" Rich Presence card with Apple Music album art and progress.
-- **Local WebSocket**. Every play/pause/skip event, ready for an OBS browser source or a custom overlay.
+<Accordions type="single">
 
-See [Features](/docs/features) for the full list.
+<Accordion title="What can my viewers type in chat?">
+
+The full list, with example replies, is on [What can I type in chat?](/docs/bot-commands#what-can-i-type-in-chat). Share that link with your community.
+
+</Accordion>
+
+<Accordion title="Why don't my chat commands reply?">
+
+Most commands start **off**, and `!sr` also needs Song Requests turned on. Other common causes are cooldowns and the "Only reply while live" switch. Go through the checklist in [Troubleshooting](/docs/troubleshooting#commands-not-replying).
 
 </Accordion>
 
 <Accordion title="Can I approve song requests before they play?">
 
-Yes. Turn on **Require My Approval** and every request waits in the queue until you approve or decline it. It's off by default. See [Song Requests](/docs/features#song-requests) for how the whole pipeline works.
+Yes. Turn on **Require My Approval** in Settings → Song Requests. Every request waits until you approve or decline it. It's off by default. See [Song requests](/docs/features#song-requests).
 
 </Accordion>
 
-<Accordion title="My !playlist link stopped working, or WolfWave says my playlist needs setting up again">
+<Accordion title="Can viewers request with channel points or Bits?">
 
-The playlist was deleted or its sharing was turned off in Apple Music. WolfWave detects this, disables `!playlist` so chat never gets a broken link, and shows a fix-it banner in the Song Requests pane. Requests keep working the whole time. See [Song Requests](/docs/features#song-requests).
+Yes, if your channel is Twitch Affiliate or Partner. WolfWave can add a **Request a Song** reward, take song names in Bit cheers, and let a cheer move a viewer's song to the front. You must sign in with your broadcaster account for this. See [Channel points and Bits](/docs/bot-commands#channel-points-and-bits).
+
+</Accordion>
+
+<Accordion title="My !playlist link stopped working">
+
+The playlist was deleted, or its sharing was turned off in Apple Music. WolfWave notices, turns `!playlist` off so chat never gets a broken link, and shows a fix-it banner in Settings → Song Requests. Requests keep working the whole time.
 
 </Accordion>
 
 </Accordions>
 
-## Streaming &amp; performance
+## Streaming
 
 <Accordions type="single">
 
-<Accordion title="Does it slow down my stream?">
+<Accordion title="Will it slow down my stream?">
 
-No. The app is native Swift, a small download, and event-driven. It reacts to Apple Music's own notifications and only falls back to a light poll if those notifications are missed. CPU and memory impact during a stream are negligible.
+It's built to stay light:
 
-</Accordion>
-
-<Accordion title="Will my viewers see ads?">
-
-Never. WolfWave is free and open source. No ads, no upsells, no tracking pixels.
+- It reacts to the Music app's own "song changed" signals instead of asking over and over.
+- A backup check runs every 5 seconds, and slower in Low Power Mode.
+- The overlay's progress updates only run while an overlay is connected and a song is playing.
 
 </Accordion>
 
-<Accordion title="Can I use it on a second-PC OBS setup?">
+<Accordion title="Can I use it with OBS on a second PC?">
 
-Yes. The local WebSocket binds to all interfaces, so an OBS machine on the same LAN can connect to your Mac as a browser source. Every connection must present a per-install auth token. See [WebSocket security](/docs/security#websocket-server-security) for how that works.
+Yes. The overlay can be reached from another computer on your home network. Settings → Stream Widgets shows a network address for it. That address includes your overlay token, so keep it private. If it leaks, make a new token.
+
+Stream Deck control is different: it only works from the same Mac. See [Security](/docs/security#websocket-server-security).
 
 </Accordion>
 
-<Accordion title="Does it work with VTuber overlays / NerdOrDie templates / my own HTML?">
+<Accordion title="Can I build my own overlay?">
 
-If your overlay can consume a WebSocket feed or a small HTTP endpoint, yes. The data is plain JSON: title, artist, album, artwork URL, position, duration. See [Architecture](/docs/architecture) for the schema.
+Yes. The overlay data is plain JSON over a WebSocket: song, artist, album, artwork URL, length, elapsed time, and play state. The message format is in [OBS Widget](/docs/widget#message-contract).
 
 </Accordion>
 
 <Accordion title="What is Streamer Mode?">
 
-A one-tap toggle that masks sensitive values (channel name, URLs, auth token) across WolfWave's UI so the app is safe to show on camera. It's UI-only; broadcasts keep working. See [Streamer Mode](/docs/streamer-mode) for exactly what gets masked.
+One switch that hides private values in WolfWave's windows, like your channel name, addresses, and tokens, so the app is safe to show on camera. It only changes what's on screen. Everything keeps working. See [Streamer Mode](/docs/streamer-mode).
 
 </Accordion>
 
 </Accordions>
 
-## Security &amp; privacy
+## Privacy and security
 
 <Accordions type="single">
 
-<Accordion title="Is my Twitch token safe?">
+<Accordion title="Is my Twitch sign-in safe?">
 
-Yes. WolfWave uses Twitch's OAuth Device Code flow (no password ever enters the app), stores tokens in macOS Keychain (same place Safari and Mail keep your passwords), and never writes them to disk in plaintext. The app is sandboxed and notarized by Apple.
+Yes.
 
-</Accordion>
-
-<Accordion title="Does WolfWave send any of my data to a server?">
-
-No. There is no WolfWave server. Outbound traffic goes only to services you use or turn on: Twitch, Discord IPC, Apple Music and iTunes lookups, Spotify and YouTube (titles for links pasted as song requests), iCloud if you switch on Sync with iCloud, and update checks. There is no telemetry or analytics. WolfWave does include an optional, off-by-default diagnostics feature (Settings, Advanced) that uses Apple's MetricKit to capture crash and hang reports locally on your Mac. Those reports are never uploaded to WolfWave servers. See the Privacy Policy for details.
+- You sign in on Twitch's own website with a short code. Your password never touches WolfWave.
+- Your sign-in is stored in the macOS Keychain, the same place Safari keeps passwords.
+- The app runs in Apple's App Sandbox.
 
 </Accordion>
 
-<Accordion title="How does Listening History store my data?">
+<Accordion title="Does WolfWave send my data anywhere?">
 
-Listening History is off by default, and everything it records stays in a local file on your Mac. Nothing is uploaded, and you can clear it any time. See [Listening History](/docs/listening-history) for what gets recorded and when.
+There is no WolfWave server, and no analytics. WolfWave only talks to:
+
+- Twitch and Discord, if you connect them.
+- Apple, for song lookups, artwork, and song requests.
+- Spotify and YouTube, only to read the title of a link a viewer pasted into `!sr`.
+- iCloud, only if you turn on **Sync with iCloud**.
+- GitHub, to check for updates.
+
+**Diagnostics** (Settings → Advanced) is off by default. When on, it keeps Apple's crash and hang reports on your Mac. Nothing is uploaded. See the [Privacy Policy](/docs/privacy-policy).
 
 </Accordion>
 
-<Accordion title="Does the Now-Playing Widget URL leak if I screenshare it?">
+<Accordion title="Where is my listening history stored?">
 
-The same-Mac localhost URL never shows the token. The LAN link does include `?token=…`, so treat it as private, and regenerate the token if it leaks. See [WebSocket security](/docs/security#websocket-server-security) for the full token model, and [Streamer Mode](/docs/streamer-mode) for on-camera masking.
+On your Mac, in a local file. Listening History is off by default, nothing is uploaded, and you can clear it any time. See [Listening History](/docs/listening-history).
 
 </Accordion>
 
-<Accordion title="What about App Sandbox?">
+<Accordion title="Is it safe to show the overlay address on stream?">
 
-WolfWave runs under the macOS App Sandbox with the minimum entitlements needed to control Apple Music and talk to Discord. See the [`WolfWave.entitlements`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/WolfWave/WolfWave.entitlements) file in the repo for the exact set.
+The same-Mac address (`http://localhost:…`) has no token in it, so it's safe. The network address for a second PC includes `?token=…`, so keep that one private. Turn on [Streamer Mode](/docs/streamer-mode) to hide it on screen.
 
 </Accordion>
 
 </Accordions>
 
-## Updates &amp; install
+## Updates and help
 
 <Accordions type="single">
 
 <Accordion title="How do updates work?">
 
-Through Sparkle, the same auto-update framework many Mac apps use, with signed updates. There are two channels: Stable (default) and an opt-in [Nightly channel](/docs/nightly). Homebrew installs update via `brew upgrade --cask wolfwave` instead. **Check for Updates** is also in the menu bar's Help submenu.
+WolfWave updates itself with Sparkle, a common Mac updater. Every update is signed and checked before it installs.
 
-</Accordion>
+- **Stable** is the default channel.
+- **Nightly** is opt-in and gets new changes first. See [Nightly builds](/docs/nightly).
+- To check by hand: menu bar icon → Help → **Check for Updates…**
 
-<Accordion title="Why isn't WolfWave on the Mac App Store?">
-
-The App Store sandbox blocks the Discord IPC Unix socket, which would break Rich Presence entirely. WolfWave ships outside the store with full Developer ID signing and Apple notarization.
+Installed with Homebrew? Run `brew upgrade wolfwave` instead. The built-in updater turns itself off.
 
 </Accordion>
 
 <Accordion title="Where do I get help?">
 
-- [Discord community](https://mrdwolf.net/discord). The fastest way to get a real human.
-- [GitHub Issues](https://github.com/MrDemonWolf/wolfwave/issues). For bug reports; see [how to report a bug](/docs/support#report-a-bug).
-- [Support page](/docs/support). Sponsor, star, share.
+- [Troubleshooting](/docs/troubleshooting). Fixes for every error message.
+- [Discord community](https://mrdwolf.net/discord). The fastest way to reach a person.
+- [GitHub Issues](https://github.com/MrDemonWolf/wolfwave/issues). For bugs. See [how to report a bug](/docs/support#report-a-bug).
 
 </Accordion>
 

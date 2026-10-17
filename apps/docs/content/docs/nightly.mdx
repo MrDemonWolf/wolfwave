@@ -1,13 +1,13 @@
 ---
 title: Nightly Builds
-description: Opt into WolfWave's Nightly update channel to test the newest builds off main before they ship. Warned, opt-in, and easy to leave. Stable stays the default.
+description: Opt into WolfWave's Nightly update channel to test the newest builds off main before they ship. Opt-in, clearly warned, and easy to leave. Stable is the default.
 ogTitle: WolfWave Nightly Builds
-ogDescription: Ride the newest builds off main. Opt-in, clearly warned, and a one-click switch back to Stable.
+ogDescription: Get the newest builds off main before they ship. Opt-in, clearly warned, and a short trip back to Stable.
 ogEyebrow: Guide
 ogChips:
   - Opt-in channel
   - Builds off main
-  - Clearly warned
+  - Signed & notarized
   - Back to Stable anytime
 keywords:
   - wolfwave nightly builds
@@ -16,57 +16,42 @@ keywords:
   - wolfwave update channel
 ---
 
-WolfWave ships on two update channels. **Stable** is the default: tested,
-released versions. **Nightly** is opt-in. It tracks the newest builds straight
-off `main`, so you see features and fixes before they reach a stable release.
+**TL;DR:** Nightly gives you the newest WolfWave builds before they're released. It's for streamers who want to help test. Everyone else should stay on Stable, the default.
 
-Nightly is for people who want to help test. It can be buggy, it changes often,
-and it comes with no support promise. If that's not you, stay on Stable.
+## Stable vs Nightly
+
+| | Stable | Nightly |
+|---|---|---|
+| **What you get** | Tested releases | The newest builds off `main` |
+| **How often** | Each release | Up to once a night |
+| **Bugs** | Rare | Expect some |
+| **Support** | Yes | No, but bug reports are welcome |
 
 ## Switch to Nightly
 
 1. Open **Settings → Software Update**.
 2. Under **Update Channel**, pick **Nightly (dev)**.
-3. Read the warning, then confirm.
+3. Read the warning and click **Switch to Nightly**.
 
-WolfWave checks the nightly feed right away. From then on, automatic update
-checks pull nightly builds, signed and notarized the same as stable.
+WolfWave checks the nightly feed right away. After that, update checks pull nightly builds.
 
 ## Go back to Stable
 
-1. **Settings → Software Update**.
-2. Pick **Stable** under Update Channel.
+1. Open **Settings → Software Update**.
+2. Under **Update Channel**, pick **Stable**.
 
-That's it. The next stable release will offer itself to you like normal.
+WolfWave never offers a version *lower* than the one you have. So switching alone doesn't move you back. It puts you in line for the next stable release.
 
-If you'd rather not wait, reinstall the latest [Stable build](/docs/installation)
-and you're back on the normal track immediately. WolfWave never offers you a
-*lower* version than the one you're running, so switching the channel alone
-doesn't move you backwards — it just puts you in line for the next release.
+To get back right now, download and install the latest [Stable build](/docs/installation).
 
-## What you should know
+## What to know
 
-- **Same signing.** Nightly builds carry the same Developer ID signature and
-  notarization as stable, so Gatekeeper treats them the same.
-- **Unstable by design.** These are dev builds. Expect rough edges and frequent
-  updates.
-- **Built every night.** A new nightly goes out around midnight Chicago time,
-  but only when the app itself changed. Docs and website commits don't ship a
-  nightly, so quiet days don't ship a pointless update.
-- **Named for what's coming.** A nightly reads like `2.2.0-nightly+a1b2c3d`.
-  That's the release these changes are heading into, not one that shipped.
-- **No support.** Bug reports are welcome, but nightly isn't a supported track.
-- **Homebrew installs can't use it.** When WolfWave is installed through
-  Homebrew, updates are managed by Homebrew and the channel picker is hidden.
-  Use `brew upgrade wolfwave` for the stable cask.
-
-Your channel choice sticks across updates, so once you're on Nightly you keep
-getting nightly builds until you switch back.
+- **Same signing.** Nightly builds carry the same Developer ID signature and Apple notarization as Stable.
+- **Built around midnight Chicago time**, but only on days the app changed. Docs-only days skip the build.
+- **Named for what's coming.** A nightly reads like `2.2.0-nightly+a1b2c3d`. That's the release the changes are heading into, not one that already shipped.
+- **Your choice sticks.** You stay on Nightly across updates until you switch back.
+- **Homebrew installs can't use it.** Homebrew manages updates, so the picker is hidden. Run `brew upgrade wolfwave` for the stable cask.
 
 <Callout type="warn">
-  **One-time reinstall if you grabbed the August 5, 2026 nightly.** That build
-  (`2.1.0-nightly+4c36bef`) shipped with a build number so high that no later
-  build can reach it, so it will never update itself. Download the latest
-  [Stable](/docs/installation) or nightly DMG once and you're fixed for good —
-  the numbering behind this has been corrected and won't happen again.
+  **Grabbed the August 5, 2026 nightly? Reinstall once.** That build (`2.1.0-nightly+4c36bef`) shipped with a build number so high that no later build can pass it, so it never updates itself. Download the latest [Stable](/docs/installation) or nightly DMG once and you're fixed. The numbering bug is fixed and won't come back.
 </Callout>

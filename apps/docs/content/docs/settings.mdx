@@ -1,205 +1,238 @@
 ---
 title: Settings
-description: Every WolfWave settings pane in one place. General, Song Requests, Stream Widgets, Stream Deck, History and Stats, Twitch, Discord, Software Update, Advanced, and About.
+description: "A tour of every WolfWave settings pane: General, Song Requests, Stream Widgets, Stream Deck, History & Stats, Twitch, Discord, updates, Advanced, About."
 ogTitle: WolfWave Settings, Pane by Pane
-ogDescription: What lives where. Appearance, notifications, song requests, stream widgets, update channel, backups, and more.
+ogDescription: What lives where. Music Sync, song requests, stream widgets, Stream Deck, Twitch, Discord, updates, backups, and wolfwave:// deep links.
 ogEyebrow: Guide
 ogChips:
   - 10 panes
+  - Deep links
   - Light / Dark / System
-  - Notifications
   - Update channel
 keywords:
   - wolfwave settings
   - wolfwave preferences
+  - wolfwave deep link
   - wolfwave dark mode
   - mac menu bar app settings
 ---
 
-Open Settings from the menu bar wolf icon. A sidebar lists every pane; this page
-tells you what lives where, with links to the deep-dives. Each pane heading
-below also carries a `wolfwave://` link that opens WolfWave straight to it
-(see [Deep links](#deep-links)).
+**TL;DR:** For streamers looking for a switch. Each section below is one Settings pane: what's in it and where to read more.
+
+**Open Settings:** click the wolf icon in your menu bar, then **Settings**. The panes are listed in the sidebar.
+
+Each pane also has a `wolfwave://` link that opens WolfWave right to it. See [Deep links](#deep-links).
 
 ## General
 
 <small>Open in WolfWave: [`wolfwave://settings/general`](wolfwave://settings/general)</small>
 
-How WolfWave tracks your music and where it shows up. Four sections in one
-scrollable pane:
+How WolfWave tracks your music and where it shows up.
 
-- **Music Sync** — the master switch. A hero now-playing card plus an
-  integrations dashboard showing what's connected.
-  Permission rechecks show the actual result. If Music is closed, open it and
-  try again; the instruction sheet closes once Automation access is granted.
-- **App Visibility** — run WolfWave as a menu bar app, a Dock app, or both.
-  Launch at Login failures show a warning and a shortcut to Login Items; the
-  toggle keeps its previous value when registration fails.
-- **Appearance** — pick how WolfWave looks. Covers the whole app, menu bar menu
-  included, and the picker shows preview thumbnails before you commit.
+- **Sync Music.** The main switch. On by default. Shows what's playing and which services are connected.
+  - Apple Music access denied? Click **Open System Settings**, allow it, then click **Recheck**.
+- **App Visibility.**
+  - **Display Mode:** Menu Bar Only, Dock Only, or Dock and Menu Bar.
+  - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**.
+- **Appearance.** Applies to the whole app, menu included.
 
   | Option | What it does |
   |---|---|
   | **System** (default) | Matches macOS, including its light/dark schedule. |
-  | **Light** | Light look everywhere, even if macOS is in dark mode. |
-  | **Dark** | Dark look everywhere, even if macOS is in light mode. |
+  | **Light** | Always light. |
+  | **Dark** | Always dark. |
 
-- **Notifications** — opt-in macOS banners: song changes, skip-vote started, and
-  skip-vote passed. All off by default; each has its own toggle.
+- **Notifications.** Mac banners, all off by default:
+  - **Song change notifications**
+  - **Skip vote started** and **Skip vote passed** (turn on vote-to-skip in Song Requests first)
 
-Appearance and notification choices are preferences, so they travel with
-[Back Up & Restore](/docs/backup).
+These preferences are included in [Back Up & Restore](/docs/backup).
 
 ## Song Requests
 
-Setup refreshes Apple Music authorization when you return from System Settings.
-Denied MusicKit access links to **Media & Apple Music**, separate from the
-Automation permission used by Music Sync. If Twitch is disconnected, use
-**Open Twitch settings** to sign in, then return to setup.
-
 <small>Open in WolfWave: [`wolfwave://settings/song-requests`](wolfwave://settings/song-requests)</small>
 
-The guided setup, the request policy preset (Open, Sub Only, Channel Point Only,
-Custom), queue rules, approval screening, hold mode, vote-skip, and the live
-queue view. The behavior is documented in
-[Song Requests](/docs/features#song-requests); the chat side lives in
-[Bot Commands](/docs/bot-commands).
+Let chat request songs. How it all works: [Song requests](/docs/features#song-requests).
 
-The channel point and Bits switches live in one place, the **Channel Points &
-Bits** card. **Who Can Request** only shows a read-only "Paid requests" summary,
-with a button that jumps there. A held queue shows an **On hold** chip, and
-**Resume** stays one click away even when the queue is empty. In the Blocklist,
-Return adds the entry.
+**First time?** Click **Set Up Song Requests**. The setup has these steps:
 
-**Per-user limits** cap how many songs one viewer can have queued, by role.
-When a viewer has more than one role, **Highest tier** gives them their best
-role's limit. **Stacked** starts from Everyone and adds each role's extra
-slots. A role you haven't set adds nothing (it shows **None**), so turning on
-Stacked never hands out slots you didn't choose.
+1. **Get started.** Checks Twitch. Not connected? Click **Open Twitch settings**, sign in, then come back.
+2. **Apple Music access.** Click **Grant Apple Music Access**. If you denied it before, turn on WolfWave in **System Settings → Privacy & Security → Media & Apple Music**. (This is separate from the Automation access that Sync Music uses.)
+3. **Requests playlist.** Makes the **WolfWave Requests** playlist.
+4. **Share link** (optional). Lets `!playlist` post a link in chat.
+5. **All set.**
+
+**After setup**, the pane shows these cards:
+
+- **Vote-Skip.** **Enable Vote-Skip**, minimum votes, vote window, **Subscriber-Only Voting**, **Use Twitch Polls**. Works even with requests off.
+- **Song Request Queue.** The live queue. Approve, remove, or **Clear Queue**.
+- **Who Can Request.** Pick a preset (Open, Sub Only, Channel Point Only, Custom) and **Require My Approval**. The "Paid requests" line jumps to the Channel Points & Bits card.
+- **Queue Settings.** **Fair-Share Ordering**, **Sub / VIP priority**, **Max queue size**, and **Per-user limits**.
+- **Playback.** **Hold Queue**, **Auto-Advance Queue**, **Resume Autoplay When Empty**, and **Fallback playlist**.
+- **Song Request Commands.** Turn `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, and `!playlist` on or off, and add aliases. **Reply When Off** tells chat when requests are off.
+- **Channel Points & Bits.** **Channel Point Requests**, **Bit Requests**, and **Boost With Bits**, with the reward cost and minimum Bits.
+- **Blocklist.** Block a **Song**, **Artist**, or **Person**. Press Return to add.
+
+**Per-user limits, explained:**
+
+- Each role (Everyone, subscribers, VIPs, and so on) can have its own limit.
+- When a viewer has more than one role, choose:
+  - **Highest tier:** they get their best role's limit.
+  - **Stacked:** start from Everyone and add each role's extra slots.
+- A role you haven't set shows **None** and adds nothing.
+
+Chat commands: [Bot Commands](/docs/bot-commands).
 
 ## Stream Widgets
 
 <small>Open in WolfWave: [`wolfwave://settings/stream-widgets`](wolfwave://settings/stream-widgets)</small>
 
-The OBS overlay: turn the connection on, drop in the ready-made browser source,
-and style it. Cards run in the order you need them, so the raw WebSocket feed
-(port, read-only overlay token, and the two addresses) sits last, under **Build
-your own overlay**, because only a hand-written overlay needs it. Sizes, themes,
-and the message contract are in the [widget guide](/docs/widget).
+Your OBS overlay. Cards are in the order you need them:
 
-The header chip follows the server: **Listening** (or **N connected** once an
-overlay joins), **Starting**, **Stopped**, or **Couldn't start**. When a port is
-busy, a **Couldn't start** callout sits under the switch (fix:
-[Port already in use](/docs/troubleshooting#port-in-use)). Port fields put an
-invalid entry back to the saved port and say **Saved** or **Not saved**. A
-greyed-out copy button or Widget Webpage switch says what to turn on first.
+1. **Enable Stream Widgets.** Starts the connection the overlay uses.
+2. **Widget Setup.** Turn on **Enable Widget Webpage**, then **Copy Link** and paste it into OBS as a Browser Source. **Network Address** is for two-PC setups on a network you trust.
+3. **Widget Appearance.** Theme, layout, colors, and font. Click **Apply** to update the overlay.
+4. **Build your own overlay.** The raw feed: port, read-only overlay token, and addresses. Only needed for a hand-made overlay.
+
+**The header chip shows the server state:**
+
+- **Listening** (or **N connected** once an overlay joins)
+- **Starting**
+- **Stopped**
+- **Couldn't start.** Usually a busy port. See [Port already in use](/docs/troubleshooting#port-in-use).
+
+Other tips:
+
+- To change the widget port, turn off the widget webpage first. A bad port is put back, and the field says **Saved** or **Not saved**.
+- A greyed-out button tells you what to turn on first.
+
+Sizes, themes, and messages: [OBS Widget](/docs/widget).
 
 ## Stream Deck
 
 <small>Open in WolfWave: [`wolfwave://settings/stream-deck`](wolfwave://settings/stream-deck)</small>
 
-The control side, on its own page. Holds the **Allow Stream Deck commands**
-switch, the same-Mac control token, and the setup steps. It is separate from
-Stream Widgets on purpose: the overlay token is read-only and reachable across
-your network, while the control token runs commands and is accepted only from
-this Mac. Turning commands off leaves your overlay running. Full walkthrough:
-[Stream Deck](/docs/streamdeck).
+Control WolfWave from a Stream Deck.
 
-The header chip names the first thing in your way: **Server off** (Stream Widgets
-is off), **Server error** (the server couldn't start, usually a busy port; the
-pane adds a button to Stream Widgets), **Starting**, **Commands off**, then
-**Ready**. Ready only shows when the server is really listening. The plugin's own
-panel says whether WolfWave accepted the token.
+- **Allow Stream Deck commands.** On by default. Turning it off leaves your overlay running.
+- **Stream Deck Control Token.** Paste it into the plugin. Treat it like a password. It only works from this Mac.
+- **Stream Deck Setup Guide.** Step-by-step setup.
+
+Why it's separate from Stream Widgets: the overlay token is read-only and can reach across your network. The control token runs commands, so it only works on this Mac.
+
+**The header chip names the first thing in your way:**
+
+1. **Server off.** Turn on Stream Widgets.
+2. **Server error.** The server couldn't start (often a busy port). Use **Open Stream Widgets**.
+3. **Starting.**
+4. **Commands off.** Turn on Allow Stream Deck commands.
+5. **Ready.** Only shows when the server is really running.
+
+Full walkthrough: [Stream Deck](/docs/streamdeck).
 
 ## History & Stats
 
 <small>Open in WolfWave: [`wolfwave://settings/history-stats`](wolfwave://settings/history-stats)</small>
 
-Opt-in, on-device listening history with charts and the Monthly Wrap. What
-counts as a play and how retention works:
-[Listening History](/docs/listening-history).
-Wrap export failures appear in the sheet. Temporary share images are removed
-after sharing finishes or is cancelled. The `!stats` facts are chips, and the last
-one you have selected locks ("Keep at least one.").
+Your listening history, kept on this Mac.
+
+- **Listening History.** Off by default. Turn it on to start recording plays.
+- **Show Stats & Charts.** Weekly view, top artists, listening by hour, and the Monthly Wrap.
+- **!stats command.** Pick the time window and what chat sees. Keep at least one item selected.
+- **Keep for.** How long to keep plays. Choose **Forever** to keep them all.
+- **Danger Zone → Clear History.** Deletes every play. Can't be undone.
+
+What counts as a play: [Listening History](/docs/listening-history).
 
 ## Twitch
 
 <small>Open in WolfWave: [`wolfwave://settings/twitch`](wolfwave://settings/twitch)</small>
 
-Connect your Twitch account (device code — no password typed into WolfWave).
-The code shows how long it has left and offers **Get a new code** when it
-expires. Once you're in, the account row reads **Bot account**, and **Log Out**
-asks "Sign out of Twitch?" first. Then manage the chat bot, built-in command
-toggles and aliases, custom commands (each with its own delivery mode: reply,
-plain message, or announcement), and cooldowns. Custom commands can be created
-and edited before you connect; they start replying once Twitch is connected.
-Command reference: [Bot Commands](/docs/bot-commands).
+Connect your Twitch account and set up the chat bot.
+
+**Sign in:**
+
+1. Click **Connect with Twitch**.
+2. Click **Open twitch.tv/activate** and enter the code. Codes expire after a few minutes; click **Get a new code** if needed.
+3. Type your channel name and click **Join Channel**.
+
+You never type your Twitch password into WolfWave.
+
+**Once you're in:**
+
+- **Bot account** shows who posts the replies.
+- **Log Out** asks "Sign out of Twitch?" first.
+- **Only reply while live.** Every command stays quiet until you go live. Off by default.
+- **Bot Commands.** Turn on `!song`, `!last`, `!wolfwave`, and **Include song.link**. Add aliases and set cooldowns.
+- **Custom Commands.** Make your own commands. Each one can reply, post a plain message, or post an announcement. You can set these up before you connect; they reply once Twitch is connected.
+
+Every command: [Bot Commands](/docs/bot-commands).
 
 ## Discord
 
 <small>Open in WolfWave: [`wolfwave://settings/discord`](wolfwave://settings/discord)</small>
 
-Rich Presence: show what you're listening to on your Discord profile, with
-optional buttons and an idle status when nothing is playing.
+Show what you're listening to on your Discord profile.
 
-If the connection doesn't come up, the pane now says which of these it is
-instead of always guessing that Discord is closed:
+- **Show on Discord.** The main switch. Off by default.
+- **Profile Buttons.** Up to two: **Apple Music link** and **Cross-service link (song.link)**.
+- **Playlist.** **Show playlist** and **Show playlist name**.
+- **When not playing.** **Show idle status** and **Hide track while paused**.
+- **Preview.** How your profile will look.
 
-| Status | What it means |
+**If it won't connect, the pane tells you why:**
+
+| Message | What to do |
 |---|---|
-| **Discord not running** | No Discord app was found. Open Discord and WolfWave connects on its own. |
-| **Refused** | Discord is running but rejected the connection. Restarting Discord usually clears it. |
-| **Blocked** | macOS blocked WolfWave from reaching Discord's local socket. Restart WolfWave, and send a bug report if it persists. |
-| **Not configured** | This build shipped without a Discord Application ID. |
+| **Discord isn't running** | Open Discord. WolfWave connects on its own. |
+| **Discord refused the connection** | Discord is running but said no. Restart Discord. |
+| **WolfWave can't reach Discord** | macOS blocked the connection. Restart WolfWave. If it keeps happening, send a bug report. |
+| **Not configured** | This build has no Discord app ID. Install the official release. |
+
+More fixes: [Troubleshooting → Discord](/docs/troubleshooting#discord-not-connecting).
 
 ## Software Update
 
 <small>Open in WolfWave: [`wolfwave://settings/software-update`](wolfwave://settings/software-update)</small>
 
-Check for updates, switch between the Stable and Nightly channels, and see
-what's new. Channel details: [Nightly Builds](/docs/nightly). **Check for
-Updates** is also in the menu bar's Help submenu.
+- **Check Now** looks for a new version.
+- **Check automatically** looks in the background.
+- **Update Channel:** **Stable** (recommended) or **Nightly (dev)**. See [Nightly Builds](/docs/nightly).
+- Installed with Homebrew? Updates come from Homebrew instead.
+
+**Check for Updates…** is also in the menu bar's Help menu.
 
 ## Advanced
 
 <small>Open in WolfWave: [`wolfwave://settings/advanced`](wolfwave://settings/advanced)</small>
 
-Settings [backup and restore](/docs/backup) plus the **Sync with iCloud**
-switch, log export, the bug-report flow, and opt-in on-device diagnostics (the
-**Share Diagnostics** card). Turning diagnostics off deletes the saved reports;
-while it's on, WolfWave keeps the newest 50 from the last 30 days.
-**Export Logs** writes one diagnostics file: an environment summary (version,
-macOS, install method), the last crash if there was one, and every rotated
-log, oldest first, so a bug report carries everything in a single attachment.
-Copy, reveal, and export report missing logs or failures. **Clear Logs** sits
-with those log actions and removes the current contents and rotated backups,
-then starts a fresh log. **Clear Artwork Cache** sits in the Artwork Cache card.
-The **Danger Zone** holds only **Erase All Data & Reset**. **Rerun Setup Wizard**
-asks first; its confirm button reads **Open Wizard**.
-If WolfWave ever crashes, a one-time recovery callout appears here and says
-what crashed.
+- **Setup Wizard.** **Rerun Setup Wizard** opens the wizard again. Your settings don't change.
+- **Share Diagnostics.** Off by default. Keeps crash and performance reports on your Mac (the newest 50 from the last 30 days). Turning it off deletes them.
+- **Diagnostics (logs).**
+  - **Export Logs** saves one file: your setup (version, macOS, install method), the last crash, and every log.
+  - **Copy to Clipboard** and **Reveal in Finder**.
+  - **Clear Logs** erases the logs and starts fresh.
+- **Artwork Cache.** **Clear Artwork Cache** forgets saved album art links. They're fetched again as songs play.
+- **Back Up Settings.** **Sync with iCloud**, **Export Settings**, and **Import Settings**. See [Back Up & Restore](/docs/backup).
+- **Danger Zone.** **Erase All Data & Reset** wipes every setting, sign-in, log, and cache, then restarts. Can't be undone.
+
+If WolfWave crashed last time, a **Recovered from a crash** note appears here once, with **Report a Bug…**.
 
 ## About
 
 <small>Open in WolfWave: [`wolfwave://settings/about`](wolfwave://settings/about)</small>
 
-Version, credits, license, and quick actions: **Release Notes**, **Docs** (one
-button; it used to be separate Website and Documentation buttons), **Send
-Feedback**, and **Sponsor on GitHub**. Below them are the privacy and terms links
-and an Acknowledgements card listing the services and open-source software
-WolfWave uses.
-
-**Show sponsor links** controls whether WolfWave asks for support. Leave it on
-and you get a Sponsor item here, in the menu bar's Help submenu, and in the
-Help menu. Turn it off and all three disappear — the toggle itself stays, so you
-can turn it back on. WolfWave is free and fully functional either way.
+- Version and build info, with a copy button.
+- **Quick actions:** **Release Notes**, **Docs**, **Send Feedback**, and **Sponsor on GitHub**.
+- **Show sponsor links.** On by default. Turn it off to hide the Sponsor items here, in the menu bar, and in the Help menu. WolfWave works the same either way.
+- **Links & legal:** Privacy, Terms, and Acknowledgements.
 
 ## Deep links
 
-WolfWave registers the `wolfwave://` URL scheme. A link opens Settings on a
-pane, scrolls to a card, and flashes it for a moment. It works whether Settings
-is closed or already open somewhere else. Anything WolfWave doesn't recognise
-opens General, so a stale link never errors.
+A `wolfwave://` link opens Settings on a pane, scrolls to a card, and flashes it.
+
+- It works whether Settings is open or closed.
+- A link WolfWave doesn't know opens General. It never shows an error.
 
 ```
 wolfwave://settings                       General
@@ -207,8 +240,7 @@ wolfwave://settings/<pane>                one pane
 wolfwave://settings/<pane>/<section>      one card inside that pane
 ```
 
-Names are stable identifiers, not the titles you see on screen, so they survive
-copy changes.
+The names below are fixed IDs, not the titles on screen, so links keep working when wording changes.
 
 | Pane | `<pane>` | `<section>` |
 |---|---|---|
@@ -223,9 +255,7 @@ copy changes.
 | Advanced | `advanced` | `diagnostics`, `artwork-cache`, `backup`, `danger-zone` |
 | About | `about` | |
 
-Some cards only exist once a feature is on (Song Requests cards need setup
-finished and the feature enabled; History cards need history on). A link to a
-card that isn't showing opens the pane and stops there.
+Some cards only show once a feature is on. Song Requests cards (except `vote-skip`) need setup done and requests on. History cards (except `tracking`) need Listening History on, and `stats-command` also needs Show Stats & Charts. A link to a hidden card opens the pane and stops there.
 
 Try one from Terminal:
 
@@ -235,7 +265,4 @@ open "wolfwave://settings/twitch/custom-commands"
 
 ## Debug
 
-Only exists in development builds: inspectors, service controls, a live log
-viewer that tails the log file as it is written (level and category filters,
-search, follow), and UI previews for people
-[working on WolfWave](/docs/development). You won't see it in a release build.
+Only in development builds. It has inspectors, service controls, a live log viewer, and UI previews for people [working on WolfWave](/docs/development). Release builds don't have it.

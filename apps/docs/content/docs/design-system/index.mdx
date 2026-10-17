@@ -1,6 +1,6 @@
 ---
 title: Design System
-description: WolfWave's visual language. Design tokens, reusable SwiftUI components, and brand assets. One source of truth powering the native app, docs, and widget.
+description: WolfWave's visual language. One tokens.json drives the macOS app, docs site, and OBS widget. How to change a token and the rules the linter enforces.
 ogTitle: WolfWave Design System
 ogDescription: Tokens, components, and brand. The visual language behind the app, docs, and widget. Open source.
 keywords:
@@ -13,14 +13,18 @@ ogChips:
   - Tokens
   - Components
   - Brand
+  - One source
 ogEyebrow: Design System
 ---
 
-WolfWave's design system is the single source of truth for how the product looks and feels across:
+**TL;DR:** one file, `design-system/tokens.json`, sets the colors, type, spacing, and motion for the app, this site, and the OBS widget.
+This section is for contributors changing how WolfWave looks.
+
+It covers three products:
 
 - **The native macOS app** (Swift / SwiftUI, macOS 26 Liquid Glass)
 - **This docs site** (Fumadocs / Tailwind 4)
-- **The OBS widget overlay** (vanilla HTML / CSS / JS)
+- **The OBS widget overlay** (TypeScript / Tailwind 3, inlined into one HTML file)
 
 ## Canonical source
 
@@ -34,6 +38,26 @@ design-system/tokens.json   ← edit this
     ├─→ widget-tokens.generated.js (window.WW_TOKENS)
     └─→ widget-themes.generated.ts (landing-page overlay preview)
 ```
+
+## Change a token
+
+1. Edit `design-system/tokens.json`.
+2. Run `bun run tokens` to regenerate all four outputs.
+3. Touched widget themes or layouts? Run `make widget` too.
+4. Run `bun run ds:schema` and `bun run ds:lint`.
+5. Commit the source and every regenerated file together. CI fails on drift.
+
+Never hand-edit a `*.generated.*` file.
+
+## Rules the linter enforces
+
+`bun run ds:lint` blocks these in SwiftUI views:
+
+- Literal font sizes. Use `DSFont.Size.*`.
+- Literal `spacing:` or `.padding(N)`. Use `DSSpace.*`.
+- Literal corner radii. Use `DSRadius.*`.
+- Literal animation durations or spring responses. Use `DSMotion.*`.
+- Raw system colors as a status tint. Use `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`.
 
 ## In this section
 

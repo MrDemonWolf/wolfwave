@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: How WolfWave is built. MVVM + service-oriented Swift. ScriptingBridge → Apple Music, EventSub WebSocket → Twitch, IPC → Discord, WebSocket → overlay.
+description: How WolfWave is built. MVVM plus services in Swift 6. ScriptingBridge reads Apple Music, then Twitch EventSub, Discord IPC, and a local WebSocket fan it out.
 keywords:
   - wolfwave architecture
   - swift menu bar app architecture
@@ -8,222 +8,253 @@ keywords:
   - discord ipc rich presence swift
   - scriptingbridge apple music swift
   - macos menu bar mvvm
-ogTitle: WolfWave Architecture. MVVM + Service-Oriented Swift
-ogDescription: ScriptingBridge → Apple Music. EventSub WebSocket → Twitch. IPC → Discord. WebSocket → OBS overlay.
+ogTitle: WolfWave Architecture. MVVM + Services in Swift
+ogDescription: ScriptingBridge reads Apple Music. EventSub to Twitch, IPC to Discord, WebSocket to OBS and Stream Deck.
+ogEyebrow: Developers
 ogChips:
   - MVVM
   - EventSub
   - ScriptingBridge
   - WebSocket
-ogEyebrow: Under the hood
 ---
 
-WolfWave follows a clean architecture with clear separation of concerns. Pattern: **MVVM + Service-Oriented**, with an `NSApplicationDelegateAdaptor`-based lifecycle.
+**TL;DR:** one menu bar app reads Apple Music, then fans the current song out to Twitch chat, Discord, and a local WebSocket.
+This page maps the code for contributors. To build it, start with [Development](/docs/development).
 
-## Project Structure
+- **Pattern:** MVVM + services, with an `NSApplicationDelegateAdaptor` lifecycle.
+- **Stack:** Swift 6, SwiftUI, AppKit, macOS 26+. Sparkle is the only third-party dependency.
 
-The native app lives at [`apps/native/WolfWave/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWave) with unit and integration tests at [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests) and end-to-end UI tests at [`apps/native/WolfWaveUITests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveUITests). The top-level layout:
+## How data flows
+
+```mermaid
+flowchart LR
+    M[Music.app] -->|ScriptingBridge + notifications| S[AppleMusicSource]
+    S -->|PlaybackSourceDelegate| A[AppDelegate]
+    A --> T[TwitchChatService]
+    A --> D[DiscordRPCService]
+    A --> W[WebSocketServerService]
+    T <-->|EventSub + Helix| TW[Twitch]
+    D -->|Unix socket| DC[Discord app]
+    W -->|overlay role| O[OBS widget]
+    W <-->|control role, loopback only| SD[Stream Deck plugin]
+    T -->|!sr, points, Bits| R[SongRequestService]
+    R -->|AppleScript| M
+```
+
+1. `AppleMusicSource` notices a track change.
+2. It tells `AppDelegate` through `PlaybackSourceDelegate`.
+3. `AppDelegate` hands the song to each enabled service.
+4. Chat commands and paid events flow back in through `TwitchChatService` and `SongRequestService`.
+
+## Project structure
+
+- App code: [`apps/native/WolfWave/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWave)
+- Unit and integration tests: [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests)
+- UI tests: [`apps/native/WolfWaveUITests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveUITests)
 
 ```
 WolfWave/
-├── WolfWaveApp.swift              # @main + NSApplicationDelegateAdaptor
-├── AppDelegate+*.swift            # MenuBar / MenuSections / Services / Notifications / TwitchTokenValidation / Windows / DockMenu / StreamDeck splits
-├── Core/                          # Constants, Keychain, Logger, StreamerMode, tray-menu state, DesignSystem tokens, …
-├── Monitors/                      # AppleMusicSource + playback update delegate
+├── WolfWaveApp.swift      # @main app + the AppDelegate class
+├── Core/                  # Constants, Keychain, logging, preferences, crash reporter,
+│   │                      # AppDelegate+* extensions (MenuBar, MenuSections, DockMenu,
+│   │                      # Services, Notifications, TwitchTokenValidation, Windows, StreamDeck)
+│   ├── DesignSystem/      # Tokens.generated.swift (DSColor, DSFont, DSSpace, …)
+│   └── ListeningHistory/  # Play log store, records, lifetime tally
+├── Monitors/              # AppleMusicSource + PlaybackSourceDelegate
 ├── Services/
-│   ├── Discord/                   # DiscordRPCService. Local IPC socket
-│   ├── ListeningHistory/          # Opt-in NDJSON play log + stats + monthly wrap
-│   ├── Notifications/             # Opt-in song-change banner
-│   ├── SettingsBackup/            # Backup export/import coder + service, opt-in iCloud KVS sync
-│   ├── SongRequest/               # Queue, resolvers, AppleMusicController, blocklist, vote-skip
-│   ├── Twitch/                    # ChatService (EventSub) + seam files, ChannelPointsService, DeviceAuth, BootTokenValidationRunner, Commands/
-│   ├── UpdateChecker/             # SparkleUpdaterService
-│   ├── WebSocket/                 # Token-gated WebSocketServerService, StreamDeckCommand, static WidgetHTTPService
-│   └── *.swift                    # Loose services: ArtworkService, ArtworkTint, LaunchAtLoginService
-├── Views/                         # SwiftUI settings shell + per-section views + Onboarding wizard
-└── Resources/                     # widget.html, widget-tokens.generated.js, Assets.xcassets, AppIcon.icon / AppIcon-Dev.icon, dev-appcast.xml
+│   ├── Discord/           # DiscordRPCService (+IPC, +FrameIO, +Presence, +TempDirectory), DiscordPresenceBuilder
+│   ├── ListeningHistory/  # Opt-in play log service, stats, Monthly Wrap
+│   ├── Notifications/     # Opt-in macOS banners
+│   ├── SettingsBackup/    # Export/import + opt-in iCloud sync
+│   ├── SongRequest/       # Request pipeline, queue, resolvers, AppleMusicController, blocklist, vote-skip
+│   ├── Twitch/            # TwitchChatService + seam files, channel points, Helix, device auth, outbox
+│   │   └── Commands/      # Bot commands, dispatcher, cooldowns, custom commands
+│   ├── UpdateChecker/     # SparkleUpdaterService, UpdateChannel
+│   ├── WebSocket/         # WebSocketServerService, WidgetHTTPService, StreamDeckCommand, auth tokens
+│   └── *.swift            # ArtworkService, ArtworkTint, LaunchAtLoginService
+├── Views/                 # SwiftUI settings shell, one folder per pane, Onboarding/, Shared/, Debug/
+└── Resources/             # widget.html, widget-tokens.generated.js, Assets.xcassets,
+                           # AppIcon.icon, AppIcon-Dev.icon, dev-appcast.xml
 ```
 
-Enumerating every file here would rot on each PR. For the full file-by-file breakdown, see the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave) in the repo root.
+The file-by-file list lives in the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave).
+It's kept there so this page doesn't rot on every PR.
 
-## Architecture Highlights
+## Patterns
 
-### Delegation Pattern
+### Delegation
 
-`PlaybackSourceDelegate` is used for track update notifications, following Apple's delegation pattern. The delegate receives track name, artist, album, duration, and elapsed time on every update.
+`PlaybackSourceDelegate` carries track updates: name, artist, album, duration, and elapsed time.
 
 ### MVVM with `@Observable`
 
-ViewModels separate UI logic from business logic. WolfWave uses the modern `@Observable` macro (migrated from `ObservableObject` / `@Published`):
-
-- `TwitchViewModel` manages Twitch connection state. Its user-facing errors are built in one place, `TwitchViewModel.Failure` (`Views/Twitch/TwitchFailure.swift`).
+- View models use the `@Observable` macro, not `ObservableObject` / `@Published`.
+- `TwitchViewModel` owns Twitch sign-in and connection state. Its user-facing errors are built in `Views/Twitch/TwitchFailure.swift`.
 - `OnboardingViewModel` drives the first-run wizard.
-- Views observe `@Observable` properties directly. No `@StateObject` wrapper required.
 
-### Modern Concurrency
+### Concurrency
 
-Swift async/await throughout. No `DispatchQueue` for new async work.
+- Swift async/await throughout. No `DispatchQueue` for new async work.
+- The module defaults to `MainActor` isolation.
 
-### Loose Coupling via NotificationCenter
+### Loose coupling
 
-Settings changes (e.g. `TrackingSettingChanged`, `DockVisibilityChanged`) flow through `NotificationCenter`. Names centralized in `AppConstants.Notifications`.
+Settings changes (for example `TrackingSettingChanged`, `DockVisibilityChanged`) travel over `NotificationCenter`.
+Names live in `AppConstants.Notifications`.
 
-### Thread Safety
+### Thread safety
 
-- `TwitchChatService`: actor isolation, with small lock-backed snapshots only for synchronous observation bridges.
-- `DiscordRPCService`: serial `ipcQueue` confinement + `enabledLock`.
-- `Logger`: serial `DispatchQueue` for thread-safe file I/O.
-- Tray and Dock menus: `menuNeedsUpdate` runs on the main thread while a menu is tracking, so the menus read an in-memory `TwitchMenuState` that `AppDelegate` refreshes off the main thread (the newest refresh wins). They never touch the Keychain.
-- `WebSocketServerService`: actor-confined listener, connection, and playback state; an `NSLock` protects only synchronous UI snapshots. Network.framework rejects messages over 16 KiB, and pre-handshake peers are capped and timed out before promotion.
+| Component | How it stays safe |
+|---|---|
+| `TwitchChatService` | Actor isolation. Small lock-backed snapshots for synchronous readers |
+| `DiscordRPCService` | Serial `ipcQueue` + `enabledLock` |
+| `WebSocketServerService` | Actor-confined listener and state. An `NSLock` guards only UI snapshots |
+| `Logger` | Serial `DispatchQueue` for file writes |
+| Tray and Dock menus | Read the in-memory `TwitchMenuState`, refreshed off the main thread. They never read the Keychain |
 
-## Key Components
+## Key components
 
 ### KeychainService
 
-Secure storage for sensitive credentials using the macOS Keychain API. All tokens and secrets are stored securely, never in UserDefaults or plain text. Twitch access, refresh, username, user ID, and configured channel live in one versioned record, so an account or channel change is a single crash-atomic Keychain write. A channel edit is validated before it replaces the canonical record. Existing per-field records migrate copy-first and are deleted only after that write succeeds. A channel restored from backup stays a nonauthoritative UserDefaults hint until a successful OAuth commit. Keys are defined in `AppConstants.Keychain`.
+Stores every credential in the macOS Keychain. Never `UserDefaults`, never plain files.
+
+- Twitch access token, refresh token, username, user ID, and channel are **one versioned record**. An account change is a single crash-safe write.
+- Old per-field records migrate copy-first. The old ones are deleted only after the new write succeeds.
+- A channel restored from a backup is only a hint until Twitch sign-in confirms it.
+- Keys live in `AppConstants.Keychain`.
 
 ### AppleMusicSource
 
-AppDelegate owns `AppleMusicSource` directly. It uses PID-targeted ScriptingBridge for Apple Music communication without spawning subprocesses or relaunching Music.app. It provides real-time track updates (including duration and elapsed time) through `PlaybackSourceDelegate`, distributed notifications, monotonic event deduplication, and a 5-second fallback poll that slows in low-power mode.
+Reads what Music.app is playing.
+
+- **PID-targeted ScriptingBridge.** It never launches a quit Music.app.
+- **Distributed notifications** for instant updates, with event deduplication.
+- **5-second fallback poll**, slower in Low Power Mode.
+- **Pause keeps the track.** Paused, fast-forward, and rewind still report the loaded song. Only stopped or empty clears it.
 
 ### TwitchChatService
 
-Full Twitch integration using:
+An actor that talks to Twitch.
 
-- **Helix API** for sending messages and API requests.
-- **EventSub WebSocket** for real-time chat message notifications.
-- **OAuth Device Code Flow** for secure authentication.
-- **Network path monitoring** for automatic reconnection.
-- **Same-actor seam files** keep the actor readable: `TwitchChatService+Auth`, `+Connection`, `+EventSub`, `+Redemptions` (teardown gate and helpers), `+RedemptionSubscriptions`, `+RedemptionHandlers`, `+RateLimiter` (a nested Helix rate-limit actor), `+Sending` (chat send, announcements, and the bounded retry queue), `+Types` (nested types and the dedup / connection-state helpers), `+Wiring`, `+ChannelLifecycle`, `+APIRequests`, `+WebSocket` (socket management and the keepalive watchdog), `+EventSubSubscriptions`, `+EventSubDecisions`, `+Polls`, `+RedemptionResolution`, and `+RedemptionTeardown`. Stored properties stay in `TwitchChatService.swift`. `TwitchCredentialStore` and `TwitchTokenRefresher` have their own files beside `TwitchDeviceAuth`, and the redemption outbox is split into `+Queues`, `+Intake`, and `+Persistence`. `TwitchBootTokenValidationRunner` owns the app-lifetime token validation cadence.
-- **Server back-off** goes through the shared `RetryAfter` helper (`Core/RetryAfter.swift`), which rejects invalid `Retry-After` values and caps every delay at 300 seconds. Twitch sign-in, Helix redemptions, the chat rate limiter, and `ArtworkService` all use it.
-- **Durable paid-event intake and resolution** via one atomic disk-backed outbox. Channel-point intake is saved before song lookup or queue work, then atomically replaced with the known fulfill/refund result before Helix delivery. Qualifying Bits cheers persist the complete replayable boost/request action before touching the in-memory queue, and atomically become a short-lived duplicate tombstone after completion. Relaunch refunds an unknown points intake conservatively and replays known point outcomes or pending Bits actions. Payment-bound processing survives socket reconnects while chat replies remain generation-scoped. A failed storage preflight pauses the managed reward; an already-paid Bits event falls back to process-owned execution and surfaces the same storage warning.
+- **EventSub WebSocket** receives chat, channel points, Bits, and stream online/offline.
+- **Helix API** sends chat messages and announcements.
+- **OAuth Device Code flow** for sign-in. See [Security](/docs/security#twitch-authentication).
+- **Network path monitoring** reconnects when the network comes back.
+- **Back-off** goes through `Core/RetryAfter.swift`. Invalid `Retry-After` values are rejected and every wait caps at 300 seconds.
+- **Split into seam files** (`TwitchChatService+Auth`, `+Connection`, `+EventSub`, `+Sending`, `+RateLimiter`, `+Redemptions`, and more). Stored properties stay in `TwitchChatService.swift`.
+
+#### Paid events never get lost
+
+Channel points and Bits go through `TwitchRedemptionResolutionOutbox`, a disk-backed outbox.
+
+1. A channel-point redemption is saved **before** any song lookup.
+2. It's replaced with the known result (fulfill or refund) **before** WolfWave tells Twitch.
+3. A qualifying Bits cheer saves its full boost or request action before touching the queue.
+4. After a crash or relaunch, unknown point redemptions are refunded and known outcomes replay.
+
+If the outbox can't save, WolfWave pauses the managed reward rather than take points it can't track.
 
 ### SongRequestService
 
-Coordinates chat song requests end-to-end:
+Runs the song-request pipeline for chat, channel points, and Bits.
 
-- **Queue** with hold mode and buffering when Music.app is closed.
-- **Resolvers**: `SongSearchResolver` (MusicKit) and `LinkResolverService` (native URL detection, Spotify/YouTube oEmbed, and validated Apple Music URLs).
-- **Playback**: `AppleMusicController` plays tracks via AppleScript while preserving window focus.
-- **Blocklist**: `SongBlocklist` blocks by song title, artist, or requester (the person, not a song). An artist entry also matches inside a collaboration, including a comma-named act ("Tyler, The Creator" in "Tyler, The Creator & Kali Uchis") and "ft." / "featuring" credits.
-- **Skip**: `skip()` reports what it did (started, drained, busy, or retained), so `!skip` only says the queue is empty when it really drained.
-- **Approval screening**: opt-in "Require My Approval" (`isApprovalRequired`, `approve`/`decline`) holds each request in a pending state until the broadcaster acts, across chat, channel points, and bits.
-- **Files**: the service is split across `SongRequestService+SetupHealth`, `+PlaybackMonitoring`, `+QueueControl`, and `+Playback`; `AppleMusicController` keeps its AppleScript plumbing in `+AppleScript` and catalog search in `+Search`, and `SkipVoteManager` its settings and types in `+Configuration` and `+Types`.
-
-### DiscordRPCService
-
-Discord Rich Presence integration using:
-
-- **Local IPC Socket**: Unix domain socket (`discord-ipc-{0..9}`). No bot token or server required.
-- **Album artwork**: fetched through the shared `ArtworkService` (iTunes Search API). Its cache lives in memory and is also saved to `Application Support/WolfWave/Cache/artwork-links.json`.
-- **Playback Progress**: Elapsed time and duration shown as a progress bar.
-- **Auto-reconnect**: Detects Discord availability and reconnects on its own.
-- **Sandbox Compatible**: Uses SBPL entitlements for socket access within the App Sandbox.
-
-Payload construction is pure and lives in `DiscordPresenceBuilder`; the IPC connect path sits in `DiscordRPCService+IPC`, frame reads and writes in `+FrameIO`, presence sends in `+Presence`, and the Discord `TMPDIR` lookup in `+TempDirectory`.
-
-#### Paused-state handling
-
-Discord has no native "paused" activity flag, so WolfWave fakes one with two changes to the presence payload when Music reports paused:
-
-1. The `timestamps` block is omitted. Without `start`/`end`, the Discord client stops the progress ticker instead of marching past the real elapsed value.
-2. `assets.small_image` swaps from `apple_music` to `pause`, and `assets.small_text` becomes `"Paused"`.
-
-Track text, large image, and buttons stay unchanged so chat can still read what's loaded.
-
-#### Rich Presence art assets (required upload)
-
-`small_image` / `large_image` reference asset names registered against the Discord application, not bundled files. The PNGs live in [`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets):
-
-| Asset name | Used when |
-|---|---|
-| `apple_music` | Default `large_image` fallback + `small_image` "source" badge while playing |
-| `pause` | `small_image` badge that replaces `apple_music` while paused |
-
-Fork maintainers shipping their own `DISCORD_CLIENT_ID` must upload both assets on the Discord application's **Rich Presence → Art Assets** page, or presence won't render correctly. See [`discord-assets/README.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/discord-assets/README.md).
-
-### WebSocketServerService
-
-Local WebSocket server for OBS stream overlays using:
-
-- **Network.framework `NWListener`**: Native WebSocket server with auto-ping and multi-client support.
-- **JSON Broadcasting**: Sends `welcome`, `now_playing`, `progress`, `playback_state`, `overlay_visibility`, `widget_config`, and (for the Stream Deck plugin) `queue_state` / `health` messages.
-- **Loopback-only control channel**: Parses inbound `command` frames only from a `wolfwave.control.<hex>` client on a literal loopback IP, via an injected `onCommand` handler, and replies with an `ack`. Envelope decode is pure (`StreamDeckControl.parse` in `Services/WebSocket/StreamDeckCommand.swift`); the command router lives in `AppDelegate+StreamDeck`. Full protocol on the [Stream Deck](/docs/stream-deck) page.
-- **Progress Timer**: 1-second interval broadcasts elapsed-time estimation to avoid polling ScriptingBridge.
-- **Auto-retry**: Reconnects the listener after failures with configurable delay.
-- **Role-authenticated**: Binds to all interfaces on the configured WebSocket port (`:8765` by default); `wolfwave.overlay.<hex>` clients may receive state from LAN or loopback, while the separate `wolfwave.control.<hex>` role is accepted only from loopback and alone authorizes commands — see [Security](/docs/security#websocket-server-security).
-
-Owns a `WidgetHTTPService` instance that starts and stops alongside it.
-
-The server is split into `WebSocketServerService+Lifecycle`, `+Connections`, and `+Broadcasting`; `WidgetHTTPService+Connections` holds the widget server's per-connection handling.
-
-### WidgetHTTPService
-
-Tiny companion HTTP server that serves the bundled `widget.html` to OBS:
-
-- **LAN-reachable**: Binds to all interfaces on `:8766` so remote browsers can pull the widget HTML. The static HTTP shell is not authenticated and injects only the read-only overlay token for loopback peers; bootstrap rules are covered in [Security](/docs/security#websocket-server-security).
-- **`GET /`** → `200 OK` with `widget.html` bytes from the app bundle.
-- **Generated assets**: `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served.
-- **All other paths** → `404 Not Found`.
-- **Lifecycle**: Owned by `WebSocketServerService`; starts/stops with the WS server.
-
-The bundled `widget.html` is a **generated artifact**. Its source lives in
-the `apps/widget/` workspace (Tailwind + TypeScript), and the build pipeline
-inlines the compiled CSS, design tokens, and JS runtime into a single
-self-contained HTML file. The committed `widget.html` ships as-is (Xcode does
-not rebuild it); CI rebuilds it before `xcodebuild`, and test CI fails the PR on
-drift between the `apps/widget/` sources and committed output. See the
-[OBS Widget Architecture](/docs/widget) page for the full pipeline,
-message contract, theme/layout system, and transition state machine.
-
-### Stream Deck plugin (`apps/streamdeck/`)
-
-The Elgato plugin that consumes the control channel above. A separate bun
-workspace, bundled for Node (Stream Deck runs `CodePath` under its own bundled
-Node, not Bun) into `com.mrdemonwolf.wolfwave.sdPlugin/bin/plugin.js`. Unlike
-`widget.html`, this output is **not** committed and is not shipped inside the
-app — the plugin is distributed through Elgato, not through WolfWave.
-The client URL is fixed to `127.0.0.1`; remote command hosts are intentionally
-unsupported.
-
-- **`src/wolfwave/protocol.ts`** — pure wire layer and the TypeScript mirror of
-  `StreamDeckCommand.swift`. Its `ACTIONS` list is the Swift enum's raw values
-  and `PROTOCOL_VERSION` must equal `StreamDeckControl.protocolVersion`; a test
-  pins the full action set so the two can't drift silently.
-- **`src/wolfwave/state.ts`** — pure reducer folding inbound frames into the
-  state keys render from. Returns the same object reference when nothing
-  changed, so per-second `progress` frames don't repaint every key.
-- **`src/wolfwave/client.ts`** — one shared socket for all keys (the app
-  broadcasts `queue_state` / `health` to every client, so a socket per key would
-  just multiply fan-out), with capped reconnect backoff and FIFO ack correlation.
-  A late ack from a timed-out press is swallowed instead of handed to the next
-  press, and a handshake WolfWave answers with a refusal is told apart from
-  "not running".
-- **`src/connection-status.ts`** — pure mapping from client state to the message
-  the plugin relays to the Property Inspector (`connected`, `rejected`,
-  `outdated`, …). Kept apart from `plugin.ts`, which connects at import time.
-- **`src/actions/`** — one class per manifest action over a shared base that
-  paints the disconnected / unauthorized / outdated states centrally. It bumps
-  a per-key paint generation, so a render suspended on an `await` can't install
-  a timer after the key went offline.
-
-See the [Stream Deck](/docs/streamdeck) page for setup.
-
-### SparkleUpdaterService
-
-Wraps the Sparkle framework for auto-updates:
-
-- **EdDSA-signed appcast** verified against the public key in `Info.plist` (`SUPublicEDKey`).
-- **Release builds** poll the remote `SUFeedURL`.
-- **DEBUG builds** disable automatic checks; manual "Check Now" reads the bundled `dev-appcast.xml`.
-- **Homebrew installs** disable Sparkle entirely (updates handled by Homebrew).
+- **One entry point:** `processRequest(query:username:source:)`. Every source shares the same checks.
+- **Resolvers:** `SongSearchResolver` (MusicKit search) and `LinkResolverService` (Apple Music links, plus Spotify and YouTube links via their public oEmbed endpoints).
+- **Queue:** `SongRequestQueue`. Fair-share round-robin, Sub/VIP priority within rounds, hold mode, buffering while Music.app is closed.
+- **Playback:** `AppleMusicController` plays tracks through AppleScript and puts focus back where it was.
+- **Blocklist:** `SongBlocklist` blocks songs, artists, or requesters. An artist block also matches inside a collaboration.
+- **Approval screening:** opt-in. Every request waits until the broadcaster approves or declines it.
+- **Skip:** `skip()` reports `started`, `drained`, `busy`, or `retained`, so `!skip` only says "queue empty" when it really is.
+- **Vote-skip:** `SkipVoteManager` runs chat tallies or Twitch Polls.
 
 ### BotCommandDispatcher
 
-Extensible command routing system that:
+Routes chat messages to commands.
 
-- Registers available commands at startup (`registerDefaultCommands()`).
-- Merges streamer-authored `CustomBotCommand`s from `CustomCommandStore` on top of the built-ins, rebuilt per message so edits apply on the next chat line. The editor checks each draft with `CustomCommandStore.validationIssue(for:)`, which names the problem and the field it belongs under.
-- Matches incoming messages to trigger sets (commands implement `BotCommand` or `AsyncBotCommand`).
-- Enforces global + per-user cooldowns via `CooldownManager` (mods bypass). A command can refuse a caller before its cooldown is claimed (`PreflightCheckedCommand`, used by `!sr`), so a refused viewer never starts the cooldown everyone else shares; the refusal reply is throttled on its own key, per viewer and across the channel.
-- Returns responses capped at 500 characters (counted in Unicode scalars, the way Twitch counts, and never cutting an emoji in half), with execution target under 100 ms.
+- Built-ins register in `registerDefaultCommands()`. Each implements `BotCommand` or `AsyncBotCommand`.
+- Streamer-made commands (`CustomBotCommand`) are rebuilt per message, so edits apply on the next chat line.
+- `CooldownManager` enforces global and per-user cooldowns. Mods bypass them.
+- A command can refuse a caller **before** claiming the cooldown (`PreflightCheckedCommand`, used by `!sr`). A refused viewer never starts everyone else's cooldown.
+- Replies cap at 500 characters, counted in Unicode scalars like Twitch counts, without splitting an emoji.
+
+To add a command: implement `BotCommand`, register it in `registerDefaultCommands()`, add tests, and update [Bot Commands](/docs/bot-commands).
+
+### DiscordRPCService
+
+Shows "Listening to WolfWave" on your Discord profile.
+
+- **Local IPC socket** at `$TMPDIR/discord-ipc-{0..9}`. No bot token, no server.
+- **Album art** comes from the shared `ArtworkService` (iTunes Search API), cached in memory and in `Application Support/WolfWave/Cache/artwork-links.json`.
+- **Auto-reconnect** with back-off when Discord quits or restarts.
+- **Sandbox-friendly** through SBPL entitlements.
+- Payloads are built by the pure `DiscordPresenceBuilder`.
+
+#### Paused state
+
+Discord has no "paused" flag, so WolfWave changes two things while Music is paused:
+
+1. It drops the `timestamps` block, so Discord stops the progress ticker.
+2. It swaps `assets.small_image` from `apple_music` to `pause`, with `small_text` set to `"Paused"`.
+
+Track text, the large image, and buttons stay the same. Fork maintainers must upload the art assets; see [Development](/docs/development#rich-presence-art-assets-fork-maintainers).
+
+### WebSocketServerService
+
+The local WebSocket server for OBS and Stream Deck.
+
+- **Network.framework `NWListener`** on the configured port (`8765` by default), all interfaces.
+- **Two roles**, picked by the subprotocol a client sends:
+  - `wolfwave.overlay.<hex>`: read-only. Loopback or LAN.
+  - `wolfwave.control.<hex>`: may send commands. Literal loopback only.
+- **Broadcasts** `welcome`, `now_playing`, `progress`, `playback_state`, `overlay_visibility`, `widget_config`, `queue_upcoming`, `queue_state`, and `health`.
+- **Commands** are decoded by the pure `StreamDeckControl.parse` and run by the router in `AppDelegate+StreamDeck`. Every command gets an `ack`.
+- **Progress** ticks once a second, and only while enabled, playing, overlay-visible, and serving clients.
+- **Limits:** inbound frames over 16 KiB are rejected; unauthenticated peers time out after 10 seconds.
+- **Auto-retry:** a failed listener restarts after 5 seconds while enabled.
+
+Protocol details: [Stream Deck Control API](/docs/stream-deck). Auth details: [Security](/docs/security#websocket-server-security).
+
+### WidgetHTTPService
+
+A tiny HTTP server that hands the widget to OBS. It starts and stops with the WebSocket server.
+
+- Listens on all interfaces, port `8766` by default.
+- `GET /` returns the bundled `widget.html`.
+- `/widget-tokens.generated.js`, `/favicon.ico`, and `/favicon.png` are also served. Everything else is `404`.
+- Only loopback requests with a literal local `Host` get the overlay token injected, with `Cache-Control: no-store`.
+
+`widget.html` is generated from `apps/widget/`. See [OBS Widget](/docs/widget).
+
+### Stream Deck plugin (`apps/streamdeck/`)
+
+The Elgato plugin that uses the control role. It's a separate bun workspace.
+
+- Bundled for Node into `com.mrdemonwolf.wolfwave.sdPlugin/bin/plugin.js`.
+- **Not committed and not shipped in the app.** It's distributed through Elgato.
+- Always connects to `127.0.0.1`. Remote hosts are not supported.
+
+| File | Job |
+|---|---|
+| `src/wolfwave/protocol.ts` | Wire format. Mirrors `StreamDeckCommand.swift`: same action tokens, same `PROTOCOL_VERSION` |
+| `src/wolfwave/state.ts` | Pure reducer from frames to key state. Unchanged state returns the same object, so keys don't repaint every second |
+| `src/wolfwave/client.ts` | One shared socket, capped reconnect back-off, ack matching. Tells "refused" apart from "not running" |
+| `src/connection-status.ts` | Pure mapping from client state to the Property Inspector message |
+| `src/actions/` | One class per key over a shared base that paints offline / unauthorized / outdated states |
+
+Change `StreamDeckCommand.swift`? Change `protocol.ts` in the same PR. CI fails if they drift.
+Setup for streamers is on the [Stream Deck](/docs/streamdeck) page.
+
+### SparkleUpdaterService
+
+- **EdDSA-signed appcast**, checked against `SUPublicEDKey` in `Info.plist`.
+- **Release builds** check `SUFeedURL`. Stable and Nightly feeds come from `UpdateChannel`.
+- **Debug builds** don't check on their own. **Check Now** reads the bundled `dev-appcast.xml`.
+- **Homebrew installs** turn Sparkle off. Homebrew handles updates.
+
+## Next steps
+
+<Cards>
+  <Card title="Development" href="/docs/development" description="Build, test, and open a PR." />
+  <Card title="Stream Deck Control API" href="/docs/stream-deck" description="The command envelope and live state frames." />
+  <Card title="Security" href="/docs/security" description="Keychain, sandbox, and the WebSocket auth model." />
+</Cards>

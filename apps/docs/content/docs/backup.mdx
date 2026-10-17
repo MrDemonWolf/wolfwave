@@ -1,92 +1,98 @@
 ---
 title: Back Up & Restore
-description: Export your WolfWave settings to a JSON file and restore them on another Mac. Accounts stay private. Reconnect Twitch on your terms.
+description: Export your WolfWave settings to a JSON file, import them on another Mac, or sync them with iCloud. Sign-ins and tokens never leave the Mac.
 ogTitle: Back Up & Restore WolfWave Settings
-ogDescription: Export preferences to a file and import them on another Mac. Credentials stay out of the backup. Reconnect Twitch when you choose.
+ogDescription: Export preferences to a file, import them on another Mac, or sync with iCloud. Sign-ins and tokens stay out of every copy.
 ogEyebrow: Guide
 ogChips:
   - Export to JSON
   - Import anywhere
+  - iCloud sync
   - No credentials
-  - Reconnect Twitch
 keywords:
   - wolfwave backup settings
   - export import wolfwave preferences
   - move wolfwave to new mac
-  - wolfwave settings file
+  - wolfwave icloud settings sync
 ---
 
-**Save your settings to a file, restore them anywhere.** Bring your setup to another Mac or back after a clean reinstall. Credentials are never in the file, but custom-command text, blocked titles and artists, and your public Twitch channel name are. Share a backup only when you're comfortable sharing those settings.
+**TL;DR:** Save your WolfWave settings to a file and restore them on another Mac, or turn on iCloud sync so they follow you. This page is for streamers moving to a new Mac or reinstalling.
+
+Everything lives in **Settings → Advanced → Back Up Settings**.
 
 ## What gets backed up
 
-The optional public song-list link must use HTTPS with a host and fit within 2,048 characters. The setup field and file import apply the same validation; a blank link clears it.
+Your preferences, for example:
 
-**Your preferences.** Things like:
+- **Custom bot commands**: triggers, replies, aliases, cooldowns, permissions.
+- **Song Request rules and blocklist**: limits, cooldowns, command names, blocked songs, artists, and people, vote-skip.
+- **Stream Widget look**: theme, layout, colors.
+- **Discord Rich Presence options**: buttons, idle and pause behavior.
+- **Your public Twitch channel name**, so WolfWave can offer to reconnect it.
+- **Everything else**: notification switches, History & Stats options, appearance, Dock visibility, Streamer Mode.
 
-- **Custom bot commands** (triggers, replies, aliases, cooldowns, permissions)
-- **Song Request rules and blocklist** (limits, cooldowns, command names, blocked titles and artists, vote-skip)
-- **Stream Widget look and ports** (theme, layout, colors, server port)
-- **Discord Rich Presence options** (buttons, playlist, idle and pause behavior)
-- **Your public Twitch channel name**, so WolfWave can offer to reconnect it
-- **Everything else**: notification toggles, History & Stats options, appearance, dock visibility
+## What is never backed up
 
-## What does NOT get backed up
+- **Your Twitch sign-in**: access and refresh tokens and your Twitch user ID.
+- **The overlay token and the Stream Deck control token.**
+- **System permissions**, like Apple Music control and notifications. macOS grants these per Mac.
+- **Your Listening History.** Plays are personal data, not settings.
 
-**Credentials, private account IDs, and per-Mac access.** None of this goes into the backup:
+<Callout type="warn">
+  A backup is a plain JSON file you can open and read. It does include your custom command text, blocked titles, artists, and people, and your channel name. Only share it if you're fine sharing those.
+</Callout>
 
-- **Your Twitch sign-in** (OAuth access and refresh tokens, plus your resolved user ID)
-- **The Stream Widgets overlay and Stream Deck control tokens**
-- **System permissions**, like Apple Music control and notifications
+## Export your settings
 
-These secrets live in the macOS Keychain, or macOS grants them per Mac, so they never get written to the file. The configured public Twitch channel name is the only account field included. A backup is a JSON file you can open and inspect. After importing on a new Mac, you may need to re-grant access (like Apple Music control) the first time WolfWave asks.
+1. Open **Settings → Advanced**.
+2. Under **Back Up Settings**, click **Export Settings**.
+3. Pick where to save. The file is named `wolfwave-settings-<date>.json`.
 
-## Export
+## Import your settings
 
-1. **Open** **Settings → Advanced**.
-2. **Click** **Export Settings** under **Back Up Settings**.
-3. **Pick where to save.** The file is named `wolfwave-settings-<date>.json`.
-
-## Import
-
-1. **Open** **Settings → Advanced**.
-2. **Click** **Import Settings** and choose a backup file.
-3. **Review.** A sheet shows how many preferences will be restored.
-4. **Decide on Twitch.** If the backup had Twitch connected, you choose:
-   - **On**: WolfWave stages your channel, asks you to sign in to Twitch again, verifies that the channel exists, then commits it with the new account (your sign-in credentials were never in the file).
+1. Open **Settings → Advanced**.
+2. Click **Import Settings** and choose a backup file.
+3. Read the review sheet. It shows how many preferences will be restored.
+4. **Reconnect Twitch** (only shown if the backup had a channel):
+   - **On**: after import, WolfWave asks you to sign in to Twitch again, checks the channel exists, then saves it with your new sign-in.
    - **Off**: Twitch is skipped. Everything else still imports.
-5. **Decide on local sharing and server settings.** Off by default: diagnostics sharing, the update channel, and the Stream Widget and Stream Deck server switches and ports stay as they are on this Mac. Turn it on to bring them over too.
-6. **Click** **Import**.
+5. **Import local sharing and server settings** (off by default):
+   - **Off**: diagnostics sharing, the update channel, and the Stream Widget and Stream Deck server switches and ports stay as they are on this Mac.
+   - **On**: those come from the backup too.
+6. Click **Import**.
 
-**It merges, never wipes.** Importing adds your preferences in. It won't delete settings missing from the backup, and it won't touch a connection you leave switched off.
+What to expect:
 
-System-backed preferences take effect during import too. WolfWave updates its appearance and update settings immediately and asks macOS to apply Launch at Login. If macOS rejects that login-item change, WolfWave keeps the real system setting and tells you instead of showing a switch that did not take effect.
-
-**A file it can't apply safely is refused whole, not partly restored.** That covers a backup saved in an older, unsupported format, and one holding custom commands with a blank, duplicated, or clashing trigger, or with cooldowns outside what the sliders can set. You get a message saying so, and nothing changes. Individual values that are merely out of range are skipped instead, and the review count tells you what will actually restore.
+- **It merges, it never wipes.** Settings missing from the backup are left alone.
+- **Changes apply right away.** Appearance and update settings change at once. Launch at Login is passed to macOS. If macOS refuses it, WolfWave keeps the real setting and tells you.
+- **Bad files are refused whole.** An old unsupported format, or custom commands with a blank, duplicate, or clashing trigger, or cooldowns the sliders can't set: you get a message and nothing changes.
+- **Odd single values are skipped.** An unsafe port or queue limit is left out, and the review count only counts what will really restore.
 
 ## Move to a new Mac
 
-1. **Old Mac:** **Export Settings**.
-2. **Copy the file over.** AirDrop, iCloud Drive, a USB stick, anything.
-3. **New Mac:** install WolfWave, then **Import Settings**.
-4. **Reconnect Twitch:** turn it on in the review sheet and sign in once. Done.
+1. **Old Mac:** click **Export Settings**.
+2. **Copy the file over**: AirDrop, iCloud Drive, a USB stick, anything.
+3. **New Mac:** [install WolfWave](/docs/installation), then click **Import Settings**.
+4. Turn on **Reconnect Twitch** in the review sheet and sign in once.
+5. Re-grant permissions (like Apple Music control) when macOS asks.
 
 ## Sync with iCloud
 
-**Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and the same backup travels by itself.** WolfWave keeps a copy of the export above in your iCloud account and every Mac with the switch on picks it up. Nothing extra leaves the Mac: same file, same rules, so logins, tokens, and permissions never sync, and a synced Mac still asks you to sign in to Twitch once.
+**Turn on Sync with iCloud and your settings follow you to every Mac that has it on.** Find it in **Settings → Advanced → Back Up Settings**, or on the Preferences step of the setup wizard.
 
-- **Servers and sharing stay per Mac.** Sync never applies diagnostics sharing, the update channel, or the Stream Widget and Stream Deck server switches and ports from another Mac, the same as Import with that option left off. Turning on a server on one Mac never opens it on another.
-- **Opt-in, per Mac.** The switch itself doesn't sync. A new Mac starts with it off; flip it on and the cloud copy is applied right away.
-- **Newest wins.** If two Macs change settings at the same time, the later change overwrites the earlier one as a whole. Sync a stream Mac and a desk Mac, not two people.
-- **Stored in your iCloud, not ours.** It lives in iCloud Key-Value Storage under your Apple Account. Turning the switch off stops syncing but leaves the copy there.
-- **Changes show up within about a minute**, depending on iCloud.
+- **Same rules as Export.** The cloud copy is the same file Export writes. Sign-ins, tokens, and permissions never sync. Each Mac still signs in to Twitch once.
+- **Servers stay per Mac.** Sync never brings over diagnostics sharing, the update channel, or the Stream Widget and Stream Deck server switches and ports. Turning on a server on one Mac never opens it on another.
+- **Opt-in on each Mac.** The switch itself doesn't sync. A new Mac starts with it off. Turn it on and the cloud copy applies right away.
+- **Newest change wins.** If two Macs change settings at once, the later one replaces the earlier one as a whole. Good for a stream Mac plus a desk Mac. Not for two people.
+- **Stored in your iCloud, not ours.** It sits in iCloud Key-Value Storage under your Apple Account. Turning the switch off stops syncing but leaves that copy there.
+- **Timing depends on iCloud.** WolfWave sends a change a couple of seconds after you make it. iCloud decides when other Macs get it, usually within a minute or so.
+
+Once a sync has applied, the switch's subtitle reads **Last synced …** with the date and time.
 
 ## Good to know
 
-- **Reconnecting Twitch always means signing in again**, because your login is never part of a backup.
-- **Permissions don't carry over.** macOS grants them per Mac, so re-grant access (like Apple Music control) after importing.
-- **Newer-version backups** ask you to update WolfWave before they'll import.
-- **Listening History stays put.** Your play log and stats are personal data, not settings, so they're not in a settings backup.
-- **Hand-edited values are checked before import.** Unsafe ports and queue limits are skipped, and the review count includes only preferences WolfWave can restore.
-- **Blocked titles and artists are cleaned on the way in.** Blank and duplicate entries are dropped and spacing is trimmed, but the date you added each one is kept.
-- **Your channel name is tidied on both ends.** Export and import normalize it the same way the connect screen does, so a stray space or a pasted URL fragment doesn't become a channel that never connects.
+- **Reconnecting Twitch always means signing in again.** Your login is never in a backup.
+- **A backup from a newer WolfWave** asks you to update WolfWave first.
+- **Blocklist entries are cleaned on import.** Blank and duplicate entries are dropped and spacing is trimmed. The date you added each one is kept.
+- **Your channel name is tidied both ways.** A stray space or pasted URL piece is cleaned the same way the Twitch connect screen does it.
+- **The public song-list link** must be an `https://` address of 2,048 characters or less. A blank link clears it.
