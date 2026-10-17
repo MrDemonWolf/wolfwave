@@ -47,14 +47,47 @@ export const landingFaq: FaqItem[] = [
   },
   {
     q: "Do I need Twitch Affiliate?",
-    text: "No. !song, !sr song requests, chat vote-to-skip, Discord status, and the overlay work on any channel. Channel-point requests, Bits boosts, and Twitch Polls vote-skip need Affiliate or Partner, because Twitch only offers those to them.",
+    text: "No. !song, !sr song requests, chat vote-to-skip, Discord status, and the overlay work on any channel. Channel-point requests, Bits requests and boosts, and Twitch Polls vote-skip need Affiliate or Partner, because Twitch only offers those to them.",
     node: (
       <>
         No. <code className="ww-mono ww-text-1">!song</code>,{" "}
         <code className="ww-mono ww-text-1">!sr</code> song requests, chat
         vote-to-skip, Discord status, and the overlay work on any channel.
-        Channel-point requests, Bits boosts, and Twitch Polls vote-skip need
-        Affiliate or Partner, because Twitch only offers those to them.
+        Channel-point requests, Bits requests and boosts, and Twitch Polls
+        vote-skip need Affiliate or Partner, because Twitch only offers those to them.
+      </>
+    ),
+  },
+  {
+    q: "What can my viewers type in chat?",
+    text: "!sr followed by a song name or an Apple Music, Spotify, or YouTube link requests a song. !song shows what's playing, !last the song before, !queue what's next, !myqueue their own requests, and !voteskip (or !vs) votes to skip. You choose which commands are on in Settings.",
+    node: (
+      <>
+        <code className="ww-mono ww-text-1">!sr</code> followed by a song name
+        or an Apple Music, Spotify, or YouTube link requests a song.{" "}
+        <code className="ww-mono ww-text-1">!song</code> shows what&apos;s
+        playing, <code className="ww-mono ww-text-1">!last</code> the song
+        before, <code className="ww-mono ww-text-1">!queue</code> what&apos;s
+        next, <code className="ww-mono ww-text-1">!myqueue</code> their own
+        requests, and <code className="ww-mono ww-text-1">!voteskip</code> (or{" "}
+        <code className="ww-mono ww-text-1">!vs</code>) votes to skip. You
+        choose which commands are on in Settings. See{" "}
+        <Link href="/docs/bot-commands" className={link}>
+          every command
+        </Link>
+        .
+      </>
+    ),
+  },
+  {
+    q: "Can I check requests before they play?",
+    text: "Yes. Turn on Require My Approval in Settings → Song Requests and every request waits until you approve or decline it. You can also hold the queue, block songs, artists, or people, and limit who can request.",
+    node: (
+      <>
+        Yes. Turn on <strong>Require My Approval</strong> in Settings → Song
+        Requests and every request waits until you approve or decline it. You
+        can also hold the queue, block songs, artists, or people, and limit who
+        can request.
       </>
     ),
   },

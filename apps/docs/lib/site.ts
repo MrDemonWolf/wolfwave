@@ -148,11 +148,11 @@ export const homepageSeo = {
   /** Full meta description used for search snippets. Kept under ~160 chars so
    *  Google does not truncate it. */
   description:
-    "Free Mac menu bar app built for Apple Music, not Spotify. Hit play and your Twitch chat, Discord Rich Presence, and OBS overlay stay in sync.",
+    "Free Mac menu bar app built for Apple Music, not Spotify. Twitch song requests, chat commands, Discord Rich Presence, and an OBS overlay, all in sync.",
 
   /** Shorter description for the social cards (og + twitter). */
   socialDescription:
-    "Built for Apple Music, not Spotify. Hit play and your Twitch chat, Discord profile, and OBS overlay keep themselves in sync.",
+    "Built for Apple Music, not Spotify. Chat requests songs, and your Twitch chat, Discord profile, and OBS overlay keep themselves in sync.",
 
   /** OG card eyebrow pill. */
   ogEyebrow: "Free & open source · macOS 26+",
@@ -163,14 +163,14 @@ export const homepageSeo = {
 
   /** OG card supporting line. Kept short so it lands in ~2 lines on the card. */
   ogCardDescription:
-    "A tiny Mac menu bar app. Press play once. Twitch, Discord, and OBS keep up on their own.",
+    "A tiny Mac menu bar app. Chat requests songs. Twitch, Discord, and OBS keep up on their own.",
 
   /** OG card chips. Order matters; first chips read first when cropped. */
-  ogChips: ["Twitch chat bot", "Discord Rich Presence", "OBS overlay", "Open source"],
+  ogChips: ["Twitch song requests", "Discord Rich Presence", "OBS overlay", "Open source"],
 
   /** Alt text for the OG image. Describe the card, not just the brand. */
   ogImageAlt:
-    "WolfWave. Apple Music now playing pushed to Twitch chat, Discord Rich Presence, and an OBS overlay on macOS.",
+    "WolfWave. Apple Music now playing and song requests in Twitch chat, Discord Rich Presence, and an OBS overlay on macOS.",
 
   /** Homepage SEO keywords (long-tail, Apple-Music-first). */
   keywords: [
