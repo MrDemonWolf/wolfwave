@@ -61,6 +61,8 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | Component | File |
 |---|---|
 | HistoryStatsSettingsView | [history-stats-settings-view.md](history-stats-settings-view.md) |
+| HistoryStatsSettingsView+Dashboard | [history-stats-settings-view-dashboard.md](history-stats-settings-view-dashboard.md) |
+| HistoryStatsSettingsView+Management | [history-stats-settings-view-management.md](history-stats-settings-view-management.md) |
 | StatsChartsView | [stats-charts-view.md](stats-charts-view.md) |
 | MonthlyWrapCard | [monthly-wrap-card.md](monthly-wrap-card.md) |
 

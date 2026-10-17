@@ -2,6 +2,8 @@
 
 **File:** [`apps/native/WolfWave/Views/HistoryStats/HistoryStatsSettingsView.swift`](../../apps/native/WolfWave/Views/HistoryStats/HistoryStatsSettingsView.swift)
 
+Its cards live in two extension files with their own entries: [`+Dashboard`](history-stats-settings-view-dashboard.md) (toggles, summary, top track, leaderboard, recent plays) and [`+Management`](history-stats-settings-view-management.md) (`!stats`, retention, Monthly Wrap, danger zone). Pane state stays in this file.
+
 ## Purpose
 
 Owns the complete History & Stats settings pane: opt-in tracking, summary cards, recent plays, charts, the `!stats` command, retention, Monthly Wrap, and destructive history controls.

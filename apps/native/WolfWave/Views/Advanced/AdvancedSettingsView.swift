@@ -25,7 +25,7 @@ struct AdvancedSettingsView: View {
     // MARK: - Environment
 
     /// Drops the copy-feedback fade when Reduce Motion is on.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     // MARK: - State
 
@@ -50,225 +50,43 @@ struct AdvancedSettingsView: View {
     @State private var showingClearLogsAlert = false
 
     /// Formatted log file size (e.g. "248 KB"). Refreshed on appear and after diagnostics actions.
-    @State private var logSizeText: String = "N/A"
+    @State var logSizeText: String = "N/A"
 
     /// Formatted log line count (e.g. "4,512 lines").
-    @State private var logLineCountText: String = "N/A"
+    @State var logLineCountText: String = "N/A"
 
     /// Whether the "Copied!" feedback row is shown after copying logs.
-    @State private var showingCopyFeedback = false
+    @State var showingCopyFeedback = false
 
     /// Whether the clear-artwork-cache confirmation alert is shown.
     @State private var showingClearArtworkAlert = false
 
     /// Formatted artwork cache summary (e.g. "42 tracks · 18 KB").
-    @State private var artworkStatsText: String = "N/A"
+    @State var artworkStatsText: String = "N/A"
 
     /// The decoded backup awaiting the user's import confirmation.
-    @State private var pendingBackup: SettingsBackup?
+    @State var pendingBackup: SettingsBackup?
 
     /// Whether the import review sheet is shown.
-    @State private var showingImportSheet = false
+    @State var showingImportSheet = false
 
     /// Message shown when an import file can't be read.
-    @State private var importErrorMessage: String?
+    @State var importErrorMessage: String?
 
     /// Whether the import error alert is shown.
-    @State private var showingImportError = false
+    @State var showingImportError = false
 
     /// Message shown after a successful import.
-    @State private var importSuccessMessage: String?
+    @State var importSuccessMessage: String?
 
     /// Whether the import success alert is shown.
-    @State private var showingImportSuccess = false
+    @State var showingImportSuccess = false
 
     /// Message shown when an export can't be built or saved.
-    @State private var exportErrorMessage: String?
+    @State var exportErrorMessage: String?
 
     /// Whether the export error alert is shown.
-    @State private var showingExportError = false
-
-    // MARK: - Log Actions
-
-    /// Returns the current log file URL, or `nil` after logging a warning whose
-    /// suffix is `reason` (e.g. "for export", "to reveal", "to copy"). The
-    /// `nil` path also raises the "No logs yet." alert, so callers just return.
-    private func requireLogFile(orWarn reason: String) -> URL? {
-        guard let logURL = Log.exportLogFile() else {
-            Log.warn("No log file available \(reason)", category: .app)
-            exportErrorMessage = "No logs yet."
-            showingExportError = true
-            return nil
-        }
-        return logURL
-    }
-
-    /// Opens a save panel to export the diagnostics bundle: the environment
-    /// header, the last crash summary, and every rotated log, oldest first
-    /// (see `DiagnosticsBundle`). The live log file only gates availability.
-    ///
-    /// Presents the panel as a sheet on the settings window when available,
-    /// falling back to a modal run loop. Previously used `panel.begin` with
-    /// no host window, which crashed when the menu bar was the only frontmost
-    /// UI (no key window).
-    @MainActor
-    private func exportLogs() {
-        guard let logURL = requireLogFile(orWarn: "for export") else { return }
-
-        _ = logURL // presence already validated above
-
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = DiagnosticsBundle.suggestedFilename(date: Date())
-        let logType = UTType(filenameExtension: "log") ?? .plainText
-        panel.allowedContentTypes = [logType, .plainText]
-        panel.canCreateDirectories = true
-
-        let completion: (NSApplication.ModalResponse) -> Void = { response in
-            guard response == .OK, let destination = panel.url else { return }
-            // Composition reads every rotated log, so it happens off the main
-            // actor. A bare copyItem used to ship only the live file, which is
-            // nearly empty right after a rotation.
-            Task {
-                // Capture on the main actor (it reads Bundle + defaults), then
-                // do the file reading and joining off it.
-                let snapshot = DiagnosticSnapshot.capture(logSizeBytes: Log.logFileSize())
-                let crash = DefaultsStore.store.string(
-                    forKey: AppConstants.UserDefaults.lastCrashSummary)
-
-                let text = await Task.detached(priority: .userInitiated) {
-                    DiagnosticsBundle.compose(
-                        snapshot: snapshot,
-                        crash: crash,
-                        logs: DiagnosticsBundle.logFilesOldestFirst()
-                    )
-                }.value
-
-                do {
-                    try Data(text.utf8).write(to: destination, options: .atomic)
-                    Log.info(
-                        "Diagnostics exported",
-                        category: .app,
-                        fields: ["file": destination.lastPathComponent, "bytes": text.utf8.count])
-                    refreshLogStats()
-                } catch {
-                    exportErrorMessage = "Couldn't export logs. \(error.localizedDescription)"
-                    showingExportError = true
-                    Log.error(
-                        "Failed to export diagnostics",
-                        category: .app,
-                        fields: ["error": error.localizedDescription])
-                }
-            }
-        }
-
-        if let window = hostWindow() {
-            panel.beginSheetModal(for: window, completionHandler: completion)
-        } else {
-            let response = panel.runModal()
-            completion(response)
-        }
-    }
-
-    /// Reveals the current log file in Finder.
-    private func revealLogsInFinder() {
-        guard let logURL = requireLogFile(orWarn: "to reveal") else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([logURL])
-    }
-
-    /// Copies the tail of the live log file, prefixed with the environment
-    /// header, to the system clipboard and flashes "Copied" for two seconds.
-    ///
-    /// Limited to the last 64 K characters (not bytes; the cut is on
-    /// `Character` count) to avoid pasteboard overload. Rotated logs are not
-    /// included; use Export for those.
-    private func copyLogsToClipboard() {
-        guard let logURL = requireLogFile(orWarn: "to copy") else { return }
-
-        do {
-            let contents = try String(contentsOf: logURL, encoding: .utf8)
-            let maxChars = 64 * 1024
-            let trimmed: String
-            if contents.count > maxChars {
-                let startIndex = contents.index(contents.endIndex, offsetBy: -maxChars)
-                trimmed = "… (truncated to last 64KB)\n" + String(contents[startIndex...])
-            } else {
-                trimmed = contents
-            }
-
-            // Prepend the environment block. A pasted log tail with no version
-            // or OS cannot be attributed to a build, which is most of what makes
-            // it useful in an issue.
-            let header = DiagnosticSnapshot.capture(logSizeBytes: Int64(contents.utf8.count))
-                .exportHeader
-            Pasteboard.copy("\(header)\n\n\(trimmed)")
-
-            withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = true }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2))
-                withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = false }
-            }
-            Log.info("Logs copied to clipboard", category: .app)
-        } catch {
-            Log.error("Failed to copy logs: \(error.localizedDescription)", category: .app)
-            exportErrorMessage = "Couldn't copy logs. \(error.localizedDescription)"
-            showingExportError = true
-        }
-    }
-
-    /// Clears the current log file (truncates in place and writes a fresh
-    /// header line). Rotated logs are left alone.
-    private func clearLogs() {
-        Log.clearLogFile()
-        Log.info("Logs cleared by user", category: .app)
-        refreshLogStats()
-    }
-
-    /// Refreshes the displayed log size + line count from the Log singleton.
-    ///
-    /// The read is offloaded to a detached task: `logLineCount()` drains queued
-    /// writes then streams the whole log file (up to the 5 MB rotation cap)
-    /// through `fileQueue.sync`, which would stall first paint on a big log if
-    /// run on the main thread. State is assigned back on the MainActor. Mirrors
-    /// `DebugLogsAndEventsCard`.
-    private func refreshLogStats() {
-        Task { @MainActor in
-            let stats = await Task.detached(priority: .userInitiated) {
-                (bytes: Log.logFileSize(), lines: Log.logLineCount())
-            }.value
-
-            logSizeText = ByteFormatting.string(stats.bytes)
-
-            let numberFormatter = NumberFormatter()
-            numberFormatter.numberStyle = .decimal
-            let formattedLines = numberFormatter.string(from: NSNumber(value: stats.lines)) ?? String(stats.lines)
-            logLineCountText = "\(formattedLines) lines"
-        }
-    }
-
-    /// Clears the persisted artwork links cache (memory + disk).
-    private func clearArtworkCache() async {
-        await ArtworkService.shared.clearCache()
-        Log.info("Artwork cache cleared by user", category: .app)
-        refreshArtworkStats()
-    }
-
-    /// Refreshes the displayed artwork cache entry count + disk size.
-    /// Synchronous; `cacheStats()` is cheap enough to read on the main actor.
-    private func refreshArtworkStats() {
-        let stats = ArtworkService.shared.cacheStats()
-        let size = ByteFormatting.string(stats.diskBytes)
-        let trackWord = stats.entryCount == 1 ? "track" : "tracks"
-        artworkStatsText = "\(stats.entryCount) \(trackWord) · \(size)"
-    }
-
-    /// Returns the host window for sheet presentation, or nil if none is visible.
-    /// Prefers the key window, then any visible window that isn't a status-bar
-    /// window. Callers fall back to `runModal()` on `nil`.
-    @MainActor
-    private func hostWindow() -> NSWindow? {
-        if let key = NSApp.keyWindow { return key }
-        return NSApp.windows.first { $0.isVisible && !$0.className.contains("NSStatusBar") }
-    }
+    @State var showingExportError = false
 
     // MARK: - Crash Recovery
 
@@ -620,144 +438,6 @@ struct AdvancedSettingsView: View {
         } message: {
             Text(exportErrorMessage ?? "Couldn't save your backup.")
         }
-    }
-
-    // MARK: - Backup Actions
-
-    /// Exports portable settings to a user-chosen JSON file. Accounts and
-    /// secrets are excluded. See `AppConstants.UserDefaults.exportableKeys`.
-    /// Build or write failures surface the export error alert.
-    @MainActor
-    private func exportSettings() {
-        let service = SettingsBackupService()
-        let data: Data
-        do {
-            data = try service.makeBackupData()
-        } catch {
-            Log.error("Failed to build settings backup: \(error.localizedDescription)", category: .app)
-            exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
-            showingExportError = true
-            return
-        }
-
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "wolfwave-settings-\(Self.fileDateStamp()).json"
-        panel.allowedContentTypes = [.json]
-        panel.canCreateDirectories = true
-
-        let completion: (NSApplication.ModalResponse) -> Void = { response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                try data.write(to: url, options: .atomic)
-                Log.info("Settings exported to \(url.lastPathComponent)", category: .app)
-            } catch {
-                Log.error("Failed to write settings backup: \(error.localizedDescription)", category: .app)
-                exportErrorMessage = "Couldn't save your backup. \(error.localizedDescription)"
-                showingExportError = true
-            }
-        }
-
-        if let window = hostWindow() {
-            panel.beginSheetModal(for: window, completionHandler: completion)
-        } else {
-            completion(panel.runModal())
-        }
-    }
-
-    /// Presents an open panel to pick a backup file, then decodes it.
-    @MainActor
-    private func chooseImportFile() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-
-        let completion: (NSApplication.ModalResponse) -> Void = { response in
-            guard response == .OK, let url = panel.url else { return }
-            loadImportFile(url)
-        }
-
-        if let window = hostWindow() {
-            panel.beginSheetModal(for: window, completionHandler: completion)
-        } else {
-            completion(panel.runModal())
-        }
-    }
-
-    /// Reads and validates a backup file, then opens the review sheet or shows
-    /// an error alert.
-    @MainActor
-    private func loadImportFile(_ url: URL) {
-        Task { @MainActor in
-            do {
-                pendingBackup = try await SettingsBackupService().decode(fileURL: url)
-                showingImportSheet = true
-            } catch let error as SettingsBackupCoder.BackupError {
-                importErrorMessage = Self.message(for: error)
-                showingImportError = true
-            } catch {
-                importErrorMessage = "That file couldn't be read."
-                showingImportError = true
-            }
-        }
-    }
-
-    /// Applies the reviewed backup with the user's per-account choices.
-    @MainActor
-    private func applyImport(_ choices: SettingsBackupCoder.ImportChoices) {
-        guard let backup = pendingBackup else { return }
-        showingImportSheet = false
-        pendingBackup = nil
-        Task { @MainActor in
-            let summary = await SettingsBackupService().apply(backup, choices: choices)
-            importSuccessMessage = Self.successMessage(summary)
-            showingImportSuccess = true
-            Log.info(
-                "Settings imported (\(summary.restoredCount) restored, twitch=\(summary.reconnectedTwitch))",
-                category: .app
-            )
-        }
-    }
-
-    /// Cached: `DateFormatter` allocation is expensive and this runs per export.
-    private static let fileDateStampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-
-    /// `yyyy-MM-dd` stamp for the default export filename.
-    private static func fileDateStamp() -> String {
-        fileDateStampFormatter.string(from: Date())
-    }
-
-    /// Human-readable message for a backup decode error.
-    private static func message(for error: SettingsBackupCoder.BackupError) -> String {
-        switch error {
-        case .notReadable:
-            return "That file couldn't be read. It may be damaged or not a WolfWave backup."
-        case .notWolfWaveFile:
-            return "That's not a WolfWave settings file."
-        case .unsupportedOlderSchema:
-            return "This backup uses an unsupported settings format."
-        case .unsupportedNewerSchema:
-            return "This backup was made by a newer version of WolfWave. Update WolfWave, then try again."
-        case .tooLarge:
-            return "That backup is too large to import. Choose a file under 1 MB."
-        }
-    }
-
-    /// Confirmation message summarizing an applied import.
-    private static func successMessage(_ summary: SettingsBackupService.ApplySummary) -> String {
-        let noun = SettingsBackupService.ApplySummary.preferenceNoun(summary.restoredCount)
-        var message = "Restored \(summary.restoredCount) \(noun)."
-        if summary.reconnectedTwitch {
-            message += " Open the Twitch tab to finish signing in."
-        }
-        if !summary.warnings.isEmpty {
-            message += " " + summary.warnings.joined(separator: " ")
-        }
-        return message
     }
 
 }
