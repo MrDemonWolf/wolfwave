@@ -350,14 +350,18 @@ extension AppConstants {
         /// they hold) (String, default: "highest").
         static let songRequestLimitStackMode = "songRequestLimitStackMode"
 
-        /// Per-user queue limit contribution for subscribers (Int, default: 2).
+        // Role limits have no single default: unset reads as 2 under "highest"
+        // and as nothing under "stacked". 0 is an explicit "None" (adds nothing
+        // under "stacked"). See `SongRequestLimits.effectiveLimit`.
+
+        /// Per-user queue limit contribution for subscribers (Int, unset by default).
         static let songRequestLimitSubscriber = "songRequestLimitSubscriber"
 
-        /// Per-user queue limit contribution for VIPs (Int, default: 2).
+        /// Per-user queue limit contribution for VIPs (Int, unset by default).
         static let songRequestLimitVIP = "songRequestLimitVIP"
 
         /// Per-user queue limit contribution for moderators and the broadcaster
-        /// (Int, default: 2).
+        /// (Int, unset by default).
         static let songRequestLimitModerator = "songRequestLimitModerator"
 
         // MARK: Chat Vote-Skip Keys

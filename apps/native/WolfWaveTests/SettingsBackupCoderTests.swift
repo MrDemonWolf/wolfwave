@@ -436,6 +436,52 @@ struct SettingsBackupCoderTests {
         #expect(plan.ignoredKeyCount == 0)
     }
 
+    /// Stacked mode treats a never-set role limit as "adds nothing", so a backup
+    /// must keep "never set" apart from "set": an explicit role limit round-trips,
+    /// and an unset one is left out rather than written as a default.
+    @Test func roleLimitsRoundTripOnlyWhenExplicitlySet() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestLimitStackMode: "stacked",
+            keys.songRequestLimitSubscriber: 3
+        ])
+
+        #expect(backup.settings[keys.songRequestLimitSubscriber] == .int(3))
+        #expect(backup.settings[keys.songRequestLimitVIP] == nil)
+        #expect(backup.settings[keys.songRequestLimitModerator] == nil)
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.songRequestLimitSubscriber] == .int(3))
+        #expect(plan.set[keys.songRequestLimitVIP] == nil)
+        #expect(plan.set[keys.songRequestLimitModerator] == nil)
+    }
+
+    /// A role limit set to "None" (0) restores, so the choice follows the backup.
+    /// Everyone has no "None", so 0 there is still refused.
+    @Test func roleLimitNoneRoundTrips() {
+        let keys = AppConstants.UserDefaults.self
+        let backup = makeBackup(snapshot: [
+            keys.songRequestLimitSubscriber: 0,
+            keys.songRequestLimitVIP: 0,
+            keys.songRequestLimitModerator: 0
+        ])
+
+        let plan = coder.makeApplyPlan(
+            backup: backup,
+            choices: SettingsBackupCoder.ImportChoices(),
+            exportablePreferences: exportable
+        )
+
+        #expect(plan.set[keys.songRequestLimitSubscriber] == .int(0))
+        #expect(plan.set[keys.songRequestLimitVIP] == .int(0))
+        #expect(plan.set[keys.songRequestLimitModerator] == .int(0))
+    }
+
     /// A value with the wrong tagged shape for its preference (a string for a bool, a double
     /// for an int, and so on) is dropped from the apply plan and counted as ignored.
     @Test func applyPlanRejectsMismatchedTypesForEverySupportedShape() {

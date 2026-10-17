@@ -23,12 +23,14 @@ struct SongRequestQueueConfigCard: View {
     // existing setups keep their value.
     @AppStorage(AppConstants.UserDefaults.songRequestPerUserLimit)
     private var everyoneLimit = AppConstants.UserDefaults.Defaults.songRequestPerUserLimit
+    // Optional so "never set" (nil) stays distinct from a chosen value: under
+    // Stacked an unset role adds nothing, under Highest it reads as 2.
     @AppStorage(AppConstants.UserDefaults.songRequestLimitSubscriber)
-    private var subLimit = 2
+    private var subLimit: Int?
     @AppStorage(AppConstants.UserDefaults.songRequestLimitVIP)
-    private var vipLimit = 2
+    private var vipLimit: Int?
     @AppStorage(AppConstants.UserDefaults.songRequestLimitModerator)
-    private var modLimit = 2
+    private var modLimit: Int?
 
     /// How limits combine when a viewer holds several roles.
     @AppStorage(AppConstants.UserDefaults.songRequestLimitStackMode)
@@ -42,28 +44,55 @@ struct SongRequestQueueConfigCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestPriorityMode)
     private var priorityMode: SongRequestPriorityMode = .off
 
-    /// Allowed per-role limits (picker tags and snap set).
-    private let limitOptions = [1, 2, 3, 5, 10, 15, 20]
     /// Allowed max queue sizes (picker tags and snap set).
     fileprivate static let maxQueueSizeOptions = [5, 10, 15, 20, 25, 50]
 
-    /// One labelled per-role limit stepper row.
+    /// The Everyone limit, snapped so a stored value outside the picker's tags
+    /// renders as the default rather than reaching the picker unmatched.
+    private var everyoneSelection: Binding<Int> {
+        $everyoneLimit.snapped(
+            to: SongRequestLimits.roleLimitValues,
+            fallback: AppConstants.UserDefaults.Defaults.songRequestPerUserLimit)
+    }
+
+    /// A role limit's picker binding. The getter resolves through
+    /// `SongRequestLimits.rolePickerValue`, so it always lands on one of the
+    /// current mode's tags and shows what the limit math will actually do.
+    private func roleSelection(_ stored: Binding<Int?>) -> Binding<Int> {
+        let mode = stackMode
+        return Binding(
+            get: { SongRequestLimits.rolePickerValue(stored: stored.wrappedValue, mode: mode) },
+            set: { stored.wrappedValue = $0 }
+        )
+    }
+
+    /// Role picker tags for the current mode ("None" first under Stacked).
+    private var roleOptions: [Int] { SongRequestLimits.rolePickerOptions(for: stackMode) }
+
+    /// Role picker labels for the current mode ("None" / "+N" under Stacked).
+    private var roleLabel: (Int) -> String {
+        let mode = stackMode
+        return { SongRequestLimits.rolePickerLabel($0, mode: mode) }
+    }
+
+    /// One labelled per-role limit picker row.
     ///
-    /// Snaps the selection so a stored value outside `limitOptions` renders as
-    /// `fallback` rather than reaching the picker with no matching tag.
+    /// `selection` must already resolve to one of `options` (see
+    /// `everyoneSelection` / `roleSelection(_:)`).
     @ViewBuilder
     private func limitRow(
         _ title: String,
         selection: Binding<Int>,
-        fallback: Int,
+        options: [Int],
+        label: @escaping (Int) -> String = { "\($0)" },
         id: String
     ) -> some View {
         HStack {
             Text(title).font(.system(size: DSFont.Size.body))
             Spacer()
-            Picker("\(title) queue limit", selection: selection.snapped(to: limitOptions, fallback: fallback)) {
-                ForEach(limitOptions, id: \.self) { limit in
-                    Text("\(limit)").tag(limit)
+            Picker("\(title) queue limit", selection: selection) {
+                ForEach(options, id: \.self) { limit in
+                    Text(label(limit)).tag(limit)
                 }
             }
             .pickerStyle(.menu)
@@ -132,7 +161,9 @@ struct SongRequestQueueConfigCard: View {
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
                 Text("Per-user limits")
                     .font(.system(size: DSFont.Size.body, weight: .medium))
-                Text("How many songs each viewer can have queued at once, by role.")
+                Text(stackMode == .stacked
+                    ? "How many songs each viewer can have queued at once. Roles add extra slots."
+                    : "How many songs each viewer can have queued at once, by role.")
                     .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -140,12 +171,18 @@ struct SongRequestQueueConfigCard: View {
 
             limitRow(
                 "Everyone",
-                selection: $everyoneLimit,
-                fallback: AppConstants.UserDefaults.Defaults.songRequestPerUserLimit,
+                selection: everyoneSelection,
+                options: SongRequestLimits.roleLimitValues,
                 id: "everyone")
-            limitRow("Subscribers", selection: $subLimit, fallback: 2, id: "subscriber")
-            limitRow("VIPs", selection: $vipLimit, fallback: 2, id: "vip")
-            limitRow("Moderators", selection: $modLimit, fallback: 2, id: "moderator")
+            limitRow(
+                "Subscribers", selection: roleSelection($subLimit),
+                options: roleOptions, label: roleLabel, id: "subscriber")
+            limitRow(
+                "VIPs", selection: roleSelection($vipLimit),
+                options: roleOptions, label: roleLabel, id: "vip")
+            limitRow(
+                "Moderators", selection: roleSelection($modLimit),
+                options: roleOptions, label: roleLabel, id: "moderator")
 
             Divider()
 

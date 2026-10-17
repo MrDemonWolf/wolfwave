@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Stacked request limits only add what you set.** In Settings → Song Requests, the Stacked mode used to count every role limit you never touched as 2, so on a fresh install a subscriber could queue 4 songs when you'd only allowed 2. Now a role you haven't set adds nothing and shows **None**, and the pickers read "+2", "+3" so it's clear they add on top of Everyone. Role limits you already picked keep working the same. Highest tier mode is unchanged.
 - **Docs search works on GitHub Pages.** Search now fetches its index from `/wolfwave/api/search` in production instead of requesting it from the site root.
 - **Stream Deck keys got a visual refresh.** The new artwork is easier to scan, and the Clear Queue confirmation tooltip now explains what it does.
 - **Buttons that do slow work now show they're working.** Approve, Skip, Hold, Fetch link, Check Again, Add to blocklist, and the developer service controls swap their label for a spinner while the work runs, ignore a second click, and flash a checkmark when they're done. Before, they looked untouched the whole time, so the only way to tell WolfWave had heard you was to click again and hope you hadn't just done it twice.
