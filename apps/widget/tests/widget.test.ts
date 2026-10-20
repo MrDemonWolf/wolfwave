@@ -110,6 +110,31 @@ afterEach(async () => {
 });
 
 describe("rendering", () => {
+  test("replayed snapshots preserve artwork while updating elapsed time", async () => {
+    await boot();
+    send(track());
+    const art = widgetEl().querySelector(".artwork");
+    send(track({ elapsed: 42 }));
+    expect(widgetEl().querySelector(".artwork")).toBe(art);
+    expect(widgetEl().querySelector(".elapsed-time")?.textContent).toBe("0:42");
+    send({ type: "widget_config", data: {} });
+    expect(widgetEl().querySelector(".artwork")).toBe(art);
+    send(track({ album: "New album" }));
+    expect(widgetEl().querySelector(".artwork")).not.toBe(art);
+  });
+
+  test("unchanged native preview drafts preserve the rendered card", async () => {
+    await boot("?preview");
+    const preview = (window as any).WWPreview;
+    preview.track(track().data);
+    const art = widgetEl().querySelector(".artwork");
+    preview.config({});
+    expect(widgetEl().querySelector(".artwork")).toBe(art);
+    preview.config({ layout: "Classic" });
+    expect(widgetEl().querySelector(".progress-knob")).not.toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
   test("now_playing renders the card", async () => {
     await boot();
     send(track());

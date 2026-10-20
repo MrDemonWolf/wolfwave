@@ -16,7 +16,7 @@ export function baseOptions(): BaseLayoutProps {
             aria-hidden="true"
             className="h-7 w-auto"
           />
-          <span className="font-[var(--font-instrument)] text-[1.05rem] font-semibold tracking-tight text-[var(--txt-1)]">
+          <span className="font-[var(--font-montserrat)] text-[1.05rem] font-semibold tracking-tight text-[var(--txt-1)]">
             WolfWave
           </span>
         </span>
@@ -24,20 +24,15 @@ export function baseOptions(): BaseLayoutProps {
       url: "/",
       transparentMode: "top",
     },
-    githubUrl: "https://github.com/MrDemonWolf/WolfWave",
     links: [
       // Landing-section anchors. On the home page these scroll; from any other
       // page they navigate home and then jump to the section.
       { text: "Features", url: "/#audiences" },
-      { text: "Compare", url: "/#compare" },
-      { text: "FAQ", url: "/#faq" },
       // Real pages. `active: nested-url` keeps the item lit on the page and its
       // children, so the nav always shows where you are.
+      { text: "Changelog", url: "/changelog", active: "url" },
       { text: "Docs", url: "/docs", active: "nested-url" },
-      // Primary conversion, kept last for recall (serial-position effect).
-      { text: "Download", url: "/download", active: "url" },
-      // Single community link. External Discord, opens in a new tab.
-      { text: "Support", url: "https://mrdwolf.net/discord" },
+      { type: "button", text: "Download", url: "/download", active: "url", secondary: true },
     ],
     themeSwitch: {
       enabled: true,

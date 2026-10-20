@@ -20,7 +20,7 @@ export async function GET() {
     .trim()
     // Page links are site-relative (`/docs/...`). Make them absolute, with the
     // base path and trailing slash, so the index works wherever it is read.
-    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${pageUrl(path)})`);
+    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${pageUrl(path === '/docs/changelog' ? '/changelog' : path)})`);
 
   const body = `# WolfWave
 

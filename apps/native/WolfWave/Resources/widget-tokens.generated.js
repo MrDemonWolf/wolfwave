@@ -54,13 +54,13 @@ window.WW_TOKENS = {
     "text": {
       "light": {
         "primary": "#1D1D1F",
-        "secondary": "#6E6E73",
-        "muted": "#767676"
+        "secondary": "#505057",
+        "muted": "#505057"
       },
       "dark": {
         "primary": "#F5F5F7",
-        "secondary": "#A1A1A6",
-        "muted": "#8E8E93"
+        "secondary": "#C0C0C6",
+        "muted": "#B0B0B8"
       }
     },
     "partner": {
@@ -82,8 +82,8 @@ window.WW_TOKENS = {
   },
   "font": {
     "family": {
-      "display": "Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      "sans": "\"Instrument Sans\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "display": "Montserrat, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+      "sans": "Roboto, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
       "serif": "\"Instrument Serif\", ui-serif, Georgia, serif",
       "mono": "\"JetBrains Mono\", ui-monospace, \"SF Mono\", Menlo, monospace",
       "systemAppleDisplay": "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", system-ui, sans-serif"
@@ -98,7 +98,11 @@ window.WW_TOKENS = {
       "xl": 20,
       "2xl": 22,
       "3xl": 26,
-      "display": 52
+      "display": 52,
+      "webSmall": 14,
+      "webBody": 16,
+      "webSection": 48,
+      "webHero": 74
     },
     "weight": {
       "regular": 400,
@@ -179,10 +183,10 @@ window.WW_TOKENS = {
       "containerShadow": "0 0 4px rgba(0,0,0,1)",
       "containerRadius": "12px",
       "backdropFilter": "none",
-      "overlayBg": "rgba(0,0,0,0.50)",
+      "overlayBg": "rgba(0,0,0,0.72)",
       "textPrimary": "#FFFFFF",
       "textSecondary": "rgba(255,255,255,0.90)",
-      "textMuted": "rgba(255,255,255,0.70)",
+      "textMuted": "rgba(255,255,255,0.85)",
       "textShadow": "2px 2px 2px rgb(0 0 0)",
       "progressTrackBg": "rgba(255,255,255,0.20)",
       "progressFillBg": "#FFFFFF",
@@ -197,7 +201,7 @@ window.WW_TOKENS = {
       "overlayBg": "transparent",
       "textPrimary": "#E4E4E7",
       "textSecondary": "#A1A1AA",
-      "textMuted": "#71717A",
+      "textMuted": "#A1A1AA",
       "textShadow": "none",
       "progressTrackBg": "rgba(255,255,255,0.08)",
       "progressFillBg": "#A78BFA",
@@ -212,22 +216,22 @@ window.WW_TOKENS = {
       "overlayBg": "transparent",
       "textPrimary": "#18181B",
       "textSecondary": "#3F3F46",
-      "textMuted": "#71717A",
+      "textMuted": "#484850",
       "textShadow": "none",
       "progressTrackBg": "rgba(0,0,0,0.08)",
-      "progressFillBg": "#3B82F6",
+      "progressFillBg": "#2563EB",
       "showArtworkBlur": false
     },
     "Glass": {
-      "containerBg": "rgba(0,0,0,0.50)",
+      "containerBg": "rgba(0,0,0,0.78)",
       "containerBorder": "1px solid rgba(255,255,255,0.10)",
       "containerShadow": "0 8px 32px rgba(0,0,0,0.20)",
       "containerRadius": "16px",
       "backdropFilter": "blur(24px)",
       "overlayBg": "transparent",
       "textPrimary": "#F5F5F7",
-      "textSecondary": "rgba(245,245,247,0.80)",
-      "textMuted": "rgba(245,245,247,0.60)",
+      "textSecondary": "rgba(245,245,247,0.90)",
+      "textMuted": "rgba(245,245,247,0.85)",
       "textShadow": "0 1px 3px rgba(0,0,0,0.60)",
       "progressTrackBg": "rgba(255,255,255,0.10)",
       "progressFillBg": "#007AFF",
@@ -242,7 +246,7 @@ window.WW_TOKENS = {
       "overlayBg": "transparent",
       "textPrimary": "#00FFAA",
       "textSecondary": "#00E5FF",
-      "textMuted": "rgba(0,255,170,0.50)",
+      "textMuted": "rgba(0,255,170,0.85)",
       "textShadow": "0 0 8px rgba(0,255,170,0.50)",
       "progressTrackBg": "rgba(0,255,170,0.15)",
       "progressFillBg": "linear-gradient(90deg, #00FFAA, #00E5FF)",
@@ -255,10 +259,10 @@ window.WW_TOKENS = {
       "containerShadow": "0 0 20px rgba(10,132,255,0.30), 0 8px 32px rgba(0,0,0,0.40)",
       "containerRadius": "14px",
       "backdropFilter": "blur(20px)",
-      "overlayBg": "transparent",
+      "overlayBg": "rgba(0,0,0,0.72)",
       "textPrimary": "#F5F5F7",
-      "textSecondary": "#A1A1A6",
-      "textMuted": "#6E6E73",
+      "textSecondary": "#D0D0D6",
+      "textMuted": "#D0D0D6",
       "textShadow": "none",
       "progressTrackBg": "rgba(10,132,255,0.15)",
       "progressFillBg": "linear-gradient(90deg, #0A84FF, #409CFF)",

@@ -91,8 +91,10 @@ Surfaces and text colors swap on their own based on `prefers-color-scheme` / `.d
 | Token | Light | Dark |
 |---|---|---|
 | `--ds-color-text-primary`   | `#1D1D1F` | `#F5F5F7` |
-| `--ds-color-text-secondary` | `#6E6E73` | `#A1A1A6` |
-| `--ds-color-text-muted`     | `#767676` | `#8E8E93` |
+| `--ds-color-text-secondary` | `#505057` | `#C0C0C6` |
+| `--ds-color-text-muted`     | `#505057` | `#B0B0B8` |
+
+All three text roles meet AAA text contrast (at least 7:1) on the solid `base`, `surface`, and `elev` tokens in their appearance. `bun run ds:test` guards these pairs. This does not certify every component or transparent overlay: check actual composited backgrounds, focus indicators, and control states too.
 
 ### Partner
 
@@ -114,6 +116,10 @@ Reserved for third-party brand identity (do not use as WolfWave brand):
 | `2xl`  | 22 | Hero |
 | `3xl`  | 26 | Reserved for hero and the Monthly Wrap share card |
 | `display` | 52 | Monthly Wrap headline figure |
+| `webSmall` | 14 | Web labels and supporting text |
+| `webBody` | 16 | Web body baseline |
+| `webSection` | 48 | Desktop web section headings (30px on small screens) |
+| `webHero` | 74 | Desktop web hero (38px on small screens) |
 
 Weights: `regular` 400, `medium` 500, `semibold` 600, `bold` 700.
 
@@ -129,7 +135,7 @@ In SwiftUI, use the heading ramp instead of picking sizes:
 
 All five scale with the user's text size setting.
 
-Families: `--ds-font-family-display` (Unbounded), `--ds-font-family-sans` (Instrument Sans), `--ds-font-family-serif` (Instrument Serif), `--ds-font-family-mono` (JetBrains Mono).
+Families: `--ds-font-family-display` (Montserrat), `--ds-font-family-sans` (Roboto), `--ds-font-family-serif` (Instrument Serif fallback), `--ds-font-family-mono` (JetBrains Mono). The three web faces are self-hosted by Next.js at build time. Typography follows the [MrDemonWolf website](https://github.com/mrdemonwolf/website/blob/main/apps/website/src/styles/site.css): 16px body, 1.6 or greater body line height, medium display headings, and responsive heading sizes. Native UI sizes remain the platform scale above.
 
 ## Spacing
 

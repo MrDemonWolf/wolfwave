@@ -51,6 +51,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...classify("/"),
     },
     {
+      url: pageUrl("/changelog"),
+      ...withDate(lastCommitDate("content/docs/changelog.mdx")),
+      ...classify("/changelog"),
+    },
+    {
+      url: pageUrl("/design-system"),
+      ...withDate(lastCommitDate("app/(home)/design-system/page.tsx")),
+      ...classify("/design-system"),
+    },
+    {
       // Conversion page + the nav's Download target. It's a (home) route, not a
       // docs page, so source.getPages() misses it. List it explicitly.
       url: pageUrl("/download"),
@@ -60,7 +70,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const docEntries: MetadataRoute.Sitemap = source.getPages().map((page) => ({
+  const docEntries: MetadataRoute.Sitemap = source.getPages().filter((page) => page.url !== '/docs/changelog').map((page) => ({
     url: pageUrl(page.url),
     ...withDate(lastCommitDate((page as { absolutePath?: string }).absolutePath)),
     ...classify(page.url),

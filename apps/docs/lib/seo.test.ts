@@ -63,11 +63,11 @@ function jsonLdTypes(html: string): string[] {
 
 describe.skipIf(!hasBuild)('built pages', () => {
   const pages = hasBuild ? htmlPages(OUT) : [];
-  const indexable = pages.filter((p) => !/\/(404|_not-found)\//.test(p));
+  const indexable = pages.filter((p) => !/\/(404|_not-found)\//.test(p) && !readFileSync(p, 'utf8').match(/<meta name="robots" content="[^"]*noindex/));
 
   test('the build has the pages we expect', () => {
     const routes = indexable.map((p) => `/${relative(OUT, p).replace(/index\.html$/, '')}`);
-    for (const route of ['/', '/download/', '/docs/', '/docs/installation/', '/docs/bot-commands/']) {
+    for (const route of ['/', '/download/', '/changelog/', '/design-system/', '/docs/', '/docs/installation/', '/docs/bot-commands/']) {
       expect(routes).toContain(route);
     }
   });
@@ -137,6 +137,7 @@ describe.skipIf(!hasBuild)('built pages', () => {
         expect(types).toEqual(expect.arrayContaining(['WebSite', 'Organization', 'SoftwareApplication', 'FAQPage']));
       }
       if (route === '/download/') expect(types).toContain('SoftwareApplication');
+      if (route === '/changelog/') expect(types).toEqual(expect.arrayContaining(['CollectionPage', 'BreadcrumbList']));
     });
   }
 
@@ -144,6 +145,23 @@ describe.skipIf(!hasBuild)('built pages', () => {
     const html = readFileSync(join(OUT, '404.html'), 'utf8');
     expect(html).toMatch(/<meta name="robots" content="[^"]*noindex/);
     expect(jsonLdTypes(html)).toEqual([]);
+  });
+
+  test('the compatibility changelog points search engines to the public release log', () => {
+    const html = readFileSync(join(OUT, 'docs/changelog/index.html'), 'utf8');
+    expect(meta(html, 'name', 'robots')).toContain('noindex');
+    expect(html).toContain(`<link rel="canonical" href="${SITE}/changelog/"`);
+  });
+
+  test('draft release headings and notes are absent from public changelog exports', () => {
+    const raw = readFileSync(join(import.meta.dir, '../content/docs/changelog.mdx'), 'utf8');
+    const draft = raw.match(/^##[^\n]*\bUnreleased\b[^\n]*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
+    const firstLead = draft?.[1].match(/^- \*\*([^*]+)\*\*/m)?.[1];
+    for (const relativePath of ['changelog/index.html', 'docs/changelog/index.html', 'api/search', 'llms-full.txt']) {
+      const content = readFileSync(join(OUT, relativePath), 'utf8');
+      expect(content).not.toContain(draft?.[0].split('\n')[0] ?? 'IMPOSSIBLE_DRAFT_HEADING');
+      if (firstLead) expect(content).not.toContain(firstLead);
+    }
   });
 
   test('the sitemap lists exactly the indexable pages, by canonical URL', () => {

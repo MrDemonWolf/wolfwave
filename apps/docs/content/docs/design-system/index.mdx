@@ -20,6 +20,8 @@ ogEyebrow: Design System
 **TL;DR:** one file, `design-system/tokens.json`, sets the colors, type, spacing, and motion for the app, this site, and the OBS widget.
 This section is for contributors changing how WolfWave looks.
 
+For a visual tour, open the public [Design system](/design-system): live type specimens, measured color pairs in both appearances, shared actions, and motion timing samples.
+
 It covers three products:
 
 - **The native macOS app** (Swift / SwiftUI, macOS 26 Liquid Glass)
@@ -44,7 +46,7 @@ design-system/tokens.json   ← edit this
 1. Edit `design-system/tokens.json`.
 2. Run `bun run tokens` to regenerate all four outputs.
 3. Touched widget themes or layouts? Run `make widget` too.
-4. Run `bun run ds:schema` and `bun run ds:lint`.
+4. Run `bun run ds:schema`, `bun run ds:lint`, and `bun run ds:test` (including text contrast checks).
 5. Commit the source and every regenerated file together. CI fails on drift.
 
 Never hand-edit a `*.generated.*` file.

@@ -1,21 +1,17 @@
-import { Instrument_Sans } from "next/font/google";
+import { JetBrains_Mono, Montserrat, Roboto } from "next/font/google";
 import type { Metadata } from "next";
 import { Provider } from "@/components/provider";
 import { siteUrl, basePath, absoluteUrl, homepageSeo } from "@/lib/site";
 import "./global.css";
 
-// Display face for headlines (>= ~28px) only. Body/nav/UI text uses the
-// system stack (SF Pro on Mac) instead, see .ww-font in global.css. We used
-// to also load Unbounded for display type, but it's a wide/expanded web3
-// display face (commissioned for Polkadot) that reads "crypto template" next
-// to an Apple-style SF-set body and inflates hero line length on mobile.
-// Instrument Sans keeps a grotesque skeleton close to SF Pro while adding
-// just enough personality, so it now carries every display-sized heading.
-const instrumentSans = Instrument_Sans({
+// Match the MrDemonWolf website's type families, self-hosted by Next at build time.
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-instrument",
+  variable: "--font-montserrat",
   display: "swap",
 });
+const roboto = Roboto({ subsets: ["latin"], variable: "--font-roboto", display: "swap" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
   title: {
@@ -85,7 +81,7 @@ export const metadata: Metadata = {
  */
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={instrumentSans.variable} suppressHydrationWarning>
+    <html lang="en" className={`${montserrat.variable} ${roboto.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <a href="#nd-page" className="skip-nav">
           Skip to content

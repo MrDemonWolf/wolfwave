@@ -29,7 +29,7 @@ export async function getLLMText(page: InferPageType<typeof source>) {
 
   return `# ${page.data.title}
 
-URL: ${pageUrl(page.url)}${description}
+URL: ${pageUrl(page.url === '/docs/changelog' ? '/changelog' : page.url)}${description}
 
 ${processed}`;
 }

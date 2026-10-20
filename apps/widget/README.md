@@ -151,6 +151,17 @@ The container moves between four states (full machine documented in
 The container animation does **not** re-trigger on track skip. That's
 deliberate; otherwise rapid skips strobe the stream.
 
+Entrances and exits animate opacity and transforms, avoiding an animated blur
+over the whole card. Unchanged snapshots and appearance drafts preserve the
+existing DOM, so artwork and Vinyl rotation do not restart. OBS and the macOS
+Settings preview use the same generated renderer; the preview opens no socket
+and runs no progress timer. Reduced motion removes transitions and Vinyl spin.
+
+Preset text colors meet WCAG AA in the black/white scene contrast regression
+check, including the decorative noise layer. Custom text/background overrides
+still need checking against the actual OBS scene. Streamers should scale the
+browser source for their output resolution so small time labels remain legible.
+
 ## Code map
 
 | File | Purpose |

@@ -49,13 +49,13 @@ nonisolated enum DSColor {
 
     // MARK: Text (light)
     static let textPrimaryLight = Color(red: 0.114, green: 0.114, blue: 0.122)
-    static let textSecondaryLight = Color(red: 0.431, green: 0.431, blue: 0.451)
-    static let textMutedLight = Color(red: 0.463, green: 0.463, blue: 0.463)
+    static let textSecondaryLight = Color(red: 0.314, green: 0.314, blue: 0.341)
+    static let textMutedLight = Color(red: 0.314, green: 0.314, blue: 0.341)
 
     // MARK: Text (dark)
     static let textPrimaryDark = Color(red: 0.961, green: 0.961, blue: 0.969)
-    static let textSecondaryDark = Color(red: 0.631, green: 0.631, blue: 0.651)
-    static let textMutedDark = Color(red: 0.557, green: 0.557, blue: 0.576)
+    static let textSecondaryDark = Color(red: 0.753, green: 0.753, blue: 0.776)
+    static let textMutedDark = Color(red: 0.690, green: 0.690, blue: 0.722)
 
     // MARK: Partner
     static let partnerTwitch = Color(red: 0.569, green: 0.275, blue: 1.000)
@@ -115,13 +115,13 @@ nonisolated enum DSColor {
         ]),
         (name: "Text (light)", tokens: [
             (name: "textPrimaryLight", hex: "#1D1D1F", color: textPrimaryLight),
-            (name: "textSecondaryLight", hex: "#6E6E73", color: textSecondaryLight),
-            (name: "textMutedLight", hex: "#767676", color: textMutedLight),
+            (name: "textSecondaryLight", hex: "#505057", color: textSecondaryLight),
+            (name: "textMutedLight", hex: "#505057", color: textMutedLight),
         ]),
         (name: "Text (dark)", tokens: [
             (name: "textPrimaryDark", hex: "#F5F5F7", color: textPrimaryDark),
-            (name: "textSecondaryDark", hex: "#A1A1A6", color: textSecondaryDark),
-            (name: "textMutedDark", hex: "#8E8E93", color: textMutedDark),
+            (name: "textSecondaryDark", hex: "#C0C0C6", color: textSecondaryDark),
+            (name: "textMutedDark", hex: "#B0B0B8", color: textMutedDark),
         ]),
         (name: "Partner", tokens: [
             (name: "partnerTwitch", hex: "#9146FF", color: partnerTwitch),
@@ -155,6 +155,10 @@ nonisolated enum DSFont {
         static let x2xl: CGFloat = 22
         static let x3xl: CGFloat = 26
         static let display: CGFloat = 52
+        static let webSmall: CGFloat = 14
+        static let webBody: CGFloat = 16
+        static let webSection: CGFloat = 48
+        static let webHero: CGFloat = 74
 
         /// Every token above, in source order. Drives the Debug design-system gallery.
         static let all: [(name: String, value: CGFloat)] = [
@@ -168,6 +172,10 @@ nonisolated enum DSFont {
             (name: "x2xl", value: x2xl),
             (name: "x3xl", value: x3xl),
             (name: "display", value: display),
+            (name: "webSmall", value: webSmall),
+            (name: "webBody", value: webBody),
+            (name: "webSection", value: webSection),
+            (name: "webHero", value: webHero),
         ]
     }
 
@@ -448,10 +456,10 @@ nonisolated enum DSWidgetThemes {
             containerBg: nil,
             borderColor: nil,
             cornerRadius: 12,
-            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
+            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.720),
             textPrimary: Color(red: 1.000, green: 1.000, blue: 1.000),
             textSecondary: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.900),
-            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.700),
+            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.850),
             progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.200),
             progressFill: Color(red: 1.000, green: 1.000, blue: 1.000),
             showArtworkBlur: true,
@@ -464,7 +472,7 @@ nonisolated enum DSWidgetThemes {
             overlayBg: nil,
             textPrimary: Color(red: 0.894, green: 0.894, blue: 0.906),
             textSecondary: Color(red: 0.631, green: 0.631, blue: 0.667),
-            textMuted: Color(red: 0.443, green: 0.443, blue: 0.478),
+            textMuted: Color(red: 0.631, green: 0.631, blue: 0.667),
             progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.080),
             progressFill: Color(red: 0.655, green: 0.545, blue: 0.980),
             showArtworkBlur: false,
@@ -477,20 +485,20 @@ nonisolated enum DSWidgetThemes {
             overlayBg: nil,
             textPrimary: Color(red: 0.094, green: 0.094, blue: 0.106),
             textSecondary: Color(red: 0.247, green: 0.247, blue: 0.275),
-            textMuted: Color(red: 0.443, green: 0.443, blue: 0.478),
+            textMuted: Color(red: 0.282, green: 0.282, blue: 0.314),
             progressTrack: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.080),
-            progressFill: Color(red: 0.231, green: 0.510, blue: 0.965),
+            progressFill: Color(red: 0.145, green: 0.388, blue: 0.922),
             showArtworkBlur: false,
             userCustomizable: false
         ),
         "Glass": DSWidgetTheme(
-            containerBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
+            containerBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.780),
             borderColor: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
             cornerRadius: 16,
             overlayBg: nil,
             textPrimary: Color(red: 0.961, green: 0.961, blue: 0.969),
-            textSecondary: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.800),
-            textMuted: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.600),
+            textSecondary: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.900),
+            textMuted: Color(red: 0.961, green: 0.961, blue: 0.969, opacity: 0.850),
             progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.100),
             progressFill: Color(red: 0.000, green: 0.478, blue: 1.000),
             showArtworkBlur: false,
@@ -503,7 +511,7 @@ nonisolated enum DSWidgetThemes {
             overlayBg: nil,
             textPrimary: Color(red: 0.000, green: 1.000, blue: 0.667),
             textSecondary: Color(red: 0.000, green: 0.898, blue: 1.000),
-            textMuted: Color(red: 0.000, green: 1.000, blue: 0.667, opacity: 0.500),
+            textMuted: Color(red: 0.000, green: 1.000, blue: 0.667, opacity: 0.850),
             progressTrack: Color(red: 0.000, green: 1.000, blue: 0.667, opacity: 0.150),
             progressFill: Color(red: 0.000, green: 1.000, blue: 0.667),
             showArtworkBlur: false,
@@ -513,10 +521,10 @@ nonisolated enum DSWidgetThemes {
             containerBg: Color(red: 0.110, green: 0.110, blue: 0.118, opacity: 0.920),
             borderColor: Color(red: 0.039, green: 0.518, blue: 1.000, opacity: 0.400),
             cornerRadius: 14,
-            overlayBg: nil,
+            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.720),
             textPrimary: Color(red: 0.961, green: 0.961, blue: 0.969),
-            textSecondary: Color(red: 0.631, green: 0.631, blue: 0.651),
-            textMuted: Color(red: 0.431, green: 0.431, blue: 0.451),
+            textSecondary: Color(red: 0.816, green: 0.816, blue: 0.839),
+            textMuted: Color(red: 0.816, green: 0.816, blue: 0.839),
             progressTrack: Color(red: 0.039, green: 0.518, blue: 1.000, opacity: 0.150),
             progressFill: Color(red: 0.039, green: 0.518, blue: 1.000),
             showArtworkBlur: true,
@@ -528,10 +536,10 @@ nonisolated enum DSWidgetThemes {
             containerBg: nil,
             borderColor: nil,
             cornerRadius: 12,
-            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.500),
+            overlayBg: Color(red: 0.000, green: 0.000, blue: 0.000, opacity: 0.720),
             textPrimary: Color(red: 1.000, green: 1.000, blue: 1.000),
             textSecondary: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.900),
-            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.700),
+            textMuted: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.850),
             progressTrack: Color(red: 1.000, green: 1.000, blue: 1.000, opacity: 0.200),
             progressFill: Color(red: 1.000, green: 1.000, blue: 1.000),
             showArtworkBlur: true,

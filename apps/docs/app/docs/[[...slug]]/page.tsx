@@ -14,7 +14,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
-  const url = pageUrl(page.url);
+  const url = pageUrl(params.slug?.join('/') === 'changelog' ? '/changelog' : page.url);
   const isDocsRoot = !params.slug?.length;
   // Route-level eyebrow above the title. Skips the docs root (index.mdx renders
   // its own eyebrow inside .docs-hero).
@@ -82,7 +82,8 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
-  const url = pageUrl(page.url);
+  const isChangelog = params.slug?.join('/') === 'changelog';
+  const url = pageUrl(isChangelog ? '/changelog' : page.url);
   const ogImage = getPageImage(page).url;
   const ogTitle = page.data.ogTitle ?? page.data.title;
   const ogDescription = page.data.ogDescription ?? page.data.description;
@@ -92,6 +93,7 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   return {
     title: docsTitle(page.data.metaTitle ?? page.data.title),
     description: page.data.description,
+    ...(isChangelog ? { robots: { index: false, follow: true } } : {}),
     keywords: [...new Set([...pageKeywords, ...GLOBAL_KEYWORDS])],
     alternates: {
       canonical: url,

@@ -226,7 +226,7 @@ export function demoVisibilityRef(el: HTMLElement | null): (() => void) | void {
   return () => unobserveRoot(el);
 }
 
-function pause() {
+export function pauseDemo() {
   pauseCount += 1;
   if (pauseCount === 1) {
     applyTimers();
@@ -234,7 +234,7 @@ function pause() {
   }
 }
 
-function resume() {
+export function resumeDemo() {
   if (pauseCount === 0) return;
   pauseCount -= 1;
   if (pauseCount === 0) {
@@ -250,9 +250,9 @@ function resume() {
  */
 export function cyclingPauseHandlers() {
   return {
-    onPointerEnter: pause,
-    onPointerLeave: resume,
-    onFocusCapture: pause,
-    onBlurCapture: resume,
+    onPointerEnter: pauseDemo,
+    onPointerLeave: resumeDemo,
+    onFocusCapture: pauseDemo,
+    onBlurCapture: resumeDemo,
   };
 }

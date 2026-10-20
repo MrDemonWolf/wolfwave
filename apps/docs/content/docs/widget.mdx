@@ -171,6 +171,18 @@ The container moves through a four-state machine. Class swaps are driven from
 The container animation does **not** re-trigger on track skip. That's
 deliberate. Otherwise rapid skips strobe the stream.
 
+Entrances and exits animate opacity and transforms without animating a blur
+over the entire card. Repeated track snapshots and unchanged appearance drafts
+preserve the mounted artwork and Vinyl rotation. Progress updates stay at 10 Hz
+with time labels at 1 Hz; hidden or paused overlays stop their progress timer.
+The macOS appearance preview loads this same renderer without a WebSocket or
+progress timer. The reduced-motion preference removes transitions and Vinyl spin.
+
+Preset text colors have an automated WCAG AA contrast check over black and
+white scenes, including the decorative noise layer. Custom color overrides need
+a contrast check in your actual OBS scene. Scale the browser source for your
+stream resolution so the smaller time labels remain readable.
+
 Pause does **not** trigger the exit animation. Per the native
 `AppleMusicSource.extractPlayerState` contract, only true stop
 (`kPSS`) or an empty current track maps to `NOT_PLAYING`.

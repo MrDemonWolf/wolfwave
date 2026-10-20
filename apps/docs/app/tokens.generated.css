@@ -30,8 +30,8 @@
   --ds-color-surface-elev: #FBFBFD;
   --ds-color-surface-hairline: #D2D2D7;
   --ds-color-text-primary: #1D1D1F;
-  --ds-color-text-secondary: #6E6E73;
-  --ds-color-text-muted: #767676;
+  --ds-color-text-secondary: #505057;
+  --ds-color-text-muted: #505057;
   --ds-color-partner-twitch: #9146FF;
   --ds-color-partner-discord: #5865F2;
   --ds-color-partner-discord-surface: #2B2D31;
@@ -46,8 +46,8 @@
   --ds-color-partner-obs-end: #1A1A1C;
   --ds-color-partner-wolfwave-gradient-start: #0A2540;
   --ds-color-partner-wolfwave-gradient-end: #2563EB;
-  --ds-font-family-display: Unbounded, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --ds-font-family-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-display: Montserrat, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ds-font-family-sans: Roboto, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ds-font-family-serif: "Instrument Serif", ui-serif, Georgia, serif;
   --ds-font-family-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --ds-font-family-system-apple-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
@@ -61,6 +61,10 @@
   --ds-font-size-2xl: 22px;
   --ds-font-size-3xl: 26px;
   --ds-font-size-display: 52px;
+  --ds-font-size-web-small: 14px;
+  --ds-font-size-web-body: 16px;
+  --ds-font-size-web-section: 48px;
+  --ds-font-size-web-hero: 74px;
   --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
@@ -117,6 +121,6 @@
   --ds-color-surface-elev: #0A0A0C;
   --ds-color-surface-hairline: #2C2C2E;
   --ds-color-text-primary: #F5F5F7;
-  --ds-color-text-secondary: #A1A1A6;
-  --ds-color-text-muted: #8E8E93;
+  --ds-color-text-secondary: #C0C0C6;
+  --ds-color-text-muted: #B0B0B8;
 }

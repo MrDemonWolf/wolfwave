@@ -413,7 +413,7 @@ function generateCSS(): string {
     lines.push(`  --ds-font-family-${kebab(k)}: ${v};`);
   }
   for (const [k, v] of Object.entries(tokens.font.size)) {
-    lines.push(`  --ds-font-size-${k}: ${v}px;`);
+    lines.push(`  --ds-font-size-${kebab(k)}: ${v}px;`);
   }
   for (const [k, v] of Object.entries(tokens.font.weight)) {
     lines.push(`  --ds-font-weight-${k}: ${v};`);

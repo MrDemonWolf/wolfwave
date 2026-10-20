@@ -93,7 +93,6 @@ body.ww-awaiting-server #widget {
 #widget.widget-entering {
   opacity: 0;
   transform: translateY(12px) scale(0.97);
-  filter: blur(2px);
   pointer-events: none;
 }
 
@@ -103,19 +102,16 @@ body.ww-awaiting-server #widget {
   filter: none;
   transition:
     opacity 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    filter 480ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #widget.widget-exiting {
   opacity: 0;
   transform: translateY(8px) scale(0.99);
-  filter: blur(4px);
   pointer-events: none;
   transition:
     opacity 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    filter 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Pre-WebSocket placeholder. Visible immediately so the page never looks dead

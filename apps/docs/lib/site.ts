@@ -143,16 +143,16 @@ export async function getLatestDmgUrl(): Promise<string> {
  */
 export const homepageSeo = {
   /** Browser `<title>` and og/twitter title. Keep the keyword-rich phrasing. */
-  title: "WolfWave. Free Apple Music to Twitch, Discord & OBS on Mac",
+  title: "WolfWave: Apple Music for Twitch, Discord & OBS on Mac",
 
   /** Full meta description used for search snippets. Kept under ~160 chars so
    *  Google does not truncate it. */
   description:
-    "Free Mac menu bar app built for Apple Music, not Spotify. Twitch song requests, chat commands, Discord Rich Presence, and an OBS overlay, all in sync.",
+    "Free, open-source Apple Music app for Mac streamers. Take Twitch song requests, share Discord Rich Presence, and add a live now-playing overlay to OBS.",
 
   /** Shorter description for the social cards (og + twitter). */
   socialDescription:
-    "Built for Apple Music, not Spotify. Chat requests songs, and your Twitch chat, Discord profile, and OBS overlay keep themselves in sync.",
+    "Your Apple Music, across your stream. Twitch song requests, Discord Rich Presence, and a live OBS overlay from one free Mac menu bar app.",
 
   /** OG card eyebrow pill. */
   ogEyebrow: "Free & open source · macOS 26+",

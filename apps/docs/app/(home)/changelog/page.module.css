@@ -1,0 +1,24 @@
+.page { color: var(--txt-1); }
+.header, .releases, .closing { width: 80%; max-width: 48rem; margin-inline: auto; }
+.header { padding-block: clamp(4rem, 8vw, 7rem) 3rem; }
+.header h1 { margin-block: 1.25rem; font-family: var(--font-montserrat), var(--ds-font-family-display); font-size: clamp(2.75rem, 7vw, 5rem); line-height: 1.04; letter-spacing: -.045em; font-weight: 650; }
+.header p { max-width: 39rem; font-size: 1.125rem; line-height: 1.75; color: var(--txt-2); }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.75rem; }
+.releases { padding-bottom: 3rem; font-size: 1rem; line-height: 1.8; overflow-wrap: anywhere; }
+.releases h2 { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--hairline); font-family: var(--font-montserrat), var(--ds-font-family-display); font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.3; font-weight: 650; letter-spacing: -.025em; scroll-margin-top: 6rem; }
+.releases h3 { font-size: 1.125rem; margin-block: 1.75rem .75rem; font-weight: 650; }
+.releases p, .releases ul { margin-block: 1rem; }
+.releases ul { padding-left: 1.5rem; list-style: disc; }
+.releases li { padding-left: .25rem; margin-block: .75rem; }
+.releases a { color: var(--txt-1); text-decoration: underline; text-underline-offset: .2em; text-decoration-color: var(--brand-600); }
+.releases h2 a, .releases h3 a { text-decoration: none; }
+.releases code { font-size: .9375em; padding: .1em .3em; background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: .25rem; }
+.releases hr { margin-block: 3rem; border-color: var(--hairline); }
+.closing { padding-block: 2rem 5rem; border-top: 1px solid var(--hairline); }
+.closing p { margin-bottom: 1rem; font-size: 1.25rem; font-weight: 600; }
+.page a:focus-visible { outline: 3px solid var(--txt-1); outline-offset: 4px; border-radius: .25rem; }
+@media (min-width: 768px) { .header, .releases, .closing { width: calc(100% - 3rem); } }
+@media (prefers-reduced-motion: no-preference) {
+  .header { animation: arrive .45s ease-out both; }
+  @keyframes arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+}

@@ -155,10 +155,10 @@ const themePresets: Record<string, ThemePreset> = WW_TOKENS.themes || {
     containerShadow: "0 0 4px rgba(0,0,0,1)",
     containerRadius: "12px",
     backdropFilter: "none",
-    overlayBg: "rgba(0,0,0,0.50)",
+    overlayBg: "rgba(0,0,0,0.72)",
     textPrimary: "#FFFFFF",
     textSecondary: "rgba(255,255,255,0.90)",
-    textMuted: "rgba(255,255,255,0.70)",
+    textMuted: "rgba(255,255,255,0.85)",
     textShadow: "2px 2px 2px rgb(0 0 0)",
     progressTrackBg: "rgba(255,255,255,0.20)",
     progressFillBg: "#FFFFFF",
@@ -234,6 +234,7 @@ let lastTimeUpdateAt = 0;
 // every other layout. `ringCircumference` is cached from the circle's radius.
 let ringEl: SVGCircleElement | null = null;
 let ringCircumference = 0;
+let renderedCardKey = "";
 
 /* ╔════════════════════════════════════════════════════════════════════════╗
  * ║  TYPES                                                                 ║
@@ -780,6 +781,20 @@ function buildWidget(): void {
   const el = document.getElementById("widget");
   if (!el) return;
 
+  // Replayed snapshots and unchanged preview drafts must not reset artwork or Vinyl motion.
+  const cardKey = JSON.stringify([
+    nowPlaying.track, nowPlaying.artist, nowPlaying.album, nowPlaying.artworkURL,
+    nowPlaying.duration, nowPlaying.isPlaying,
+    widgetConfig.theme, widgetConfig.layout, widgetConfig.textColor,
+    widgetConfig.backgroundColor, widgetConfig.fontFamily,
+  ]);
+  if (visible && cardKey === renderedCardKey) {
+    lastTimeUpdateAt = 0;
+    updateProgress();
+    syncProgressLoop();
+    return;
+  }
+
   const theme = resolveTheme(widgetConfig);
   const layout = widgetConfig.layout || "Horizontal";
   const dims = layoutDimensions[layout] || layoutDimensions["Horizontal"];
@@ -994,6 +1009,7 @@ function buildWidget(): void {
   }
 
   el.innerHTML = blurLayer + overlayLayer + noiseLayer + '<div class="relative h-full">' + layoutHTML + "</div>";
+  renderedCardKey = cardKey;
 
   // Refresh the progress-loop element cache; the rebuild replaced the DOM.
   fillEl = el.querySelector(".progress-fill");

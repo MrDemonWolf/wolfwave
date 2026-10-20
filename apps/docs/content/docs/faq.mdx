@@ -1,9 +1,9 @@
 ---
-title: FAQ
+title: Frequently asked questions
 metaTitle: "FAQ: Apple Music Streaming on a Mac"
-description: "Short answers about WolfWave: Spotify support, Mac requirements, cost, what viewers can type, stream performance, second-PC OBS setups, privacy, and updates."
-ogTitle: WolfWave FAQ. Short answers before you install
-ogDescription: Spotify, Mac requirements, viewer commands, performance, second-PC setups, privacy, and updates.
+description: "Find answers about WolfWave requirements, Apple Music, Twitch song requests, OBS overlays, Discord, privacy, updates, and fixes for your Mac streaming setup."
+ogTitle: WolfWave FAQ. From first install to your next stream
+ogDescription: Mac requirements, local music, song requests, OBS setup, privacy, and updates. Answers with practical next steps.
 ogEyebrow: Frequently asked
 ogChips:
   - Requirements
@@ -20,9 +20,17 @@ keywords:
   - wolfwave app store
 ---
 
-Quick answers to common questions. Each one links to the full page if you want more.
+Start with the questions below, then follow the setup or troubleshooting link in each answer. Looking for a specific error? Go straight to [Troubleshooting](/docs/troubleshooting).
 
-## The basics
+<Cards>
+  <Card title="Before you install" href="#before-you-install">Mac requirements, cost, and music compatibility.</Card>
+  <Card title="Requests and chat" href="#requests-and-chat">Viewer commands, approvals, and Twitch tools.</Card>
+  <Card title="Overlays and Discord" href="#overlays-and-discord">OBS on one or two computers, performance, and presence.</Card>
+  <Card title="Privacy and security" href="#privacy-and-security">Sign-ins, private addresses, and local data.</Card>
+  <Card title="Updates and help" href="#updates-and-help">Stable and Nightly releases, Homebrew, and support.</Card>
+</Cards>
+
+## Before you install
 
 <Accordions type="single">
 
@@ -56,6 +64,16 @@ See how WolfWave stacks up against other Apple Music tools in the [comparison](/
 
 </Accordion>
 
+<Accordion title="Can I use local music without an Apple Music subscription?">
+
+WolfWave can read local tracks playing in the Music app on your Mac. You can share their now-playing information with Twitch, Discord, and your overlay without using catalog song requests.
+
+Song requests search the Apple Music catalog and need an active Apple Music subscription. Artwork and links depend on what metadata is available for the track.
+
+Music playing only on an iPhone, HomePod, or in a web browser isn't read by WolfWave. Play it in the Mac's Music app instead. See [Music Sync](/docs/features#menu-bar-and-music-sync).
+
+</Accordion>
+
 <Accordion title="Is it really free?">
 
 Yes. It's open source under the GPL-3.0 license. No paywall, no premium tier, no ads. The code is on [GitHub](https://github.com/MrDemonWolf/wolfwave). If you want to give back, see [Support](/docs/support).
@@ -70,7 +88,7 @@ WolfWave needs sandbox exceptions to talk to Discord on your Mac, and the Mac Ap
 
 </Accordions>
 
-## For your viewers
+## Requests and chat
 
 <Accordions type="single">
 
@@ -94,7 +112,11 @@ Yes. Turn on **Require My Approval** in Settings → Song Requests. Every reques
 
 <Accordion title="Can viewers request with channel points or Bits?">
 
-Yes, if your channel is Twitch Affiliate or Partner. WolfWave can add a **Request a Song** reward, take song names in Bit cheers, and let a cheer move a viewer's song to the front. You must sign in with your broadcaster account for this. See [Channel points and Bits](/docs/bot-commands#channel-points-and-bits).
+Yes, when your channel has those tools enabled in Twitch's Creator Dashboard. Twitch expanded access to Channel Points and Bits beyond Affiliates and Partners; eligible streamers can complete Twitch's onboarding to enable them. See [Twitch's announcement](https://blog.twitch.tv/en/2026/05/13/monetization-for-all/).
+
+WolfWave can add a **Request a Song** reward, take song names in Bit cheers, and let a cheer boost a viewer's queued song. Sign in with your broadcaster account, then configure [Channel points and Bits](/docs/bot-commands#channel-points-and-bits). Twitch must also allow the API access WolfWave needs; access to a tool in the dashboard doesn't guarantee access through a third-party app. If Twitch rejects setup, follow WolfWave's error message.
+
+Basic chat requests and chat vote-to-skip don't need these Twitch tools. Twitch Polls is a separate integration that [Twitch documents as Affiliate/Partner-only](https://dev.twitch.tv/docs/api/polls/).
 
 </Accordion>
 
@@ -102,11 +124,13 @@ Yes, if your channel is Twitch Affiliate or Partner. WolfWave can add a **Reques
 
 The playlist was deleted, or its sharing was turned off in Apple Music. WolfWave notices, turns `!playlist` off so chat never gets a broken link, and shows a fix-it banner in Settings → Song Requests. Requests keep working the whole time.
 
+Open [playlist troubleshooting](/docs/troubleshooting#playlist-not-synced) for the next steps.
+
 </Accordion>
 
 </Accordions>
 
-## Streaming
+## Overlays and Discord
 
 <Accordions type="single">
 
@@ -118,6 +142,8 @@ It's built to stay light:
 - A backup check runs every 5 seconds, and slower in Low Power Mode.
 - The overlay's progress updates only run while an overlay is connected and a song is playing.
 
+Performance depends on your Mac, OBS scene, and other apps. These are design choices that reduce work, rather than a guarantee of zero impact. See [OBS Widget](/docs/widget) for how the overlay works.
+
 </Accordion>
 
 <Accordion title="Can I use it with OBS on a second PC?">
@@ -125,6 +151,22 @@ It's built to stay light:
 Yes. The overlay can be reached from another computer on your home network. Settings → Stream Widgets shows a network address for it. That address includes your overlay token, so keep it private. If it leaks, make a new token.
 
 Stream Deck control is different: it only works from the same Mac. See [Security](/docs/security#websocket-server-security).
+
+</Accordion>
+
+<Accordion title="How do I add the overlay to OBS?">
+
+Turn on Stream Widgets in WolfWave, copy the ready-made browser-source address from Settings → Stream Widgets, and add it as an OBS **Browser Source**. Choose the theme and layout in WolfWave; the app's preview uses the same widget as OBS.
+
+Use the same-Mac address for OBS on your Mac, or the network address for a second computer. See [overlay setup](/docs/features#now-playing-widget). If a source stops updating, follow [overlay troubleshooting](/docs/troubleshooting#overlay-not-updating).
+
+</Accordion>
+
+<Accordion title="Why isn't my song showing on Discord?">
+
+Discord's desktop app must be running on the same Mac as WolfWave. A Discord browser tab or phone app cannot provide the local connection WolfWave uses.
+
+Check that Discord status is turned on in WolfWave, then follow [Discord troubleshooting](/docs/troubleshooting#discord-not-connecting). No Discord bot or server setup is needed.
 
 </Accordion>
 
@@ -136,7 +178,7 @@ Yes. The overlay data is plain JSON over a WebSocket: song, artist, album, artwo
 
 <Accordion title="What is Streamer Mode?">
 
-One switch that hides private values in WolfWave's windows, like your channel name, addresses, and tokens, so the app is safe to show on camera. It only changes what's on screen. Everything keeps working. See [Streamer Mode](/docs/streamer-mode).
+One switch that hides private values in WolfWave's windows, like your channel name, addresses, and tokens, to help when sharing the app on camera. It only changes what's on screen; it doesn't revoke credentials or change the overlay connection. See [Streamer Mode](/docs/streamer-mode).
 
 </Accordion>
 
@@ -147,8 +189,6 @@ One switch that hides private values in WolfWave's windows, like your channel na
 <Accordions type="single">
 
 <Accordion title="Is my Twitch sign-in safe?">
-
-Yes.
 
 - You sign in on Twitch's own website with a short code. Your password never touches WolfWave.
 - Your sign-in is stored in the macOS Keychain, the same place Safari keeps passwords.
@@ -178,7 +218,9 @@ On your Mac, in a local file. Listening History is off by default, nothing is up
 
 <Accordion title="Is it safe to show the overlay address on stream?">
 
-The same-Mac address (`http://localhost:…`) has no token in it, so it's safe. The network address for a second PC includes `?token=…`, so keep that one private. Turn on [Streamer Mode](/docs/streamer-mode) to hide it on screen.
+The ready-made same-Mac address (`http://localhost:…`) doesn't need a token in the URL; WolfWave supplies the read-only overlay credential to a local request. A network address for a second computer includes `?token=…`, so keep that one private. If you added a token to any address yourself, keep that address private too.
+
+Turn on [Streamer Mode](/docs/streamer-mode) to hide addresses on screen. If a token was exposed, replace it in Settings → Stream Widgets. See [WebSocket security](/docs/security#websocket-server-security).
 
 </Accordion>
 
@@ -198,12 +240,14 @@ WolfWave updates itself with Sparkle, a common Mac updater. Every update is sign
 
 Installed with Homebrew? Run `brew upgrade wolfwave` instead. The built-in updater turns itself off.
 
+Read the public [changelog](/changelog) for shipped changes. Draft release notes stay hidden until that version is released.
+
 </Accordion>
 
 <Accordion title="Where do I get help?">
 
 - [Troubleshooting](/docs/troubleshooting). Fixes for every error message.
-- [Discord community](https://mrdwolf.net/discord). The fastest way to reach a person.
+- [Discord community](https://mrdwolf.net/discord). Ask setup questions and share your experience.
 - [GitHub Issues](https://github.com/MrDemonWolf/wolfwave/issues). For bugs. See [how to report a bug](/docs/support#report-a-bug).
 
 </Accordion>

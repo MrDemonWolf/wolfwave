@@ -8,6 +8,8 @@
    ────────────────────────────────────────────────────────── */
 
 @theme {
+  --font-sans: var(--font-roboto), var(--ds-font-family-sans);
+  --font-mono: var(--font-jetbrains), var(--ds-font-family-mono);
   --color-fd-primary: hsl(211 100% 52%);
   --color-fd-primary-foreground: hsl(0 0% 100%);
   --color-fd-background: hsl(0 0% 100%);
@@ -84,8 +86,8 @@
   --bg-base:    #FFFFFF;
   --bg-surface: #F5F5F7;
   --bg-elev:    #FBFBFD;
-  --txt-1:      #1D1D1F;
-  --txt-2:      #636366;
+  --txt-1:      var(--ds-color-text-primary);
+  --txt-2:      var(--ds-color-text-secondary);
   --hairline:   #D2D2D7;
 }
 
@@ -100,8 +102,8 @@
   --bg-base:    #000000;
   --bg-surface: #1C1C1E;
   --bg-elev:    #0A0A0C;
-  --txt-1:      #F5F5F7;
-  --txt-2:      #A1A1A6;
+  --txt-1:      var(--ds-color-text-primary);
+  --txt-2:      var(--ds-color-text-secondary);
   --hairline:   #2C2C2E;
 }
 
@@ -116,28 +118,51 @@
     --bg-surface: #1C1C1E;
     --bg-elev:    #0A0A0C;
     --txt-1:      #F5F5F7;
-    --txt-2:      #A1A1A6;
+    --txt-2:      #C0C0C6;
     --hairline:   #2C2C2E;
   }
 }
 
 /* ── Typography ──────────────────────────────────────────── */
 .ww-font {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Inter", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-roboto), var(--ds-font-family-sans);
+  font-size: var(--ds-font-size-web-body, 16px);
+  line-height: 1.6;
   font-feature-settings: "ss01", "cv11";
 }
 
 .ww-display {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-    system-ui, sans-serif;
-  font-weight: 700;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-weight: 600;
   letter-spacing: -0.025em;
-  line-height: 1.05;
+  line-height: 1.1;
+}
+
+h2.ww-display {
+  font-size: clamp(1.875rem, 4vw, var(--ds-font-size-web-section, 48px));
+}
+
+#nd-page > h1 {
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+@media (max-width: 767px) {
+  #nd-nav button,
+  #nd-subnav button { min-width: 44px; min-height: 44px; }
+  #nd-nav a { display: flex; align-items: center; min-height: 44px; }
+}
+
+.fd-prose :is(h1, h2, h3, h4),
+[class*="prose"] :is(h1, h2, h3, h4) {
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
 }
 
 .ww-mono {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
 }
 
 /* ── Surfaces ────────────────────────────────────────────── */
@@ -147,7 +172,7 @@
 .ww-text-1     { color: var(--txt-1); }
 .ww-text-2     { color: var(--txt-2); }
 .ww-text-brand { color: var(--brand-600); }
-.dark .ww-text-brand { color: var(--brand-500); }
+.dark .ww-text-brand { color: var(--brand-600); }
 
 /* ── Frosted card. Flat: translucent frost + hairline, no bevel highlight,
    no glassy sheen, no heavy drop shadow (kept deliberately un-3D). ─────── */
@@ -170,11 +195,11 @@
   z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
-  align-items: center;
+  align-items: start;
   gap: clamp(2.5rem, 5vw, 5rem);
   width: min(100%, 75rem);
   margin-inline: auto;
-  padding: clamp(4.5rem, 8vw, 7rem) 1.5rem clamp(4rem, 7vw, 6rem);
+  padding: clamp(3.5rem, 5vw, 5rem) 1.5rem 3.5rem;
 }
 
 .ww-hero-copy {
@@ -214,12 +239,11 @@
 }
 
 .ww-hero-headline {
-  font-family: var(--font-instrument), -apple-system, BlinkMacSystemFont,
-    "SF Pro Display", system-ui, sans-serif;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
   font-weight: 600;
   letter-spacing: -0.015em;
-  line-height: 0.99;
-  font-size: clamp(2.85rem, 5.7vw, 4.75rem);
+  line-height: 1.1;
+  font-size: clamp(2.375rem, 5.7vw, 4.625rem);
   margin: 0;
   text-wrap: balance;
 }
@@ -315,9 +339,7 @@
   border: 1px solid color-mix(in srgb, var(--hairline) 78%, var(--brand-500));
   border-radius: 1.6rem;
   background: color-mix(in srgb, var(--bg-elev) 94%, var(--brand-50));
-  box-shadow: 0 30px 80px -46px rgba(10, 132, 255, 0.52),
-    0 10px 28px -20px rgba(0, 0, 0, 0.3);
-  transform: rotate(1.2deg);
+  box-shadow: 0 10px 28px -20px rgba(0, 0, 0, 0.2);
 }
 
 .dark .ww-product-window {
@@ -411,37 +433,6 @@
   margin-top: 1.2rem;
 }
 
-.ww-player-art {
-  position: relative;
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: clamp(5rem, 12vw, 7rem);
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 1.1rem;
-  background: linear-gradient(140deg, #536dff 2%, var(--brand-500) 48%, #1d3caa 100%);
-  color: rgba(255, 255, 255, 0.94);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 12px 32px -20px rgba(10, 132, 255, 0.8);
-}
-
-.ww-player-art > svg {
-  position: relative;
-  z-index: 1;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.2));
-}
-
-.ww-art-orbit {
-  position: absolute;
-  width: 74%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 50%;
-  box-shadow: 0 0 0 0.8rem rgba(255, 255, 255, 0.06),
-    0 0 0 1.6rem rgba(255, 255, 255, 0.04);
-}
-
 .ww-player-metadata {
   display: flex;
   min-width: 0;
@@ -494,7 +485,7 @@
   justify-content: space-between;
   margin-top: 0.45rem;
   color: var(--txt-2);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
   font-size: 0.65rem;
 }
 
@@ -509,7 +500,7 @@
 }
 
 .ww-sync-heading span:last-child {
-  color: #248a43;
+  color: #176b35;
 }
 
 .dark .ww-sync-heading span:last-child { color: #30d158; }
@@ -646,8 +637,8 @@ a.ww-proof-chip:hover {
   }
 
   .ww-hero-headline {
-    font-size: clamp(2.7rem, 12vw, 3.5rem);
-    line-height: 1.01;
+    font-size: 2.375rem;
+    line-height: 1.1;
   }
 
   .ww-hero-description { margin-top: 1.15rem; }
@@ -663,6 +654,56 @@ a.ww-proof-chip:hover {
   .ww-sync-destinations { gap: 0.42rem; }
   .ww-sync-destinations > span { padding: 0.48rem 0.55rem; font-size: 0.7rem; }
   .ww-stage-caption { font-size: 0.72rem; }
+}
+
+/* A single product preview, with room for the headline to breathe. */
+.ww-broadcast-hero { background: var(--bg-base); }
+.ww-broadcast-hero .ww-home-hero {
+  align-items: center;
+  padding-block: clamp(4rem, 8vw, 7rem);
+}
+.ww-broadcast-hero .ww-hero-stage { padding: 0; max-width: 31rem; }
+.ww-broadcast-hero .ww-hero-stage { isolation: isolate; }
+.ww-broadcast-hero .ww-hero-stage::before {
+  content: "";
+  position: absolute;
+  inset: -4rem;
+  z-index: -1;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--brand-500) 9%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.ww-legacy-anchors { height: 0; }
+.ww-legacy-anchors span { scroll-margin-top: 6rem; }
+.ww-broadcast-hero .ww-player-overline,
+.ww-broadcast-hero .ww-player-time { font-size: 0.75rem; }
+.ww-hero-install-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 44px;
+  color: var(--txt-2);
+  font-size: .9375rem;
+  text-underline-offset: 4px;
+}
+.ww-hero-install-link:hover { color: var(--txt-1); text-decoration: underline; }
+.ww-hero-demo-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+  margin-top: .5rem;
+  color: var(--txt-2);
+  font-size: .8125rem;
+}
+.ww-hero-demo-footer button {
+  min-height: 44px;
+  padding-inline: .5rem;
+  color: var(--brand-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */
@@ -838,7 +879,7 @@ a.ww-proof-chip:hover {
   .ww-code,
   .ww-dev-window,
   .fd-card,
-  a[data-card]:not(.peer),
+  a[data-card]:not(.peer):not([href^="#"]),
   div[data-card] {
     corner-shape: squircle;
   }
@@ -872,7 +913,7 @@ a.ww-proof-chip:hover {
   border: 1px solid var(--hairline);
   border-radius: 0.9rem;
   padding: 1.25rem 1.4rem;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
   font-size: 0.82rem;
   line-height: 1.7;
   overflow-x: auto;
@@ -927,8 +968,7 @@ a.ww-proof-chip:hover {
    system stack (SF Pro on Mac); the display face is reserved for headlines
    >= ~28px, see .ww-hero-headline / .ww-display. */
 #nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]) {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
-    sans-serif;
+  font-family: var(--font-roboto), var(--ds-font-family-sans);
   font-size: 0.9rem;
   font-weight: 500;
   letter-spacing: -0.005em;
@@ -940,6 +980,13 @@ a.ww-proof-chip:hover {
 #nd-nav a[href]:not(:has([data-ww-brand])):not([aria-label]):hover {
   background-color: var(--bg-surface);
   color: var(--txt-1);
+}
+
+#nd-nav a[href][href$="/download"]:not([aria-label]),
+#nd-nav a[href][href$="/download/"]:not([aria-label]) {
+  padding: .6rem 1rem;
+  background: var(--brand-fill);
+  color: #fff;
 }
 
 /* GitHub icon. Pill ghost */
@@ -1075,11 +1122,10 @@ html {
    Display-font page title, refined heading rhythm, real link
    styling, editorial blockquotes, branded list markers. ───── */
 
-/* Page title: the Instrument Sans display face, same as the landing hero. */
+/* Page title: the Montserrat display face, same as the landing hero. */
 [class*="prose"] h1:not(.docs-hero-title),
 .fd-prose h1:not(.docs-hero-title) {
-  font-family: var(--font-instrument), -apple-system, BlinkMacSystemFont,
-    "SF Pro Display", system-ui, sans-serif;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.08;
@@ -1199,8 +1245,8 @@ article:has(.docs-hero) > p:first-of-type,
 /* Docs hero. Only on /docs landing where `.docs-hero` wraps the intro */
 .docs-hero {
   position: relative;
-  padding: 2rem 0 3rem;
-  margin-bottom: 2.5rem;
+  padding: 0.5rem 0 1.5rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--hairline);
 }
 .docs-hero::before {
@@ -1240,7 +1286,7 @@ article:has(.docs-hero) > p:first-of-type,
 
 .docs-eyebrow {
   display: inline-block;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -1250,12 +1296,11 @@ article:has(.docs-hero) > p:first-of-type,
 }
 
 .docs-hero-title {
-  font-family: var(--font-instrument), -apple-system, BlinkMacSystemFont,
-    "SF Pro Display", system-ui, sans-serif;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.02;
-  font-size: clamp(2.5rem, 6vw, 4.25rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   color: var(--txt-1);
   margin: 0 0 1.25rem !important;
 }
@@ -1286,16 +1331,16 @@ article:has(.docs-hero) > p:first-of-type,
 
 /* Refined Fumadocs Card. Match marketing landing ww-card aesthetic */
 .fd-card,
-a[data-card]:not(.peer),
+a[data-card]:not(.peer):not([href^="#"]),
 div[data-card] {
   border: 1px solid var(--hairline) !important;
-  border-radius: 1rem !important;
+  border-radius: 0.75rem !important;
   background-color: var(--bg-elev) !important;
   transition: transform 0.2s ease, border-color 0.2s ease,
     box-shadow 0.2s ease !important;
 }
 .fd-card:hover,
-a[data-card]:not(.peer):hover,
+a[data-card]:not(.peer):not([href^="#"]):hover,
 div[data-card]:hover {
   border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
   background-color: color-mix(in srgb, var(--brand-50) 50%, var(--bg-elev)) !important;
@@ -1324,17 +1369,18 @@ div[data-card]:hover {
   border: 0 !important;
   border-bottom: 1px solid var(--hairline) !important;
   border-radius: 0 !important;
-  padding: 0.5rem !important;
-  gap: 0.25rem !important;
+  padding: 0 1rem !important;
+  gap: 1rem !important;
   margin: 0 !important;
   /* Wrap rather than scroll: on phones the last tab sat off-screen behind
      a hidden scrollbar. */
   flex-wrap: wrap;
 }
 [class*="prose"] [role="tab"] {
-  border-radius: 9px !important;
-  padding: 0.45rem 0.8rem !important;
-  font-size: 0.82rem !important;
+  border-radius: 0 !important;
+  min-height: 44px;
+  padding: 0.65rem 0 !important;
+  font-size: 0.875rem !important;
   font-weight: 500;
   color: var(--txt-2) !important;
   background-color: transparent !important;
@@ -1346,11 +1392,26 @@ div[data-card]:hover {
 }
 [class*="prose"] [role="tab"][data-state="active"],
 [class*="prose"] [role="tab"][aria-selected="true"] {
-  background-color: var(--brand-50) !important;
+  background-color: transparent !important;
+  border-bottom-color: var(--brand-600) !important;
   color: var(--brand-600) !important;
 }
 [class*="prose"] [role="tabpanel"] {
-  padding-top: 0.85rem !important;
+  padding: 1.25rem !important;
+  border-radius: 0 !important;
+  font-size: 1rem !important;
+  line-height: 1.75;
+}
+[class*="prose"] [role="tab"]:focus-visible,
+[class*="prose"] [role="tabpanel"]:focus-visible {
+  outline: 2px solid var(--brand-600) !important;
+  outline-offset: -2px;
+}
+[class*="prose"] [role="tabpanel"] > :first-child {
+  margin-top: 0;
+}
+[class*="prose"] [role="tabpanel"] > :last-child {
+  margin-bottom: 0;
 }
 
 /* Docs tables. Flat hairline grid, centered status cells, and a sticky
@@ -1361,7 +1422,7 @@ div[data-card]:hover {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   border-top: 1px solid var(--hairline);
   border-left: 1px solid var(--hairline);
 }

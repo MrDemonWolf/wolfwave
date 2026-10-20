@@ -105,7 +105,7 @@ function WidgetCard({
     color: theme.textPrimary,
     textShadow: theme.textShadow,
     fontFamily:
-      "'Instrument Sans', var(--ds-font-family-sans), system-ui, sans-serif",
+      "var(--font-roboto), var(--ds-font-family-sans), system-ui, sans-serif",
     overflow: "hidden" as const,
     width: "100%",
     maxWidth: dims.maxWidth,

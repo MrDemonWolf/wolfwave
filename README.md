@@ -103,6 +103,9 @@ update with `brew upgrade --cask`.
   overlay with a read-only token.
 - **Light on OBS.** Progress updates are batched, rendering sleeps
   while hidden, and Reduce Motion turns off continuous animation.
+- **Smoother updates.** Repeated snapshots preserve artwork and Vinyl
+  rotation. Preset text contrast is checked against light and dark scenes;
+  custom colors still need checking against your scene.
 
 **Stream Deck (optional)**
 
@@ -222,6 +225,11 @@ trusted network only.
 
 Full docs live at
 [mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave).
+
+Read released updates on the public [Changelog](https://mrdemonwolf.github.io/wolfwave/changelog/),
+or explore the [Design system](https://mrdemonwolf.github.io/wolfwave/design-system/)
+for typography, measured color pairs, components, and motion. Unreleased notes
+stay in the repository and are excluded from the website's changelog and search.
 
 - [Installation](https://mrdemonwolf.github.io/wolfwave/docs/installation)
 - [Features](https://mrdemonwolf.github.io/wolfwave/docs/features)

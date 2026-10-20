@@ -1,0 +1,42 @@
+.page { color: var(--txt-1); }
+.hero, .section { max-width: 72rem; margin-inline: auto; padding: 5rem 1.5rem; }
+.hero { padding-top: 6rem; }
+.hero h1 { font-size: clamp(2.375rem, 5.6vw, var(--ds-font-size-web-hero)); line-height: 1.1; margin-block: 1.5rem; max-width: 60rem; }
+.intro { font-size: 1.25rem; line-height: 1.7; max-width: 43rem; color: var(--txt-2); }
+.links { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.75rem; }
+.section { border-top: 1px solid var(--hairline); scroll-margin-top: 6rem; }
+.heading { max-width: 44rem; margin-bottom: 2rem; }
+.heading h2 { font-size: clamp(1.875rem, 3.8vw, var(--ds-font-size-web-section)); line-height: 1.15; margin-block: 1rem; }
+.heading > p:last-child, .specimen > p { line-height: 1.75; }
+.heading > p:last-child { color: var(--txt-2); }
+.typeGrid, .colorGrid, .componentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.specimen, .palette { padding: 2rem; border: 1px solid var(--hairline); border-radius: 1.25rem; background: var(--bg-surface); min-width: 0; }
+.label { font-size: .875rem; color: var(--txt-2); font-weight: 600; }
+.displaySample { font-family: var(--font-montserrat), var(--ds-font-family-display); font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.15 !important; font-weight: 500; margin-block: 1.75rem; letter-spacing: -.03em; }
+.bodySample { font-size: 1.125rem; margin-block: 1.75rem; }
+.scale { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
+.scale span { display: grid; gap: .25rem; color: var(--txt-2); font-size: .875rem; }
+.scale strong { font-size: 1.25rem; color: var(--txt-1); }
+.note { color: var(--txt-2); font-size: .9375rem; line-height: 1.75; max-width: 54rem; margin-top: 1.5rem; }
+.palette h3, .specimen h3 { display: flex; align-items: center; gap: .625rem; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; }
+.palette > p { line-height: 1.7; margin-bottom: 1.5rem; }
+.colorRow { display: flex; align-items: center; gap: .75rem; padding-block: 1rem; }
+.swatch { width: 2rem; height: 2rem; border-radius: .5rem; flex-shrink: 0; }
+.colorRow code { display: block; font-size: .875rem; margin-top: .25rem; }
+.colorRow strong { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.colorRow strong span { display: block; font-size: .875rem; font-weight: 400; }
+.specimen h3 { margin-top: 1rem; }
+.motionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.motionSample { text-align: left; cursor: pointer; }
+.duration { display: block; font-size: 2.5rem; font-weight: 500; margin-block: .5rem; }
+.duration span { font-size: 1rem; margin-left: .25rem; }
+.motionTrack { display: block; background: var(--hairline); height: .5rem; border-radius: 1rem; overflow: hidden; }
+.motionTrack span { display: block; height: 100%; width: 25%; background: var(--brand-fill); border-radius: inherit; transition: transform var(--ds-motion-easing-standard); }
+.specimen:hover .motionTrack span, .specimen:focus-within .motionTrack span { transform: translateX(300%); }
+@media (max-width: 767px) {
+  .hero, .section { padding: 3.5rem 10%; }
+  .hero { padding-top: 4rem; }
+  .typeGrid, .colorGrid, .componentGrid, .motionGrid { grid-template-columns: 1fr; }
+  .specimen, .palette { padding: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { .motionTrack span { transition: none; } }

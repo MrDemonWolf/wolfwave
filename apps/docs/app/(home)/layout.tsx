@@ -47,7 +47,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
               </>
             ) : null}
           </p>
-          <nav className="flex items-center gap-6 text-sm ww-text-2">
+          <nav aria-label="Footer" className="flex flex-wrap justify-center items-center gap-6 text-sm ww-text-2">
             <a
               href="https://github.com/MrDemonWolf/WolfWave"
               target="_blank"
@@ -66,6 +66,12 @@ export default function Layout({ children }: LayoutProps<"/">) {
             </a>
             <Link href="/docs" className="hover:ww-text-1 transition-colors">
               Docs
+            </Link>
+            <Link href="/changelog" className="hover:ww-text-1 transition-colors">
+              Changelog
+            </Link>
+            <Link href="/design-system" className="hover:ww-text-1 transition-colors">
+              Design system
             </Link>
             <Link
               href="/docs/privacy-policy"

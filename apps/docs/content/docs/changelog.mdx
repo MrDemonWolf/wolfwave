@@ -26,6 +26,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Added
 
+- **Public release notes and design system.** The website now has dedicated [Changelog](/changelog) and [Design System](/design-system) pages. Unreleased notes stay in the repository until release.
 - **Sync settings with iCloud.** Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and your preferences follow you to every Mac with the switch on. Sign-ins, tokens, and permissions never sync, so you still connect Twitch once per Mac. Off by default, and the newest change wins. Server switches, ports, the update channel, and diagnostics stay per Mac. See [Back Up & Restore](/docs/backup#sync-with-icloud).
 - **Custom commands choose how they answer.** Each custom command has a "How it's sent" setting: reply to the chatter (the default), a plain chat message, or a Twitch announcement. Announcements need a mod account and a one-time Twitch reconnect. If Twitch refuses, WolfWave sends a reply instead and tells you why.
 - **Links that open Settings in the right place.** `wolfwave://settings/<pane>` and `wolfwave://settings/<pane>/<section>` open a pane, scroll to the section, and highlight it, even if Settings is already open. An unknown link opens General. The full list is on the [Settings](/docs/settings#deep-links) page.
@@ -36,6 +37,11 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Changed
 
+- **Updated website and tooling dependencies.** Refreshed the website framework, documentation components, overlay test environment, Stream Deck SDK, and marketing tooling.
+
+- **Simpler documentation.** The sidebar separates getting started, everyday guides, and help. The docs home is shorter, and setup tabs have larger targets, clearer selection and keyboard focus, and consistent reading space. Landing feature cards link directly to their guides, and scroll entrances replay when you return to a section.
+
+- **A clearer website and smoother overlays.** The landing page uses five focused sections, six common questions, and a trimmed navigation, with detailed answers grouped in the full FAQ. Cards and previews move into place on scroll, with reduced-motion support. Updated search descriptions, Montserrat and Roboto typography, and stronger text contrast improve readability. Overlay updates preserve artwork and Vinyl rotation; preset text colors are checked against light and dark scenes.
 - **Breaking: Stream Deck protocol v3. Update the plugin and the app together.** Until both match, every key shows `Update`. The Discord Presence, Music Sync, Cycle Theme, and Status keys are gone: change those in Settings, and use Now Playing instead of Status. Clear Queue now fires only if you hold it for about a second, because it can't be undone.
 - **Stream Deck keys are easier to read.** An active key is solid blue, Clear Queue and Block Song are red, and Approve Next turns amber when requests are waiting. Queue keys show their count as a big number, Now Playing scrolls long titles across the album art, and titles you set on a key are no longer overwritten.
 - **The Stream Deck panel checks your token.** It saves a valid control token as soon as you paste it, then shows "Connected", "WolfWave rejected this token", or "Update the plugin". The old green message now reads "Token format is valid", because it only checks the shape.
