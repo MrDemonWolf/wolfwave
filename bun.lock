@@ -55,7 +55,7 @@
       "name": "streamdeck",
       "version": "0.0.0",
       "dependencies": {
-        "@elgato/streamdeck": "^2.1.2",
+        "@elgato/streamdeck": "^3.0.2",
         "ws": "^8.22.0",
       },
       "devDependencies": {
@@ -124,9 +124,9 @@
 
     "@elgato/schemas": ["@elgato/schemas@0.5.3", "", {}, "sha512-S/r+ToNqz6qPy8Kzizt+hQDjICFMgLYXy/b8h7OZ4FpSHTZtWPjh6zAn9iidwPoXR3qs55zM4Oh9JRhIfKVopw=="],
 
-    "@elgato/streamdeck": ["@elgato/streamdeck@2.1.2", "", { "dependencies": { "@elgato/schemas": "^0.4.14", "@elgato/utils": "0.6.0", "ws": "^8.19.0" } }, "sha512-qj6NuDyYj8bE+XFnr+O5ynB1zojwugfWiK3oQYwweaOzOFs7fEE21v9z75EPC8wQr3cuuzI7m557TQLn5k/4mA=="],
+    "@elgato/streamdeck": ["@elgato/streamdeck@3.0.2", "", { "dependencies": { "@elgato/schemas": "0.5.2", "@elgato/utils": "0.6.1", "ws": "^8.19.0" } }, "sha512-apVu9j08QlfdkEjs8ZCSXCHL7qXzNk/9e2Ey9gcPqT5NNzLdLKGiM8Y6Xx5Qmk/t/U+VbZtPCbXk/2r7L1QTRg=="],
 
-    "@elgato/utils": ["@elgato/utils@0.6.0", "", { "dependencies": { "zod": "^3.25.24" } }, "sha512-DkBf07zo0qzHkoMO2L8HSDlfEwI56rI0fWedJjXcafPpoePoZ/nzqi+xL60Ad2KpQzCxstyN65oqVZ/Ar6woNg=="],
+    "@elgato/utils": ["@elgato/utils@0.6.1", "", { "dependencies": { "zod": "^3.25.24" } }, "sha512-R3YZWdBlg1ffLny8EmAaZuh7qe+FahGHHwVzCUixnhZObuq4UPhv25ev+PxzgeJRwtpP6P/TVqOw7FFIYThllg=="],
 
     "@emnapi/core": ["@emnapi/core@1.10.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw=="],
 
@@ -2120,7 +2120,7 @@
 
     "@elgato/cli/ignore": ["ignore@7.0.13", "", {}, "sha512-2E8Q6rh+1RRSq/YdaGsNfXsEZy9FVqv6BSSrkmZJP7BnaoPnRfKL+YaofPvP+5rzdk144qSm6i4+hvPgUcbV4Q=="],
 
-    "@elgato/streamdeck/@elgato/schemas": ["@elgato/schemas@0.4.16", "", {}, "sha512-PFEi6F36ImO5KCSNHui9o/uXkwjca3hk5b95Df7LgNBdQYREXT3B+P3tYoz6avRuOPlArkKFSkOOvH6RRpjvLQ=="],
+    "@elgato/streamdeck/@elgato/schemas": ["@elgato/schemas@0.5.2", "", {}, "sha512-o3WKn69nKh4orOJZdB5Ei3OXktscFOzSO2s4mIlEEkO+wvs/b38IjSzV/dOFKjux2crTWobAmw7W1d5Vm+VucQ=="],
 
     "@elgato/utils/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
