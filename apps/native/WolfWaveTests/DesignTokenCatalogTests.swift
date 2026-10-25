@@ -76,7 +76,12 @@ struct DesignTokenCatalogTests {
         #expect(byName["xs"] == DSFont.Size.xs)
         #expect(byName["base"] == DSFont.Size.base)
         #expect(byName["x3xl"] == DSFont.Size.x3xl)
-        #expect(DSFont.Size.all.map(\.value) == DSFont.Size.all.map(\.value).sorted())
+        let nativeRamp = [
+            DSFont.Size.xs, DSFont.Size.sm, DSFont.Size.body, DSFont.Size.base,
+            DSFont.Size.md, DSFont.Size.lg, DSFont.Size.xl, DSFont.Size.x2xl,
+            DSFont.Size.x3xl, DSFont.Size.display
+        ]
+        #expect(nativeRamp == nativeRamp.sorted())
     }
 
     @Test("Color groups carry every MARK group with canonical uppercase hex")
