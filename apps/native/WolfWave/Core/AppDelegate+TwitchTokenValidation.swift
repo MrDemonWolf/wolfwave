@@ -69,16 +69,20 @@ extension AppDelegate {
     /// opens Settings; missing scopes and outages only log.
     func restartTwitchTokenValidationSchedule() {
         cancelTwitchBootValidation()
-        guard Self.currentTwitchValidationCredential() != nil else {
-            setReauthNeeded(false)
-            return
-        }
 
         twitchBootValidationGeneration &+= 1
         let generation = twitchBootValidationGeneration
         let service = twitchService
         let clientID = TwitchChatService.resolveClientID() ?? ""
         let task = Task { [weak self] in
+            let credential = await Self.loadTwitchValidationCredential()
+            guard !Task.isCancelled,
+                  self?.twitchBootValidationGeneration == generation else { return }
+            guard credential != nil else {
+                self?.setReauthNeeded(false)
+                self?.twitchBootValidationTask = nil
+                return
+            }
             await TwitchBootTokenValidationRunner.runSchedule(
                 credentials: { Self.currentTwitchValidationCredential() },
                 validate: { candidate in
@@ -92,51 +96,26 @@ extension AppDelegate {
                 },
                 onValid: {
                     [weak self] credential, isFirstValidForAccount, rotatedFrom in
-                    guard let self,
-                          !Task.isCancelled,
-                          self.twitchBootValidationGeneration == generation,
-                          Self.currentTwitchValidationCredential() == credential else { return }
-
-                    if let rotatedFrom, let service {
-                        let adopted = await service.adoptRefreshedAccessCredential(
-                            credential.accessExpectation,
-                            replacing: rotatedFrom.accessExpectation
-                        )
-                        guard !Task.isCancelled,
-                              self.twitchBootValidationGeneration == generation,
-                              Self.currentTwitchValidationCredential() == credential else {
-                            return
-                        }
-                        if !adopted {
-                            Log.debug(
-                                "AppDelegate: Rotated Twitch credential had no matching active service state",
-                                category: .twitch
-                            )
-                        }
-                    }
-
-                    self.setReauthNeeded(false)
-                    guard !Task.isCancelled,
-                          self.twitchBootValidationGeneration == generation,
-                          Self.currentTwitchValidationCredential() == credential else { return }
-                    if isFirstValidForAccount, service?.currentlyConnected != true {
-                        await self.autoReconnectTwitchIfPossible(credential: credential)
-                    }
+                    await self?.handleValidatedTwitchCredential(
+                        credential, rotatedFrom: rotatedFrom,
+                        isFirstValidForAccount: isFirstValidForAccount,
+                        generation: generation, service: service
+                    )
                 },
                 onInvalid: { [weak self] credential in
                     guard let self,
+                          await Self.loadTwitchValidationCredential() == credential,
                           !Task.isCancelled,
-                          self.twitchBootValidationGeneration == generation,
-                          Self.currentTwitchValidationCredential() == credential else { return }
+                          self.twitchBootValidationGeneration == generation else { return }
                     self.setReauthNeeded(true)
                     self.showTwitchAuthNotification()
                     self.openSettingsToTwitch()
                 },
                 onMissingScopes: { [weak self] credential, scopes in
                     guard let self,
+                          await Self.loadTwitchValidationCredential() == credential,
                           !Task.isCancelled,
-                          self.twitchBootValidationGeneration == generation,
-                          Self.currentTwitchValidationCredential() == credential else { return }
+                          self.twitchBootValidationGeneration == generation else { return }
                     // Explicitly NOT setReauthNeeded: the session is live, chat
                     // keeps working, and that flag would also stop the hourly
                     // validator. Only the feature needing the scope is affected,
@@ -148,7 +127,8 @@ extension AppDelegate {
                     )
                 },
                 onTemporarilyUnavailable: { credential in
-                    guard Self.currentTwitchValidationCredential() == credential else { return }
+                    guard await Self.loadTwitchValidationCredential() == credential,
+                          !Task.isCancelled else { return }
                     Log.warn(
                         "AppDelegate: Twitch token validation temporarily unavailable; keeping credentials",
                         category: .twitch)
@@ -161,6 +141,42 @@ extension AppDelegate {
         twitchBootValidationTask = task
     }
 
+    private func handleValidatedTwitchCredential(
+        _ credential: TwitchBootTokenValidationRunner.Credential,
+        rotatedFrom: TwitchBootTokenValidationRunner.Credential?,
+        isFirstValidForAccount: Bool,
+        generation: UInt64,
+        service: TwitchChatService?
+    ) async {
+        guard await Self.loadTwitchValidationCredential() == credential,
+              !Task.isCancelled,
+              twitchBootValidationGeneration == generation else { return }
+
+        if let rotatedFrom, let service {
+            let adopted = await service.adoptRefreshedAccessCredential(
+                credential.accessExpectation,
+                replacing: rotatedFrom.accessExpectation
+            )
+            guard await Self.loadTwitchValidationCredential() == credential,
+                  !Task.isCancelled,
+                  twitchBootValidationGeneration == generation else { return }
+            if !adopted {
+                Log.debug(
+                    "AppDelegate: Rotated Twitch credential had no matching active service state",
+                    category: .twitch
+                )
+            }
+        }
+
+        setReauthNeeded(false)
+        guard await Self.loadTwitchValidationCredential() == credential,
+              !Task.isCancelled,
+              twitchBootValidationGeneration == generation else { return }
+        if isFirstValidForAccount, service?.currentlyConnected != true {
+            await autoReconnectTwitchIfPossible(credential: credential)
+        }
+    }
+
     /// Cancels any app-lifetime validation that an account change or shutdown
     /// superseded.
     func cancelTwitchBootValidation() {
@@ -171,6 +187,12 @@ extension AppDelegate {
 
     /// Reads access token and account revision in one credential-store critical
     /// section so the hourly runner never constructs a cross-revision pair.
+    @concurrent
+    private static func loadTwitchValidationCredential() async
+        -> TwitchBootTokenValidationRunner.Credential? {
+        currentTwitchValidationCredential()
+    }
+
     nonisolated private static func currentTwitchValidationCredential()
         -> TwitchBootTokenValidationRunner.Credential? {
         guard let snapshot = TwitchCredentialStore.shared
@@ -194,7 +216,7 @@ extension AppDelegate {
             Log.debug("AppDelegate: Skipping Twitch auto-reconnect: no Client ID", category: .twitch)
             return
         }
-        guard let snapshot = TwitchCredentialStore.shared.connectionSnapshot(
+        guard let snapshot = await TwitchCredentialStore.shared.loadConnectionSnapshot(
             matchingAccessToken: credential.token
         ),
               snapshot.revision == credential.revision,
@@ -205,11 +227,11 @@ extension AppDelegate {
         }
 
         Log.info("AppDelegate: Auto-reconnecting Twitch to channel \(channel)", category: .twitch)
-        guard !Task.isCancelled,
-              TwitchCredentialStore.shared.connectionSnapshot() == snapshot else { return }
+        guard await TwitchCredentialStore.shared.loadConnectionSnapshot() == snapshot,
+              !Task.isCancelled else { return }
         await service.setShouldSendConnectionMessageOnSubscribe(false)
-        guard !Task.isCancelled,
-              TwitchCredentialStore.shared.connectionSnapshot() == snapshot else { return }
+        guard await TwitchCredentialStore.shared.loadConnectionSnapshot() == snapshot,
+              !Task.isCancelled else { return }
         do {
             try await service.connectToChannel(
                 channelName: channel,

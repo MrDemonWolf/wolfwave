@@ -204,7 +204,7 @@ nonisolated enum TwitchBootTokenValidationRunner {
     ///   - validationInterval: Gap between passes. Twitch asks apps to
     ///     validate hourly, hence the default.
     ///   - credentials: Reads the currently stored credential, or `nil` when
-    ///     signed out. Called often; must be cheap and synchronous.
+    ///     signed out. Runs on the concurrent executor, never the main actor.
     ///   - retrySleep: Backoff sleep inside a pass.
     ///   - cadenceSleep: Sleep between passes. A throw ends the schedule.
     ///   - onValid: `(credential, isFirstValidForRevision, rotatedFrom)`.
@@ -216,6 +216,7 @@ nonisolated enum TwitchBootTokenValidationRunner {
     ///     keeps running.
     ///   - onTemporarilyUnavailable: No verdict this pass. The schedule keeps
     ///     running and tries again after the cadence sleep.
+    @concurrent
     static func runSchedule(
         validationInterval: Duration = .seconds(3_600),
         credentials: @escaping @Sendable () -> Credential?,

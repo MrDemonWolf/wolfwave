@@ -51,6 +51,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Credential prompts leave the interface responsive.** Startup Twitch validation, automatic reconnect checks, and the General dashboard read credentials away from the main actor instead of waiting on Keychain locks in the interface.
 - **Local builds reuse an available Apple signing identity.** Debug builds and tests prefer Apple Development, then Developer ID Application, so rebuilds do not keep changing the app's identity. Moving from an unsigned build may still require a one-time macOS data-access confirmation.
 - **CI checks cover every changed area.** An aggregate check verifies the applicable native, UI, docs, Stream Deck, and lint jobs. Sponsor refreshes report a missing token instead of failing every day.
 - **App Visibility follows the selected mode.** Menu Bar Only hides the Dock icon after the last window closes, and Dock Only hides the menu bar item as soon as WolfWave starts.

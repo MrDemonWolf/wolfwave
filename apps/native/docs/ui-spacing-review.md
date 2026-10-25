@@ -67,7 +67,10 @@ spacing, and responsive columns retain their existing roles.
 - [ ] Compare section boundaries, title alignment, and card edges across panes.
 - [ ] Review the rendered changes with Nathanial before calling the spacing work complete.
 
-The signed build compiles. Runtime inspection is currently blocked during macOS
-sandbox-container initialization after the app's signing identity changed. The
-system confirmation needs a manual response. Do not infer visual success from
-a passing build or from a screenshot of a different pane.
+The signed spacing build compiles. Initial test hosts waited in macOS container
+initialization after the signing identity changed. A subsequent normal-launch
+sample identified another blocker: startup token validation waited on the main
+thread for a credential lock held across a background Keychain read. Startup
+validation and the General dashboard credential read now suspend off the main
+actor; runtime verification is pending. Do not infer visual success from a
+passing build or from a screenshot of a different pane.

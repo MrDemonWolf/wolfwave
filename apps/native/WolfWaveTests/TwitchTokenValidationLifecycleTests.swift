@@ -19,6 +19,19 @@ import XCTest
 final class TwitchTokenValidationLifecycleTests: XCTestCase {
     typealias Runner = TwitchBootTokenValidationRunner
 
+    func testScheduledCredentialReadsStayOffTheMainThread() async {
+        let readOnMainThread = ThreadSafeBox<Bool?>(nil)
+        await Runner.runSchedule(
+            credentials: {
+                readOnMainThread.mutate { $0 = Thread.isMainThread }
+                return nil
+            },
+            validate: { _ in .temporarilyUnavailable },
+            refresh: { _ in .invalid }
+        )
+        XCTAssertEqual(readOnMainThread.value, false)
+    }
+
     func testTransientValidationRetriesAreBoundedWithExponentialDelays() async {
         let validationCount = ThreadSafeBox(0)
         let refreshCount = ThreadSafeBox(0)

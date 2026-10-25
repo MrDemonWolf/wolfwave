@@ -798,9 +798,10 @@ extension AppDelegate {
 
         // Twitch: leave then rejoin when creds + channel + clientID are all present.
         if let twitch = twitchService, twitch.currentlyConnected {
-            let credential = TwitchCredentialStore.shared.connectionSnapshot()
             let clientID = TwitchChatService.resolveClientID()
             Task {
+                let credential = await TwitchCredentialStore.shared.loadConnectionSnapshot()
+                guard !Task.isCancelled else { return }
                 guard await twitch.leaveChannel() else {
                     Log.warn(
                         "AppDelegate: Aborted Twitch restart because channel teardown was not safe",
@@ -812,14 +813,16 @@ extension AppDelegate {
                 // sign-out or account switch landed meanwhile, the snapshot no
                 // longer matches and the rejoin is skipped.
                 guard let credential,
-                      TwitchCredentialStore.shared.connectionSnapshot() == credential,
+                      await TwitchCredentialStore.shared.loadConnectionSnapshot() == credential,
+                      !Task.isCancelled,
                       let channel = credential.channelID, !channel.isEmpty,
                       let clientID, !clientID.isEmpty else {
                     Log.info("AppDelegate: Skipped Twitch rejoin (missing creds or channel)", category: .app)
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(250))
-                guard TwitchCredentialStore.shared.connectionSnapshot() == credential else {
+                guard await TwitchCredentialStore.shared.loadConnectionSnapshot() == credential,
+                      !Task.isCancelled else {
                     Log.info(
                         "AppDelegate: Skipped stale Twitch rejoin after credentials changed",
                         category: .app
