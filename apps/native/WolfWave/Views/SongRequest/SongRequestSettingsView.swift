@@ -67,8 +67,7 @@ struct SongRequestSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                // Broken-playlist banner sits above everything so a "needs setup
-                // again" state is the first thing the streamer sees.
+                SongRequestHeader()
                 if playlistStatus != .ok {
                     SongRequestHealthBanner(
                         status: playlistStatus,
@@ -76,11 +75,14 @@ struct SongRequestSettingsView: View {
                     )
                 }
 
-                SongRequestHeader()
                 if isCheckingPlaylistHealth {
                     LoadingRow(text: "Checking Apple Music playlist…")
                 }
                 twitchNotice
+                if songRequestEnabled && setupComplete {
+                    SongRequestQueueView()
+                        .deepLinkSection("queue")
+                }
                 SongRequestMasterToggleCard(
                     isTwitchConnected: isTwitchConnected,
                     setupComplete: setupComplete,
@@ -96,11 +98,6 @@ struct SongRequestSettingsView: View {
                 // the feature is on. Apple Music access is handled inside the
                 // setup sheet, so there's no inline auth card here anymore.
                 if songRequestEnabled && setupComplete {
-                    // Keep the live queue first, then group settings by task so
-                    // request sources, playback behavior, and moderation scan separately.
-                    SongRequestQueueView()
-                        .deepLinkSection("queue")
-
                     VStack(alignment: .leading, spacing: DSSpace.s4) {
                         Text("Request setup")
                             .sectionHeader()
@@ -280,11 +277,15 @@ fileprivate struct SongRequestHeader: View {
             )
             .accessibilityAddTraits(.isHeader)
 
-            CalloutBanner(
+            DisclosureGroup("How it works") {
+                CalloutBanner(
                 "Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.",
-                title: "How it works",
-                style: .info
-            )
+                    title: "How it works",
+                    style: .info
+                )
+            }
+            .font(.system(size: DSFont.Size.base))
+            .accessibilityIdentifier("songRequests.howItWorks")
         }
         // `.contain`, not `.combine`: VoiceOver reaches the heading and the
         // "How it works" callout as separate elements instead of one long

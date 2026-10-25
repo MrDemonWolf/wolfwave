@@ -41,15 +41,19 @@ struct OnboardingTwitchStepView: View {
             },
             extras: {
                 Group {
-                    switch twitchViewModel.integrationState {
-                    case .notConnected:
-                        notConnectedContent
-                    case .authorizing:
-                        authorizingContent
-                    case .connected:
-                        connectedContent
-                    case .error(let message):
-                        errorContent(message: message)
+                    if twitchViewModel.isLoadingSavedCredentials {
+                        LoadingRow(text: "Loading Twitch account…")
+                    } else {
+                        switch twitchViewModel.integrationState {
+                        case .notConnected:
+                            notConnectedContent
+                        case .authorizing:
+                            authorizingContent
+                        case .connected:
+                            connectedContent
+                        case .error(let message):
+                            errorContent(message: message)
+                        }
                     }
                 }
                 .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
@@ -58,8 +62,8 @@ struct OnboardingTwitchStepView: View {
         // Load any stored sign-in (so a returning user lands on Connected), and
         // attach the running chat service if the view model has none yet, so
         // Join can actually connect.
-        .onAppear {
-            twitchViewModel.loadSavedCredentials()
+        .task {
+            await twitchViewModel.loadSavedCredentials()
             if twitchViewModel.twitchService == nil {
                 if let appDelegate = AppDelegate.shared {
                     twitchViewModel.twitchService = appDelegate.twitchService

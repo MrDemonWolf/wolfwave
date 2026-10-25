@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Clearer pane headings and queue access.** History & Stats has a full pane heading. Song Requests keeps its title aligned, folds the explainer behind “How it works,” and puts the active queue before configuration controls.
 - **Consistent spacing across Settings.** Twitch, Discord, Software Update, Advanced, and About use the same section spacing as the other panes, while related controls keep their tighter grouping.
 - **Clear Requests also clears the shared playlist.** Settings and the menu bar ask first, then empty WolfWave Requests; Music stops when requests are queued, pending, or playing, but keeps playing when only the old playlist is cleared. Songs stay in your library. The menu bar reports cleanup failures, and `!clearqueue` tells chat when cleanup fails.
 - **Song Requests are easier to scan.** The live queue stays near the top, settings are grouped into Request Setup, Queue Behavior, and Moderation, and slow playlist checks and clears show progress. The AutoPlay setting explains that Music's AutoPlay must be enabled in Playing Next and that a fallback playlist takes priority.
@@ -51,7 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Credential prompts leave the interface responsive.** Startup Twitch validation, automatic reconnect checks, and the General dashboard read credentials away from the main actor instead of waiting on Keychain locks in the interface.
+- **Credential prompts leave the interface responsive.** Startup Twitch validation, reconnect checks, the General dashboard, and the Twitch account pane read credentials away from the main actor. The Twitch pane shows loading feedback while Keychain waits.
 - **Local builds reuse an available Apple signing identity.** Debug builds and tests prefer Apple Development, then Developer ID Application, so rebuilds do not keep changing the app's identity. Moving from an unsigned build may still require a one-time macOS data-access confirmation.
 - **CI checks cover every changed area.** An aggregate check verifies the applicable native, UI, docs, Stream Deck, and lint jobs. Sponsor refreshes report a missing token instead of failing every day.
 - **App Visibility follows the selected mode.** Menu Bar Only hides the Dock icon after the last window closes, and Dock Only hides the menu bar item as soon as WolfWave starts.
