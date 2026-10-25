@@ -888,12 +888,12 @@ a.ww-proof-chip:hover {
 /* ── Reveal on load (gentle) ─────────────────────────────── */
 .ww-reveal {
   opacity: 0;
-  transform: translateY(8px);
-  animation: ww-rise 0.5s ease forwards;
+  transform: translateY(6px);
+  animation: ww-rise 0.28s ease forwards;
 }
-.ww-reveal-1 { animation-delay: 0.05s; }
-.ww-reveal-2 { animation-delay: 0.15s; }
-.ww-reveal-3 { animation-delay: 0.25s; }
+.ww-reveal-1 { animation-delay: 0s; }
+.ww-reveal-2 { animation-delay: 0.04s; }
+.ww-reveal-3 { animation-delay: 0.08s; }
 @keyframes ww-rise {
   to { opacity: 1; transform: translateY(0); }
 }

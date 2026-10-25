@@ -20,7 +20,7 @@ Research informed the layout rather than supplying assets:
 - [x] Use one hero app preview with the existing shared demo clock; show the interactive overlay further down the page.
 - [x] Remove the nested stage, duplicate output, connection chips, and proof badges. Keep responsive typography and short entrances without an animation dependency.
 - [x] Reduce the landing page to five sections: hero, three feature summaries, overlay, six common questions, and download. Keep long-form detail in contextual docs links.
-- [x] Use observed 16px entrances lasting 450ms, replaying when visitors scroll away and return. Reduced-motion changes cancel active animations; content remains visible.
+- [x] Use observed 6px entrances lasting 280ms, replaying when visitors scroll away and return. Reduced-motion changes cancel active animations; content remains visible.
 
 ## Production motion references
 
@@ -28,7 +28,7 @@ Research informed the layout rather than supplying assets:
 - [web.dev's animation guide](https://web.dev/articles/animations-guide) recommends checking rendering cost and preferring transform and opacity. WolfWave moves content with transform only and keeps text opaque.
 - [Reduced motion guidance](https://web.dev/articles/prefers-reduced-motion) informs the preference listener and immediate cancellation.
 
-The 16px distance and 450ms duration are WolfWave design choices, not measurements copied from another website. Avoid stacked animations on a preview and its container, scroll hijacking, and decorative continuous motion.
+The 6px distance and 280ms duration are WolfWave design choices, not measurements copied from another website. Avoid stacked animations on a preview and its container, scroll hijacking, and decorative continuous motion.
 - [x] Trim the main navigation to Features → Changelog → Docs, with Download separate. Supporting links stay in the footer.
 - [x] Improve the full FAQ with five topic groups, a jump list, practical setup links, and a distinct troubleshooting path.
 - [x] Add an explicit Pause previews control; verify that the shared track clock holds and resumes.

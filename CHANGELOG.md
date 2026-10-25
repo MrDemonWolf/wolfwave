@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Calmer website motion.** Shorter, smaller entrances replace the pronounced section movement. Scroll replay resets only once content leaves the screen, and hero elements appear with less stagger.
 - **Clearer pane headings and queue access.** History & Stats has a full pane heading. Song Requests keeps its title aligned, folds the explainer behind “How it works,” and puts the active queue before configuration controls.
 - **Consistent spacing across Settings.** Twitch, Discord, Software Update, Advanced, and About use the same section spacing as the other panes, while related controls keep their tighter grouping.
 - **Clear Requests also clears the shared playlist.** Settings and the menu bar ask first, then empty WolfWave Requests; Music stops when requests are queued, pending, or playing, but keeps playing when only the old playlist is cleared. Songs stay in your library. The menu bar reports cleanup failures, and `!clearqueue` tells chat when cleanup fails.
