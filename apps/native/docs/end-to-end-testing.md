@@ -22,6 +22,27 @@ keeps account and Apple Music permission prompts out of the app. Local builds
 prefer Apple Development signing, then an installed Developer ID Application
 identity. Without either, macOS may block the ad hoc test build from launching.
 
+### macOS UI-testing permission
+
+Apple's [UI automation guide](https://developer.apple.com/documentation/XCUIAutomation/recording-ui-automation-for-testing)
+requires permission for **Xcode Helper** to control the Mac. In System Settings,
+open Privacy & Security, then Accessibility. This development Mac labels that
+pane **Device Control and Data Access**. Use the entry matching the installed
+Xcode; its helper lives at:
+
+```text
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Xcode/Agents/Xcode Helper.app
+```
+
+If Xcode is installed elsewhere, use that installation's equivalent path.
+Adding or enabling it grants broad device-control access and may require the
+Mac's owner to unlock System Settings. Handle that approval manually.
+
+`Timed out while enabling automation mode` before any test case starts is a
+runner setup failure. Check Xcode Helper's permission before changing app code
+or rerunning the entire suite. A successful build does not prove that UI tests
+executed.
+
 That is possible because of one seam: `Core/UITestMode.swift`. The UI test bundle
 sets `WOLFWAVE_UI_TEST=1` on the app's launch environment, and the app responds by
 
@@ -77,6 +98,10 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
 - **Request playlist safety**: Clear Requests opens a confirmation, and Cancel
   leaves the queue controls available. Actual Music playlist mutation remains a
   manual account check; unit tests cover active, idle, and cleanup-failure paths.
+
+- **Layout regressions**: History & Stats retains its pane heading, and the
+  request queue action appears above request configuration. These cover the
+  title omission and queue-below-settings ordering found in the spacing review.
 
 ### Adding a UI test
 

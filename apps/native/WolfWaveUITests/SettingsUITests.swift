@@ -98,6 +98,25 @@ final class SettingsUITests: WolfWaveUITestCase {
         XCTAssertTrue(clear.exists)
     }
 
+    func testHistoryPaneIncludesItsHeading() {
+        openSettings()
+        select("History & Stats")
+        let heading = app.descendants(matching: .any)["historyStats.header"]
+        expect(heading, "the History & Stats pane heading")
+        XCTAssertGreaterThan(heading.frame.height, 0)
+    }
+
+    func testRequestQueuePrecedesConfiguration() {
+        openSettings()
+        select("Song Requests")
+        let clear = app.buttons["songRequestQueue.clearRequests"]
+        let enable = app.descendants(matching: .any)["songRequests.enableToggle"]
+        expect(clear, "the request queue action")
+        expect(enable, "the request configuration toggle")
+        XCTAssertGreaterThan(clear.frame.height, 0)
+        XCTAssertLessThan(clear.frame.maxY, enable.frame.minY)
+    }
+
     /// Attaches a screenshot of every pane to the test result.
     ///
     /// Deliberately assertion-free. Layout is the half `testEveryPaneRenders`

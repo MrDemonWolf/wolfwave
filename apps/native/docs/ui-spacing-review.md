@@ -104,6 +104,17 @@ reports zero violations against the baseline; regeneration reduced the baseline
 from 453 to 452 entries, with no new rule/file/text locations. The UI suite
 reached automation setup but timed out at app activation and was stopped.
 
+A focused diagnostic rerun later exited with code 65 before any app test ran:
+`Timed out while enabling automation mode`. The app did not launch in that run.
+Read-only inspection of System Settings found no Xcode Helper entry in Device
+Control and Data Access. Apple's UI automation guide requires that helper's
+permission; adding it is awaiting the Mac owner's explicit approval. No app
+test-mode changes were made based on this environment failure.
+
+The UI suite now also includes regression checks for the History heading and
+queue-before-configuration layout. Their execution remains unverified until
+the runner environment is ready.
+
 Process samples identified main-thread credential-lock waits during startup and
 opening Twitch. These reads now suspend off the main actor. A rendered Twitch
 loading screen and immediate navigation to Discord verified that the interface
