@@ -17,7 +17,7 @@ extension DiscordSettingsView {
     /// Header + status chip, the enable toggle, and either the "Not
     /// configured" banner or the current connection error.
     var connectionSection: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             SectionHeaderWithStatus(
                 title: "Discord",
                 subtitle: "Show your music on your Discord profile.",

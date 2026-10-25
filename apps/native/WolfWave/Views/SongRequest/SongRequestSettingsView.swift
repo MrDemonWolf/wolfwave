@@ -66,7 +66,7 @@ struct SongRequestSettingsView: View {
     /// sidebar next to the main settings sidebar.)
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: DSSpace.s8) {
+            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
                 // Broken-playlist banner sits above everything so a "needs setup
                 // again" state is the first thing the streamer sees.
                 if playlistStatus != .ok {

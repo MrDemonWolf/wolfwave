@@ -40,7 +40,7 @@ struct TwitchSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             headerView
 
             connectionStatus

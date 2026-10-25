@@ -43,7 +43,7 @@ struct AboutSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             SectionHeaderWithStatus(
                 title: "About",
                 subtitle: "App info, links, and legal."

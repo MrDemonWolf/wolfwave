@@ -91,7 +91,7 @@ struct DiscordSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             connectionSection
                 .deepLinkSection("presence")
             if presenceEnabled && hasClientID {
