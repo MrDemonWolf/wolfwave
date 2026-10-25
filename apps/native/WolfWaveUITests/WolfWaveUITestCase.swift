@@ -28,6 +28,8 @@ class WolfWaveUITestCase: XCTestCase {
         var onboarded = false
         /// Suppress the version-gated What's New window.
         var suppressWhatsNew = true
+        /// Render configured Song Requests without external accounts.
+        var songRequestsEnabled = false
     }
 
     /// Overridden by subclasses that need a different starting state.
@@ -58,6 +60,9 @@ class WolfWaveUITestCase: XCTestCase {
         }
         if launchOptions.suppressWhatsNew {
             environment[UITestEnvironment.suppressWhatsNew] = "1"
+        }
+        if launchOptions.songRequestsEnabled {
+            environment[UITestEnvironment.songRequestsEnabled] = "1"
         }
         app.launchEnvironment = environment
         app.launch()
@@ -101,6 +106,7 @@ enum UITestEnvironment {
     static let enabled = "WOLFWAVE_UI_TEST"
     static let onboarded = "WOLFWAVE_UI_TEST_ONBOARDED"
     static let suppressWhatsNew = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
+    static let songRequestsEnabled = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
 }
 
 /// Window identifiers, mirrored from the app for the same reason as the

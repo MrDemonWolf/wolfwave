@@ -36,6 +36,9 @@ final class MockAppleMusicController: AppleMusicControlling {
     var skipCalled = false
     var clearCalled = false
     var clearCallCount = 0
+    var clearRequestsPlaylistCalled = false
+    var shouldThrowClearRequestsPlaylist = false
+    var clearRequestsPlaylistHandler: (() async -> Void)?
     var rebuildCalled = false
     var playFallbackCalled = false
     var fallbackPlaylistName: String?
@@ -130,6 +133,13 @@ final class MockAppleMusicController: AppleMusicControlling {
         clearCalled = true
         clearCallCount += 1
         await clearPlayerQueueHandler?()
+    }
+    func clearRequestsPlaylist() async throws {
+        clearRequestsPlaylistCalled = true
+        await clearRequestsPlaylistHandler?()
+        if shouldThrowClearRequestsPlaylist {
+            throw PlaybackError.commandFailed(command: "clear requests playlist", message: "test failure")
+        }
     }
     func rebuildPlayerQueue(from songs: [Song]) async throws { rebuildCalled = true }
     func playFallbackPlaylist(name: String) async throws {

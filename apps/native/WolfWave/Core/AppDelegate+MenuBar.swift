@@ -628,23 +628,36 @@ extension AppDelegate {
         }
     }
 
-    /// Removes every entry from the song-request queue after a confirmation.
+    /// Removes every entry from the song-request queue and request playlist after confirmation.
     ///
-    /// Goes through `SongRequestService.clearQueue()`, which also stops the
-    /// playing request in Music.app; the alert copy says so when the queue
-    /// itself is empty.
+    /// Clears request state and the playlist through the same path as Settings.
     @objc func clearSongRequestQueue() {
-        let count = songRequestService?.queue.count ?? 0
-        let message = count > 0
-            ? "This removes \(count) song\(count == 1 ? "" : "s") from the queue. It can't be undone."
-            : "This stops the current request. It can't be undone."
+        let service = songRequestService
+        let queue = service?.queue
+        let count = queue?.count ?? 0
+        let hasRequests = count > 0 || (queue?.pendingCount ?? 0) > 0 || queue?.nowPlaying != nil
+        let message = hasRequests
+            ? "This clears \(count) queued song\(count == 1 ? "" : "s"), any pending or playing requests, "
+                + "stops Music playback, and empties WolfWave Requests. Songs stay in your library."
+            : "This empties WolfWave Requests. Music keeps playing. Songs stay in your library."
         guard confirmDestructiveMenuAction(
-            title: "Clear the song request queue?",
+            title: "Clear song requests and playlist?",
             message: message,
-            confirmTitle: "Clear Queue"
+            confirmTitle: "Clear Requests"
         ) else { return }
         Task {
-            _ = await songRequestService?.clearQueue()
+            guard let result = await songRequestService?.clearQueueAndRequestsPlaylist(),
+                  !result.requestPlaylistCleared
+            else { return }
+
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "WolfWave Requests couldn't be cleared"
+            alert.informativeText = "The queue was cleared, but the playlist is still unchanged. "
+                + "Open Music, make sure WolfWave Requests is available, then try again."
+            alert.addButton(withTitle: "OK")
+            NSApp.activate()
+            alert.runModal()
         }
     }
 

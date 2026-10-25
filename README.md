@@ -75,6 +75,12 @@ update with `brew upgrade --cask`.
   native Twitch Poll.
 - **Fallback playlist.** Pick an Apple Music playlist to play when the
   queue runs dry.
+- **Apple Music AutoPlay.** Let Music choose what plays when the request
+  queue empties. Turn on AutoPlay in Music's Playing Next panel; a fallback
+  playlist takes priority.
+- **Clear requests.** Clear the queue and the shared **WolfWave Requests**
+  playlist together. When the queue is already empty, Music keeps playing.
+  The songs stay in your Apple Music library.
 - **Live queue view.** See what's playing, what's next, and who asked
   for it, right in the app.
 
@@ -193,7 +199,7 @@ The streamer turns each command on or off and can add aliases in
 | --------------------------- | ------------------------------------- |
 | `!skip` `!next`             | Skips the current request             |
 | `!hold` `!resume` `!unhold` | Holds or resumes the request queue    |
-| `!clearqueue` `!cq`         | Clears every request                  |
+| `!clearqueue` `!cq`         | Clears requests and the shared playlist; songs stay in your library |
 
 ### First-Time Setup
 

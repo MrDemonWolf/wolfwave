@@ -38,6 +38,8 @@ struct SongRequestSettingsView: View {
     /// Playlist health. Anything other than `.ok` shows the top-of-pane banner.
     @AppStorage(AppConstants.UserDefaults.songRequestPlaylistStatus)
     private var playlistStatus: PlaylistSetupStatus = .ok
+    /// Shows feedback while the playlist health probe is in progress.
+    @State private var isCheckingPlaylistHealth = false
 
     /// Live Twitch connection, from the service and `twitchConnectionStateChanged`.
     @State private var isTwitchConnected = false
@@ -75,6 +77,9 @@ struct SongRequestSettingsView: View {
                 }
 
                 SongRequestHeader()
+                if isCheckingPlaylistHealth {
+                    LoadingRow(text: "Checking Apple Music playlist…")
+                }
                 twitchNotice
                 SongRequestMasterToggleCard(
                     isTwitchConnected: isTwitchConnected,
@@ -82,8 +87,8 @@ struct SongRequestSettingsView: View {
                     onSetUp: { openSetup(at: .intro) }
                 )
 
-                // Vote-skip skips the live Apple Music track even with no request
-                // queue, so it stays reachable whether or not song requests are on.
+                // Vote-skip works without a request queue, so it stays reachable
+                // whether or not song requests are on.
                 VoteSkipCard()
                     .deepLinkSection("vote-skip")
 
@@ -91,24 +96,41 @@ struct SongRequestSettingsView: View {
                 // the feature is on. Apple Music access is handled inside the
                 // setup sheet, so there's no inline auth card here anymore.
                 if songRequestEnabled && setupComplete {
-                    // The live queue sits up top: it's the thing you check and act
-                    // on mid-stream (skip/hold/clear), so it leads. The set-once
-                    // configuration cards follow below.
+                    // Keep the live queue first, then group settings by task so
+                    // request sources, playback behavior, and moderation scan separately.
                     SongRequestQueueView()
                         .deepLinkSection("queue")
-                    SongRequestAccessCard()
-                        .deepLinkSection("access")
-                    SongRequestQueueConfigCard()
-                        .deepLinkSection("queue-settings")
-                    SongRequestPlaybackCard()
-                        .deepLinkSection("playback")
-                    SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
-                        .deepLinkSection("commands")
-                    SongRequestRedemptionsCard()
-                        .deepLinkSection("redemptions")
-                    SongRequestBlocklistCard(
-                        blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-                        .deepLinkSection("blocklist")
+
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Request setup")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestAccessCard()
+                            .deepLinkSection("access")
+                        SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
+                            .deepLinkSection("commands")
+                        SongRequestRedemptionsCard()
+                            .deepLinkSection("redemptions")
+                    }
+
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Queue behavior")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestQueueConfigCard()
+                            .deepLinkSection("queue-settings")
+                        SongRequestPlaybackCard()
+                            .deepLinkSection("playback")
+                    }
+
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Moderation")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestBlocklistCard(
+                            blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                            .deepLinkSection("blocklist")
+                    }
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -187,6 +209,9 @@ struct SongRequestSettingsView: View {
 
     /// Re-checks playlist health via the live service so the banner stays honest.
     private func runHealthCheck() async {
+        guard !isCheckingPlaylistHealth else { return }
+        isCheckingPlaylistHealth = true
+        defer { isCheckingPlaylistHealth = false }
         await appDelegate?.songRequestService?.runSetupHealthCheck()
     }
 

@@ -19,6 +19,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Clear Requests also clears the shared playlist.** Settings and the menu bar ask first, then empty WolfWave Requests; Music stops when requests are queued, pending, or playing, but keeps playing when only the old playlist is cleared. Songs stay in your library. The menu bar reports cleanup failures, and `!clearqueue` tells chat when cleanup fails.
+- **Song Requests are easier to scan.** The live queue stays near the top, settings are grouped into Request Setup, Queue Behavior, and Moderation, and slow playlist checks and clears show progress. The AutoPlay setting explains that Music's AutoPlay must be enabled in Playing Next and that a fallback playlist takes priority.
+- **Stream Deck credentials show their loading state.** The control-token editor keeps its layout and shows progress while Keychain values load.
 - **Updated web and tooling dependencies.** Refreshed Next.js, Fumadocs, React, the overlay test environment, Stream Deck SDK, and marketing tooling. Compatible updates and remaining migration limits are recorded in `docs/dependency-upgrades.md`.
 
 - **Simpler documentation.** The sidebar separates getting started, everyday guides, and help. The docs home is shorter, and setup tabs have larger targets, clearer selection and keyboard focus, and consistent reading space. Landing feature cards link directly to their guides, and scroll entrances replay when you return to a section.
@@ -47,6 +50,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Local builds reuse an available Apple signing identity.** Debug builds and tests prefer Apple Development, then Developer ID Application, so rebuilds do not keep changing the app's identity. Moving from an unsigned build may still require a one-time macOS data-access confirmation.
+- **CI checks cover every changed area.** An aggregate check verifies the applicable native, UI, docs, Stream Deck, and lint jobs. Sponsor refreshes report a missing token instead of failing every day.
+- **App Visibility follows the selected mode.** Menu Bar Only hides the Dock icon after the last window closes, and Dock Only hides the menu bar item as soon as WolfWave starts.
 - **`!song`, `!last`, and `!stats` honor their cooldown.** When several viewers sent one at the same moment, they all got a reply.
 - **A refused `!sr` no longer blocks everyone else.** A viewer who isn't allowed to request, or `!sr` while requests are off, no longer puts it on cooldown for the rest of chat. Those refusal replies are throttled so they can't flood chat.
 - **`!skip` tells the truth.** It no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."

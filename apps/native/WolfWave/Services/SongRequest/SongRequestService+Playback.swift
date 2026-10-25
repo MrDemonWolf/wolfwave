@@ -14,15 +14,18 @@ extension SongRequestService {
 
     // MARK: - Private Helpers
 
-    /// Returns the active native clear or starts one. No `await` occurs between
-    /// the state check and installation, so overlapping clear callers coalesce.
-    func beginNativeClear() -> (id: Int, task: Task<Void, Never>) {
+    /// Returns the active clear or starts one. No `await` occurs between the
+    /// state check and installation, so overlapping callers coalesce. A clear
+    /// can hold the playback gate without stopping Music during playlist cleanup.
+    func beginNativeClear(stopMusic: Bool = true) -> (id: Int, task: Task<Void, Never>) {
         if let nativeClearOperation {
             return nativeClearOperation
         }
         nativeClearOperationSequence &+= 1
         let id = nativeClearOperationSequence
-        let task = Task { await self.musicController.clearPlayerQueue() }
+        let task = Task {
+            if stopMusic { await self.musicController.clearPlayerQueue() }
+        }
         let operation = (id: id, task: task)
         nativeClearOperation = operation
         return operation

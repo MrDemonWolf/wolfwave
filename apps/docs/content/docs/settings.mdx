@@ -1,9 +1,9 @@
 ---
 title: Settings
 metaTitle: "Settings Guide, Pane by Pane"
-description: "A tour of every WolfWave settings pane: General, Song Requests, Stream Widgets, Stream Deck, History & Stats, Twitch, Discord, updates, Advanced, About."
+description: "A tour of WolfWave settings, including the Song Requests queue, Apple Music AutoPlay, fallback playlists, Stream Deck, Twitch, Discord, and app visibility."
 ogTitle: WolfWave Settings, Pane by Pane
-ogDescription: What lives where. Music Sync, song requests, stream widgets, Stream Deck, Twitch, Discord, updates, backups, and wolfwave:// deep links.
+ogDescription: "What lives where: song requests, Apple Music AutoPlay, fallback playlists, Stream Deck, Twitch, Discord, updates, backups, and deep links."
 ogEyebrow: Guide
 ogChips:
   - 10 panes
@@ -15,6 +15,7 @@ keywords:
   - wolfwave preferences
   - wolfwave deep link
   - wolfwave dark mode
+  - apple music autoplay settings
   - mac menu bar app settings
 ---
 
@@ -34,6 +35,7 @@ How WolfWave tracks your music and where it shows up.
   - Apple Music access denied? Click **Open System Settings**, allow it, then click **Recheck**.
 - **App Visibility.**
   - **Display Mode:** Menu Bar Only, Dock Only, or Dock and Menu Bar.
+  - Menu Bar Only temporarily shows the Dock icon while Settings is open.
   - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**.
 - **Appearance.** Applies to the whole app, menu included.
 
@@ -63,16 +65,13 @@ Let chat request songs. How it all works: [Song requests](/docs/features#song-re
 4. **Share link** (optional). Lets `!playlist` post a link in chat.
 5. **All set.**
 
-**After setup**, the pane shows these cards:
+**After setup**, the pane groups its cards by task. The live queue stays near the top; request setup, playback behavior, and moderation follow below:
 
 - **Vote-Skip.** **Enable Vote-Skip**, minimum votes, vote window, **Subscriber-Only Voting**, **Use Twitch Polls**. Works even with requests off.
-- **Song Request Queue.** The live queue. Approve, remove, or **Clear Queue**.
-- **Who Can Request.** Pick a preset (Open, Sub Only, Channel Point Only, Custom) and **Require My Approval**. The "Paid requests" line jumps to the Channel Points & Bits card.
-- **Queue Settings.** **Fair-Share Ordering**, **Sub / VIP priority**, **Max queue size**, and **Per-user limits**.
-- **Playback.** **Hold Queue**, **Auto-Advance Queue**, **Resume Autoplay When Empty**, and **Fallback playlist**.
-- **Song Request Commands.** Turn `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, and `!playlist` on or off, and add aliases. **Reply When Off** tells chat when requests are off.
-- **Channel Points & Bits.** **Channel Point Requests**, **Bit Requests**, and **Boost With Bits**, with the reward cost and minimum Bits.
-- **Blocklist.** Block a **Song**, **Artist**, or **Person**. Press Return to add.
+- **Song Request Queue.** The live queue. Approve, remove, or **Clear Requests** to empty the queue and shared playlist together. If the queue is already empty, Music keeps playing. Songs stay in your library.
+- **Request Setup:** **Who Can Request** sets a preset and approval; **Song Request Commands** manages `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, and `!playlist`; **Channel Points & Bits** configures paid requests.
+- **Queue Behavior:** **Queue Settings** controls ordering, priority, capacity, and per-user limits. **Playback** controls Hold, Auto-Advance, Apple Music AutoPlay, and a fallback playlist. Enable AutoPlay in Music's Playing Next panel; a fallback playlist takes priority.
+- **Moderation:** **Blocklist** blocks a **Song**, **Artist**, or **Person**. Press Return to add.
 
 **Per-user limits, explained:**
 

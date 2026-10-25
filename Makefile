@@ -25,12 +25,13 @@ DMG_NAME = WolfWave-$(VERSION).dmg
 # Keychain ACL and the TCC Automation grant each time, which is why a locally
 # built app pops "WolfWave wants to use your confidential information stored in
 # com.mrdemonwolf.wolfwave.dev" on launch after every build, and why Apple Events
-# permission has to be re-granted. Signing with a real Apple Development identity
+# permission has to be re-granted. Signing with a real Apple signing identity
 # keeps the signature stable across rebuilds, so both grants stick.
 #
 # DEVELOPMENT_TEAM already lives in project.pbxproj, so only the identity is set
-# here. Falls back to ad-hoc when no identity is present (CI runners have none).
-LOCAL_SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development/ { print $$2; exit }')
+# here. Prefer Apple Development, then an existing Developer ID Application.
+# CI runners have neither and keep their unsigned/ad-hoc fallback.
+LOCAL_SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development/ { print $$2; found=1; exit } /Developer ID Application/ && !fallback { fallback=$$2 } END { if (!found) print fallback }')
 
 ifeq ($(strip $(LOCAL_SIGN_ID)),)
 LOCAL_SIGN = CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO

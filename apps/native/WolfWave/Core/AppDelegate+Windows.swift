@@ -136,16 +136,15 @@ extension AppDelegate {
     func restoreMenuOnlyIfNeeded() {
         guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
 
-        if !hasVisibleNormalWindow {
-            // Defer past the current AppKit layout pass: calling
-            // setActivationPolicy(.accessory) inline during a window-close
-            // animation triggers "layoutSubtreeIfNeeded on a view already
-            // being laid out" warnings. RunLoop.main.perform schedules this
-            // on the next .common runloop tick, after layout settles.
-            RunLoop.main.perform {
-                MainActor.assumeIsolated {
-                    _ = NSApp.setActivationPolicy(.accessory)
-                }
+        // `willCloseNotification` fires before AppKit marks the window hidden,
+        // so check visibility only after the close pass has completed.
+        // Deferring also avoids layout warnings from changing policy mid-close.
+        RunLoop.main.perform { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self,
+                      self.currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly,
+                      !self.hasVisibleNormalWindow else { return }
+                _ = NSApp.setActivationPolicy(.accessory)
             }
         }
     }

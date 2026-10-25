@@ -46,6 +46,12 @@ nonisolated enum UITestMode {
     /// appearing over the app mid-test is a focus race, not a finding.
     static let suppressWhatsNewKey = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
 
+    static let songRequestsEnabledKey = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
+
+    static var enablesSongRequests: Bool {
+        isActive && ProcessInfo.processInfo.environment[songRequestsEnabledKey] == "1"
+    }
+
     /// True when the UI test asked to start past onboarding.
     static var startsOnboarded: Bool {
         isActive && ProcessInfo.processInfo.environment[skipOnboardingKey] == "1"
@@ -64,6 +70,8 @@ nonisolated enum UITestMode {
 
     /// Always `false` in Release.
     static var suppressesWhatsNew: Bool { false }
+
+    static var enablesSongRequests: Bool { false }
     #endif
 
     /// True when *any* test harness owns this process: the hosted unit bundle
@@ -75,7 +83,13 @@ nonisolated enum UITestMode {
     /// suite. Must run before anything reads onboarding state. No-op outside a
     /// UI test, so a normal launch never reaches the write.
     static func seedRequestedState() {
-        guard startsOnboarded else { return }
-        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        guard isActive else { return }
+        if startsOnboarded {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        }
+        if enablesSongRequests {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
+        }
     }
 }

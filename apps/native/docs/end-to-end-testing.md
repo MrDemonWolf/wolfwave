@@ -18,7 +18,9 @@ never gates a release.
 
 `make test-ui` builds `WolfWave Dev.app`, launches it, and drives it the way a
 person would. It needs no Twitch account, no Apple Music, no network, and it
-never raises a permission prompt.
+keeps account and Apple Music permission prompts out of the app. Local builds
+prefer Apple Development signing, then an installed Developer ID Application
+identity. Without either, macOS may block the ad hoc test build from launching.
 
 That is possible because of one seam: `Core/UITestMode.swift`. The UI test bundle
 sets `WOLFWAVE_UI_TEST=1` on the app's launch environment, and the app responds by
@@ -30,13 +32,14 @@ sets `WOLFWAVE_UI_TEST=1` on the app's launch environment, and the app responds 
   Sparkle down, because those need Apple Events (a TCC dialog parked over the
   runner), an account, a live IPC socket, and the network respectively.
 
-Two more environment flags shape the starting state, both declared in
+Additional environment flags shape the starting state, declared in
 `UITestMode` and mirrored in `UITestEnvironment` in the test bundle:
 
 | Flag | Effect |
 |---|---|
 | `WOLFWAVE_UI_TEST_ONBOARDED=1` | Start past the wizard. |
 | `WOLFWAVE_UI_TEST_NO_WHATS_NEW=1` | Suppress the What's New window. |
+| `WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED=1` | Show configured Song Requests without external accounts. |
 
 Subclasses of `WolfWaveUITestCase` declare what they want through
 `launchOptions` and get a launched, activated `app`.
@@ -70,6 +73,10 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
 
   Files are named by UUID; the `manifest.json` beside them maps each back to
   its pane. In CI the same attachments ride along in the uploaded `.xcresult`.
+
+- **Request playlist safety**: Clear Requests opens a confirmation, and Cancel
+  leaves the queue controls available. Actual Music playlist mutation remains a
+  manual account check; unit tests cover active, idle, and cleanup-failure paths.
 
 ### Adding a UI test
 

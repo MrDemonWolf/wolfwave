@@ -66,6 +66,55 @@ extension SongRequestServiceTests {
         XCTAssertTrue(mockController.clearCalled)
     }
 
+    func testClearRequestsClearsThePlaylistAndStopsRequestPlayback() async {
+        _ = queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
+
+        let result = await service.clearQueueAndRequestsPlaylist()
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertTrue(result.requestPlaylistCleared)
+        XCTAssertTrue(queue.isEmpty)
+        XCTAssertTrue(mockController.clearCalled)
+        XCTAssertTrue(mockController.clearRequestsPlaylistCalled)
+    }
+
+    func testClearOldRequestsPlaylistLeavesUnrelatedMusicPlaying() async {
+        mockController.isPlaying = true
+
+        let result = await service.clearQueueAndRequestsPlaylist()
+
+        XCTAssertEqual(result.count, 0)
+        XCTAssertTrue(result.requestPlaylistCleared)
+        XCTAssertFalse(mockController.clearCalled)
+        XCTAssertTrue(mockController.clearRequestsPlaylistCalled)
+    }
+
+    func testPlaylistClearKeepsPlaybackBlockedUntilCleanupFinishes() async throws {
+        let service = try XCTUnwrap(self.service)
+        mockController.clearRequestsPlaylistHandler = {
+            let outcome = await service.skip()
+            XCTAssertEqual(outcome, .busy)
+        }
+
+        let result = await service.clearQueueAndRequestsPlaylist()
+
+        XCTAssertTrue(result.requestPlaylistCleared)
+        XCTAssertFalse(service.isNativeClearInFlight)
+    }
+
+    func testPlaylistClearFailureIsReportedAfterQueueIsCleared() async {
+        _ = queue.add(makeTestRequestItem(title: "Song 1", artist: "A", requesterUsername: "user1"))
+        mockController.shouldThrowClearRequestsPlaylist = true
+
+        let result = await service.clearQueueAndRequestsPlaylist()
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertFalse(result.requestPlaylistCleared)
+        XCTAssertTrue(queue.isEmpty)
+        XCTAssertTrue(mockController.clearCalled)
+        XCTAssertTrue(mockController.clearRequestsPlaylistCalled)
+    }
+
     /// `clearQueue()` is parked in the player-queue clear (`PlaybackGate`). A request added
     /// meanwhile must not start until the clear finishes: `playNextInQueue()` returns nil during
     /// the clear, then the new item starts and the controller was cleared once.

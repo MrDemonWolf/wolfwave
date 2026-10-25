@@ -345,6 +345,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Each setup is wrapped so a synchronous failure in one service logs and
         // degrades instead of aborting the rest of launch. Order is preserved.
         guardedStart("StatusItem") { self.setupStatusItem() }
+        applyInitialDockVisibility()
         guardedStart("Menu") { self.setupMenu() }
         // Everything reaching off-process stays down under UI test, in place, so
         // the surviving order is the shipping order. Music is ScriptingBridge, so
@@ -393,7 +394,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         guardedStart("Observers") { self.setupNotificationObservers() }
         guardedStart("TrackingState") { self.initializeTrackingState() }
-        applyInitialDockVisibility()
 
         // Pre-warm the Apple Music permission probe off-main so the first open
         // of General and History & Stats settings doesn't pay the

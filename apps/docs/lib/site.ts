@@ -148,11 +148,11 @@ export const homepageSeo = {
   /** Full meta description used for search snippets. Kept under ~160 chars so
    *  Google does not truncate it. */
   description:
-    "Free, open-source Apple Music app for Mac streamers. Take Twitch song requests, share Discord Rich Presence, and add a live now-playing overlay to OBS.",
+    "Free Apple Music app for Mac streamers. Run Twitch song requests, hand playback to Apple Music AutoPlay, and share Discord and OBS.",
 
   /** Shorter description for the social cards (og + twitter). */
   socialDescription:
-    "Your Apple Music, across your stream. Twitch song requests, Discord Rich Presence, and a live OBS overlay from one free Mac menu bar app.",
+    "Run Twitch song requests, then let Apple Music AutoPlay take over. Share the song on Discord and OBS with one free Mac app.",
 
   /** OG card eyebrow pill. */
   ogEyebrow: "Free & open source · macOS 26+",
@@ -163,14 +163,14 @@ export const homepageSeo = {
 
   /** OG card supporting line. Kept short so it lands in ~2 lines on the card. */
   ogCardDescription:
-    "A tiny Mac menu bar app. Chat requests songs. Twitch, Discord, and OBS keep up on their own.",
+    "Chat requests songs. Apple Music AutoPlay takes over when the queue runs dry, while Discord and OBS stay in sync.",
 
   /** OG card chips. Order matters; first chips read first when cropped. */
-  ogChips: ["Twitch song requests", "Discord Rich Presence", "OBS overlay", "Open source"],
+  ogChips: ["Twitch song requests", "Apple Music AutoPlay", "Discord Rich Presence", "OBS overlay"],
 
   /** Alt text for the OG image. Describe the card, not just the brand. */
   ogImageAlt:
-    "WolfWave. Apple Music now playing and song requests in Twitch chat, Discord Rich Presence, and an OBS overlay on macOS.",
+    "WolfWave. Apple Music AutoPlay and Twitch song requests, shared to Discord Rich Presence and an OBS overlay on macOS.",
 
   /** Homepage SEO keywords (long-tail, Apple-Music-first). */
   keywords: [
@@ -178,6 +178,7 @@ export const homepageSeo = {
     "apple music discord rich presence mac",
     "apple music obs overlay mac",
     "apple music song requests twitch",
+    "apple music autoplay twitch song requests",
     "free apple music twitch bot",
     "apple music now playing overlay",
     "macos menu bar music streamer",

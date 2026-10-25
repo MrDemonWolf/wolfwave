@@ -21,7 +21,7 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     /// Start past the wizard: this suite's subject is the settings window.
     override var launchOptions: LaunchOptions {
-        LaunchOptions(onboarded: true, suppressWhatsNew: true)
+        LaunchOptions(onboarded: true, suppressWhatsNew: true, songRequestsEnabled: true)
     }
 
     /// Sidebar section titles, in sidebar order. Mirrors
@@ -81,6 +81,21 @@ final class SettingsUITests: WolfWaveUITestCase {
             )
             assertStillRunning(rendering: section)
         }
+    }
+
+    func testRequestPlaylistClearRequiresConfirmation() {
+        openSettings()
+        select("Song Requests")
+        let clear = app.buttons["songRequestQueue.clearRequests"]
+        expect(clear, "Clear Requests")
+        for _ in 0..<4 where !clear.isHittable {
+            app.scrollViews["settings.pane.Song Requests"].swipeUp()
+        }
+        XCTAssertTrue(clear.isHittable)
+        clear.click()
+        expect(app.buttons["Cancel"], "the request playlist clear confirmation")
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(clear.exists)
     }
 
     /// Attaches a screenshot of every pane to the test result.

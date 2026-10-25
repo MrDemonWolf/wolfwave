@@ -24,7 +24,7 @@ export async function GET() {
 
   const body = `# WolfWave
 
-> WolfWave is a free, open-source macOS menu bar app for streamers who play Apple Music. It posts the current song to Twitch chat through bot commands, takes song requests from chat, channel points, and Bits, shows the song on Discord with Rich Presence, and feeds a now-playing overlay to OBS. An optional Stream Deck plugin controls it. Requires macOS 26 or later on Apple Silicon.
+> WolfWave is a free, open-source macOS menu bar app for Apple Music streamers. It takes song requests from Twitch chat, channel points, and Bits, hands playback back to Apple Music AutoPlay when the request queue runs dry, shows the song on Discord, and feeds a now-playing overlay to OBS. An optional Stream Deck plugin controls it. Requires macOS 26 or later on Apple Silicon.
 
 ## Where to start
 
