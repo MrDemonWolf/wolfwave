@@ -6,7 +6,7 @@
 
 **Latest revision after reboot:** The current page has five sections, three feature cards, six landing FAQ answers, and a deeper FAQ organized into five topics. The header is Features → Changelog → Docs, with Download separate. A faint blue wash sits behind the single hero preview.
 
-The CSS scroll timeline has been replaced by observed entrances for explicitly marked heading groups, cards, and previews: 16px over 450ms after they enter the readable viewport, replaying after they leave and return. An isolated test checks entry, reduced-motion changes, cancellation, and cleanup. Text stays opaque and visible.
+The CSS scroll timeline has been replaced by observed entrances for explicitly marked heading groups, cards, and previews: 6px over 280ms after they enter the readable viewport, replaying after they leave and return. An isolated test checks entry, reduced-motion changes, cancellation, and cleanup. Text stays opaque and visible.
 
 Typecheck, lint, all 45 docs tests, and the production build passed. Native Chrome screenshots after reboot confirm the simplified desktop hero, three-card feature section, overlay demo, and header layout. Browser debugging remains disconnected, and further native control was interrupted by user activity. Fresh mobile reflow and visual timing of scroll entrances remain unverified; viewport measurements below describe the earlier composition.
 
