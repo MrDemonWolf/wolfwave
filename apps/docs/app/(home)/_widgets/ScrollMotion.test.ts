@@ -5,6 +5,7 @@ test("scroll entrances run on entry, honor reduced motion, and clean up", () => 
   const animation = { cancel: mock(() => {}), onfinish: null };
   const target = { animate: mock(() => animation), matches: () => false };
   let notify: IntersectionObserverCallback = () => {};
+  let observerOptions: IntersectionObserverInit | undefined;
   let preferenceChanged = () => {};
   const media = {
     matches: false,
@@ -15,7 +16,10 @@ test("scroll entrances run on entry, honor reduced motion, and clean up", () => 
   const unobserve = mock(() => {});
   const disconnect = mock(() => {});
   class Observer {
-    constructor(callback: IntersectionObserverCallback) { notify = callback; }
+    constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      notify = callback;
+      observerOptions = options;
+    }
     observe = observe;
     unobserve = unobserve;
     disconnect = disconnect;
@@ -29,13 +33,14 @@ test("scroll entrances run on entry, honor reduced motion, and clean up", () => 
   try {
     for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
     const cleanup = startScrollMotion();
+    expect(observerOptions).toEqual({ threshold: 0, rootMargin: "0px" });
     expect(observe).toHaveBeenCalledTimes(1);
     notify([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
     expect(target.animate).not.toHaveBeenCalled();
     notify([{ isIntersecting: true, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
     expect(target.animate).toHaveBeenCalledWith(
-      [{ transform: "translateY(16px)" }, { transform: "translateY(0)" }],
-      { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+      [{ transform: "translateY(6px)" }, { transform: "translateY(0)" }],
+      { duration: 280, easing: "ease" },
     );
     expect(unobserve).not.toHaveBeenCalled();
     notify([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);

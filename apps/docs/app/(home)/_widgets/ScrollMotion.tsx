@@ -16,13 +16,13 @@ export function startScrollMotion() {
       if (!entry.isIntersecting) continue;
       if (media.matches || entry.target.matches(":focus-within")) continue;
       const animation = entry.target.animate(
-        [{ transform: "translateY(16px)" }, { transform: "translateY(0)" }],
-        { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+        [{ transform: "translateY(6px)" }, { transform: "translateY(0)" }],
+        { duration: 280, easing: "ease" },
       );
       animations.set(entry.target, animation);
       animation.onfinish = () => animations.delete(entry.target);
     }
-  }, { threshold: 0, rootMargin: "0px 0px -64px 0px" });
+  }, { threshold: 0, rootMargin: "0px" });
 
   const update = () => {
     observer.disconnect();

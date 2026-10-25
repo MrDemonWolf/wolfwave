@@ -19,6 +19,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Calmer website motion.** Shorter, smaller entrances replace the pronounced section movement. Scroll replay resets only once content leaves the screen, and hero elements appear with less stagger.
+
 - **Updated web and tooling dependencies.** Refreshed Next.js, Fumadocs, React, the overlay test environment, Stream Deck SDK, and marketing tooling. Compatible updates and remaining migration limits are recorded in `docs/dependency-upgrades.md`.
 
 - **Simpler documentation.** The sidebar separates getting started, everyday guides, and help. The docs home is shorter, and setup tabs have larger targets, clearer selection and keyboard focus, and consistent reading space. Landing feature cards link directly to their guides, and scroll entrances replay when you return to a section.
