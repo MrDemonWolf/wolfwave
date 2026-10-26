@@ -353,17 +353,12 @@ struct SettingsView: View {
         })
     }
 
-    /// Shared scrolling column for panes that don't own their layout: width
-    /// clamped to `SettingsUI.maxContentWidth` and centered.
+    /// Shared scrolling column for panes that don't own their layout. The same
+    /// ``SettingsPaneScroll`` General and Song Requests use, so every pane's
+    /// column lands at the same x whether or not it scrolls.
     private var standardDetailScroll: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                detailView(for: selectedSection)
-            }
-            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+        SettingsPaneScroll {
+            detailView(for: selectedSection)
         }
     }
 

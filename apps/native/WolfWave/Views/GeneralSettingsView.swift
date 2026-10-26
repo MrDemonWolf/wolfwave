@@ -31,26 +31,20 @@ struct GeneralSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                header
+        SettingsPaneScroll {
+            header
 
-                MusicMonitorSettingsView(configure: configure)
-                    .deepLinkSection("music")
+            MusicMonitorSettingsView(configure: configure)
+                .deepLinkSection("music")
 
-                AppVisibilitySettingsView()
-                    .deepLinkSection("visibility")
+            AppVisibilitySettingsView()
+                .deepLinkSection("visibility")
 
-                AppearanceSettingsView()
-                    .deepLinkSection("appearance")
+            AppearanceSettingsView()
+                .deepLinkSection("appearance")
 
-                NotificationsSettingsView()
-                    .deepLinkSection("notifications")
-            }
-            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+            NotificationsSettingsView()
+                .deepLinkSection("notifications")
         }
     }
 

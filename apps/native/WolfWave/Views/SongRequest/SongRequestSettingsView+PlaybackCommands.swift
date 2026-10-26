@@ -141,7 +141,13 @@ struct SongRequestCommandsCard: View {
                     isOn: $srCommandEnabled,
                     accessibilityLabel: "Enable song request command",
                     accessibilityIdentifier: "srCommandToggle",
-                    cooldown: .init(global: $globalCooldown, user: $userCooldown),
+                    // The note sits right under the sliders it qualifies. It used to
+                    // trail the song-list link block, which has no cooldown at all.
+                    cooldown: .init(
+                        global: $globalCooldown,
+                        user: $userCooldown,
+                        note: "Cooldowns don't apply to you or your mods."
+                    ),
                     aliases: $srAliases,
                     aliasPlaceholder: "e.g. play, add",
                     aliasAccessibilityIdentifier: "srCommandAliases"
@@ -225,8 +231,6 @@ struct SongRequestCommandsCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            HintRow("Cooldowns don't apply to you or your mods.")
         }
     }
 

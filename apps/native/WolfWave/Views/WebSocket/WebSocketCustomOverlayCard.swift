@@ -114,7 +114,7 @@ struct WebSocketCustomOverlayCard: View {
             WebSocketTokenEditorRow(
                 role: .overlay,
                 title: "Overlay Token",
-                subtitle: "Read-only. Anything holding it can watch your now-playing, nothing more.",
+                subtitle: "Read-only. It can see what's playing, nothing more.",
                 currentToken: $currentToken,
                 streamerMode: streamerMode,
                 otherToken: currentControlToken

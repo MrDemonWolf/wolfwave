@@ -186,36 +186,31 @@ struct StreamDeckSettingsView: View {
 
     // MARK: - Token Card
 
-    /// The control-token editor. `otherToken` hands it the overlay token so a
-    /// pasted value that matches the overlay credential is refused.
+    /// The control-token editor, and nothing above it: the row's title, its
+    /// one line, the field with Reveal and Copy, then Regenerate. Same shape as
+    /// the Overlay Token row in Stream Widgets, which renders the same editor.
+    ///
+    /// The card used to stack an eyebrow, a paragraph, the field title, and a
+    /// caption before the field: four levels of text for one value. The one
+    /// line keeps the two things that matter: it's a password, and it isn't
+    /// the overlay token. The setup steps below cover where to paste it.
+    ///
+    /// `otherToken` hands the editor the overlay token so a pasted value that
+    /// matches the overlay credential is refused.
     private var tokenCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                CardEyebrowHeader("Control token", systemImage: "key.fill")
-                Text("Paste this into the plugin's settings in the Stream Deck app. Treat it like a password: anything holding it can drive WolfWave from this Mac.")
-                    .fieldSubtitle()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, cardPadding)
-            .padding(.top, DSSpace.s4)
+        ZStack {
+            WebSocketTokenEditorRow(
+                role: .control,
+                title: "Stream Deck Control Token",
+                subtitle: "A password for the Stream Deck plugin. Not your overlay token.",
+                currentToken: $currentControlToken,
+                streamerMode: streamerMode,
+                otherToken: currentOverlayToken
+            )
+            .skeleton(isLoadingTokens)
 
-            // No divider: the eyebrow above is this card's only header, and the
-            // row below carries its own field label. A rule between them read as
-            // two separate headed sections stacked in one card.
-            ZStack {
-                WebSocketTokenEditorRow(
-                    role: .control,
-                    title: "Stream Deck Control Token",
-                    subtitle: "Different from your overlay token, and it must stay different.",
-                    currentToken: $currentControlToken,
-                    streamerMode: streamerMode,
-                    otherToken: currentOverlayToken
-                )
-                .skeleton(isLoadingTokens)
-
-                if isLoadingTokens {
-                    LoadingRow(text: "Loading Stream Deck credentials…")
-                }
+            if isLoadingTokens {
+                LoadingRow(text: "Loading Stream Deck credentials…")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

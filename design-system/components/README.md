@@ -50,6 +50,7 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | StreamerModeBadge | [streamer-mode-badge.md](streamer-mode-badge.md) |
 | ResponsiveRow | [responsive-row.md](responsive-row.md) |
 | SettingsNavRail | [settings-nav-rail.md](settings-nav-rail.md) |
+| SettingsPaneScroll | [settings-pane-scroll.md](settings-pane-scroll.md) |
 | CardEyebrowHeader | [card-eyebrow-header.md](card-eyebrow-header.md) |
 | DestructiveButton | [destructive-button.md](destructive-button.md) |
 | SectionEyebrow | [section-eyebrow.md](section-eyebrow.md) |
