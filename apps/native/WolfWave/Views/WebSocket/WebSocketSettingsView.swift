@@ -288,36 +288,18 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         )
     }
 
-    /// Switch, port, links, and the OBS sizing callout.
-    private var widgetSetupCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ToggleSettingRow(
-                title: "Enable Widget Webpage",
-                subtitle: "Hosts the page you'll add to OBS",
-                isOn: $widgetHTTPEnabled,
-                isDisabled: !websocketEnabled,
-                accessibilityLabel: "Toggle Widget Webpage",
-                accessibilityIdentifier: "widgetHTTPEnabledToggle",
-                accessibilityHint: websocketEnabled ? nil : Self.widgetToggleDisabledHint,
-                onChange: { _ in
-                    NotificationCenter.default.post(
-                        name: Notification.Name.widgetHTTPServerChanged,
-                        object: nil
-                    )
-                }
-            )
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
-            .opacity(websocketEnabled ? 1.0 : 0.5)
-            .help(websocketEnabled ? "" : Self.widgetToggleDisabledHint)
-
-            if !websocketEnabled {
-                HintRow(Self.widgetToggleDisabledHint, systemImage: "lock.fill")
-                    .padding(.horizontal, cardPadding)
-                    .padding(.bottom, DSSpace.s4)
+    /// The widget port field, plus the reason it is locked when it is.
+    ///
+    /// Same shape as the overlay port in ``WebSocketCustomOverlayCard``: the
+    /// lock note sits *above* the field it explains, validation feedback sits
+    /// under it, and the whole group shares one row inset.
+    private var widgetPortRow: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            if widgetHTTPEnabled {
+                // The field is locked by the Enable Widget Webpage switch above,
+                // so the hint names that switch.
+                HintRow("Turn off Enable Widget Webpage to change the port.", systemImage: "lock.fill")
             }
-
-            Divider().padding(.leading, cardPadding)
 
             HStack(spacing: DSSpace.s4) {
                 VStack(alignment: .leading, spacing: DSSpace.s0) {
@@ -349,8 +331,6 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         if enabled { applyWidgetPort() }
                     }
             }
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
             .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
 
             if !widgetPortText.isEmpty && !isWidgetPortValid {
@@ -359,21 +339,41 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         "Port must be between \(AppConstants.WebSocketServer.minPort) "
                             + "and \(AppConstants.WebSocketServer.maxPort).")
                 )
-                .padding(.horizontal, cardPadding)
-                .padding(.bottom, DSSpace.s2)
             } else if widgetPortFeedback != .idle {
                 FieldValidationRow(state: widgetPortFeedback)
-                    .padding(.horizontal, cardPadding)
-                    .padding(.bottom, DSSpace.s2)
             }
+        }
+        .padding(.horizontal, cardPadding)
+        .padding(.vertical, DSSpace.s4)
+    }
 
-            if widgetHTTPEnabled {
-                // The field is locked by the Enable Widget Webpage switch above,
-                // so the hint names that switch.
-                HintRow("Turn off Enable Widget Webpage to change the port.", systemImage: "lock.fill")
-                    .padding(.horizontal, cardPadding)
-                    .padding(.bottom, DSSpace.s2)
-            }
+    /// Switch, port, links, and the OBS sizing callout.
+    private var widgetSetupCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ToggleSettingRow(
+                title: "Enable Widget Webpage",
+                subtitle: "Hosts the page you'll add to OBS",
+                isOn: $widgetHTTPEnabled,
+                isDisabled: !websocketEnabled,
+                accessibilityLabel: "Toggle Widget Webpage",
+                accessibilityIdentifier: "widgetHTTPEnabledToggle",
+                accessibilityHint: websocketEnabled ? nil : Self.widgetToggleDisabledHint,
+                onChange: { _ in
+                    NotificationCenter.default.post(
+                        name: Notification.Name.widgetHTTPServerChanged,
+                        object: nil
+                    )
+                },
+                hint: websocketEnabled ? nil : Self.widgetToggleDisabledHint,
+                hintSystemImage: "lock.fill"
+            )
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, DSSpace.s4)
+            .help(websocketEnabled ? "" : Self.widgetToggleDisabledHint)
+
+            Divider().padding(.leading, cardPadding)
+
+            widgetPortRow
 
             Divider().padding(.leading, cardPadding)
 

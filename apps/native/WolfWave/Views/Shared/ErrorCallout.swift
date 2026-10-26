@@ -10,8 +10,9 @@ import SwiftUI
 
 /// Renders a ``UserFacingError`` as a tinted banner with the buttons that fix it.
 ///
-/// The banner itself is a plain ``CalloutBanner``; the actions sit **beside** it
-/// rather than inside, which is the rule the component catalog already sets. It
+/// The banner itself is a plain ``CalloutBanner``; the actions ride in its
+/// `actions` slot, so they sit **inside** the box on the message's text column
+/// (the catalog's rule since 2026-10: a fix belongs to the note it answers). It
 /// generalizes the banner-plus-button pairs that used to be hand-rolled, so a
 /// new error surface never has to build the pair again. ``MusicPermissionBanner``
 /// and the expired state of ``TwitchConnectionNotice`` are thin wrappers over it.
@@ -95,15 +96,13 @@ struct ErrorCallout: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            CalloutBanner(
-                error.message,
-                title: error.title,
-                style: style
-            )
-
-            if !error.actions.isEmpty {
-                actionRow
+        Group {
+            if error.actions.isEmpty {
+                CalloutBanner(error.message, title: error.title, style: style)
+            } else {
+                CalloutBanner(error.message, title: error.title, style: style) {
+                    actionRow
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -193,28 +192,24 @@ struct ErrorCallout: View {
 
     /// Primary action reads as the filled button; the rest stay bordered, which
     /// is the macOS convention for "one obvious next step, other ways out".
+    /// Laid out by the banner's own action row (spacing, small control size).
+    @ViewBuilder
     private var actionRow: some View {
-        HStack(spacing: DSSpace.s2) {
-            if let primary = primaryAction {
-                Button(primary.label) { onAction(primary) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(tint)
-                    .controlSize(.small)
-                    .disabled(primary.isWaiting)
-                    .pointerCursor()
-                    .accessibilityIdentifier("\(error.accessibilityIdentifier).action.\(primary.id)")
-            }
+        if let primary = primaryAction {
+            Button(primary.label) { onAction(primary) }
+                .buttonStyle(.borderedProminent)
+                .tint(tint)
+                .disabled(primary.isWaiting)
+                .pointerCursor()
+                .accessibilityIdentifier("\(error.accessibilityIdentifier).action.\(primary.id)")
+        }
 
-            ForEach(error.secondaryActions) { action in
-                Button(action.label) { onAction(action) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(action.isWaiting)
-                    .pointerCursor()
-                    .accessibilityIdentifier("\(error.accessibilityIdentifier).action.\(action.id)")
-            }
-
-            Spacer(minLength: 0)
+        ForEach(error.secondaryActions) { action in
+            Button(action.label) { onAction(action) }
+                .buttonStyle(.bordered)
+                .disabled(action.isWaiting)
+                .pointerCursor()
+                .accessibilityIdentifier("\(error.accessibilityIdentifier).action.\(action.id)")
         }
     }
 }

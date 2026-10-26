@@ -5,7 +5,7 @@
 ## Purpose
 Renders a `UserFacingError` as a tinted banner plus the buttons that fix it. This is the one surface for a failure the user can act on: what broke, why, what to do, and a control that does it.
 
-It generalizes the hand-rolled banner+CTA pairs that came before it, so a new error surface never rebuilds the pair again. [`MusicPermissionBanner`](music-permission-banner.md) and the actionable expired state of [`TwitchConnectionNotice`](twitch-connection-notice.md) are now thin wrappers over it. A note with nothing to press stays a plain [`CalloutBanner`](callout-banner.md). The banner itself is a plain `CalloutBanner`; actions sit **beside** it, never inside, per that component's rule.
+It generalizes the hand-rolled banner+CTA pairs that came before it, so a new error surface never rebuilds the pair again. [`MusicPermissionBanner`](music-permission-banner.md) and the actionable expired state of [`TwitchConnectionNotice`](twitch-connection-notice.md) are now thin wrappers over it. A note with nothing to press stays a plain [`CalloutBanner`](callout-banner.md). The banner itself is a plain `CalloutBanner`; the actions ride in its `actions` slot, so they sit **inside** the box on the message's text column (changed 2026-10-26: a button outside the box floated on its own edge and read as unrelated to the note).
 
 Use `FieldValidationRow` instead when the failure is about what was typed into a field, and an `.alert` only when the user just asked for something that failed outright (an import, an export, a reset).
 
@@ -26,19 +26,17 @@ A `retryAfter` primary action counts down to an absolute deadline. The countdown
 Severity maps to the banner style in one place: `.error` → `.error`, `.warning` → `.warning`, `.info` → `.info`. `UserFacingError` stays free of SwiftUI so it remains `Sendable` and testable without a renderer.
 
 ## Tokens used
-- `DSSpace.s4` (12): banner-to-action-row gap
-- `DSSpace.s2` (8): gap between buttons
+- Action-row placement, gap, and `.small` control size come from `CalloutBanner`'s `actions` slot (`DSSpace.s2` above the row and between buttons)
 - Tint comes from `CalloutBanner.Style` → `DSColor.error` / `.warning` / `.info`
 - Corner radius and padding are inherited from `CalloutBanner`
 
 ## Anatomy
 ```mermaid
 graph TD
-  Root[VStack leading, s4 gap] --> Banner[CalloutBanner: title + message, severity tint]
-  Root --> Actions[HStack, s2 gap]
-  Actions --> Primary[Button .borderedProminent, tinted to severity, small]
-  Actions --> Secondary[Button .bordered, small, repeated]
-  Actions --> Spacer[Spacer minLength 0]
+  Root[ErrorCallout] --> Banner[CalloutBanner: title + message, severity tint]
+  Banner --> Actions[actions slot: HStack s2, small controls, inside the box]
+  Actions --> Primary[Button .borderedProminent, tinted to severity]
+  Actions --> Secondary[Button .bordered, repeated]
 ```
 
 ## Accessibility
@@ -50,7 +48,7 @@ graph TD
 - ✅ Put the recovery action on the error itself, so the fix travels with the message.
 - ✅ Let the first action be the obvious next step; it renders filled.
 - ✅ Omit `.reconnectTwitch` when the sign-in verified fine — offering it wastes the user's time.
-- ❌ Don't put buttons inside `CalloutBanner`. They are siblings.
+- ❌ Don't render the buttons as a sibling under the banner. They go in its `actions` slot, which this view already does.
 - ❌ Don't interpolate a status code, `OSStatus`, or `localizedDescription` into the title.
 - ❌ Don't use this for a value the user typed. That's `FieldValidationRow`.
 - ❌ Don't render one for a state the app recovers from on its own a second later.

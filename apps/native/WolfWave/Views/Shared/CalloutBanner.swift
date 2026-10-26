@@ -24,10 +24,17 @@ import SwiftUI
 /// `**bold**` renders. `strokeVisible` overlays a 1pt tint stroke, used in the
 /// Debug pane to mark developer-only tooling.
 ///
+/// When the callout has a fix, pass it in the trailing `actions` builder. The
+/// buttons render **inside** the box, under the message and on its text
+/// column, at the small control size. A button left outside floated on its own
+/// left edge with its own gap, and read as unrelated to the note it answers.
+///
 /// ```swift
 /// CalloutBanner("Updates are managed by Homebrew.", style: .info)
 /// CalloutBanner("Viewers type **!sr song name**.", title: "How it works", style: .info)
-/// CalloutBanner("Deleting the queue cannot be undone.", style: .error)
+/// CalloutBanner("The connection is off.", style: .warning) {
+///     Button("Open Stream Widgets", action: openStreamWidgets)
+/// }
 /// ```
 struct CalloutBanner: View {
 
@@ -83,6 +90,10 @@ struct CalloutBanner: View {
     var systemImage: String?
     /// Adds a thin tint-colored border around the box.
     var strokeVisible: Bool = false
+    /// Buttons that act on the callout, drawn inside the box under the message.
+    /// `nil` for a plain note. Type-erased so `CalloutBanner` stays non-generic
+    /// and `CalloutBanner.Style` keeps working as a plain nested type.
+    var actions: AnyView?
 
     /// Picks the light- or dark-appearance glyph color.
     @Environment(\.colorScheme) private var colorScheme
@@ -107,6 +118,34 @@ struct CalloutBanner: View {
         self.style = style
         self.systemImage = systemImage
         self.strokeVisible = strokeVisible
+        self.actions = nil
+    }
+
+    /// A callout with buttons that act on it, drawn inside the box.
+    ///
+    /// - Parameters:
+    ///   - message: Body text; inline Markdown is rendered.
+    ///   - title: Optional bold lead line.
+    ///   - style: Semantic intent; `.warning` by default.
+    ///   - systemImage: Custom SF Symbol; `nil` uses the style's default.
+    ///   - strokeVisible: Draws a tinted border.
+    ///   - actions: The buttons, laid out in a row at the small control size.
+    ///     Callers pick each button's style (`.borderedProminent` for the one
+    ///     obvious fix).
+    init<Actions: View>(
+        _ message: String,
+        title: String? = nil,
+        style: Style = .warning,
+        systemImage: String? = nil,
+        strokeVisible: Bool = false,
+        @ViewBuilder actions: () -> Actions
+    ) {
+        self.message = message
+        self.title = title
+        self.style = style
+        self.systemImage = systemImage
+        self.strokeVisible = strokeVisible
+        self.actions = AnyView(actions())
     }
 
     // MARK: - Private Helpers
@@ -119,27 +158,42 @@ struct CalloutBanner: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(alignment: .top, spacing: DSSpace.s2) {
+        // First-baseline alignment pins the icon to the first line of text
+        // (the title, or the message when there is none) instead of to the
+        // top of the text frame, where it sat a couple of points high.
+        HStack(alignment: .firstTextBaseline, spacing: DSSpace.s2) {
             Image(systemName: symbol)
                 .font(.system(size: DSFont.Size.body))
                 .foregroundStyle(style.glyph(in: colorScheme))
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                if let title {
-                    Text(title)
-                        .font(.system(size: DSFont.Size.body, weight: .semibold))
+            VStack(alignment: .leading, spacing: DSSpace.s2) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
+                    if let title {
+                        Text(title)
+                            .font(.system(size: DSFont.Size.body, weight: .semibold))
+                    }
+                    Text(InlineMarkdown.attributed(message))
+                        .font(.system(size: title == nil ? DSFont.Size.body : DSFont.Size.sm))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text(InlineMarkdown.attributed(message))
-                    .font(.system(size: title == nil ? DSFont.Size.body : DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Title and message stay one VoiceOver element even when the
+                // buttons below must stay separately reachable.
+                .accessibilityElement(children: .combine)
+
+                if let actions {
+                    HStack(spacing: DSSpace.s2) {
+                        actions
+                    }
+                    .controlSize(.small)
+                }
             }
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DSSpace.s4)
-        .padding(.vertical, DSSpace.s2)
+        .padding(.vertical, DSSpace.s3)
         .background(tint.opacity(DSOpacity.wash))
         .clipShape(RoundedRectangle(cornerRadius: AppConstants.SettingsUI.cardCornerRadius))
         .overlay {
@@ -148,9 +202,11 @@ struct CalloutBanner: View {
                     .stroke(tint.opacity(0.25), lineWidth: 1)
             }
         }
-        // One VoiceOver element: title then message. The icon is hidden, so the
-        // severity is not spoken; put it in the words when it matters.
-        .accessibilityElement(children: .combine)
+        // A plain note is one VoiceOver element: title then message. With
+        // actions, `.contain` keeps each button its own focusable element; a
+        // `.combine` would fold them into the text and make them unpressable.
+        // The icon is hidden either way, so put the severity in the words.
+        .accessibilityElement(children: actions == nil ? .combine : .contain)
     }
 }
 
@@ -169,6 +225,14 @@ struct CalloutBanner: View {
         CalloutBanner("These tools mutate live state. Use at your own risk.", style: .warning, strokeVisible: true)
         CalloutBanner("Deleting the queue cannot be undone.", style: .error)
         CalloutBanner("Nothing is uploaded. Everything stays on this Mac.", style: .neutral)
+        CalloutBanner(
+            "Stream Deck and your overlay share one connection, and it's currently off.",
+            title: "The connection is off",
+            style: .warning
+        ) {
+            Button("Open Stream Widgets") {}
+                .buttonStyle(.borderedProminent)
+        }
     }
     .padding()
     .frame(width: 480)

@@ -62,6 +62,25 @@ final class CalloutBannerTests: XCTestCase {
         XCTAssertGreaterThan(titled.fittingSize.height, plain.fittingSize.height)
     }
 
+    /// Actions render inside the box, so a banner with a button is taller than
+    /// the same banner without one, and a plain banner carries no action row.
+    func testActionsRenderInsideTheBanner() {
+        let plain = CalloutBanner("The connection is off.", style: .warning)
+        let actionable = CalloutBanner("The connection is off.", style: .warning) {
+            Button("Open Stream Widgets") {}
+        }
+        XCTAssertNil(plain.actions)
+        XCTAssertNotNil(actionable.actions)
+
+        let plainHost = NSHostingView(rootView: plain)
+        let actionHost = NSHostingView(rootView: actionable)
+        plainHost.setFrameSize(NSSize(width: 360, height: 0))
+        actionHost.setFrameSize(NSSize(width: 360, height: 0))
+        plainHost.layoutSubtreeIfNeeded()
+        actionHost.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(actionHost.fittingSize.height, plainHost.fittingSize.height)
+    }
+
     // MARK: - Style Mapping
 
     func testStyleDefaultSymbols() {

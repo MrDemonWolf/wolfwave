@@ -22,6 +22,59 @@ refinements, menu-only reopening, live-account playback, and Nathanial's sign-of
 remain pending. Earlier paragraphs below retain investigation history, including
 superseded implementations and earlier test counts; they are not current gates.
 
+## Second pass: card rhythm (2026-10-26)
+
+Nathanial's report: in the Stream Deck "Allow Stream Deck commands" card the
+toggle, its hint, the warning callout, and the "Open Stream Widgets" button
+each had a different gap and a different left edge, and the button floated
+outside the callout it belonged to. The CI screenshot matrix (`ideal-light` and
+`minimum-dark`, Stream Deck and Stream Widgets) confirmed it: the hint sat flush
+under a divider with no top gap, and the button hung below the callout on its
+own edge.
+
+The cause was structural, not one bad padding value. Cards built their rows by
+hand (`Divider` + `.padding(.horizontal)` + `.padding(.bottom)`), and a callout's
+fix was a sibling button the component catalog *required* to sit outside the box.
+The fix moves the rhythm into shared components so call sites cannot drift:
+
+| Piece | Rule now | Where it lives |
+|---|---|---|
+| A footnote about one switch | `ToggleSettingRow(hint:)`: a `HintRow` under the row, `DSSpace.s1h` below it, on the title's leading edge, outside the native `Toggle` | `ToggleSettingRow` |
+| Siblings inside a card (row, callout, next control) | `AppConstants.SettingsUI.cardRowSpacing` (12) | `AppConstants.SettingsUI` |
+| A callout's fix | `CalloutBanner { actions }`: buttons inside the box, on the message's text column, `.small`, `DSSpace.s2` gaps | `CalloutBanner`, and `ErrorCallout` through it |
+| Callout icon | First-baseline aligned with the title or message; vertical inset `DSSpace.s3` | `CalloutBanner` |
+
+Call sites moved onto those rules:
+
+- Stream Deck control card: one padded card; footnote through the row; both
+  "connection is off" and "Couldn't start" callouts carry their button inside.
+- Stream Widgets server card: same shape (the reach summary is the switch's hint).
+- Stream Widgets widget card: the disabled-switch note is the row's hint; the
+  widget port now matches the overlay port (lock note above the field,
+  validation under it, one row inset) instead of trailing hints with `s2` gaps.
+- Song Requests: the playlist health banner's fix and the "Use Twitch Polls"
+  re-auth note (now the toggle's hint rather than a line after the duration row).
+- Song Requests setup sheet: Open Twitch Settings, Open System Settings, Try
+  Again, and Check Again sit inside their callouts.
+- Notifications (permission denied), App Visibility (Login Items error and
+  approval), Advanced (crash recovery: Report a Bug and Dismiss).
+- `ErrorCallout`, so `MusicPermissionBanner` and the Twitch expired notice
+  follow suit without edits to their panes.
+
+Seen but left alone in this pass:
+
+- Software Update's content column sits a few points right of the other panes
+  in the CI captures. It is the only pane short enough not to scroll, and CI
+  shows legacy (always-visible) scrollers, so the scroller's gutter shifts the
+  centered column on every other pane. Overlay scrollers (trackpad default)
+  should not show it; not changed without a local comparison.
+- Stream Deck's control-token card stacks an eyebrow, a 13-point paragraph, and
+  a field title with its own caption: four text levels in one card.
+- Song Requests' "Re-run setup" is a plain secondary text button under the
+  enable switch, with no link affordance.
+- The widget port field dims while the widget page is off, though it is only
+  locked while it is on.
+
 ## References and approach
 
 - [Apple layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout)
