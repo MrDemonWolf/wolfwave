@@ -241,10 +241,26 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Permission status row
 
-    /// Icon, title, and optional subtitle describing the grant, plus the
-    /// state-specific trailing control. Hidden by `body` while denied.
-    @ViewBuilder
+    /// Keep action labels intact; explanatory text and actions stack in narrow panes.
     private var permissionStatusRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DSSpace.s4) {
+                permissionSummary
+                Spacer(minLength: DSSpace.s2)
+                permissionTrailingControl
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .frame(minWidth: permissionSubtitle == nil ? nil : DSDimension.Settings.inlineActionsMinWidth)
+
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                permissionSummary
+                permissionTrailingControl
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+
+    private var permissionSummary: some View {
         HStack(spacing: DSSpace.s4) {
             Image(systemName: permissionIconName)
                 .font(.system(size: DSFont.Size.md, weight: .semibold))
@@ -261,10 +277,6 @@ struct MusicMonitorSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            Spacer(minLength: DSSpace.s2)
-
-            permissionTrailingControl
         }
     }
 

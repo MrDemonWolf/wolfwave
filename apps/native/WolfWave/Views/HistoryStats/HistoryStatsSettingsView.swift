@@ -247,66 +247,56 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Layout
 
-    /// One centered, width-clamped scroll column for every state. Mirrors the
-    /// shell's `standardDetailScroll` geometry (the pane bypasses it to own the
-    /// full detail width). The dashboard band (summary / charts / top), the
-    /// `!stats` command, and the Monthly Wrap action surface inline once both
-    /// features are on, so the pane reads top-to-bottom without a jump-nav rail.
+    /// Uses the shared column sizing so the scrollbar does not narrow this pane.
     private var unifiedLayout: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                intro
-                permissionBanner
-                togglesCard
-                    .deepLinkSection("tracking")
+        SettingsPaneScroll {
+            intro
+            permissionBanner
+            togglesCard
+                .deepLinkSection("tracking")
 
-                if !historyEnabled {
-                    firstRunExplainer
-                }
-
-                // Dashboard band: lead with the insights, two columns when the
-                // settings window is wide enough (collapses to a stack when not).
-                // Render while the service is still loading too, so the skeleton
-                // placeholders hold the band's footprint instead of popping in and
-                // resizing the pane the moment disk load finishes (#281).
-                if historyEnabled, statsEnabled, snapshot.hasData || isLoadingHistory {
-                    ResponsiveRow {
-                        summaryCard
-                    } right: {
-                        todaysTopTrackCard
-                    }
-                    .skeleton(isLoadingHistory)
-
-                    ResponsiveRow {
-                        WeekChartCard(snapshot: snapshot)
-                    } right: {
-                        HourChartCard(snapshot: snapshot)
-                    }
-                    .skeleton(isLoadingHistory)
-
-                    topListCard
-                        .skeleton(isLoadingHistory)
-                }
-
-                unifiedRecentCard
-                    .skeleton(isLoadingHistory)
-
-                if historyEnabled, statsEnabled {
-                    statsCommandCard
-                        .deepLinkSection("stats-command")
-                }
-
-                if historyEnabled {
-                    manageBlock
-                        .deepLinkSection("retention")
-                    dangerCard
-                        .deepLinkSection("danger-zone")
-                }
+            if !historyEnabled {
+                firstRunExplainer
             }
-            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
+
+            // Dashboard band: lead with the insights, two columns when the
+            // settings window is wide enough (collapses to a stack when not).
+            // Render while the service is still loading too, so the skeleton
+            // placeholders hold the band's footprint instead of popping in and
+            // resizing the pane the moment disk load finishes (#281).
+            if historyEnabled, statsEnabled, snapshot.hasData || isLoadingHistory {
+                ResponsiveRow {
+                    summaryCard
+                } right: {
+                    todaysTopTrackCard
+                }
+                .skeleton(isLoadingHistory)
+
+                ResponsiveRow {
+                    WeekChartCard(snapshot: snapshot)
+                } right: {
+                    HourChartCard(snapshot: snapshot)
+                }
+                .skeleton(isLoadingHistory)
+
+                topListCard
+                    .skeleton(isLoadingHistory)
+            }
+
+            unifiedRecentCard
+                .skeleton(isLoadingHistory)
+
+            if historyEnabled, statsEnabled {
+                statsCommandCard
+                    .deepLinkSection("stats-command")
+            }
+
+            if historyEnabled {
+                manageBlock
+                    .deepLinkSection("retention")
+                dangerCard
+                    .deepLinkSection("danger-zone")
+            }
         }
     }
 
