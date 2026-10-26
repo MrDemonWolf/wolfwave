@@ -368,16 +368,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
             }
 
             if widgetHTTPEnabled {
-                HStack(spacing: DSSpace.s1h) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                    Text("Disable the widget server to change the port.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, cardPadding)
-                .padding(.bottom, DSSpace.s2)
+                // The field is locked by the Enable Widget Webpage switch above,
+                // so the hint names that switch.
+                HintRow("Turn off Enable Widget Webpage to change the port.", systemImage: "lock.fill")
+                    .padding(.horizontal, cardPadding)
+                    .padding(.bottom, DSSpace.s2)
             }
 
             Divider().padding(.leading, cardPadding)

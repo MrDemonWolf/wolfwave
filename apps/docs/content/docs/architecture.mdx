@@ -174,6 +174,7 @@ Routes chat messages to commands.
 
 - Built-ins register in `registerDefaultCommands()`. Each implements `BotCommand` or `AsyncBotCommand`.
 - Streamer-made commands (`CustomBotCommand`) are rebuilt per message, so edits apply on the next chat line.
+- `BuiltInCommandCatalog` lists every built-in trigger and alias. A custom command can't claim one, and an older one that does is turned off on load.
 - `CooldownManager` enforces global and per-user cooldowns. Mods bypass them.
 - A command can refuse a caller **before** claiming the cooldown (`PreflightCheckedCommand`, used by `!sr`). A refused viewer never starts everyone else's cooldown.
 - Replies cap at 500 characters, counted in Unicode scalars like Twitch counts, without splitting an emoji.

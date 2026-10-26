@@ -326,7 +326,8 @@ actor TwitchChatService {
     /// Reset on join and on disconnect.
     var hasSentConnectionMessage = false
     /// Whether the channel is live, from Helix on connect and then the
-    /// `stream.online` / `stream.offline` events. Gates `!stats`.
+    /// `stream.online` / `stream.offline` events. Read by the "Only reply while
+    /// live" gate (off by default) and anchors the `!stats` "This stream" window.
     var streamLive = false {
         didSet { streamLiveSnapshot.set(streamLive) }
     }
@@ -349,7 +350,7 @@ actor TwitchChatService {
     nonisolated var currentlyConnected: Bool { isConnectedSnapshot.value }
 
     /// Nonisolated mirror of `streamLive` so the synchronous dispatcher bridge
-    /// (`!stats` enable check) can read it without re-entering the actor.
+    /// (the "Only reply while live" gate) can read it without re-entering the actor.
     nonisolated let streamLiveSnapshot = Atomic(false)
 
     /// Nonisolated mirror of `streamLiveSince` so the synchronous `!stats`

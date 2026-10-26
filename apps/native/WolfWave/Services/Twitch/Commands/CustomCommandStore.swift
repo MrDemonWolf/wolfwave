@@ -29,6 +29,8 @@ final class CustomCommandStore {
     }
 
     /// Backing store. Never `UserDefaults.standard` in tests (see the init).
+    /// Also where the built-in alias fields are read for
+    /// ``BuiltInCommandCatalog/reservedTriggers(in:)``.
     private let defaults: UserDefaults
     /// Defaults key holding the JSON-encoded `[CustomCommand]`.
     private let key = AppConstants.UserDefaults.customCommands
@@ -109,10 +111,11 @@ final class CustomCommandStore {
     /// The first reason `candidate` can't be saved, or `nil` when it can.
     ///
     /// Checks run in the order the editor fields read: trigger, aliases, clashes
-    /// with other commands, then the reply. A trigger or alias claimed by a
-    /// command other than `candidate` is reported with that command's name,
-    /// because the dispatcher resolves overlaps by first match and the second
-    /// command would silently never fire.
+    /// with built-in commands, clashes with other custom commands, then the
+    /// reply. A trigger or alias claimed by another command is reported with
+    /// that command's name, because the dispatcher resolves overlaps by first
+    /// match: a clashing custom command would silently never fire, and one
+    /// that reuses a built-in trigger would silently replace the built-in.
     func validationIssue(for candidate: CustomCommand) -> CustomCommandIssue? {
         let trigger = candidate.normalizedTrigger
         guard !trigger.isEmpty else { return .emptyTrigger }
@@ -129,6 +132,9 @@ final class CustomCommandStore {
         }
 
         let candidateTokens = candidate.allTriggerTokens
+        if let (token, builtIn) = reservedClash(in: candidateTokens) {
+            return .reservedTrigger(token, builtIn: builtIn)
+        }
         for other in commands where other.id != candidate.id {
             let claimed = Set(other.allTriggerTokens)
             if let clash = candidateTokens.first(where: { claimed.contains($0) }) {
@@ -149,6 +155,33 @@ final class CustomCommandStore {
         return nil
     }
 
+    /// The first of `tokens` a built-in command answers to, with that
+    /// built-in's primary trigger, or `nil` when none clash.
+    private func reservedClash(in tokens: [String]) -> (token: String, builtIn: String)? {
+        let reserved = BuiltInCommandCatalog.reservedTriggers(in: defaults)
+        for token in tokens {
+            if let builtIn = reserved[token] { return (token, builtIn) }
+        }
+        return nil
+    }
+
+    /// Turns off every command whose trigger or alias a built-in answers to.
+    ///
+    /// Older versions let a custom command reuse a built-in trigger, which
+    /// replaced the built-in. Like a legacy spaced trigger, such a command is
+    /// kept, not dropped: it is switched off so the built-in answers again, and
+    /// the editor names the clash when the streamer opens it.
+    private func disablingReservedClashes(_ list: [CustomCommand]) -> [CustomCommand] {
+        list.map { command in
+            guard command.enabled, reservedClash(in: command.allTriggerTokens) != nil else {
+                return command
+            }
+            var disabled = command
+            disabled.enabled = false
+            return disabled
+        }
+    }
+
     // MARK: - Persistence
 
     /// Reads, decodes, and repairs the stored list.
@@ -162,10 +195,11 @@ final class CustomCommandStore {
             return
         }
         guard let decoded = try? JSONCoders.default.decode([CustomCommand].self, from: data),
-              let normalized = CustomCommand.normalizedForExistingStorage(decoded) else {
+              let repaired = CustomCommand.normalizedForExistingStorage(decoded) else {
             commands = []
             return
         }
+        let normalized = disablingReservedClashes(repaired)
         commands = normalized
         if normalized != decoded { save() }
     }
@@ -181,8 +215,12 @@ final class CustomCommandStore {
             [CustomCommand].self,
             from: data
         ),
-        let imported = CustomCommand.normalizedForImport(decoded),
-        let normalizedData = try? JSONCoders.defaultEncoder.encode(imported)
+        let normalized = CustomCommand.normalizedForImport(decoded)
+        else { return false }
+        // A backup from before built-in triggers were reserved can hold a
+        // command that replaced one; keep it, switched off, as load does.
+        let imported = disablingReservedClashes(normalized)
+        guard let normalizedData = try? JSONCoders.defaultEncoder.encode(imported)
         else { return false }
         commands = imported
         defaults.set(normalizedData, forKey: key)
