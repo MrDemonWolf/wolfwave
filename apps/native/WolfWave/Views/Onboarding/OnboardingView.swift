@@ -139,9 +139,11 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
+        // One element whose label is the whole sentence. A label (rather than
+        // a value on a "Setup progress" label) is what both VoiceOver and the
+        // UI tests read reliably for a non-control element on macOS.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Setup progress")
-        .accessibilityValue("\(viewModel.currentStep.progressText): \(viewModel.currentStep.accessibilityTitle)")
+        .accessibilityLabel("Setup progress. \(viewModel.currentStep.progressText): \(viewModel.currentStep.accessibilityTitle)")
         .accessibilityIdentifier("onboarding.progress")
     }
 

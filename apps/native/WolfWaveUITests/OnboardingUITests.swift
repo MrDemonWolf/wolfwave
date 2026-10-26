@@ -105,10 +105,10 @@ final class OnboardingUITests: WolfWaveUITestCase {
     func testProgressHeaderNamesTheStep() {
         let progress = app.descendants(matching: .any)[ID.progress]
         expect(progress, "the progress header")
-        XCTAssertEqual(progress.value as? String, "Step 1 of 7: Welcome")
+        XCTAssertEqual(progress.label, "Setup progress. Step 1 of 7: Welcome")
 
         app.buttons[ID.next].click()
-        let advanced = NSPredicate(format: "value == %@", "Step 2 of 7: Apple Music")
+        let advanced = NSPredicate(format: "label == %@", "Setup progress. Step 2 of 7: Apple Music")
         let moved = expectation(for: advanced, evaluatedWith: progress)
         XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: Self.timeout), .completed)
     }
