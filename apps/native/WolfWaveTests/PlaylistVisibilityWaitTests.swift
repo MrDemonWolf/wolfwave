@@ -192,9 +192,9 @@ struct PlaylistVisibilityWaitTests {
 
     @Test("finishing with the playlist still missing from Music keeps the warning")
     func completeCarriesWarning() async throws {
-        let name = "test.sr.setup.complete.notInMusic"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.setup.complete.notInMusic")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let viewModel = SongRequestSetupViewModel(startAt: .done)
         viewModel.playlistMusicState = .notInMusic
@@ -209,9 +209,9 @@ struct PlaylistVisibilityWaitTests {
 
     @Test("finishing with Music closed records ok, not a warning")
     func completeUnverifiedIsOK() throws {
-        let name = "test.sr.setup.complete.unverified"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.setup.complete.unverified")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let viewModel = SongRequestSetupViewModel(startAt: .done)
         viewModel.playlistMusicState = .unverified
