@@ -12,6 +12,12 @@ import { connectionStatus } from "./connection-status.js";
 import { WolfWaveClient } from "./wolfwave/client.js";
 import { DEFAULT_PORT } from "./wolfwave/protocol.js";
 
+// SDK v3's default settings behavior requires Stream Deck 7.1, and `connect()`
+// throws when the manifest's `Software.MinimumVersion` is lower. The manifest
+// still supports 6.5, so keep the v2 behavior: `onDidReceiveGlobalSettings`
+// also fires for `getGlobalSettings()`, which `applySettings` handles fine.
+streamDeck.settings.useLegacySettingsBehavior = true;
+
 const client = new WolfWaveClient();
 
 for (const ActionClass of ACTION_CLASSES) {

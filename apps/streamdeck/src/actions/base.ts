@@ -17,9 +17,22 @@ import type { WolfWaveClient } from "../wolfwave/client.js";
 import type { WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
 
+/**
+ * The SDK's default settings type. SDK v3 dropped `KeyAction`'s default type
+ * argument, so recover it from `SingletonAction`, whose default is unchanged.
+ */
+type DefaultSettings =
+  SingletonAction extends SingletonAction<infer T> ? T : never;
+
+/**
+ * A key action with the SDK's default settings type. WolfWave keys carry no
+ * per-key settings (see `WolfWaveKeyAction`).
+ */
+export type WolfWaveKey = KeyAction<DefaultSettings>;
+
 /** Narrows a raw SDK event to a key action, or `undefined` for a dial. */
-function asKeyAction(ev: { action: unknown }): KeyAction | undefined {
-  const action = ev.action as KeyAction;
+function asKeyAction(ev: { action: unknown }): WolfWaveKey | undefined {
+  const action = ev.action as WolfWaveKey;
   if (typeof action?.isKey !== "function" || !action.isKey()) return undefined;
   return action;
 }
@@ -78,7 +91,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * only deal with a live connection.
    */
   protected abstract render(
-    action: KeyAction,
+    action: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> | void;
 
@@ -144,7 +157,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * subclass that runs its own timers stops them here, or they keep repainting
    * the last live frame over the "Offline" title.
    */
-  protected onReset(_action: KeyAction): void {}
+  protected onReset(_action: WolfWaveKey): void {}
 
   /**
    * Snapshot of the key's paint generation. Take it at the top of `render`, and
@@ -169,7 +182,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
   }
 
   /** Sends this key's command and shows the ack's outcome on the key. */
-  private async send(action: KeyAction): Promise<void> {
+  private async send(action: WolfWaveKey): Promise<void> {
     const command = this.commandFor(this.client.currentState);
     if (!command) return;
 
@@ -186,7 +199,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * a key that silently kept rendering its last-known title after WolfWave quit
    * would be actively misleading on stream.
    */
-  private async paint(action: KeyAction, state: WolfWaveState): Promise<void> {
+  private async paint(action: WolfWaveKey, state: WolfWaveState): Promise<void> {
     // Supersedes any render still suspended from an earlier state.
     this.bumpGeneration(action.id);
     switch (state.phase) {
@@ -211,7 +224,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * would otherwise keep showing a queue count from before WolfWave quit,
    * under an "Offline" title, which reads as a live queue.
    */
-  private async reset(action: KeyAction, title: string): Promise<void> {
+  private async reset(action: WolfWaveKey, title: string): Promise<void> {
     this.onReset(action);
     await action.setImage();
     await action.setTitle(title);

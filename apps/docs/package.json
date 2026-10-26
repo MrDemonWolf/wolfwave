@@ -12,11 +12,11 @@
     "test": "bun test"
   },
   "dependencies": {
-    "fumadocs-core": "16.17.7",
-    "fumadocs-mdx": "15.4.9",
-    "fumadocs-ui": "16.17.7",
-    "lucide-react": "^1.60.0",
-    "next": "16.4.2",
+    "fumadocs-core": "16.17.8",
+    "fumadocs-mdx": "15.4.10",
+    "fumadocs-ui": "16.17.8",
+    "lucide-react": "^1.61.0",
+    "next": "16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"
@@ -31,7 +31,7 @@
     "serve": "^14.2.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.3",
     "eslint": "^10.13.0"
   }
 }

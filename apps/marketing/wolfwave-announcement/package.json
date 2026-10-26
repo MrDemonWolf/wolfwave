@@ -13,8 +13,8 @@
   "license": "GPL-3.0",
   "type": "commonjs",
   "dependencies": {
-    "@remotion/cli": "^4.0.537",
-    "@remotion/google-fonts": "^4.0.537",
+    "@remotion/cli": "^4.0.538",
+    "@remotion/google-fonts": "^4.0.538",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "react": "^19.3.1",

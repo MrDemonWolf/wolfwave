@@ -12,13 +12,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@elgato/streamdeck": "^2.1.2",
+    "@elgato/streamdeck": "^3.0.3",
     "ws": "^8.22.0"
   },
   "devDependencies": {
     "@elgato/cli": "^1.10.3",
     "@resvg/resvg-js": "^2.6.2",
-    "@types/bun": "^1.4.3",
+    "@types/bun": "^1.4.4",
     "@types/node": "^20.19.43",
     "@types/ws": "^8.18.2",
     "typescript": "^5.9.3"

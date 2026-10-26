@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import manifest from "../com.mrdemonwolf.wolfwave.sdPlugin/manifest.json";
 import { ACTION_CLASSES } from "../src/actions/index.js";
@@ -48,6 +48,16 @@ describe("manifest / action registration", () => {
     for (const id of manifestIds) {
       expect(id.startsWith(`${manifest.UUID}.`)).toBe(true);
     }
+  });
+
+  test("a pre-7.1 minimum version keeps the SDK's legacy settings behavior", () => {
+    // SDK v3's `connect()` throws when the default settings behavior is on and
+    // the manifest allows Stream Deck below 7.1, so the plugin would never start.
+    // plugin.ts connects at import time, so check its source instead.
+    const [major = 0, minor = 0] = manifest.Software.MinimumVersion.split(".").map(Number);
+    if (major > 7 || (major === 7 && minor >= 1)) return;
+    const source = readFileSync(join(import.meta.dir, "../src/plugin.ts"), "utf8");
+    expect(source).toContain("streamDeck.settings.useLegacySettingsBehavior = true;");
   });
 
   test("CodePath points at the built bundle", () => {
