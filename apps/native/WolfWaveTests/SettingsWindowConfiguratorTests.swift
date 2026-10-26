@@ -15,6 +15,16 @@ import Testing
 /// sidebar and a missing attachment, and repairs a second window independently.
 @MainActor
 struct SettingsWindowConfiguratorTests {
+    @Test("Settings lookup uses its exact identity even when ordered out")
+    func findsOnlySettingsWindow() {
+        let (unrelated, _) = makeWindow(sidebarWidth: 160)
+        let (settings, _) = makeWindow(sidebarWidth: 160)
+        settings.identifier = NSUserInterfaceItemIdentifier(WolfWaveApp.settingsWindowID)
+        #expect(SettingsWindowConfigurator.settingsWindow(in: [unrelated]) == nil)
+        #expect(SettingsWindowConfigurator.settingsWindow(in: [unrelated, settings]) === settings)
+        #expect(!settings.isVisible)
+    }
+
     @Test("Restored sidebar width is repaired only once per window")
     func initialWidthRepairDoesNotFightLaterLayout() {
         let (window, split) = makeWindow(sidebarWidth: 160)
@@ -23,15 +33,15 @@ struct SettingsWindowConfiguratorTests {
         coordinator.configure(window, visibility: .all)
         #expect(abs(split.arrangedSubviews[0].frame.width - AppConstants.SettingsUI.sidebarWidth) < 1)
         #expect(split.autosaveName == nil)
-        #expect(window.titleVisibility == .hidden)
+        #expect(window.titleVisibility == .visible)
         #expect(window.titlebarAppearsTransparent)
 
         split.setPosition(100, ofDividerAt: 0)
-        window.titleVisibility = .visible
+        window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = false
         coordinator.configure(window, visibility: .all)
         #expect(abs(split.arrangedSubviews[0].frame.width - 100) < 1)
-        #expect(window.titleVisibility == .hidden)
+        #expect(window.titleVisibility == .visible)
         #expect(window.titlebarAppearsTransparent)
     }
 

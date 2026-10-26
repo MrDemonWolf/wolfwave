@@ -28,6 +28,8 @@ class WolfWaveUITestCase: XCTestCase {
         var onboarded = false
         /// Suppress the version-gated What's New window.
         var suppressWhatsNew = true
+        /// Render configured Song Requests without external accounts.
+        var songRequestsEnabled = false
         /// Pin the app appearance (`"light"` / `"dark"`); `nil` follows the system.
         var appearance: String?
         /// Keep the onboarding completion screen up until Done is clicked.
@@ -70,6 +72,9 @@ class WolfWaveUITestCase: XCTestCase {
         }
         if options.suppressWhatsNew {
             environment[UITestEnvironment.suppressWhatsNew] = "1"
+        }
+        if options.songRequestsEnabled {
+            environment[UITestEnvironment.songRequestsEnabled] = "1"
         }
         if let appearance = options.appearance {
             environment[UITestEnvironment.appearance] = appearance
@@ -119,6 +124,8 @@ enum UITestEnvironment {
     static let enabled = "WOLFWAVE_UI_TEST"
     static let onboarded = "WOLFWAVE_UI_TEST_ONBOARDED"
     static let suppressWhatsNew = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
+    static let songRequestsEnabled = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
+    static let settingsSize = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
     static let appearance = "WOLFWAVE_UI_TEST_APPEARANCE"
     static let holdCompletion = "WOLFWAVE_UI_TEST_HOLD_COMPLETION"
 }

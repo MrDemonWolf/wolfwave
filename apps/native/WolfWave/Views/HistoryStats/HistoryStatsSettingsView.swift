@@ -339,12 +339,13 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Intro
 
-    /// One-line privacy promise above the toggles.
+    /// Pane heading and privacy promise above the toggles.
     private var intro: some View {
-        Text("WolfWave can remember what you play, kept on this Mac, never uploaded.")
-            .font(.system(size: DSFont.Size.body))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+        SectionHeaderWithStatus(
+            title: "History & Stats",
+            subtitle: "WolfWave can remember what you play, kept on this Mac, never uploaded."
+        )
+        .accessibilityIdentifier("historyStats.header")
     }
 
     // MARK: - Twitch State

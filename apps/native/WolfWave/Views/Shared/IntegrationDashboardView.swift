@@ -127,30 +127,49 @@ struct IntegrationDashboardView: View {
         subtitle: String,
         action: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: DSSpace.s4) {
-            icon
-            VStack(alignment: .leading, spacing: DSSpace.s0) {
-                Text(name)
-                    .font(.system(size: DSFont.Size.base, weight: .medium))
-                Text(subtitle)
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        let details = VStack(alignment: .leading, spacing: DSSpace.s0) {
+            Text(name)
+                .font(.system(size: DSFont.Size.base, weight: .medium))
+            Text(subtitle)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        let configureButton = Button(action: action) {
+            HStack(spacing: DSSpace.s0) {
+                Text("Configure")
+                Image(systemName: "chevron.right")
+                    .font(.system(size: DSFont.Size.xs, weight: .semibold))
+                    .accessibilityHidden(true)
             }
-            Spacer(minLength: 8)
-            chip
-            Button(action: action) {
-                HStack(spacing: DSSpace.s0) {
-                    Text("Configure")
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: DSFont.Size.xs, weight: .semibold))
-                        .accessibilityHidden(true)
+            .font(.system(size: DSFont.Size.body))
+        }
+        .buttonStyle(.borderless)
+        .pointerCursor()
+        .accessibilityLabel("Configure \(name)")
+
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DSSpace.s4) {
+                icon
+                details
+                Spacer(minLength: DSSpace.s2)
+                chip
+                configureButton
+            }
+            .frame(minWidth: DSDimension.Settings.inlineActionsMinWidth)
+
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                HStack(alignment: .top, spacing: DSSpace.s4) {
+                    icon
+                    details
+                    Spacer(minLength: 0)
                 }
-                .font(.system(size: DSFont.Size.body))
+                HStack {
+                    chip
+                    Spacer()
+                    configureButton
+                }
             }
-            .buttonStyle(.borderless)
-            .pointerCursor()
-            .accessibilityLabel("Configure \(name)")
         }
         .padding(.horizontal, DSSpace.s5)
         .padding(.vertical, DSSpace.s4)

@@ -111,8 +111,8 @@ custom_rules:
   # write (`voteSkipWindowSeconds = 1`, not a valid picker tag) crashed the Song
   # Requests pane inside SwiftUI on the next launch. Production is routed the
   # same way so the rule can be a single repo-wide invariant.
-  # Use `DefaultsStore.store`, or a throwaway `UserDefaults(suiteName:)` for a
-  # SUT that takes an injected store.
+  # Use `DefaultsStore.store`, or a `ThrowawayDefaults` suite for a SUT that
+  # takes an injected store.
   # The alternation matters. The first migration pass only rewrote
   # `UserDefaults.standard` and `= .standard`, so it silently skipped the
   # computed-property form `private static var defaults: UserDefaults
@@ -126,8 +126,30 @@ custom_rules:
     excluded:
       - ".*/Core/DefaultsStore\\.swift"
       - ".*/WolfWaveTests/DefaultsStoreTests\\.swift"
-    message: "The hosted test bundle shares the live app's .standard domain. Route through DefaultsStore.store (or a private UserDefaults(suiteName:) in tests)."
+    message: "The hosted test bundle shares the live app's .standard domain. Route through DefaultsStore.store (or a ThrowawayDefaults suite in tests)."
     # Code only. The doc comments explaining this trap have to name the API.
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - doccomment.field
+      - string
+    severity: error
+
+  # Every `UserDefaults(suiteName:)` a hosted test opens becomes a plist in the
+  # dev app's container (`~/Library/Containers/com.mrdemonwolf.wolfwave.dev/
+  # Data/Library/Preferences/`), and `removePersistentDomain(forName:)` empties
+  # the domain but leaves the file. With a UUID per suite, that folder grew by
+  # hundreds of files every `make test` (nearly 16,000 before this rule).
+  # cfprefsd rewrites the emptied file after any delete, so cleanup cannot fix
+  # it. `ThrowawayDefaults` keeps suites in a temp directory instead; use it.
+  throwaway_defaults:
+    name: "Test UserDefaults suite outside ThrowawayDefaults"
+    regex: 'UserDefaults(\.init)?\(\s*suiteName:'
+    included:
+      - ".*/WolfWaveTests/.*\\.swift"
+    excluded:
+      - ".*/WolfWaveTests/Support/ThrowawayDefaults\\.swift"
+    message: "A test suite opened this way leaves its plist in the dev app's container. Use ThrowawayDefaults(\"Label\") instead."
     excluded_match_kinds:
       - comment
       - doccomment

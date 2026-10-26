@@ -13,68 +13,72 @@ import Testing
 /// Pins the "don't surprise existing users" rule: day-one values reach fresh
 /// installs only, and an upgrade keeps exactly what it already had.
 ///
-/// Every test owns a throwaway suite, so none touch `DefaultsStore.store` or the
-/// shared-state lock.
+/// Every test owns a `ThrowawayDefaults` suite, so none touch
+/// `DefaultsStore.store` or the shared-state lock.
 struct FreshInstallDefaultsTests {
 
     private typealias Keys = AppConstants.UserDefaults
 
-    /// A fresh, empty, uniquely named store.
-    private func makeStore() throws -> UserDefaults {
-        let name = "FreshInstallDefaultsTests.\(UUID().uuidString)"
-        let store = try #require(UserDefaults(suiteName: name))
-        store.removePersistentDomain(forName: name)
-        return store
+    /// Runs `body` against a fresh, empty throwaway store, then deletes it.
+    private func withStore(_ body: (UserDefaults) throws -> Void) rethrows {
+        let suite = ThrowawayDefaults("FreshInstallDefaultsTests")
+        defer { suite.destroy() }
+        try body(suite.defaults)
     }
 
     @Test("A fresh install gets !song and !last on")
-    func freshInstallGetsDayOneValues() throws {
-        let store = try makeStore()
-        FreshInstallDefaults.apply(to: store)
+    func freshInstallGetsDayOneValues() {
+        withStore { store in
+            FreshInstallDefaults.apply(to: store)
 
-        #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == true)
-        #expect(store.object(forKey: Keys.lastSongCommandEnabled) as? Bool == true)
-        #expect(store.integer(forKey: Keys.freshInstallDefaultsVersion) == FreshInstallDefaults.version)
+            #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == true)
+            #expect(store.object(forKey: Keys.lastSongCommandEnabled) as? Bool == true)
+            #expect(store.integer(forKey: Keys.freshInstallDefaultsVersion) == FreshInstallDefaults.version)
+        }
     }
 
     @Test("An install that finished onboarding keeps its old values, written explicitly")
-    func existingInstallIsPinned() throws {
-        let store = try makeStore()
-        store.set(true, forKey: Keys.hasCompletedOnboarding)
-        FreshInstallDefaults.apply(to: store)
+    func existingInstallIsPinned() {
+        withStore { store in
+            store.set(true, forKey: Keys.hasCompletedOnboarding)
+            FreshInstallDefaults.apply(to: store)
 
-        #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == false)
-        #expect(store.object(forKey: Keys.lastSongCommandEnabled) as? Bool == false)
+            #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == false)
+            #expect(store.object(forKey: Keys.lastSongCommandEnabled) as? Bool == false)
+        }
     }
 
     @Test("A saved Twitch channel also marks an existing install")
-    func savedChannelMarksExistingInstall() throws {
-        let store = try makeStore()
-        store.set("somechannel", forKey: Keys.twitchChannelName)
-        #expect(FreshInstallDefaults.isExistingInstall(store))
+    func savedChannelMarksExistingInstall() {
+        withStore { store in
+            store.set("somechannel", forKey: Keys.twitchChannelName)
+            #expect(FreshInstallDefaults.isExistingInstall(store))
 
-        FreshInstallDefaults.apply(to: store)
-        #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == false)
+            FreshInstallDefaults.apply(to: store)
+            #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == false)
+        }
     }
 
     @Test("A value the user already set is never overwritten", arguments: [false, true])
-    func explicitValueSurvives(onboarded: Bool) throws {
-        let store = try makeStore()
-        store.set(onboarded, forKey: Keys.hasCompletedOnboarding)
-        store.set(!onboarded, forKey: Keys.currentSongCommandEnabled)
-        FreshInstallDefaults.apply(to: store)
+    func explicitValueSurvives(onboarded: Bool) {
+        withStore { store in
+            store.set(onboarded, forKey: Keys.hasCompletedOnboarding)
+            store.set(!onboarded, forKey: Keys.currentSongCommandEnabled)
+            FreshInstallDefaults.apply(to: store)
 
-        #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == !onboarded)
+            #expect(store.object(forKey: Keys.currentSongCommandEnabled) as? Bool == !onboarded)
+        }
     }
 
     @Test("The pass runs once: a later change is not reverted on the next launch")
-    func runsOnce() throws {
-        let store = try makeStore()
-        FreshInstallDefaults.apply(to: store)
-        store.removeObject(forKey: Keys.currentSongCommandEnabled)
+    func runsOnce() {
+        withStore { store in
+            FreshInstallDefaults.apply(to: store)
+            store.removeObject(forKey: Keys.currentSongCommandEnabled)
 
-        FreshInstallDefaults.apply(to: store)
-        #expect(store.object(forKey: Keys.currentSongCommandEnabled) == nil)
+            FreshInstallDefaults.apply(to: store)
+            #expect(store.object(forKey: Keys.currentSongCommandEnabled) == nil)
+        }
     }
 
     @Test("Every entry really differs between fresh and upgraded installs")

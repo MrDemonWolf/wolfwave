@@ -33,7 +33,7 @@ HistoryStatsSettingsView(
 
 ```mermaid
 flowchart TD
-  Pane[HistoryStatsSettingsView] --> Intro[Private, on-device explanation]
+  Pane[HistoryStatsSettingsView] --> Intro[Pane title + private, on-device explanation]
   Pane --> Toggles[Listening History + Stats toggles]
   Pane --> Dashboard[Summary, top track, charts, leaderboards]
   Pane --> Recent[Recent plays]
@@ -44,6 +44,7 @@ flowchart TD
 
 ## Accessibility
 
+- The shared pane heading exposes the History & Stats title and privacy subtitle together.
 - Toggle rows provide explicit labels and stable accessibility identifiers.
 - Loading data keeps the dashboard footprint with skeleton placeholders instead of shifting focus targets.
 - Destructive clearing requires a confirmation alert and exposes a dedicated confirm-button identifier.

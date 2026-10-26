@@ -25,8 +25,45 @@ env:
 jobs:
   # One paths-filter pass for the whole workflow. Every other job gates on these
   # outputs at the JOB level, so a docs-only PR shows the native jobs as skipped
-  # instead of running a job full of no-op steps. Branch protection counts a
-  # skipped job as passing, so required checks still resolve.
+  # instead of running a job full of no-op steps. Required Checks verifies every
+  # applicable job, because branch protection treats skipped jobs as passing.
+  required-checks:
+    name: Required Checks
+    if: always()
+    needs: [changes, test, ui-test, docs, streamdeck, lint, lint-crash-safety, lint-headers, lint-sync, ds-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify applicable checks passed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          if needs["changes"]["result"] != "success":
+              sys.exit("Change detection failed; required checks cannot be determined.")
+          flags = needs["changes"]["outputs"]
+          jobs = {
+              "test": "native", "ui-test": "native", "docs": "docs",
+              "streamdeck": "streamdeck", "lint": "swiftlint",
+              "lint-crash-safety": "swiftlint", "lint-headers": "headers",
+              "lint-sync": "sync", "ds-lint": "ds",
+          }
+          failures = []
+          for job, flag in jobs.items():
+              expected = "success" if flags.get(flag) == "true" else "skipped"
+              result = needs[job]["result"]
+              if flags.get(flag) not in ("true", "false") or result != expected:
+                  failures.append(f"{job}: {result} (expected {expected})")
+          if failures:
+              sys.exit("\n".join(failures))
+          print("All applicable checks passed.")
+          PY
+
   changes:
     name: Detect changes
     runs-on: ubuntu-latest

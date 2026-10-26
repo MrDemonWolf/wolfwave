@@ -275,7 +275,7 @@ final class TwitchViewModel {
     /// Outer task that drives the overall OAuth flow (request + polling)
     @ObservationIgnored var oAuthTask: Task<Void, Never>?
     /// Supersedes UI mutations and cleanup from an older OAuth flow.
-    @ObservationIgnored private var oauthGeneration: UInt64 = 0
+    @ObservationIgnored var oauthGeneration: UInt64 = 0
     /// Set only after the replacement flow has awaited service teardown. OAuth
     /// cancellation may invalidate this revision without racing the old reward
     /// pause; before then, generation + task cancellation are sufficient.
@@ -293,7 +293,8 @@ final class TwitchViewModel {
     /// Fences identity completion from overwriting a newer channel text edit.
     @ObservationIgnored private var channelDraftGeneration: UInt64 = 0
     /// Prevents a second production surface from rehydrating over a live draft.
-    @ObservationIgnored private var hasLoadedSavedCredentials = false
+    @ObservationIgnored var hasLoadedSavedCredentials = false
+    var isLoadingSavedCredentials = false
     /// Stops the validation owner for the account being replaced or cleared.
     @ObservationIgnored private let cancelTokenValidationSchedule:
         @MainActor @Sendable () -> Void
@@ -320,9 +321,9 @@ final class TwitchViewModel {
 
     /// Observer for `twitchReauthNeededChanged`; registered once by
     /// `loadSavedCredentials()`, removed in `deinit`.
-    @ObservationIgnored private var reauthObserver: NSObjectProtocol?
+    @ObservationIgnored var reauthObserver: NSObjectProtocol?
     /// Observer for `TwitchChatService.connectionStateChanged`; same lifecycle.
-    @ObservationIgnored private var connectionObserver: NSObjectProtocol?
+    @ObservationIgnored var connectionObserver: NSObjectProtocol?
 
     // MARK: - Initialization
 
@@ -481,73 +482,11 @@ final class TwitchViewModel {
 
     // MARK: - Public Methods
 
-    /// Loads saved credentials from macOS Keychain.
-    ///
-    /// Also loads the reauth needed flag and sets up notification observers for auth state changes.
-    /// The credential read happens only once per instance (so a second surface can't overwrite a
-    /// live channel draft); a Keychain read error keeps the current UI values, surfaces
-    /// `Failure.keychainUnreadable()`, and leaves the load eligible to run again.
-    func loadSavedCredentials() {
-        guard !hasLoadedSavedCredentials else { return }
-        do {
-            let grant = try KeychainService.loadTwitchCredentialGrantChecked()
-            botUsername = grant.username ?? ""
-            oauthToken = grant.accessToken ?? ""
-            channelID = grant.channelID ?? ""
-            credentialsSaved = grant.accessToken?.isEmpty == false
-            hasLoadedSavedCredentials = true
-        } catch {
-            // A Keychain outage is not proof that the account disappeared. Keep
-            // the last coherent UI snapshot and let the user retry the read.
-            Log.error(
-                "TwitchViewModel: Could not read saved Twitch credentials - "
-                    + error.localizedDescription,
-                category: .twitch
-            )
-            if connectionError == nil {
-                connectionError = Failure.keychainUnreadable()
-            }
-        }
-
-        // Load reauth needed flag from UserDefaults
-        reauthNeeded = Preferences.twitchReauthNeeded
-
-        // Idempotent: only register observers once across repeated calls.
-        // Notifications already arrive on `.main` (queue: .main), so we can mutate
-        // @MainActor state directly via `MainActor.assumeIsolated`, no Task hop.
-        if reauthObserver == nil {
-            reauthObserver = NotificationCenter.default.addObserver(
-                forName: Notification.Name.twitchReauthNeededChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.reauthNeeded = Preferences.twitchReauthNeeded
-                }
-            }
-        }
-
-        if connectionObserver == nil {
-            connectionObserver = NotificationCenter.default.addObserver(
-                forName: TwitchChatService.connectionStateChanged,
-                object: nil,
-                queue: .main
-            ) { [weak self] note in
-                let isConnected = note.isConnectedFlag
-                let errorMessage = note.errorMessage
-                MainActor.assumeIsolated {
-                    self?.handleTwitchConnectionState(
-                        isConnected: isConnected, errorMessage: errorMessage)
-                }
-            }
-        }
-    }
-
     /// Updates connection UI state from extracted notification values.
     /// A disconnect with an error message maps to a timeout or generic
     /// connection failure; a silent disconnect while expired maps to
     /// `signInExpired`; a plain disconnect shows nothing.
-    private func handleTwitchConnectionState(isConnected: Bool?, errorMessage: String?) {
+    func handleTwitchConnectionState(isConnected: Bool?, errorMessage: String?) {
         guard let isConnected else {
             Log.error(
                 "TwitchViewModel: Notification userInfo missing or invalid", category: .twitch)

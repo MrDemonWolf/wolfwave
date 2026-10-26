@@ -46,11 +46,31 @@ nonisolated enum UITestMode {
     /// appearing over the app mid-test is a focus race, not a finding.
     static let suppressWhatsNewKey = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
 
-    /// Set to `"light"` or `"dark"` to pin the app appearance, so a screenshot
-    /// capture can render both appearances on one machine. Written into the
-    /// isolated suite as the stored appearance preference, which the normal
-    /// launch path then applies; any other value is ignored.
+    static let songRequestsEnabledKey = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
+    static let settingsSizeKey = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
     static let appearanceKey = "WOLFWAVE_UI_TEST_APPEARANCE"
+
+    static var settingsWindowSize: CGSize? {
+        guard isActive else { return nil }
+        switch ProcessInfo.processInfo.environment[settingsSizeKey] {
+        case "minimum":
+            return CGSize(width: AppConstants.SettingsUI.minWidth, height: AppConstants.SettingsUI.minHeight)
+        case "ideal":
+            return CGSize(width: AppConstants.SettingsUI.idealWidth, height: AppConstants.SettingsUI.idealHeight)
+        default:
+            return nil
+        }
+    }
+
+    static var appearancePreference: String? {
+        guard isActive, let mode = ProcessInfo.processInfo.environment[appearanceKey],
+              mode == AppConstants.Appearance.light || mode == AppConstants.Appearance.dark else { return nil }
+        return mode
+    }
+
+    static var enablesSongRequests: Bool {
+        isActive && ProcessInfo.processInfo.environment[songRequestsEnabledKey] == "1"
+    }
 
     /// Set to `"1"` to keep the onboarding completion screen up until Done,
     /// so a screenshot capture is not racing its auto-dismiss timer.
@@ -70,12 +90,6 @@ nonisolated enum UITestMode {
     static var suppressesWhatsNew: Bool {
         isActive && ProcessInfo.processInfo.environment[suppressWhatsNewKey] == "1"
     }
-
-    /// The appearance the UI test pinned, or `nil` to follow the system.
-    static var requestedAppearance: String? {
-        guard isActive, let value = ProcessInfo.processInfo.environment[appearanceKey] else { return nil }
-        return [AppConstants.Appearance.light, AppConstants.Appearance.dark].contains(value) ? value : nil
-    }
     #else
     /// Release builds never run under the UI test bundle.
     static let isActive = false
@@ -86,8 +100,9 @@ nonisolated enum UITestMode {
     /// Always `false` in Release.
     static var suppressesWhatsNew: Bool { false }
 
-    /// Always `nil` in Release.
-    static var requestedAppearance: String? { nil }
+    static var enablesSongRequests: Bool { false }
+    static var settingsWindowSize: CGSize? { nil }
+    static var appearancePreference: String? { nil }
 
     /// Always `false` in Release.
     static var holdsCompletion: Bool { false }
@@ -102,10 +117,16 @@ nonisolated enum UITestMode {
     /// suite. Must run before anything reads onboarding state. No-op outside a
     /// UI test, so a normal launch never reaches the write.
     static func seedRequestedState() {
-        if let appearance = requestedAppearance {
-            DefaultsStore.store.set(appearance, forKey: AppConstants.UserDefaults.appearancePreference)
+        guard isActive else { return }
+        if let appearancePreference {
+            DefaultsStore.store.set(appearancePreference, forKey: AppConstants.UserDefaults.appearancePreference)
         }
-        guard startsOnboarded else { return }
-        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        if startsOnboarded {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        }
+        if enablesSongRequests {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
+        }
     }
 }

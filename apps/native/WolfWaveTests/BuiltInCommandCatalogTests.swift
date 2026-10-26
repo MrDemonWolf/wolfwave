@@ -23,9 +23,8 @@ struct BuiltInCommandCatalogTests {
         seed: [CustomCommand]? = nil,
         songAliases: String? = nil
     ) throws -> (CustomCommandStore, UserDefaults) {
-        let suite = "test.builtincatalog.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        // Lives in ThrowawayDefaults' per-process temp directory, removed at exit.
+        let defaults = ThrowawayDefaults("BuiltInCommandCatalogTests").defaults
         if let songAliases {
             defaults.set(songAliases, forKey: AppConstants.UserDefaults.songCommandAliases)
         }

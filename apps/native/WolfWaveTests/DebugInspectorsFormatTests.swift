@@ -39,9 +39,9 @@ struct DebugInspectorsFormatTests {
 
     @Test("A value read back from defaults keeps its integer-vs-boolean identity")
     func roundTripThroughDefaults() throws {
-        let suite = "DebugInspectorsFormatTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratch = ThrowawayDefaults("DebugInspectorsFormatTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set(1, forKey: "int")
         defaults.set(true, forKey: "bool")
 

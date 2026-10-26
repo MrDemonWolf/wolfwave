@@ -179,7 +179,7 @@ struct MusicMonitorSettingsView: View {
             if permissionState == .granted {
                 AppDelegate.shared?.refreshNowPlaying()
             }
-            loadIntegrationStatuses()
+            await loadIntegrationStatuses()
         }
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
             let payload = notification.nowPlaying
@@ -494,11 +494,9 @@ struct MusicMonitorSettingsView: View {
 
     /// Loads connection status for Twitch / Discord / overlay from the
     /// running services so the integration row chips reflect reality.
-    private func loadIntegrationStatuses() {
+    private func loadIntegrationStatuses() async {
         if let appDelegate = AppDelegate.shared {
             twitchConnected = appDelegate.twitchService?.currentlyConnected ?? false
-            // Display the channel paired with the active canonical credential.
-            twitchChannel = TwitchCredentialStore.shared.connectionSnapshot()?.channelID
             widgetRunning = appDelegate.websocketServer?.state == .listening
             if let discordService = appDelegate.discordService {
                 Task { @MainActor in
@@ -507,6 +505,9 @@ struct MusicMonitorSettingsView: View {
             } else {
                 discordActive = false
             }
+            let snapshot = await TwitchCredentialStore.shared.loadConnectionSnapshot()
+            guard !Task.isCancelled else { return }
+            twitchChannel = snapshot?.channelID
         }
     }
 

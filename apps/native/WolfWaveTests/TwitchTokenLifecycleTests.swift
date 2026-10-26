@@ -19,6 +19,24 @@ final class TwitchTokenLifecycleTests: WolfWaveTestCase {
 
     let handlerStore = MockURLProtocol.HandlerStore()
 
+    func testAsyncCredentialLoadPreservesTheDraftOnReentry() async throws {
+        try KeychainService.saveTwitchCredentialGrant(.init(
+            accessToken: "test-access", username: "test-bot", channelID: "saved-channel"
+        ))
+        let viewModel = TwitchViewModel()
+
+        await viewModel.loadSavedCredentials()
+
+        XCTAssertEqual(viewModel.botUsername, "test-bot")
+        XCTAssertEqual(viewModel.channelID, "saved-channel")
+        XCTAssertTrue(viewModel.credentialsSaved)
+        XCTAssertFalse(viewModel.isLoadingSavedCredentials)
+
+        viewModel.channelID = "edited-channel"
+        await viewModel.loadSavedCredentials()
+        XCTAssertEqual(viewModel.channelID, "edited-channel")
+    }
+
     override func setUp() async throws {
         // Acquires the shared-state lock (released by a teardown block) and
         // resets settings before anything below touches DefaultsStore.store.

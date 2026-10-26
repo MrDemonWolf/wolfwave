@@ -463,7 +463,7 @@
 				INFOPLIST_FILE = WolfWave/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "WolfWave Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 MrDemonWolf, Inc. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

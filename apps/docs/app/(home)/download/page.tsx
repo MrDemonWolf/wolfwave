@@ -24,7 +24,7 @@ const BREW_CMD = "brew tap mrdemonwolf/den\nbrew install --cask wolfwave";
 
 const SOCIAL_TITLE = "Download WolfWave: Free for macOS 26+";
 const SOCIAL_DESCRIPTION =
-  "Free Mac app for Apple Music streamers. Twitch chat, Discord Rich Presence, and an OBS overlay. Signed DMG or Homebrew. Apple Silicon.";
+  "Free Apple Music app for Mac streamers. Twitch song requests, AutoPlay handoff, Discord Rich Presence, and OBS. Signed DMG or Homebrew.";
 const SOCIAL_IMAGE = {
   url: absoluteUrl("/opengraph-image.png"),
   width: 1200,
@@ -40,13 +40,14 @@ const SOCIAL_IMAGE = {
 export const metadata: Metadata = {
   title: { absolute: "Download WolfWave: Free for macOS 26+ (DMG or Homebrew)" },
   description:
-    "Download WolfWave free for macOS 26+ on Apple Silicon. Get the signed .dmg or install with Homebrew. Needs the Apple Music app. Free and open source.",
+    "Download WolfWave free for macOS 26+ on Apple Silicon. Take Twitch song requests and hand playback to Apple Music AutoPlay. Signed .dmg or Homebrew.",
   keywords: [
     "download wolfwave",
     "wolfwave dmg",
     "brew install wolfwave",
     "brew tap mrdemonwolf/den",
     "apple music twitch bot download",
+    "apple music autoplay twitch download",
     "free macos streamer app",
   ],
   alternates: { canonical: pageUrl("/download") },

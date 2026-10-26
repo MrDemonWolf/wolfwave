@@ -23,8 +23,22 @@ final class SettingsNavigation {
     /// Destination waiting to be applied by `SettingsView`.
     var pending: SettingsDeepLink?
 
+    /// Retains an open request until the scene bridge is ready to receive it.
+    private(set) var isOpenRequested = false
+
+    func requestOpen() {
+        isOpenRequested = true
+    }
+
+    /// Coalesces repeated requests while a scene is being created.
+    func consumeOpenRequest() -> Bool {
+        guard isOpenRequested else { return false }
+        isOpenRequested = false
+        return true
+    }
+
     /// Section slug currently flashing its highlight ring, if any.
     var highlighted: String?
 
-    private init() {}
+    init() {}
 }

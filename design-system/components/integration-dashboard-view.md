@@ -3,7 +3,7 @@
 **File:** [`apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift`](../../apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift)
 
 ## Purpose
-Compact "where is WolfWave broadcasting right now" dashboard. One row per integration (Twitch chat, Discord profile, Stream Widgets, Remote send) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane.
+Compact "where is WolfWave broadcasting right now" dashboard. One row per integration (Twitch chat, Discord profile, Stream Widgets, Remote send) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane. Below the row-width token, the status and action move beneath the description so compact windows retain readable labels.
 
 ## API
 ```swift
@@ -36,10 +36,11 @@ IntegrationDashboardView(
 - `DSColor.success` (`#34C759`): Live / Showing now / Ready for OBS
 - `DSColor.warning` (`#FF9F0A`): Paused
 - `DSFont.Size.base` (13) `.medium`: row name
-- `DSFont.Size.sm` (11) `.secondary`: row subtitle (max 2 lines)
+- `DSFont.Size.sm` (11) `.secondary`: wrapping row subtitle
+- `DSDimension.Settings.inlineActionsMinWidth` (480): minimum width for inline status and action; `ViewThatFits` stacks them below at narrower widths
 - `DSFont.Size.body` (12): "Configure" button + section subhead
 - `.sectionHeader()` (17 semibold, `.isHeader`): text-only "Integrations" header (no leading icon; see [section-header-with-status.md](section-header-with-status.md) for the no-icon-on-headers rule)
-- `DSSpace.s3` (12): row horizontal padding
+- `DSSpace.s5` (14): row horizontal padding
 - `DSSpace.s4` (12): row vertical padding
 - `DSDimension.Settings.cardCornerRadius` (14) via `.cardStyleUnpadded()`
 - Composes `StatusChip`. See [status-chip.md](status-chip.md)

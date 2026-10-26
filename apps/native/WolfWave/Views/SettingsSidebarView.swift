@@ -40,13 +40,20 @@ struct SettingsSidebarView: View {
                 // from `.sidebar`. The title-less group (General) renders as a
                 // plain section so it sits flush at the top with no header gap.
                 if let title = group.title {
-                    Section(title) { rows(for: group.sections) }
+                    Section {
+                        rows(for: group.sections)
+                    } header: {
+                        Text(title).sectionEyebrow()
+                    }
                 } else {
                     Section { rows(for: group.sections) }
                 }
             }
         }
         .listStyle(.sidebar)
+        // Keep labels readable when native layout overrides the column-width preference.
+        .frame(width: AppConstants.SettingsUI.sidebarWidth)
+        .accessibilityIdentifier("settings.sidebar")
     }
 
     /// Selectable navigation rows for one group. Each row is a stock `Label`

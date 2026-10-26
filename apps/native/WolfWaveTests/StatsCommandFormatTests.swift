@@ -14,16 +14,21 @@ import Foundation
 /// enums (resolution, parsing, round-tripping) and the pure chat-line renderer.
 @MainActor
 @Suite("Stats Command Format Tests", .isolatedSharedTestState)
-struct StatsCommandFormatTests {
+final class StatsCommandFormatTests {
+
+    /// This test's settings store. Swift Testing builds a fresh instance per
+    /// test, so each test gets its own suite, removed from disk in `deinit`.
+    private let scratch = ThrowawayDefaults("StatsCommandFormatTests")
+
+    deinit {
+        scratch.destroy()
+    }
 
     // MARK: - Helpers
 
     /// A throwaway, empty UserDefaults store so tests never touch `.standard`.
     private func makeDefaults() -> UserDefaults {
-        let suite = "StatsCommandFormatTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+        scratch.defaults
     }
 
     private func track(_ name: String, by artist: String, count: Int) -> CountedItem {

@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import AppKit
 import XCTest
 
 /// Opens Settings and visits every pane.
@@ -21,7 +22,7 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     /// Start past the wizard: this suite's subject is the settings window.
     override var launchOptions: LaunchOptions {
-        LaunchOptions(onboarded: true, suppressWhatsNew: true)
+        LaunchOptions(onboarded: true, suppressWhatsNew: true, songRequestsEnabled: true)
     }
 
     /// Sidebar section titles, in sidebar order. Mirrors
@@ -43,7 +44,7 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     private static let settingsWindowTitle = UITestWindow.settings
 
-    /// Opens Settings the way a user does, through the App menu's Cmd+,.
+    /// Opens Settings through the native App menu.
     ///
     /// The app is Dock-visible by default, which is what puts a main menu on
     /// screen for the shortcut to reach. A suite that first set the app
@@ -51,7 +52,8 @@ final class SettingsUITests: WolfWaveUITestCase {
     @discardableResult
     private func openSettings() -> XCUIElement {
         app.activate()
-        app.typeKey(",", modifierFlags: .command)
+        app.menuBars.menuBarItems["WolfWave Dev"].click()
+        app.menuItems["Settings…"].firstMatch.click()
         let window = app.windows[Self.settingsWindowTitle]
         expect(window, "the Settings window after Cmd+,")
         return window
@@ -64,6 +66,93 @@ final class SettingsUITests: WolfWaveUITestCase {
             app.staticTexts["settings.sidebar.General"],
             "the General row in the settings sidebar"
         )
+    }
+
+    func testSettingsReopensAfterClosingWithNativeShortcut() {
+        let window = openSettings()
+        for _ in 0..<3 {
+            app.typeKey("w", modifierFlags: .command)
+            XCTAssertTrue(window.waitForNonExistence(timeout: Self.timeout))
+            app.typeKey(",", modifierFlags: .command)
+            expect(window, "Settings reopened with Cmd+,")
+            XCTAssertEqual(app.windows.matching(identifier: Self.settingsWindowTitle).count, 1)
+        }
+    }
+
+    func testSettingsRestoresAfterMinimizing() {
+        let window = openSettings()
+        window.buttons[XCUIIdentifierMinimizeWindow].click()
+        openSettings()
+        XCTAssertTrue(window.isHittable)
+        XCTAssertEqual(app.windows.matching(identifier: Self.settingsWindowTitle).count, 1)
+    }
+
+    func testMenuOnlySettingsReopensInFrontOfAnotherApp() {
+        let window = openSettings()
+        select("General")
+        let mode = app.radioButtons["dockVisibility_menuOnly"]
+        for _ in 0..<4 where !mode.isHittable {
+            app.scrollViews["settings.pane.General"].swipeUp()
+        }
+        mode.click()
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(window.waitForNonExistence(timeout: Self.timeout))
+
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        app.statusItems.firstMatch.click()
+        app.menuItems["openSettings"].click()
+        expect(window, "menu-only Settings reopened from behind Finder")
+        // Activation can land a beat after the window appears, so wait for it.
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: Self.timeout))
+        XCTAssertTrue(window.isHittable)
+    }
+
+    func testToolbarTitleTracksTheSelectedPane() {
+        let window = openSettings()
+        for section in ["General", "Stream Widgets", "Song Requests", "About"] {
+            select(section)
+            XCTAssertEqual(window.title, section)
+        }
+    }
+
+    func testAppearanceSensitiveViewsAtMinimumSize() {
+        for appearance in ["light", "dark"] {
+            app.terminate()
+            app.launchEnvironment[UITestEnvironment.settingsSize] = "minimum"
+            app.launchEnvironment[UITestEnvironment.appearance] = appearance
+            app.launch()
+            let window = openSettings()
+            XCTAssertEqual(window.frame.width, 640, accuracy: 1)
+            for section in ["General", "About"] {
+                select(section)
+                XCTAssertEqual(window.title, section)
+                let shot = XCTAttachment(screenshot: window.screenshot())
+                shot.name = "Final appearance - \(appearance) - \(section)"
+                shot.lifetime = .keepAlways
+                add(shot)
+            }
+        }
+    }
+
+    func testCompactQueueControlsRemainReachable() {
+        app.terminate()
+        app.launchEnvironment[UITestEnvironment.settingsSize] = "minimum"
+        app.launch()
+        let window = openSettings()
+        select("Song Requests")
+        XCTAssertEqual(window.frame.width, 640, accuracy: 1)
+        let hold = app.buttons["songRequestQueue.hold"]
+        let clear = app.buttons["songRequestQueue.clearRequests"]
+        expect(hold, "Hold before any requests arrive")
+        XCTAssertTrue(hold.isHittable)
+        XCTAssertTrue(clear.isHittable)
+        XCTAssertLessThanOrEqual(clear.frame.maxX, window.frame.maxX)
+        hold.click()
+        let resumedLabel = NSPredicate(format: "label CONTAINS %@", "Resume")
+        expectation(for: resumedLabel, evaluatedWith: hold)
+        waitForExpectations(timeout: Self.timeout)
+        XCTAssertTrue(app.descendants(matching: .any)["songRequestQueue.empty"].exists)
     }
 
     func testEveryPaneRenders() {
@@ -83,15 +172,92 @@ final class SettingsUITests: WolfWaveUITestCase {
         }
     }
 
-    /// Attaches a screenshot of every pane to the test result.
+    func testSidebarSupportsKeyboardNavigation() {
+        openSettings()
+        select("General")
+        XCTAssertEqual(app.state, .runningForeground)
+        let sidebar = app.descendants(matching: .any)["settings.sidebar"].firstMatch
+        sidebar.typeKey(.downArrow, modifierFlags: [])
+        expect(app.descendants(matching: .any)["settings.pane.Twitch"], "Twitch after Down Arrow")
+        sidebar.typeKey(.upArrow, modifierFlags: [])
+        expect(app.descendants(matching: .any)["settings.pane.General"], "General after Up Arrow")
+    }
+
+    func testNativeQuitShortcutTerminatesTheApp() {
+        openSettings()
+        app.activate()
+        app.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: Self.timeout))
+    }
+
+    func testDiscordEnabledLayoutAtMinimumSize() {
+        app.terminate()
+        app.launchEnvironment[UITestEnvironment.settingsSize] = "minimum"
+        app.launch()
+        let window = openSettings()
+        select("Discord")
+        let toggle = app.descendants(matching: .any)["discordPresenceToggle"].firstMatch
+        expect(toggle, "the Discord presence toggle")
+        toggle.click()
+        expect(app.staticTexts["Show buttons"], "the enabled Discord configuration")
+        let preview = app.staticTexts["statusChip.Offline"]
+        app.activate()
+        app.scrollViews["settings.pane.Discord"].swipeUp()
+        expect(preview, "the Discord preview")
+        for _ in 0..<4 where !preview.isHittable {
+            app.activate()
+            app.scrollViews["settings.pane.Discord"].swipeUp()
+        }
+        XCTAssertTrue(preview.isHittable)
+        XCTAssertLessThanOrEqual(preview.frame.maxX, window.frame.maxX)
+        let shot = XCTAttachment(screenshot: window.screenshot())
+        shot.name = "Settings - minimum - Discord enabled"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    func testRequestPlaylistClearRequiresConfirmation() {
+        openSettings()
+        select("Song Requests")
+        let clear = app.buttons["songRequestQueue.clearRequests"]
+        expect(clear, "Clear Requests")
+        for _ in 0..<4 where !clear.isHittable {
+            app.scrollViews["settings.pane.Song Requests"].swipeUp()
+        }
+        XCTAssertTrue(clear.isHittable)
+        clear.click()
+        let cancel = app.buttons["songRequestQueue.cancelClear"]
+        expect(cancel, "the request playlist clear confirmation")
+        cancel.click()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: Self.timeout))
+        XCTAssertTrue(clear.isHittable)
+    }
+
+    func testHistoryPaneIncludesItsHeading() {
+        openSettings()
+        select("History & Stats")
+        let heading = app.descendants(matching: .any)["historyStats.header"]
+        expect(heading, "the History & Stats pane heading")
+        XCTAssertGreaterThan(heading.frame.height, 0)
+    }
+
+    func testRequestQueuePrecedesConfiguration() {
+        openSettings()
+        select("Song Requests")
+        let clear = app.buttons["songRequestQueue.clearRequests"]
+        let enable = app.descendants(matching: .any)["songRequests.enableToggle"]
+        expect(clear, "the request queue action")
+        expect(enable, "the request configuration toggle")
+        XCTAssertGreaterThan(clear.frame.height, 0)
+        XCTAssertLessThan(clear.frame.maxY, enable.frame.minY)
+    }
+
+    /// Attaches every pane at minimum/ideal size in Light and Dark.
     ///
-    /// Deliberately assertion-free. Layout is the half `testEveryPaneRenders`
-    /// cannot see: a pane whose cards disagree on width renders perfectly
-    /// happily and passes every assertion in this file, which is how the Stream
-    /// Deck pane shipped with a narrow "Setting it up" card. Short of a snapshot
-    /// suite this repo does not have, the fix for that class of bug is a person
-    /// looking, so this test exists to leave something behind to look at, in CI
-    /// and locally:
+    /// Width and pane-containment assertions catch clipped layouts. The images
+    /// still need visual review: a narrow card can fit inside the pane while
+    /// disagreeing with its neighbors, as Stream Deck's setup card once did.
+    /// Export the matrix from CI or a local run with:
     ///
     ///     make test-ui
     ///     xcrun xcresulttool export attachments \
@@ -105,16 +271,39 @@ final class SettingsUITests: WolfWaveUITestCase {
     /// sandboxed into its own container, so anywhere a reader would think to
     /// look is `Operation not permitted`. Attachments are the way out.
     func testCapturesEveryPane() {
-        let window = openSettings()
+        // Mirrors SettingsUI tokens; the out-of-process UI bundle cannot import the app.
+        let sizes: [(name: String, width: CGFloat, height: CGFloat)] = [
+            ("minimum", 640, 620), ("ideal", 1240, 780)
+        ]
+        for size in sizes {
+            for appearance in ["light", "dark"] {
+                app.terminate()
+                app.launchEnvironment[UITestEnvironment.settingsSize] = size.name
+                app.launchEnvironment[UITestEnvironment.appearance] = appearance
+                app.launch()
+                app.activate()
+                let window = openSettings()
+                // macOS clamps a window to the screen, and CI runners have a
+                // 1024-point display, so the ideal width can't always fit.
+                let screenWidth = NSScreen.main?.visibleFrame.width ?? size.width
+                XCTAssertEqual(window.frame.width, min(size.width, screenWidth), accuracy: 1)
+                let screenHeight = NSScreen.main?.visibleFrame.height ?? size.height
+                XCTAssertGreaterThanOrEqual(window.frame.height, min(size.height, screenHeight) - 1)
 
-        for section in Self.sections {
-            select(section)
-            let shot = XCTAttachment(screenshot: window.screenshot())
-            shot.name = "Settings - \(section)"
-            // Without this, XCTest deletes the attachment on a passing test,
-            // and this test always passes.
-            shot.lifetime = .keepAlways
-            add(shot)
+                for section in Self.sections {
+                    select(section)
+                    let sidebar = app.descendants(matching: .any)["settings.sidebar"].firstMatch
+                    // Accessibility includes native list chrome around the content frame.
+                    XCTAssertGreaterThanOrEqual(sidebar.frame.width, 230)
+                    let pane = app.descendants(matching: .any)["settings.pane.\(section)"]
+                    XCTAssertGreaterThan(pane.frame.width, 0)
+                    XCTAssertLessThanOrEqual(pane.frame.maxX, window.frame.maxX + 1)
+                    let shot = XCTAttachment(screenshot: window.screenshot())
+                    shot.name = "Settings - \(size.name) - \(appearance) - \(section)"
+                    shot.lifetime = .keepAlways
+                    add(shot)
+                }
+            }
         }
     }
 

@@ -17,6 +17,12 @@ enum AboutCopy {
 
     // MARK: - Bundle Info
 
+    /// Named Any/Dark artwork exported from the matching Icon Composer source.
+    static var iconAssetName: String {
+        let iconName = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName") as? String ?? "AppIcon"
+        return "About-\(iconName)"
+    }
+
     /// Display name from the bundle (`CFBundleDisplayName`, then `CFBundleName`),
     /// falling back to the constant. Resolves to "WolfWave Dev" in Debug builds.
     static var appName: String {

@@ -43,7 +43,7 @@ struct AboutSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             SectionHeaderWithStatus(
                 title: "About",
                 subtitle: "App info, links, and legal."
@@ -80,7 +80,7 @@ struct AboutSettingsView: View {
     /// icon-left / text-right layout.
     private var hero: some View {
         HStack(alignment: .center, spacing: DSSpace.s5) {
-            Image(nsImage: NSApp.applicationIconImage)
+            Image(AboutCopy.iconAssetName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 72, height: 72)

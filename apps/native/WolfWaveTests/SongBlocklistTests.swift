@@ -264,9 +264,9 @@ final class SongBlocklistTests: WolfWaveTestCase {
     }
 
     func testUserDefaultsStorageUsesCentralizedResetAndBackupKey() throws {
-        let suiteName = "SongBlocklistTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SongBlocklistTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let payload = Data("seed".utf8)
         let storage = UserDefaultsBlocklistStorage(defaults: defaults)
 
