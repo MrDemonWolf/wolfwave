@@ -135,7 +135,7 @@ struct CustomCommandsCard: View {
             .cardStyle()
     }
 
-    /// One command: trigger and reply preview, delivery and permission chips,
+    /// One command: trigger, reply preview, and delivery/permission metadata,
     /// an enable switch, and an edit button. Rows are separated by a divider
     /// except after the last.
     private func row(for command: CustomCommand) -> some View {
@@ -150,14 +150,16 @@ struct CustomCommandsCard: View {
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.tail)
+
+                Text(command.delivery == .reply
+                    ? command.permission.label
+                    : "\(command.delivery.label) · \(command.permission.label)")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: DSSpace.s2)
-
-            if command.delivery != .reply {
-                StatusChip(text: command.delivery.label, color: DSColor.info)
-            }
-            StatusChip(text: command.permission.label, color: .accentColor)
 
             Toggle("", isOn: enabledBinding(for: command))
                 .labelsHidden()

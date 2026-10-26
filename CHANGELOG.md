@@ -23,7 +23,7 @@ All notable changes to this project will be documented in this file.
 - **Setup shows what's on and lets you change it in one tap.** The Discord step tells you whether Discord is open and has a Listen-buttons switch. The Twitch step shows `!song` and `!last` with a switch each. Notifications are a button, not a switch you can't turn off. The last screen points at the wolf in your menu bar, even if you skip setup.
 - **`!song` and `!last` are on for new installs.** Connect Twitch and chat can ask what's playing right away. If you already use WolfWave, nothing changes: your commands stay exactly as you had them.
 - **Clearer Discord choices for when the music stops.** The "When not playing" switches are now two plain choices. When you pause: Keep the song, or Hide the song. When music stops: Listening to WolfWave, or Nothing. Your current choices carry over. Other Discord and Twitch labels got plainer too ("Any-app link", "Add a song.link").
-- **Cleaner native Settings.** Pane titles appear once in the window toolbar, with a short introduction above each pane’s controls. Status chips sit beside the connection or controls they describe. History uses the shared content width, permission actions stack in narrow windows, and About notices are easier to read.
+- **Cleaner native Settings.** Pane titles appear once in the window toolbar, with a short introduction above each pane’s controls. Status chips sit beside the connection or controls they describe. History uses the shared content width, permission actions stack in narrow windows, and About notices are easier to read. Queue counts stay visible while requests are on hold, approval actions adapt to narrow panes, and custom command details use secondary text instead of status pills.
 
 - **Settings fits smaller workspaces.** The minimum width is 640 points for MacBook half-screen layouts. Integration rows stack their status and Configure action when space is tight, toolbar titles follow the selected pane, and sidebar group labels share one heading style.
 - **Queue controls stay above the songs.** Skip, Hold/Resume, and Clear Requests use larger native buttons at the top of the queue. Hold is available before the first request arrives.
@@ -64,7 +64,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Now Playing keeps the right artwork.** A delayed artwork lookup can no longer replace the current song’s cover after the track changes or Music stops.
+- **Now Playing keeps the right artwork.** The previous cover stays visible while the next one loads, then crossfades without flashing the default artwork. Reduce Motion disables the fade, and delayed responses cannot replace a newer cover.
 
 - **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
 - **About follows the app appearance.** The app icon uses its existing Light and Dark artwork, including the DEV badge in development builds.

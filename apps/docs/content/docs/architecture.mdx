@@ -72,7 +72,7 @@ WolfWave/
 │   │   └── Commands/      # Bot commands, dispatcher, cooldowns, custom commands
 │   ├── UpdateChecker/     # SparkleUpdaterService, UpdateChannel
 │   ├── WebSocket/         # WebSocketServerService, WidgetHTTPService, StreamDeckCommand, auth tokens
-│   └── *.swift            # ArtworkService, ArtworkTint, LaunchAtLoginService
+│   └── *.swift            # ArtworkService, ArtworkImageLoader, ArtworkTint, LaunchAtLoginService
 ├── Views/                 # SwiftUI settings shell, one folder per pane, Onboarding/, Shared/, Debug/
 └── Resources/             # widget.html, widget-tokens.generated.js, Assets.xcassets,
                            # AppIcon.icon, AppIcon-Dev.icon, dev-appcast.xml
@@ -187,7 +187,7 @@ To add a command: implement `BotCommand`, register it in `registerDefaultCommand
 Shows "Listening to WolfWave" on your Discord profile.
 
 - **Local IPC socket** at `$TMPDIR/discord-ipc-{0..9}`. No bot token, no server.
-- **Album art** comes from the shared `ArtworkService` (iTunes Search API), cached in memory and in `Application Support/WolfWave/Cache/artwork-links.json`.
+- **Album art** URLs come from the shared `ArtworkService` (iTunes Search API), cached in memory and in `Application Support/WolfWave/Cache/artwork-links.json`. `ArtworkImageLoader` keeps the displayed bitmap while its replacement downloads through the shared URLSession cache. General and Discord previews crossfade resolved replacements, reject stale responses, and use a placeholder for completed misses. Reduce Motion uses an immediate replacement.
 - **Auto-reconnect** with back-off when Discord quits or restarts.
 - **Sandbox-friendly** through SBPL entitlements.
 - Payloads are built by the pure `DiscordPresenceBuilder`.

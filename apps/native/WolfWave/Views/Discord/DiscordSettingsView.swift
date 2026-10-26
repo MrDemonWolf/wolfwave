@@ -355,12 +355,15 @@ struct DiscordSettingsView: View {
         let album = payload.album ?? ""
         let playlist = payload.playlist ?? ""
         let links = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
+        // The service resolves metadata separately from the image download. Keep
+        // the previous cover during that lookup, but clear a completed miss.
+        let artworkPending = !ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist)
         nowPlaying = NowPlayingSnapshot(
             track: track,
             artist: artist,
             album: album,
             playlist: playlist,
-            artworkURL: links.artworkURL,
+            artworkURL: links.artworkURL ?? (artworkPending ? nowPlaying.artworkURL : nil),
             appleMusicURL: links.trackViewURL,
             songLinkURL: links.songLinkURL
         )

@@ -82,8 +82,6 @@ struct SongRequestQueueView: View {
                         color: DSColor.warning,
                         systemImage: StatusChip.StateGlyph.paused
                     )
-                } else if !items.isEmpty {
-                    StatusChip(text: "\(items.count) in queue", color: DSColor.neutral)
                 }
             }
 
@@ -109,7 +107,12 @@ struct SongRequestQueueView: View {
                 nowPlayingRow(nowPlaying)
             }
 
-            // Queue
+            // Upcoming excludes the playing request and requests awaiting approval.
+            Text("Up next · \(items.count)")
+                .sectionEyebrow()
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("songRequestQueue.upNext")
+
             if isQueueEmpty {
                 emptyState
             } else if items.isEmpty && nowPlaying != nil {
@@ -206,48 +209,18 @@ struct SongRequestQueueView: View {
                 .foregroundStyle(DSColor.warning)
 
             ForEach(pending, id: \.id) { item in
-                HStack(spacing: DSSpace.s3) {
-                    smallArtworkPlaceholder
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(item.title)
-                            .font(.system(size: DSFont.Size.body))
-                            .lineLimit(1)
-                        Text("\(item.artist) · requested by \(item.requesterUsername)")
-                            .font(.system(size: DSFont.Size.xs))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: DSSpace.s3) {
+                        pendingDetails(item)
+                        Spacer(minLength: DSSpace.s2)
+                        pendingActions(item)
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(
-                        "Awaiting approval: \(item.title), \(item.artist), requested by \(item.requesterUsername)"
-                    )
+                    .frame(minWidth: DSDimension.Settings.inlineActionsMinWidth)
 
-                    Spacer()
-
-                    AsyncActionButton(
-                        title: "Approve",
-                        systemImage: "checkmark",
-                        tint: DSColor.success,
-                        labelSize: DSFont.Size.sm,
-                        showsSuccess: false,
-                        accessibilityIdentifier: "songRequestQueue.approve"
-                    ) {
-                        _ = await service?.approve(id: item.id)
-                        refreshState()
+                    VStack(alignment: .leading, spacing: DSSpace.s3) {
+                        pendingDetails(item)
+                        pendingActions(item)
                     }
-                    .accessibilityLabel("Approve \(item.title)")
-
-                    DSIconButton(
-                        systemImage: "xmark",
-                        action: {
-                            service?.reject(id: item.id)
-                            refreshState()
-                        },
-                        accessibilityLabel: "Decline \(item.title)",
-                        accessibilityIdentifier: "songRequestQueue.decline"
-                    )
-                    .help("Decline request")
                 }
                 .padding(.vertical, DSSpace.s1)
                 .padding(.horizontal, DSSpace.s2)
@@ -255,6 +228,54 @@ struct SongRequestQueueView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
             }
         }
+    }
+
+    private func pendingDetails(_ item: SongRequestItem) -> some View {
+        HStack(spacing: DSSpace.s3) {
+            smallArtworkPlaceholder
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
+                Text(item.title)
+                    .font(.system(size: DSFont.Size.body))
+                    .lineLimit(1)
+                Text("\(item.artist) · requested by \(item.requesterUsername)")
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "Awaiting approval: \(item.title), \(item.artist), requested by \(item.requesterUsername)"
+            )
+        }
+    }
+
+    private func pendingActions(_ item: SongRequestItem) -> some View {
+        HStack(spacing: DSSpace.s3) {
+            AsyncActionButton(
+                title: "Approve",
+                systemImage: "checkmark",
+                tint: DSColor.success,
+                labelSize: DSFont.Size.sm,
+                showsSuccess: false,
+                accessibilityIdentifier: "songRequestQueue.approve"
+            ) {
+                _ = await service?.approve(id: item.id)
+                refreshState()
+            }
+            .accessibilityLabel("Approve \(item.title)")
+
+            DSIconButton(
+                systemImage: "xmark",
+                action: {
+                    service?.reject(id: item.id)
+                    refreshState()
+                },
+                accessibilityLabel: "Decline \(item.title)",
+                accessibilityIdentifier: "songRequestQueue.decline"
+            )
+            .help("Decline request")
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     // MARK: - Queue List

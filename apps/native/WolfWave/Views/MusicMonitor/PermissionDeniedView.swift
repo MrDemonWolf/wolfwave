@@ -290,7 +290,7 @@ struct PermissionPausedNowPlayingCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            StatusChip(text: "Paused", color: DSColor.warning)
+            StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
         }
         .padding(DSSpace.s6)
         .cardStyleUnpadded()

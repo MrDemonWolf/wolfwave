@@ -60,8 +60,8 @@ struct MusicMonitorSettingsView: View {
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
-    /// Artwork resolved by `ArtworkService`; reset to `nil` only on a track
-    /// identity change so a pause flip doesn't restart the image fetch.
+    /// Artwork resolved by `ArtworkService`; retain the previous URL while the
+    /// next track lookup is pending, then replace it (or clear a resolved miss).
     @State private var currentArtworkURL: URL?
     @State private var currentIsPaused: Bool = false
 
@@ -184,16 +184,14 @@ struct MusicMonitorSettingsView: View {
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
             let payload = notification.nowPlaying
             // The source re-emits the same track ~every 5s. Only the track
-            // identity change needs to drop the artwork URL and restart the
-            // AsyncImage fetch; a pause flip updates in place. Skipping the
-            // per-tick nil-then-refetch stops AsyncImage from restarting each tick.
+            // identity change needs another artwork lookup; a pause flip updates
+            // in place. Keep the old cover until the next lookup resolves.
             let trackChanged = currentTrack != payload.track || currentArtist != payload.artist
             withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 currentTrack = payload.track
                 currentArtist = payload.artist
                 currentAlbum = payload.album
                 currentIsPaused = payload.isPaused
-                if trackChanged { currentArtworkURL = nil }
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
