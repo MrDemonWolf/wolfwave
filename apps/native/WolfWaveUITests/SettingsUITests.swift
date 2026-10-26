@@ -6,6 +6,7 @@
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
+import AppKit
 import XCTest
 
 /// Opens Settings and visits every pane.
@@ -281,8 +282,12 @@ final class SettingsUITests: WolfWaveUITestCase {
                 app.launch()
                 app.activate()
                 let window = openSettings()
-                XCTAssertEqual(window.frame.width, size.width, accuracy: 1)
-                XCTAssertGreaterThanOrEqual(window.frame.height, size.height)
+                // macOS clamps a window to the screen, and CI runners have a
+                // 1024-point display, so the ideal width can't always fit.
+                let screenWidth = NSScreen.main?.visibleFrame.width ?? size.width
+                XCTAssertEqual(window.frame.width, min(size.width, screenWidth), accuracy: 1)
+                let screenHeight = NSScreen.main?.visibleFrame.height ?? size.height
+                XCTAssertGreaterThanOrEqual(window.frame.height, min(size.height, screenHeight) - 1)
 
                 for section in Self.sections {
                     select(section)
