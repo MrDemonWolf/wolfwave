@@ -103,7 +103,8 @@ final class SettingsUITests: WolfWaveUITestCase {
         app.statusItems.firstMatch.click()
         app.menuItems["openSettings"].click()
         expect(window, "menu-only Settings reopened from behind Finder")
-        XCTAssertEqual(app.state, .runningForeground)
+        // Activation can land a beat after the window appears, so wait for it.
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: Self.timeout))
         XCTAssertTrue(window.isHittable)
     }
 
