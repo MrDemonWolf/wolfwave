@@ -23,7 +23,7 @@ final class DebugToolsUITests: WolfWaveUITestCase {
             app.activate()
             app.typeKey(",", modifierFlags: .command)
             let debug = app.staticTexts["settings.sidebar.Debug"]
-            try XCTSkipUnless(debug.waitForExistence(timeout: Self.timeout), "Debug-only pane")
+            expect(debug, "Debug pane in the Debug configuration")
             debug.click()
             let inspectors = app.descendants(matching: .any)["debugTool.inspectors"].firstMatch
             expect(inspectors, "initial inspector tool")
