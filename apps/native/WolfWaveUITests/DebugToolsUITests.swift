@@ -29,6 +29,7 @@ final class DebugToolsUITests: WolfWaveUITestCase {
             expect(inspectors, "initial inspector tool")
             let metrics = app.descendants(matching: .any)["debugTool.metrics"].firstMatch
             XCTAssertFalse(metrics.exists)
+            captureTool("inspectors", size: size)
 
             if size == "minimum" {
                 let picker = app.popUpButtons["debugToolPicker"]
@@ -41,6 +42,14 @@ final class DebugToolsUITests: WolfWaveUITestCase {
             expect(metrics, "selected performance tool")
             XCTAssertTrue(inspectors.waitForNonExistence(timeout: Self.timeout))
             expect(app.buttons["debugCopyDiagnostics"], "diagnostics action")
+            captureTool("metrics", size: size)
         }
+    }
+
+    private func captureTool(_ tool: String, size: String) {
+        let shot = XCTAttachment(screenshot: app.windows[UITestWindow.settings].screenshot())
+        shot.name = "Debug - \(size) - \(tool)"
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 }
