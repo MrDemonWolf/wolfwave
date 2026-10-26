@@ -116,6 +116,9 @@ All notable changes to this project will be documented in this file.
 - **Log lines stay whole.** A carriage return in a message can no longer break a log line.
 - **Diagnostics numbers stay current.** The Share Diagnostics card no longer shows a launch count frozen from when the window opened.
 - **Accurate privacy text.** The app's privacy wording now matches what it does with integrations, local overlays, listening history, logs, the artwork cache, and reset.
+- **Custom commands can't hide built-ins.** A custom command can no longer use a built-in trigger or alias like `!song` or `!sr`; the editor names the built-in. One saved by an older version is turned off so the built-in answers again.
+- **Clearer port lock.** The locked Widget Port now says to turn off Enable Widget Webpage, the switch that actually locks it.
+- **`!sr` help mentions Apple Music links.** The usage reply now lists Apple Music, Spotify, and YouTube links.
 
 ### Developer
 
@@ -157,6 +160,8 @@ All notable changes to this project will be documented in this file.
 - **`make clean-dev`.** Resets WolfWave Dev to a fresh first run (quits it, wipes its defaults and Keychain entry, cleans, removes the `/Applications` copy) and never touches the production app.
 - **Dead code removed.** A Periphery pass removed unused APIs across Twitch, Keychain, song requests, Sparkle, logging, and formatting, plus the unused `InfoRow`, `UpdateBannerView`, and `TwitchGlitchShape` views, the `apps/marketing/shared` token package, and `scripts/generate-og-image.mjs`.
 - **Docs site.** Search works under the GitHub Pages base path, canonical URLs go through `pageUrl()`, brand colours come from the generated tokens, the homepage FAQ emits `FAQPage` JSON-LD, phones get a "Send to my Mac" button instead of a `.dmg`, every demo widget is labelled as a demo, an `llms.txt` index sits next to `llms-full.txt`, and the docs were rewritten for streamers, viewers, and developers.
+- **`BuiltInCommandCatalog`.** Lists every built-in trigger and alias key; `CustomCommandStore.validationIssue(for:)` returns `CustomCommandIssue.reservedTrigger` for a clash, and `BuiltInCommandCatalogTests` keeps the catalog in step with the dispatcher.
+- **Comment and template fixes.** `!stats` comments no longer call it live-only (it follows Only reply while live), the progress-timer comment notes a lone Stream Deck gets no `progress` frames on purpose, and the PR template says every `MARKETING_VERSION` occurrence.
 
 ## [2.1.0] - 2026-08-14
 

@@ -189,7 +189,7 @@ Viewers on a stream running WolfWave can type the commands in
 | `!myqueue` `!mysongs`                  | Shows only your own requests                |
 | `!voteskip` `!vs`                      | Votes to skip the current song              |
 | `!playlist`                            | Links the streamer's request playlist       |
-| `!stats` `!musicstats`                 | Shows today's listening stats (live only)   |
+| `!stats` `!musicstats`                 | Shows your listening stats                  |
 | `!wolfwave`                            | Tells chat what WolfWave is (off by default) |
 
 The streamer turns each command on or off and can add aliases in

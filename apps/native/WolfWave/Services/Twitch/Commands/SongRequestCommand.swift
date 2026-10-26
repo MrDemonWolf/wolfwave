@@ -24,7 +24,7 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
     var triggers: [String] { ["!sr", "!request", "!songrequest"] }
 
     /// Human-readable description (informational; no chat command lists it).
-    var description: String { "Request a song by name or Spotify/YouTube link" }
+    var description: String { "Request a song by name or Apple Music, Spotify, or YouTube link" }
 
     /// Channel-wide cooldown between invocations, in seconds.
     var globalCooldown: TimeInterval { 5.0 }
@@ -110,7 +110,7 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
         let query = Self.extractQuery(from: message)
 
         guard !query.isEmpty else {
-            return "Usage: !sr <song name or Spotify/YouTube link>"
+            return "Usage: !sr <song name or Apple Music, Spotify, or YouTube link>"
         }
 
         guard let service = songRequestService?() else {
