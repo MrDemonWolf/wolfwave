@@ -62,6 +62,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Now Playing keeps the right artwork.** A delayed artwork lookup can no longer replace the current song’s cover after the track changes or Music stops.
+
 - **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
 - **About follows the app appearance.** The app icon uses its existing Light and Dark artwork, including the DEV badge in development builds.
 - **Standard Mac menu commands are back.** Quit, Hide, and the Edit menu are available while Settings is open.

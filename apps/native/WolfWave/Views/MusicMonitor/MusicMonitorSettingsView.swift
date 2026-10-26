@@ -487,6 +487,9 @@ struct MusicMonitorSettingsView: View {
         }
         ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { links in
             Task { @MainActor in
+                // A different track can arrive while the shared lookup is in flight.
+                // Check after the actor hop, immediately before publishing its result.
+                guard currentTrack == track, currentArtist == artist else { return }
                 currentArtworkURL = links.artworkURL.flatMap(URL.init(string:))
             }
         }
