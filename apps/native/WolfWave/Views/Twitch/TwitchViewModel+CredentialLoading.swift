@@ -2,7 +2,7 @@
 //  TwitchViewModel+CredentialLoading.swift
 //  WolfWave
 //
-//  Created by Nathanial Henniges on 2026-10-24.
+//  Created by Nathanial Henniges on 2026-10-26.
 //  Copyright © 2026 MrDemonWolf, Inc. All rights reserved.
 //
 
