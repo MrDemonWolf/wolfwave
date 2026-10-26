@@ -35,7 +35,7 @@ private final class FakeSyncStore: SettingsSyncStore {
 @MainActor
 final class SettingsSyncServiceTests: WolfWaveTestCase {
 
-    private var suiteName = ""
+    private var scratch: ThrowawayDefaults!
     private var defaults: UserDefaults!
     private var center: NotificationCenter!
     private var store: FakeSyncStore!
@@ -43,8 +43,8 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        suiteName = "SettingsSyncServiceTests.\(UUID().uuidString)"
-        defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        scratch = ThrowawayDefaults("SettingsSyncServiceTests")
+        defaults = scratch.defaults
         center = NotificationCenter()
         store = FakeSyncStore()
         backup = SettingsBackupService(
@@ -63,7 +63,7 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: suiteName)
+        scratch.destroy()
         try await super.tearDown()
     }
 

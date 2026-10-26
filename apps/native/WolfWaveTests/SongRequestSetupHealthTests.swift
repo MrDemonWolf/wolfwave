@@ -203,9 +203,9 @@ struct SongRequestSetupHealthTests {
 
     @Test("migration grandfathers an already-enabled setup")
     func migrateEnabled() throws {
-        let name = "test.sr.migrate.enabled"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.migrate.enabled")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
 
         SongRequestService.migrateSetupState(defaults: defaults)
@@ -215,9 +215,9 @@ struct SongRequestSetupHealthTests {
 
     @Test("migration grandfathers a configured song-list link")
     func migrateLink() throws {
-        let name = "test.sr.migrate.link"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.migrate.link")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set("https://music.apple.com/x", forKey: AppConstants.UserDefaults.songRequestSongListURL)
 
         SongRequestService.migrateSetupState(defaults: defaults)
@@ -227,9 +227,9 @@ struct SongRequestSetupHealthTests {
 
     @Test("migration leaves a fresh install gated")
     func migrateFresh() throws {
-        let name = "test.sr.migrate.fresh"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.migrate.fresh")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         SongRequestService.migrateSetupState(defaults: defaults)
 
@@ -238,9 +238,9 @@ struct SongRequestSetupHealthTests {
 
     @Test("migration is a no-op once the flag has been written")
     func migrateIdempotent() throws {
-        let name = "test.sr.migrate.idem"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.migrate.idem")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set(false, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
 

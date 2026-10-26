@@ -94,16 +94,18 @@ final class RequestAudienceTests: WolfWaveTestCase {
 @MainActor
 final class SongRequestPresetTests: WolfWaveTestCase {
 
+    private var scratch: ThrowawayDefaults!
     private var defaults: UserDefaults!
 
     override func setUp() async throws {
         try await super.setUp()
-        defaults = UserDefaults(suiteName: "SongRequestPresetTests")
-        defaults.removePersistentDomain(forName: "SongRequestPresetTests")
+        scratch = ThrowawayDefaults("SongRequestPresetTests")
+        defaults = scratch.defaults
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: "SongRequestPresetTests")
+        scratch.destroy()
+        scratch = nil
         defaults = nil
         try await super.tearDown()
     }
@@ -193,16 +195,18 @@ final class SongRequestPresetTests: WolfWaveTestCase {
 @MainActor
 final class SongRequestLimitsTests: WolfWaveTestCase {
 
+    private var scratch: ThrowawayDefaults!
     private var defaults: UserDefaults!
 
     override func setUp() async throws {
         try await super.setUp()
-        defaults = UserDefaults(suiteName: "SongRequestLimitsTests")
-        defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
+        scratch = ThrowawayDefaults("SongRequestLimitsTests")
+        defaults = scratch.defaults
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: "SongRequestLimitsTests")
+        scratch.destroy()
+        scratch = nil
         defaults = nil
         try await super.tearDown()
     }

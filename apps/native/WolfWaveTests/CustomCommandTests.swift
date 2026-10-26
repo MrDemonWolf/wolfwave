@@ -283,15 +283,20 @@ struct CustomBotCommandTests {
 /// suite that touches `DefaultsStore.store`.
 @Suite("CustomCommandStore", .isolatedSharedTestState)
 @MainActor
-struct CustomCommandStoreTests {
+final class CustomCommandStoreTests {
 
-    /// A store backed by a uniquely named throwaway `UserDefaults` suite, returned with it so a
+    /// This test's settings store. Swift Testing builds a fresh instance per
+    /// test, so each test gets its own suite, removed from disk in `deinit`.
+    private let scratch = ThrowawayDefaults("CustomCommandStoreTests")
+
+    deinit {
+        scratch.destroy()
+    }
+
+    /// A store backed by this test's throwaway `UserDefaults` suite, returned with it so a
     /// test can inspect or reload from it.
     private func makeStore() -> (CustomCommandStore, UserDefaults) {
-        let suite = "test.customcommands.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return (CustomCommandStore(defaults: defaults), defaults)
+        (CustomCommandStore(defaults: scratch.defaults), scratch.defaults)
     }
 
     @Test("add / update / delete mutate the list")

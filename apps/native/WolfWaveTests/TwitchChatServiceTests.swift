@@ -159,9 +159,9 @@ struct TwitchChatServiceTests {
     #if DEBUG
     @Test("Debug viewer simulation matches canonical login and display-name fallback")
     func testDebugViewerSimulationUsernameMatching() {
-        let suiteName = "TwitchChatServiceTests.viewer.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("TwitchChatServiceTests.viewer")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         defaults.set(
             " other, SOMEHANDLE ",
