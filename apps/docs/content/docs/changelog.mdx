@@ -67,6 +67,7 @@ The next release. These ship on the [Nightly channel](/docs/nightly) off `main` 
 
 ### Fixed
 
+- **Song Requests setup no longer cries wolf about Sync Library.** Right after making the WolfWave Requests playlist, setup used to warn that Music couldn't see it, before iCloud had a chance to sync. It now waits up to about 40 seconds ("Adding it to Music…") and only warns if the playlist still hasn't shown up. The warning names the exact switch, Music › Settings › General › Sync Library, and Check Again waits again. The Song Requests settings banner works the same way, and its Check Again button shows a spinner while it checks. Setup steps also sit right under their headings now, with shorter wording.
 - **`!song`, `!last`, and `!stats` honor their cooldown.** When several viewers sent one at the same moment, they all got a reply.
 - **A refused `!sr` no longer blocks everyone else.** A viewer who isn't allowed to request, or `!sr` while requests are off, no longer puts it on cooldown for the rest of chat. Those refusal replies are throttled so they can't flood chat.
 - **`!skip` tells the truth.** It no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."

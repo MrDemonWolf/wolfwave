@@ -44,7 +44,8 @@ extension SongRequestSetupView {
     private var introStep: some View {
         OnboardingStepScaffold(
             title: "Set up Song Requests",
-            description: "A quick walk-through so viewers can request songs in your Twitch chat. You can change all of this later in settings.",
+            description: "A quick walk-through so viewers can request songs from your Twitch chat. "
+                + "You can change all of it later.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -55,16 +56,16 @@ extension SongRequestSetupView {
                 )
             },
             extras: {
-                Group {
+                stepExtras {
                     if viewModel.isTwitchConnected {
-                        CalloutBanner("Twitch is connected. You're good to go.", style: .success)
+                        CalloutBanner("Twitch is connected.", style: .success)
                     } else {
                         CalloutBanner(
-                            "Next unlocks once Twitch is connected. Song requests arrive through your chat.",
+                            "Connect Twitch first. Requests come in through your chat.",
                             style: .info,
                             systemImage: "lock.fill"
                         )
-                        Button("Open Twitch settings") {
+                        Button("Open Twitch Settings") {
                             dismiss()
                             openTwitchSettings()
                         }
@@ -83,24 +84,27 @@ extension SongRequestSetupView {
     private var appleMusicStep: some View {
         OnboardingStepScaffold(
             title: "Allow Apple Music access",
-            description: "WolfWave searches Apple Music for requested songs and plays them in Music.app.",
+            description: "WolfWave finds requested songs on Apple Music and plays them in Music.",
             icon: { appleMusicTile },
             extras: {
-                Group {
+                stepExtras {
                     if musicAuthStatus == .authorized {
                         CalloutBanner("Apple Music access granted.", style: .success)
                     } else if musicAuthStatus == .denied {
                         CalloutBanner(
-                            "Apple Music access was denied. Turn it on in System Settings, Privacy & Security, then Media & Apple Music.",
+                            "Apple Music access is off. Turn it on in "
+                                + "System Settings › Privacy & Security › Media & Apple Music.",
                             style: .warning
                         )
                         Button("Open System Settings") {
                             ExternalLink.open(AppConstants.URLs.systemMusicSettings)
                         }
                         .pointerCursor()
+                        .accessibilityIdentifier("songRequestSetup.openMusicPrivacy")
                     } else if musicAuthStatus == .restricted {
                         CalloutBanner(
-                            "Apple Music access is restricted on this Mac. Check parental controls or ask its administrator.",
+                            "Apple Music access is blocked on this Mac. "
+                                + "Check Screen Time, or ask whoever manages this Mac.",
                             style: .warning
                         )
                     } else {
@@ -129,50 +133,68 @@ extension SongRequestSetupView {
 
     // MARK: Step 3 - Requests playlist
 
-    /// Creates the playlist on entry (see `.task(id:)` in `body`) and reports
-    /// progress, success, a local-visibility warning, or a retryable error.
+    /// Makes the playlist on entry (see `.task(id:)` in `body`), then waits for
+    /// Music to pick it up. Shows progress, success, a Sync Library warning only
+    /// after the full wait, or a retryable error.
     private var playlistStep: some View {
         OnboardingStepScaffold(
             title: "Create your requests playlist",
-            description: "Requested songs go into one playlist called \(AppConstants.Music.requestsPlaylistName) so your library stays tidy. WolfWave makes it for you.",
+            description: "Requested songs go into one playlist, "
+                + "\(AppConstants.Music.requestsPlaylistName). WolfWave makes it for you.",
             icon: { appleMusicTile },
             extras: {
-                VStack(spacing: DSSpace.s3) {
+                stepExtras {
                     if ensuringPlaylist {
-                        HStack(spacing: DSSpace.s2) {
-                            ProgressView().controlSize(.small)
-                            Text("Setting up \(AppConstants.Music.requestsPlaylistName)\u{2026}")
-                                .font(.system(size: DSFont.Size.body))
-                                .foregroundStyle(.secondary)
-                        }
+                        progressRow("Making \(AppConstants.Music.requestsPlaylistName)\u{2026}")
                     } else if viewModel.playlistReady {
-                        if playlistLocalVisibility == .notVisible {
-                            CalloutBanner(
-                                "\(AppConstants.Music.requestsPlaylistName) was made in your Apple Music library, but Music on this Mac can't see it yet. Songs play out of Music, so turn on Sync Library in Music, Settings, General, then check again.",
-                                style: .warning
-                            )
-                            AsyncActionButton(title: "Check Again", showsSuccess: false) {
-                                await refreshPlaylistLocalVisibility()
-                            }
-                        } else {
-                            CalloutBanner("\(AppConstants.Music.requestsPlaylistName) is ready.", style: .success)
-                        }
-                        Text("Made by WolfWave, with a description so chat knows what it is. Apple builds the cover from the songs as they come in.")
-                            .font(.system(size: DSFont.Size.xs))
-                            .foregroundStyle(.tertiary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                        playlistReadyState
                     } else if let playlistError {
-                        VStack(spacing: DSSpace.s3) {
-                            CalloutBanner(playlistError, style: .warning)
-                            AsyncActionButton(title: "Try Again", showsSuccess: false) {
-                                await ensurePlaylist()
-                            }
+                        CalloutBanner(playlistError, style: .warning)
+                        AsyncActionButton(title: "Try Again", showsSuccess: false) {
+                            await ensurePlaylist()
                         }
                     }
                 }
             }
         )
+    }
+
+    /// The playlist exists in Apple Music; this is where it stands in Music on
+    /// this Mac. Only `notInMusic`, reached after the full wait, warns.
+    @ViewBuilder
+    private var playlistReadyState: some View {
+        let name = AppConstants.Music.requestsPlaylistName
+        switch viewModel.playlistMusicState {
+        case .unchecked, .checking:
+            progressRow("Adding it to Music\u{2026} This can take a few seconds.")
+        case .inMusic:
+            CalloutBanner("\(name) is ready in Music.", style: .success)
+        case .unverified:
+            CalloutBanner("\(name) is ready. Open Music before you go live.", style: .success)
+        case .notInMusic:
+            CalloutBanner(
+                "Turn on Music › Settings › General › Sync Library, then check again. "
+                    + "You can finish setup now and fix this later.",
+                title: "Music can't see \(name) yet",
+                style: .warning
+            )
+            Button("Check Again") { checkPlaylistAgain() }
+                .controlSize(.small)
+                .pointerCursor()
+                .accessibilityIdentifier("songRequestSetup.checkPlaylistAgain")
+        }
+    }
+
+    /// A small spinner with a calm status line, for work that needs no input.
+    private func progressRow(_ text: String) -> some View {
+        HStack(spacing: DSSpace.s2) {
+            ProgressView().controlSize(.small)
+            Text(text)
+                .font(.system(size: DSFont.Size.body))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Step 4 - Optional share link
@@ -182,7 +204,9 @@ extension SongRequestSetupView {
     private var shareLinkStep: some View {
         OnboardingStepScaffold(
             title: "Share your playlist",
-            description: "Optional. Turn this on if you want !playlist to drop a link to your requests playlist in chat.",
+            description: "Want !playlist to post a link to your requests playlist in chat? "
+                + "Make it public here, or skip.",
+            isOptional: true,
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -193,14 +217,14 @@ extension SongRequestSetupView {
                 )
             },
             extras: {
-                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                stepExtras(alignment: .leading) {
                     VStack(alignment: .leading, spacing: DSSpace.s3) {
                         setupStep(1, "Open your requests playlist") {
                             AsyncActionButton(title: "Open in Music", showsSuccess: false) {
                                 await openPlaylistInMusic()
                             }
                         }
-                        setupStep(2, "In Music: tap Share, then Show on Profile") { EmptyView() }
+                        setupStep(2, "In Music, click Share, then Show on Profile") { EmptyView() }
                         setupStep(3, "Grab the link") {
                             AsyncActionButton(
                                 title: "Fetch link",
@@ -230,7 +254,7 @@ extension SongRequestSetupView {
                         .font(.system(size: DSFont.Size.xs))
                         .foregroundStyle(.secondary)
                     if Preferences.normalizedHTTPSURL(songListDraft) == nil {
-                        FieldValidationRow(state: .invalid("Use an HTTPS link with a host, up to 2,048 characters."))
+                        FieldValidationRow(state: .invalid("Use a full https:// link."))
                     }
                 }
             }
@@ -243,7 +267,8 @@ extension SongRequestSetupView {
     private var doneStep: some View {
         OnboardingStepScaffold(
             title: "You're all set",
-            description: "Viewers can request songs with !sr. Fine-tune who can request, queue limits, and commands anytime in settings.",
+            description: "Viewers request songs with !sr. "
+                + "Change who can request, queue limits, and commands anytime in settings.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(DSColor.success),
@@ -254,24 +279,49 @@ extension SongRequestSetupView {
                 )
             },
             extras: {
-                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                stepExtras(alignment: .leading) {
                     VStack(alignment: .leading, spacing: DSSpace.s2) {
                         recapRow(viewModel.isTwitchConnected, "Twitch connected")
-                        recapRow(viewModel.musicAuthorized, "Apple Music access granted")
-                        recapRow(viewModel.playlistReady, "\(AppConstants.Music.requestsPlaylistName) created")
+                        recapRow(viewModel.musicAuthorized, "Apple Music access allowed")
+                        recapRow(viewModel.playlistReady, "\(AppConstants.Music.requestsPlaylistName) made")
                         recapRow(hasSongListLink, hasSongListLink ? "!playlist link shared" : "Song list link (skipped)")
                     }
                     .padding(DSSpace.s4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .subtleCardShell()
 
-                    Text("Turning this on enables song requests right away. You can switch it off whenever you like.")
+                    if viewModel.playlistMusicState == .notInMusic {
+                        CalloutBanner(
+                            "Music can't see \(AppConstants.Music.requestsPlaylistName) yet, so requests won't play. "
+                                + "Turn on Music › Settings › General › Sync Library.",
+                            style: .warning
+                        )
+                    }
+
+                    Text("Song requests start as soon as you turn them on. Switch them off anytime.")
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         )
+    }
+
+    /// Wraps a step's extras: one consistent stack, pinned to the top of the
+    /// scaffold's extras slot. The scaffold centers short extras in a tall
+    /// slot, which left a large gap under the header; filling the slot from
+    /// the top keeps every step's content right under its description. It also
+    /// keeps multi-view extras in one stack, where a bare `Group` let the
+    /// scaffold frame each child separately.
+    func stepExtras<Content: View>(
+        alignment: HorizontalAlignment = .center,
+        @ViewBuilder _ content: () -> Content
+    ) -> some View {
+        VStack(alignment: alignment, spacing: DSSpace.s3) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: Alignment(horizontal: alignment, vertical: .top))
+        .frame(minHeight: DSDimension.Onboarding.stepContentMinHeight, alignment: .top)
     }
 
     /// Persists the share-link draft when it is blank or a valid HTTPS link

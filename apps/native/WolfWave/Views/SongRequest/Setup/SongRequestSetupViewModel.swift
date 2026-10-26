@@ -74,6 +74,30 @@ final class SongRequestSetupViewModel {
     var musicAuthorized = false
     /// Gates `.playlist`.
     var playlistReady = false
+    /// Whether Music.app on this Mac can see the playlist. Informational only:
+    /// it never gates Next, because only the streamer can fix a sync problem.
+    var playlistMusicState: PlaylistMusicState = .unchecked
+
+    // MARK: - Playlist in Music
+
+    /// Where the WolfWave Requests playlist stands in Music.app on this Mac.
+    ///
+    /// The playlist is made in the Apple Music cloud library and reaches Music
+    /// through iCloud sync, so right after it is made Music usually can't see it
+    /// yet. `checking` covers that wait; only a playlist still missing after it
+    /// lands in `notInMusic`.
+    enum PlaylistMusicState: Equatable {
+        /// Not checked yet, or the last check was cancelled.
+        case unchecked
+        /// Waiting for Music to pick the playlist up.
+        case checking
+        /// Music sees the playlist. Requests can play.
+        case inMusic
+        /// Still missing after the full wait. Usually Sync Library is off.
+        case notInMusic
+        /// Music was closed or didn't answer, so there is no verdict.
+        case unverified
+    }
 
     // MARK: - Init
 
@@ -118,20 +142,52 @@ final class SongRequestSetupViewModel {
         currentStep = prev
     }
 
+    /// Waits for Music.app to see the playlist, re-probing on `wait`'s
+    /// interval, and records the verdict in `playlistMusicState`.
+    ///
+    /// Cancelling the calling task (the step or the sheet went away) ends the
+    /// wait and leaves the state `unchecked`, so the next visit checks again
+    /// instead of showing a stale or half-finished answer.
+    ///
+    /// - Parameters:
+    ///   - wait: Probe interval and attempt budget.
+    ///   - probe: Asks Music.app once.
+    ///   - sleep: Waits between probes; injectable for tests.
+    func confirmPlaylistInMusic(
+        wait: PlaylistVisibilityWait = .standard,
+        probe: () async -> PlaylistLocalVisibility,
+        sleep: (Duration) async throws -> Void = PlaylistVisibilityWait.taskSleep
+    ) async {
+        playlistMusicState = .checking
+        do {
+            switch try await wait.run(probe: probe, sleep: sleep) {
+            case .visible: playlistMusicState = .inMusic
+            case .notVisible: playlistMusicState = .notInMusic
+            case .unknown: playlistMusicState = .unverified
+            }
+        } catch {
+            playlistMusicState = .unchecked
+        }
+    }
+
     // MARK: - Completion
 
-    /// Records the gate, clears any stale health banner, and turns the feature
+    /// Records the gate, sets the health banner, and turns the feature
     /// on. Finishing the wizard is an explicit "go" signal, so the master toggle
     /// flips on; the streamer can turn it off in the pane afterward. The pane
-    /// re-runs the playlist health check on dismiss to confirm the optimistic
-    /// `.ok` status.
+    /// re-runs the playlist health check on dismiss to confirm the status.
+    ///
+    /// A playlist Music still couldn't see after the full wait is recorded as
+    /// `.playlistNotInMusic`, so the pane keeps the same warning the step showed
+    /// instead of briefly claiming everything is fine.
     ///
     /// Posts `songRequestSettingChanged` (enabled) so the service starts.
     ///
     /// - Parameter defaults: Store to write to; injectable for tests.
     func complete(defaults: Foundation.UserDefaults = DefaultsStore.store) {
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
-        defaults.set(PlaylistSetupStatus.ok.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)
+        let status: PlaylistSetupStatus = playlistMusicState == .notInMusic ? .playlistNotInMusic : .ok
+        defaults.set(status.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: true)
         Log.info("SongRequestSetupViewModel: Setup completed", category: .songRequest)

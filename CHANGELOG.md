@@ -49,6 +49,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Song Requests setup no longer cries wolf about Sync Library.** Right after making the WolfWave Requests playlist, setup used to warn that Music couldn't see it, before iCloud had a chance to sync. It now waits up to about 40 seconds ("Adding it to Music…") and only warns if the playlist still hasn't shown up. The warning names the exact switch, Music › Settings › General › Sync Library, and Check Again waits again. The Song Requests settings banner works the same way, and its Check Again button shows a spinner while it checks. Setup steps also sit right under their headings now, with shorter wording.
 - **`!song`, `!last`, and `!stats` honor their cooldown.** When several viewers sent one at the same moment, they all got a reply.
 - **A refused `!sr` no longer blocks everyone else.** A viewer who isn't allowed to request, or `!sr` while requests are off, no longer puts it on cooldown for the rest of chat. Those refusal replies are throttled so they can't flood chat.
 - **`!skip` tells the truth.** It no longer says "Queue is now empty" when nothing was skipped. If Music is closed or busy, it says "Couldn't skip right now, try again."
@@ -106,6 +107,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- `PlaylistVisibilityWait` (Services/SongRequest) re-probes Music.app's local library every 2 s for about 40 s after the requests playlist is made, so iCloud sync latency no longer reads as Sync Library being off. The setup step runs it in a `.task` keyed on the step and a Check Again counter, so it is cancelled with the step or sheet. `runSetupHealthCheck(forceWait:)` uses the same wait unless the gap is already on the banner. Covered by `PlaylistVisibilityWaitTests` with a scripted probe and sleep.
 - **Stream Deck protocol v3.** `StreamDeckAction` adds `announce_song`, `reject_current`, `block_requester`, and `cycle_audience`, drops the Discord / Music Sync / theme / status actions, and `StreamDeckControl.protocolVersion` is 3. Change the TypeScript mirror in `apps/streamdeck/src/wolfwave/` in the same PR.
 - **Stream Deck plugin.** `WolfWaveClient` swallows a late ack from a timed-out press and reports handshake rejections; `src/connection-status.ts` maps client state to the Property Inspector message; key repaints use a paint generation so a suspended render can't install a timer late; the Property Inspector saves a 64-hex control token on paste.
 - **`streamDeckControlEnabled` and `StreamDeckPaneStatus`.** The command switch defaults to on (read it through `FeatureFlags`). The header-chip precedence (server off, server error, starting, commands off, then Ready only for `.listening`) is a pure `nonisolated` resolver with tests, and `WebSocketServerCard` takes the parent's `serverState`.
