@@ -521,7 +521,7 @@ Any change that is user-facing or changes structure updates the docs in the **sa
 
 Never hardcode a value that drifts. Read it from the source of truth instead: test count from `ls apps/native/WolfWaveTests/*.swift | wc -l`, app version from `MARKETING_VERSION` in `project.pbxproj`, widget dimensions / themes / layouts from `design-system/tokens.json`. The PR template checklists gate all of this.
 
-> The site is a **static export** (GitHub Pages), served under the `/wolfwave` base path in production (empty in dev). A fresh git worktree under `.claude/worktrees/` has no `node_modules`, so run `bun install` once before `bun run dev`/`build` there. The preview launch config is named `docs` (port 3000); in dev the OG routes serve at `/opengraph-image` (no `.png`).
+> The site is a **static export** (GitHub Pages), served at `https://wolfwave.mrdemonwolf.dev` with an empty base path in production and dev. A fresh git worktree under `.claude/worktrees/` has no `node_modules`, so run `bun install` once before `bun run dev`/`build` there. The preview launch config is named `docs` (port 3000); in dev the OG routes serve at `/opengraph-image` (no `.png`).
 
 > **Docs card styling gotcha.** Fumadocs heading permalink anchors carry `data-card=""`, and current versions may omit `.peer`. Style real cards with `a[data-card]:not(.peer):not([href^="#"])` so fragment links never become bordered cards.
 

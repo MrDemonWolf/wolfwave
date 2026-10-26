@@ -18,8 +18,8 @@ extension AppConstants {
         /// `https:`), fall back to the upstream default so privacy/terms/
         /// acknowledgements links never ship broken.
         static let docs = validURL(
-            infoPlistString("DOCS_URL", fallback: "https://mrdemonwolf.github.io/wolfwave"),
-            fallback: "https://mrdemonwolf.github.io/wolfwave"
+            infoPlistString("DOCS_URL", fallback: "https://wolfwave.mrdemonwolf.dev"),
+            fallback: "https://wolfwave.mrdemonwolf.dev"
         )
 
         /// Privacy policy page URL (derived from `docs`).

@@ -93,7 +93,7 @@ struct QRCodeImage: View {
 // MARK: - Preview
 
 #Preview {
-    QRCodeImage(string: "https://mrdemonwolf.github.io/wolfwave", size: 120)
+    QRCodeImage(string: "https://wolfwave.mrdemonwolf.dev", size: 120)
         .padding()
         .background(Color.black)
 }

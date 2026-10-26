@@ -73,7 +73,7 @@ extension DebugComponentGalleryCard {
         }
 
         GalleryEntry(typeName: "QRCodeImage", note: "white modules, needs a dark backing") {
-            QRCodeImage(string: "https://mrdemonwolf.github.io/wolfwave", size: Metrics.qrSize)
+            QRCodeImage(string: "https://wolfwave.mrdemonwolf.dev", size: Metrics.qrSize)
                 .padding()
                 .background(Color.black)
         }

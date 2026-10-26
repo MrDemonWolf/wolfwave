@@ -121,7 +121,7 @@ update with `brew upgrade --cask`.
   Access, Announce Song, Overlay, and Now Playing.
 - **Manual install for now.** The plugin is built from
   `apps/streamdeck/` until it's on the Elgato Marketplace. See the
-  [Stream Deck guide](https://mrdemonwolf.github.io/wolfwave/docs/streamdeck).
+  [Stream Deck guide](https://wolfwave.mrdemonwolf.dev/docs/streamdeck).
 
 **History & Stats**
 
@@ -147,7 +147,7 @@ update with `brew upgrade --cask`.
 - **Native settings controls.** Standard macOS switches keep their labels,
   keyboard behavior, and readable descriptions together across settings panes.
 - **Updates your way.** Stable by default, or opt into
-  [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly)
+  [Nightly builds](https://wolfwave.mrdemonwolf.dev/docs/nightly)
   in Settings > Software Update.
 - **Helpful errors.** Error messages name the cause and offer the fix.
   Export Logs and a pre-filled bug report live in Settings > Advanced.
@@ -168,13 +168,13 @@ Viewers on a stream running WolfWave can type the commands in
 
 - **Local WebSocket feed.** Every play, pause, and skip as JSON on
   `ws://localhost:8765`, authenticated with a read-only overlay token.
-  See the [Widget docs](https://mrdemonwolf.github.io/wolfwave/docs/widget).
+  See the [Widget docs](https://wolfwave.mrdemonwolf.dev/docs/widget).
 - **Stream Deck control API.** A separate control token runs commands,
   and only from the same Mac. Documented in
   [Stream Deck Control API](apps/native/docs/streamdeck-control-api.md).
 - **Settings deep links.** `wolfwave://settings/<pane>/<section>` opens
   Settings at a card. The names are listed in the
-  [Settings docs](https://mrdemonwolf.github.io/wolfwave/docs/settings#deep-links).
+  [Settings docs](https://wolfwave.mrdemonwolf.dev/docs/settings#deep-links).
 - **Native and open source.** Swift 6, SwiftUI, sandboxed. GPL-3.0.
 
 ## Usage
@@ -233,21 +233,21 @@ trusted network only.
 ## Docs
 
 Full docs live at
-[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave).
+[wolfwave.mrdemonwolf.dev](https://wolfwave.mrdemonwolf.dev).
 
-Read released updates on the public [Changelog](https://mrdemonwolf.github.io/wolfwave/changelog/),
-or explore the [Design system](https://mrdemonwolf.github.io/wolfwave/design-system/)
+Read released updates on the public [Changelog](https://wolfwave.mrdemonwolf.dev/changelog/),
+or explore the [Design system](https://wolfwave.mrdemonwolf.dev/design-system/)
 for typography, measured color pairs, components, and motion. Unreleased notes
 stay in the repository and are excluded from the website's changelog and search.
 
-- [Installation](https://mrdemonwolf.github.io/wolfwave/docs/installation)
-- [Features](https://mrdemonwolf.github.io/wolfwave/docs/features)
-- [Bot Commands](https://mrdemonwolf.github.io/wolfwave/docs/bot-commands)
-- [Settings](https://mrdemonwolf.github.io/wolfwave/docs/settings)
-- [Troubleshooting](https://mrdemonwolf.github.io/wolfwave/docs/troubleshooting)
-- [FAQ](https://mrdemonwolf.github.io/wolfwave/docs/faq)
-- [Architecture](https://mrdemonwolf.github.io/wolfwave/docs/architecture)
-- [Development](https://mrdemonwolf.github.io/wolfwave/docs/development)
+- [Installation](https://wolfwave.mrdemonwolf.dev/docs/installation)
+- [Features](https://wolfwave.mrdemonwolf.dev/docs/features)
+- [Bot Commands](https://wolfwave.mrdemonwolf.dev/docs/bot-commands)
+- [Settings](https://wolfwave.mrdemonwolf.dev/docs/settings)
+- [Troubleshooting](https://wolfwave.mrdemonwolf.dev/docs/troubleshooting)
+- [FAQ](https://wolfwave.mrdemonwolf.dev/docs/faq)
+- [Architecture](https://wolfwave.mrdemonwolf.dev/docs/architecture)
+- [Development](https://wolfwave.mrdemonwolf.dev/docs/development)
 
 ## Tech Stack
 
@@ -271,7 +271,7 @@ stay in the repository and are excluded from the website's changelog and search.
 ## Development
 
 The short version is below. The full guide is in the
-[Development docs](https://mrdemonwolf.github.io/wolfwave/docs/development)
+[Development docs](https://wolfwave.mrdemonwolf.dev/docs/development)
 and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Prerequisites
@@ -382,7 +382,7 @@ Questions or feedback?
 
 - Discord: [Join my server](https://mrdwolf.net/discord)
 - Issues: [GitHub Issues](https://github.com/MrDemonWolf/WolfWave/issues)
-- Docs: [mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave)
+- Docs: [wolfwave.mrdemonwolf.dev](https://wolfwave.mrdemonwolf.dev)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - Security: [SECURITY.md](.github/SECURITY.md)

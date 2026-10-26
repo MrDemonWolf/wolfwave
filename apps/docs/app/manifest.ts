@@ -5,8 +5,8 @@ export const dynamic = "force-static";
 export const revalidate = false;
 
 /**
- * Web app manifest. `basePath` is empty in dev and `/wolfwave` on GitHub Pages,
- * so `start_url`, `scope`, and icon paths stay correct under both.
+ * Web app manifest. `basePath` is empty for the custom domain and local dev.
+ * Alternate subpath deployments keep their start URL, scope, and icons aligned.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -50,7 +50,7 @@ runs:
         # write the unescaped form, so DOCS_URL and COMMUNITY_DISCORD_URL never
         # actually took effect in a CI build — AppConstants.validURL silently
         # dropped them back to their compiled-in defaults.
-        printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https:/$()/mrdemonwolf.github.io/wolfwave\nCOMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
+        printf 'TWITCH_CLIENT_ID = %s\nDISCORD_CLIENT_ID = %s\nGITHUB_REPO_OWNER = mrdemonwolf\nGITHUB_REPO_NAME = wolfwave\nDOCS_URL = https:/$()/wolfwave.mrdemonwolf.dev\nCOMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord\nCOPYRIGHT_HOLDER = MrDemonWolf, Inc.\n' \
           "$TWITCH_CLIENT_ID" \
           "$DISCORD_CLIENT_ID" \
           > apps/native/WolfWave/Config.xcconfig

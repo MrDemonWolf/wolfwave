@@ -1,14 +1,14 @@
 /**
- * Prefixes `path` with the deployment base path (`/wolfwave` on GitHub Pages,
- * empty in local dev via `NEXT_PUBLIC_BASE_PATH=""`). Normalizes leading/trailing
+ * Prefixes `path` with the deployment base path (empty on the custom domain
+ * and in local development). Normalizes leading/trailing
  * slashes so the result is always a single clean absolute path.
  */
 export function getAssetPath(path: string): string {
-  // Default to "/wolfwave"; explicit "" opts out for local dev.
+  // Default to the domain root; an explicit path supports other deployments.
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH;
   let basePath: string;
   if (envValue === undefined) {
-    basePath = "/wolfwave";
+    basePath = "";
   } else if (envValue === "" || envValue === "/") {
     basePath = "";
   } else {

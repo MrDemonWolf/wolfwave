@@ -7,7 +7,7 @@
   "Category": "WolfWave",
   "CategoryIcon": "imgs/plugin/category-icon",
   "Icon": "imgs/plugin/marketplace",
-  "URL": "https://mrdemonwolf.github.io/wolfwave/",
+  "URL": "https://wolfwave.mrdemonwolf.dev/",
   "SDKVersion": 2,
   "Software": {
     "MinimumVersion": "6.5"
