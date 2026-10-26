@@ -66,11 +66,13 @@ struct OnboardingPreferencesStepView: View {
                     )
 
                     if let launchAtLoginError {
-                        CalloutBanner(launchAtLoginError, style: .warning)
-                        Button("Open Login Items") {
-                            LaunchAtLoginService.openLoginItemsSettings()
+                        CalloutBanner(launchAtLoginError, style: .warning) {
+                            Button("Open Login Items") {
+                                LaunchAtLoginService.openLoginItemsSettings()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .pointerCursor()
                         }
-                        .pointerCursor()
                     }
 
                     OnboardingToggleCard(

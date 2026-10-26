@@ -101,39 +101,36 @@ struct OnboardingPermissionsStepView: View {
             .accessibilityIdentifier("onboardingAppleMusic.granted")
 
         case .denied:
-            VStack(spacing: DSSpace.s4) {
-                CalloutBanner(
-                    "In System Settings, open **Privacy & Security → Automation** and turn on "
-                        + "**Music** under WolfWave. Then come back here.",
-                    title: "macOS blocked it",
-                    style: .warning
-                )
-
-                HStack(spacing: DSSpace.s2) {
-                    Button("Open System Settings") {
-                        MusicPermissionChecker.openAutomationSettings()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .pointerCursor()
-                    .accessibilityHint("Opens Privacy and Security so you can allow Apple Music access")
-                    .accessibilityIdentifier("onboardingAppleMusic.openSystemSettingsButton")
-
-                    Button(action: recheckTapped) {
-                        HStack(spacing: DSSpace.s1h) {
-                            if isRechecking {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .controlSize(.small)
-                            }
-                            Text("Check again")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .pointerCursor()
-                    .disabled(isRechecking)
-                    .accessibilityLabel("Check Apple Music access again")
-                    .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
+            // The fix buttons sit inside the callout, on its text column.
+            CalloutBanner(
+                "In System Settings, open **Privacy & Security → Automation** and turn on "
+                    + "**Music** under WolfWave. Then come back here.",
+                title: "macOS blocked it",
+                style: .warning
+            ) {
+                Button("Open System Settings") {
+                    MusicPermissionChecker.openAutomationSettings()
                 }
+                .buttonStyle(.borderedProminent)
+                .pointerCursor()
+                .accessibilityHint("Opens Privacy and Security so you can allow Apple Music access")
+                .accessibilityIdentifier("onboardingAppleMusic.openSystemSettingsButton")
+
+                Button(action: recheckTapped) {
+                    HStack(spacing: DSSpace.s1h) {
+                        if isRechecking {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                        }
+                        Text("Check again")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .pointerCursor()
+                .disabled(isRechecking)
+                .accessibilityLabel("Check Apple Music access again")
+                .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
             }
 
         case .unknown:

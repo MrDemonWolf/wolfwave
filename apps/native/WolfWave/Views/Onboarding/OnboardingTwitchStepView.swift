@@ -360,7 +360,7 @@ struct OnboardingTwitchStepView: View {
     /// The two song commands, on for a fresh install (`FreshInstallDefaults`),
     /// each one tap to turn off. Cooldowns and the rest live in Settings → Twitch.
     private var commandsCard: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s3) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
             Text("Chat commands")
                 .sectionEyebrow()
 
@@ -382,10 +382,7 @@ struct OnboardingTwitchStepView: View {
                 accessibilityIdentifier: "onboardingLastSongCommandToggle"
             )
 
-            Text("Each one runs at most once every \(Self.cooldownSeconds) seconds. More in Settings → Twitch.")
-                .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            HintRow("Each one runs at most once every \(Self.cooldownSeconds) seconds. More in Settings → Twitch.")
         }
         .padding(DSSpace.s5)
         .cardStyle()
