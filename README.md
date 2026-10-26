@@ -81,7 +81,8 @@ update with `brew upgrade --cask`.
 **Chat commands**
 
 - **Built-in commands.** `!song`, `!last`, `!queue`, `!stats`, and
-  more. Turn each one on or off and add your own aliases.
+  more. `!song` and `!last` are on for new installs. Turn each one on
+  or off and add your own aliases.
 - **Custom commands.** Make your own, with variables (`$user`,
   `$touser`, `$args`, `$1`-`$9`, `$song`, `$lastsong`), a cooldown, and
   a permission level. Each one replies to the chatter, posts a plain
@@ -197,10 +198,10 @@ The streamer turns each command on or off and can add aliases in
 
 ### First-Time Setup
 
-1. **Allow Music access.** The setup wizard asks macOS to let
-   WolfWave read the Music app.
-2. **Connect Twitch.** Settings > Twitch. Sign in with the code
-   WolfWave shows you.
+1. **Allow Music access.** Step 2 of the setup wizard asks macOS to
+   let WolfWave read the Music app.
+2. **Connect Twitch.** In the wizard, or Settings > Twitch. Sign in
+   with the code WolfWave shows you. `!song` and `!last` are ready.
 3. **Turn on requests.** Settings > Song Requests > Enable Song
    Requests. Add **Require My Approval** if you want to screen them.
 4. **Turn on Discord.** Settings > Discord.

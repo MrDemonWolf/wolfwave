@@ -53,9 +53,8 @@ struct OnboardingOBSWidgetStepView: View {
 
     var body: some View {
         OnboardingStepScaffold(
-            title: "Your overlay, ready to drop in",
-            description: "One toggle. We'll give you the URL to paste into OBS.",
-            isOptional: true,
+            title: "Show your song on stream",
+            description: "Turn it on and paste one link into OBS.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(
@@ -84,14 +83,14 @@ struct OnboardingOBSWidgetStepView: View {
     /// The single Stream Widgets switch, wrapped in the accent-tinted shell.
     private var overlayToggleCard: some View {
         ToggleSettingRow(
-            title: "Turn on Stream Widgets",
-            subtitle: "Streams your now-playing card to OBS.",
+            title: "Stream overlay",
+            subtitle: overlayEnabled ? "On. Copy the link below." : "A now-playing card for OBS or any streaming app.",
             isOn: Binding(
                 get: { overlayEnabled },
                 set: { setOverlayEnabled($0) }
             ),
             controlSize: .regular,
-            accessibilityLabel: "Turn on Stream Widgets",
+            accessibilityLabel: "Stream overlay",
             accessibilityIdentifier: "onboardingOverlayToggle"
         )
         .onboardingTintedToggleShell(
@@ -111,14 +110,14 @@ struct OnboardingOBSWidgetStepView: View {
     @ViewBuilder
     private var urlReveal: some View {
         if overlayEnabled {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
                 HStack(spacing: DSSpace.s2) {
-                    Text("Browser source URL")
+                    Text("Overlay link")
                         .sectionEyebrow()
                     if streamerMode { StreamerModeBadge() }
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: DSSpace.s2) {
                     Text(verbatim: StreamerMode.mask(overlayURL, style: .url, isOn: streamerMode))
                         .font(.system(size: DSFont.Size.md, weight: .medium, design: .monospaced))
                         .foregroundStyle(.primary)
@@ -134,31 +133,26 @@ struct OnboardingOBSWidgetStepView: View {
                 .padding(.horizontal, DSSpace.s4)
                 .padding(.vertical, DSSpace.s3)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous)
                         .fill(Color(nsColor: .textBackgroundColor))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: DSRadius.md, style: .continuous)
                         .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 )
 
-                Text("Paste this into OBS as a Browser Source.")
+                Text("In OBS: Sources → + → Browser, then paste this link. Styles: Settings → Stream Widgets.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Need the live now-playing feed? Settings → Stream Widgets.")
-                    .font(.system(size: DSFont.Size.xs))
-                    .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(DSSpace.s4)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                     .fill(.regularMaterial)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
                     .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
             )
             .transition(.move(edge: .top).combined(with: .opacity))

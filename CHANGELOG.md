@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **A shorter, clearer setup wizard.** Seven steps instead of eight, with Apple Music access right after Welcome because everything builds on it. The top says where you are ("Step 3 of 7 · Discord"), every step keeps its title in the same spot, and there is one button to move on: it reads Skip until you finish a sign-in, Next otherwise. Escape goes back. Shorter, plainer copy throughout.
+- **Setup shows what's on and lets you change it in one tap.** The Discord step tells you whether Discord is open and has a Listen-buttons switch. The Twitch step shows `!song` and `!last` with a switch each. Notifications are a button, not a switch you can't turn off. The last screen points at the wolf in your menu bar, even if you skip setup.
+- **`!song` and `!last` are on for new installs.** Connect Twitch and chat can ask what's playing right away. If you already use WolfWave, nothing changes: your commands stay exactly as you had them.
+- **Clearer Discord choices for when the music stops.** The "When not playing" switches are now two plain choices. When you pause: Keep the song, or Hide the song. When music stops: Listening to WolfWave, or Nothing. Your current choices carry over. Other Discord and Twitch labels got plainer too ("Any-app link", "Add a song.link").
 - **Calmer website motion.** Shorter, smaller entrances replace the pronounced section movement. Scroll replay resets only once content leaves the screen, and hero elements appear with less stagger.
 
 - **Updated web and tooling dependencies.** Refreshed Next.js, Fumadocs, React, the overlay test environment, Stream Deck SDK, and marketing tooling. Compatible updates and remaining migration limits are recorded in `docs/dependency-upgrades.md`.
@@ -106,6 +110,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **One home for Twitch and Discord defaults.** Every `@AppStorage` seed and `Preferences.bool(_:default:)` read for those keys now references `AppConstants.UserDefaults.Defaults`. New `FreshInstallDefaults` writes day-one values once per install at launch (fresh installs get them, existing installs get their old values pinned), so a new default never flips an upgrade. The onboarding UI tests gained Escape and progress-header coverage plus a light/dark screenshot capture (`testCapturesEveryStep`), backed by new `WOLFWAVE_UI_TEST_APPEARANCE` and `WOLFWAVE_UI_TEST_HOLD_COMPLETION` switches. The `stepContentMinHeight` token is replaced by `contentMaxWidth`.
 - **Stream Deck protocol v3.** `StreamDeckAction` adds `announce_song`, `reject_current`, `block_requester`, and `cycle_audience`, drops the Discord / Music Sync / theme / status actions, and `StreamDeckControl.protocolVersion` is 3. Change the TypeScript mirror in `apps/streamdeck/src/wolfwave/` in the same PR.
 - **Stream Deck plugin.** `WolfWaveClient` swallows a late ack from a timed-out press and reports handshake rejections; `src/connection-status.ts` maps client state to the Property Inspector message; key repaints use a paint generation so a suspended render can't install a timer late; the Property Inspector saves a 64-hex control token on paste.
 - **`streamDeckControlEnabled` and `StreamDeckPaneStatus`.** The command switch defaults to on (read it through `FeatureFlags`). The header-chip precedence (server off, server error, starting, commands off, then Ready only for `.listening`) is a pure `nonisolated` resolver with tests, and `WebSocketServerCard` takes the parent's `serverState`.

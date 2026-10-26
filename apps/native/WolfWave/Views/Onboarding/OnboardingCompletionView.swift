@@ -8,12 +8,14 @@
 
 import SwiftUI
 
-/// Celebration screen shown after onboarding completes. The canonical
-/// `WolfHeroMark` entrance is the celebration cue. No separate checkmark.
+/// The screen every onboarding ending reaches (Finish and Skip setup): a short
+/// headline, then where WolfWave lives, shown as a drawn menu bar with an arrow
+/// at the wolf. That pointer used to be its own last step, which Skip setup
+/// jumped past; here nobody misses it.
 ///
-/// Dismisses itself after the animation unless VoiceOver is running (a screen
-/// reader user needs time to hear it). The **Done** button, bound to Return,
-/// always closes it right away.
+/// Dismisses itself after `autoDismissDelay` unless VoiceOver is running (a
+/// screen reader user needs time to hear it). The **Done** button, bound to
+/// Return, always closes it right away.
 struct OnboardingCompletionView: View {
 
     // MARK: - Types
@@ -22,22 +24,24 @@ struct OnboardingCompletionView: View {
     enum Style: Equatable {
         /// The user walked (or finished) the wizard.
         case completed
-        /// The user chose Skip All. Lighter copy, same exit.
+        /// The user chose Skip setup. Lighter copy, same exit.
         case skipped
 
         /// Large headline.
         var title: String {
             switch self {
             case .completed: return "Howl yeah, you're set."
-            case .skipped: return "Skipped."
+            case .skipped: return "No problem."
             }
         }
 
         /// Secondary line under the headline.
         var message: String {
             switch self {
-            case .completed: return "WolfWave's in your menu bar. Click the wolf any time."
-            case .skipped: return "Finish setup any time in Settings."
+            case .completed:
+                return "WolfWave lives in your menu bar. Click the wolf to see what's playing or open Settings."
+            case .skipped:
+                return "Set things up any time in Settings. Click the wolf in your menu bar to open it."
             }
         }
 
@@ -45,7 +49,7 @@ struct OnboardingCompletionView: View {
         var accessibilitySummary: String {
             switch self {
             case .completed: return "Setup complete. WolfWave is in your menu bar."
-            case .skipped: return "Setup skipped. Finish setup any time in Settings."
+            case .skipped: return "Setup skipped. WolfWave is in your menu bar. Finish setup any time in Settings."
             }
         }
     }
@@ -62,28 +66,31 @@ struct OnboardingCompletionView: View {
 
     /// Drives the hero mark's drop-in. Set first by the entrance `.task`.
     @State private var showHero = false
-    /// Drives the fade-in of the text, Done button, and copyright line. Set after
-    /// a short beat so the text lands once the mark has settled.
+    /// Drives the fade-in of the text, pointer, Done button, and copyright line.
+    /// Set after a short beat so the text lands once the mark has settled.
     @State private var showText = false
 
     /// Guards `onDismiss` so the auto-timer and a manual tap can't both fire it.
     @State private var didDismiss = false
 
     /// When on, both flags flip at once with no animation, and the auto-dismiss
-    /// wait is a single shorter delay.
+    /// wait is the delay alone.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Layout Constants
 
-    /// Hero mark edge: the onboarding brand tile size plus `DSSpace.s10`, so the
-    /// ending reads larger than the per-step tiles.
-    private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s10
+    /// Hero mark edge: the onboarding brand tile size plus `DSSpace.s6`.
+    private static let heroSize: CGFloat = DSDimension.Onboarding.brandTileSize + DSSpace.s6
+
+    /// How long the screen stays up on its own: long enough to read the
+    /// headline and find the wolf in the menu bar.
+    static let autoDismissDelay: Duration = .seconds(5)
 
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: DSSpace.s7) {
-            Spacer()
+            Spacer(minLength: DSSpace.s6)
 
             WolfHeroMark(
                 size: Self.heroSize,
@@ -107,39 +114,34 @@ struct OnboardingCompletionView: View {
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .frame(maxWidth: DSDimension.Onboarding.contentMaxWidth)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .opacity(showText ? 1 : 0)
-            .animation(
-                reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
-                value: showText
-            )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(style.accessibilitySummary)
+            .accessibilityAddTraits(.isHeader)
+                .modifier(FadeIn(isVisible: showText, reduceMotion: reduceMotion))
+
+            MenuBarPointer()
+                .padding(.horizontal, DSSpace.s10)
+                .modifier(FadeIn(isVisible: showText, reduceMotion: reduceMotion))
 
             Button("Done") { dismissOnce() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .pointerCursor()
-                .opacity(showText ? 1 : 0)
-                .animation(
-                    reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
-                    value: showText
-                )
                 .accessibilityHint("Closes setup")
                 .accessibilityIdentifier("onboarding.done")
+                .modifier(FadeIn(isVisible: showText, reduceMotion: reduceMotion))
 
-            Spacer()
+            Spacer(minLength: DSSpace.s6)
 
             Text(Self.copyrightLine)
                 .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .padding(.bottom, DSSpace.s4)
-                .opacity(showText ? 1 : 0)
-                .animation(
-                    reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
-                    value: showText
-                )
+                .modifier(FadeIn(isVisible: showText, reduceMotion: reduceMotion))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -147,30 +149,25 @@ struct OnboardingCompletionView: View {
         // Pointer-only convenience: keyboard and VoiceOver users have Done.
         .contentShape(Rectangle())
         .onTapGesture { dismissOnce() }
-        // Entrance sequence. Delays are in milliseconds. The `.task` is cancelled
-        // if the view goes away, and each sleep is followed by a cancellation
-        // check so a closed window never fires `onDismiss` late.
+        // Entrance sequence. The `.task` is cancelled if the view goes away,
+        // and each sleep is followed by a cancellation check so a closed window
+        // never fires `onDismiss` late.
         .task {
             let autoDismiss = Self.shouldAutoDismiss(
                 voiceOverEnabled: NSWorkspace.shared.isVoiceOverEnabled
-            )
+            ) && !UITestMode.holdsCompletion
+            showHero = true
             if reduceMotion {
-                showHero = true
                 showText = true
-                guard autoDismiss else { return }
-                try? await Task.sleep(for: .milliseconds(1200))
-                guard !Task.isCancelled else { return }
-                dismissOnce()
             } else {
-                showHero = true
                 try? await Task.sleep(for: .milliseconds(280))
                 guard !Task.isCancelled else { return }
                 showText = true
-                guard autoDismiss else { return }
-                try? await Task.sleep(for: .milliseconds(1500))
-                guard !Task.isCancelled else { return }
-                dismissOnce()
             }
+            guard autoDismiss else { return }
+            try? await Task.sleep(for: Self.autoDismissDelay)
+            guard !Task.isCancelled else { return }
+            dismissOnce()
         }
     }
 
@@ -209,6 +206,23 @@ struct OnboardingCompletionView: View {
         holder: String = AppConstants.AppInfo.copyrightHolder
     ) -> String {
         "© \(year) \(holder)"
+    }
+}
+
+// MARK: - Fade In
+
+/// The text, pointer, and button fade in together once the hero has landed.
+private struct FadeIn: ViewModifier {
+    let isVisible: Bool
+    let reduceMotion: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .animation(
+                reduceMotion ? .none : .easeOut(duration: DSMotion.Duration.long),
+                value: isVisible
+            )
     }
 }
 

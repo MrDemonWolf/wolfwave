@@ -321,6 +321,7 @@ nonisolated extension AppConstants.UserDefaults {
         lastLaunchCrashed,
         lastCrashSummary,
         hasCompletedOnboarding,
+        freshInstallDefaultsVersion,
         diagnosticsLaunchCount,
         updateSkippedVersion,
         lastSeenWhatsNewVersion,

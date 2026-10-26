@@ -46,6 +46,21 @@ nonisolated enum UITestMode {
     /// appearing over the app mid-test is a focus race, not a finding.
     static let suppressWhatsNewKey = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
 
+    /// Set to `"light"` or `"dark"` to pin the app appearance, so a screenshot
+    /// capture can render both appearances on one machine. Written into the
+    /// isolated suite as the stored appearance preference, which the normal
+    /// launch path then applies; any other value is ignored.
+    static let appearanceKey = "WOLFWAVE_UI_TEST_APPEARANCE"
+
+    /// Set to `"1"` to keep the onboarding completion screen up until Done,
+    /// so a screenshot capture is not racing its auto-dismiss timer.
+    static let holdCompletionKey = "WOLFWAVE_UI_TEST_HOLD_COMPLETION"
+
+    /// True when the UI test asked to keep the completion screen up.
+    static var holdsCompletion: Bool {
+        isActive && ProcessInfo.processInfo.environment[holdCompletionKey] == "1"
+    }
+
     /// True when the UI test asked to start past onboarding.
     static var startsOnboarded: Bool {
         isActive && ProcessInfo.processInfo.environment[skipOnboardingKey] == "1"
@@ -54,6 +69,12 @@ nonisolated enum UITestMode {
     /// True when the UI test asked to suppress What's New.
     static var suppressesWhatsNew: Bool {
         isActive && ProcessInfo.processInfo.environment[suppressWhatsNewKey] == "1"
+    }
+
+    /// The appearance the UI test pinned, or `nil` to follow the system.
+    static var requestedAppearance: String? {
+        guard isActive, let value = ProcessInfo.processInfo.environment[appearanceKey] else { return nil }
+        return [AppConstants.Appearance.light, AppConstants.Appearance.dark].contains(value) ? value : nil
     }
     #else
     /// Release builds never run under the UI test bundle.
@@ -64,6 +85,12 @@ nonisolated enum UITestMode {
 
     /// Always `false` in Release.
     static var suppressesWhatsNew: Bool { false }
+
+    /// Always `nil` in Release.
+    static var requestedAppearance: String? { nil }
+
+    /// Always `false` in Release.
+    static var holdsCompletion: Bool { false }
     #endif
 
     /// True when *any* test harness owns this process: the hosted unit bundle
@@ -75,6 +102,9 @@ nonisolated enum UITestMode {
     /// suite. Must run before anything reads onboarding state. No-op outside a
     /// UI test, so a normal launch never reaches the write.
     static func seedRequestedState() {
+        if let appearance = requestedAppearance {
+            DefaultsStore.store.set(appearance, forKey: AppConstants.UserDefaults.appearancePreference)
+        }
         guard startsOnboarded else { return }
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
     }

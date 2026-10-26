@@ -111,7 +111,7 @@ extension DiscordSettingsView {
             VStack(alignment: .leading, spacing: DSSpace.s6) {
                 ToggleSettingRow(
                     title: "Show buttons",
-                    subtitle: "Display action buttons on your Discord profile.",
+                    subtitle: "Friends can open the song in one click.",
                     isOn: $buttonsEnabled,
                     accessibilityLabel: "Show Discord profile buttons",
                     accessibilityIdentifier: "discordButtonsMasterToggle"
@@ -130,7 +130,7 @@ extension DiscordSettingsView {
                     Divider()
 
                     DiscordButtonConfigRow(
-                        title: "Cross-service link (song.link)",
+                        title: "Any-app link (song.link)",
                         resolvedURL: nowPlaying.songLinkURL,
                         accessibilityPrefix: "discordButton2",
                         isEnabled: $button2Enabled
@@ -184,7 +184,9 @@ extension DiscordSettingsView {
 
                     ToggleSettingRow(
                         title: "Show playlist name",
-                        subtitle: "Off shows a generic label so the name stays private",
+                        subtitle: playlistShowName
+                            ? "Friends see the playlist's real name."
+                            : "Friends see a generic label. The name stays private.",
                         isOn: $playlistShowName,
                         accessibilityLabel: "Show playlist name",
                         accessibilityIdentifier: "discordPlaylistShowNameToggle",
@@ -197,35 +199,97 @@ extension DiscordSettingsView {
         .transition(.opacity)
     }
 
-    /// Idle-status and clear-while-paused toggles.
+    /// What the profile shows when you pause, and when music stops: one
+    /// plain choice per situation. Backed by the `discordClearWhilePaused` and
+    /// `discordShowIdleStatus` keys, so backups and old choices carry over.
+    ///
+    /// Real behaviour (`DiscordRPCService.updatePresence`): a hidden paused
+    /// song is treated exactly like stopped music, so "Hide it" then shows
+    /// whatever the second choice says.
     var behaviorSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            cardTitle("When not playing", "Control what your profile shows when music stops or pauses.")
+            cardTitle("When the music isn't playing", "Pick what your profile shows in each case.")
 
             VStack(alignment: .leading, spacing: DSSpace.s6) {
-                ToggleSettingRow(
-                    title: "Show idle status",
-                    subtitle: "Keep an idle \"Listening to WolfWave\" status on your profile instead of clearing it",
-                    isOn: $showIdleStatus,
-                    accessibilityLabel: "Show idle status on Discord",
-                    accessibilityIdentifier: "discordIdleStatusToggle",
-                    accessibilityHint: "Toggle to keep an idle activity on your profile when nothing is playing"
+                behaviorPicker(
+                    title: "When you pause",
+                    subtitle: clearWhilePaused
+                        ? "Your profile shows the \"When music stops\" choice below."
+                        : "The song stays up with a paused badge.",
+                    selection: pausedChoice,
+                    options: [
+                        (DiscordPauseChoice.keepSong.rawValue, "Keep the song"),
+                        (DiscordPauseChoice.hideSong.rawValue, "Hide the song")
+                    ],
+                    accessibilityIdentifier: "discordPausedPicker"
                 )
 
                 Divider()
 
-                ToggleSettingRow(
-                    title: "Hide track while paused",
-                    subtitle: "Clear the track when you pause, rather than leaving it on your profile",
-                    isOn: $clearWhilePaused,
-                    accessibilityLabel: "Hide track while paused",
-                    accessibilityIdentifier: "discordClearWhilePausedToggle",
-                    accessibilityHint: "Toggle to clear your Discord profile while playback is paused"
+                behaviorPicker(
+                    title: "When music stops",
+                    subtitle: showIdleStatus
+                        ? "Shows \"Listening to WolfWave\" with no song."
+                        : "Your Discord status is cleared.",
+                    selection: stoppedChoice,
+                    options: [
+                        (DiscordStopChoice.showWolfWave.rawValue, "Listening to WolfWave"),
+                        (DiscordStopChoice.showNothing.rawValue, "Nothing")
+                    ],
+                    accessibilityIdentifier: "discordStoppedPicker"
                 )
             }
             .cardStyle()
         }
         .transition(.opacity)
+    }
+
+    /// The pause choice as a picker selection over `discordClearWhilePaused`.
+    private var pausedChoice: Binding<String> {
+        Binding<String>(
+            get: { DiscordPauseChoice(clearWhilePaused: clearWhilePaused).rawValue },
+            set: { clearWhilePaused = (DiscordPauseChoice(rawValue: $0) ?? .keepSong).clearWhilePaused }
+        )
+        .snapped(to: DiscordPauseChoice.allCases.map(\.rawValue), fallback: DiscordPauseChoice.keepSong.rawValue)
+    }
+
+    /// The stop choice as a picker selection over `discordShowIdleStatus`.
+    private var stoppedChoice: Binding<String> {
+        Binding<String>(
+            get: { DiscordStopChoice(showIdleStatus: showIdleStatus).rawValue },
+            set: { showIdleStatus = (DiscordStopChoice(rawValue: $0) ?? .showWolfWave).showIdleStatus }
+        )
+        .snapped(to: DiscordStopChoice.allCases.map(\.rawValue), fallback: DiscordStopChoice.showWolfWave.rawValue)
+    }
+
+    /// One labelled segmented choice with a line that says what it does now.
+    private func behaviorPicker(
+        title: String,
+        subtitle: String,
+        selection: Binding<String>,
+        options: [(tag: String, label: String)],
+        accessibilityIdentifier: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: DSSpace.s2) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
+                Text(title)
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
+                Text(subtitle)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Picker(title, selection: selection) {
+                ForEach(options, id: \.tag) { option in
+                    Text(option.label).tag(option.tag)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+            .accessibilityLabel(title)
+            .accessibilityIdentifier(accessibilityIdentifier)
+        }
     }
 
     /// Live mock of the profile card, plus a hint when the playlist is only

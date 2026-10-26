@@ -299,12 +299,18 @@ actor TwitchChatService {
 
     /// Whether the current song command is enabled (computed from UserDefaults on each access).
     nonisolated var currentSongCommandEnabled: Bool {
-        Preferences.bool(AppConstants.UserDefaults.currentSongCommandEnabled, default: false)
+        Preferences.bool(
+            AppConstants.UserDefaults.currentSongCommandEnabled,
+            default: AppConstants.UserDefaults.Defaults.currentSongCommandEnabled
+        )
     }
 
     /// Whether the last song command is enabled (computed from UserDefaults on each access).
     nonisolated var lastSongCommandEnabled: Bool {
-        Preferences.bool(AppConstants.UserDefaults.lastSongCommandEnabled, default: false)
+        Preferences.bool(
+            AppConstants.UserDefaults.lastSongCommandEnabled,
+            default: AppConstants.UserDefaults.Defaults.lastSongCommandEnabled
+        )
     }
 
     /// Whether the `!stats` command should respond. Both the Stats feature and

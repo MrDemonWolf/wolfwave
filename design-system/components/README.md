@@ -75,6 +75,7 @@ blocks declare; the Tokens section next to it renders every token family. When y
 | WolfHeroMark | [wolf-hero-mark.md](wolf-hero-mark.md) |
 | OnboardingStepScaffold | [onboarding-step-scaffold.md](onboarding-step-scaffold.md) |
 | OnboardingToggleCard | [onboarding-toggle-card.md](onboarding-toggle-card.md) |
+| MenuBarPointer | [menu-bar-pointer.md](menu-bar-pointer.md) |
 
 ## Catalog entry template
 

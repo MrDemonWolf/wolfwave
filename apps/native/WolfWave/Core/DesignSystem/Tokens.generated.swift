@@ -329,7 +329,7 @@ nonisolated enum DSDimension {
         static let primaryButtonHeight: CGFloat = 32
         static let primaryButtonMinWidth: CGFloat = 200
         static let navButtonMinWidth: CGFloat = 80
-        static let stepContentMinHeight: CGFloat = 220
+        static let contentMaxWidth: CGFloat = 440
         static let brandTileSize: CGFloat = 56
         static let brandTileRadius: CGFloat = 14
         static let primaryButtonRadius: CGFloat = 8
@@ -391,7 +391,7 @@ nonisolated enum DSDimension {
             (name: "primaryButtonHeight", value: Onboarding.primaryButtonHeight),
             (name: "primaryButtonMinWidth", value: Onboarding.primaryButtonMinWidth),
             (name: "navButtonMinWidth", value: Onboarding.navButtonMinWidth),
-            (name: "stepContentMinHeight", value: Onboarding.stepContentMinHeight),
+            (name: "contentMaxWidth", value: Onboarding.contentMaxWidth),
             (name: "brandTileSize", value: Onboarding.brandTileSize),
             (name: "brandTileRadius", value: Onboarding.brandTileRadius),
             (name: "primaryButtonRadius", value: Onboarding.primaryButtonRadius),

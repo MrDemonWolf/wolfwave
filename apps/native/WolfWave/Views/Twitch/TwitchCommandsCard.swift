@@ -64,28 +64,28 @@ struct TwitchCommandsCard: View {
 
     // MARK: - User Settings
 
-    /// `!song` / `!currentsong` / `!nowplaying` switch (default off).
+    /// `!song` / `!currentsong` / `!nowplaying` switch. Unset reads as off; fresh installs get it on (`FreshInstallDefaults`).
     @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
-    private var currentSongCommandEnabled = false
+    private var currentSongCommandEnabled = AppConstants.UserDefaults.Defaults.currentSongCommandEnabled
 
-    /// `!last` / `!lastsong` / `!prevsong` switch (default off).
+    /// `!last` / `!lastsong` / `!prevsong` switch. Unset reads as off; fresh installs get it on (`FreshInstallDefaults`).
     @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
-    private var lastSongCommandEnabled = false
+    private var lastSongCommandEnabled = AppConstants.UserDefaults.Defaults.lastSongCommandEnabled
 
     /// Appends a song.link URL to `!song` and `!last` replies. Its row only
     /// shows while one of those commands is on.
     @AppStorage(AppConstants.UserDefaults.songCommandSongLinkEnabled)
-    private var songCommandSongLinkEnabled = false
+    private var songCommandSongLinkEnabled = AppConstants.UserDefaults.Defaults.songCommandSongLinkEnabled
 
     // Cooldowns are in seconds: channel-wide ("global") and per viewer ("user").
     @AppStorage(AppConstants.UserDefaults.songCommandGlobalCooldown)
-    private var songGlobalCooldown: Double = 15.0
+    private var songGlobalCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
     @AppStorage(AppConstants.UserDefaults.songCommandUserCooldown)
-    private var songUserCooldown: Double = 15.0
+    private var songUserCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
     @AppStorage(AppConstants.UserDefaults.lastSongCommandGlobalCooldown)
-    private var lastSongGlobalCooldown: Double = 15.0
+    private var lastSongGlobalCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
     @AppStorage(AppConstants.UserDefaults.lastSongCommandUserCooldown)
-    private var lastSongUserCooldown: Double = 15.0
+    private var lastSongUserCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
 
     // Comma-separated extra triggers for each command.
     @AppStorage(AppConstants.UserDefaults.songCommandAliases)
@@ -96,11 +96,11 @@ struct TwitchCommandsCard: View {
     /// `!wolfwave` info command switch, with its own cooldowns, aliases, and
     /// reply style below.
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandEnabled)
-    private var wolfwaveCommandEnabled = false
+    private var wolfwaveCommandEnabled = AppConstants.UserDefaults.Defaults.wolfwaveCommandEnabled
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandGlobalCooldown)
-    private var wolfwaveGlobalCooldown: Double = 15.0
+    private var wolfwaveGlobalCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandUserCooldown)
-    private var wolfwaveUserCooldown: Double = 15.0
+    private var wolfwaveUserCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
     @AppStorage(AppConstants.UserDefaults.wolfwaveCommandAliases)
     private var wolfwaveCommandAliases = ""
     /// `WolfWaveReplyStyle` raw value. Read through `snapped(to:fallback:)` so
@@ -169,8 +169,8 @@ struct TwitchCommandsCard: View {
 
                 if currentSongCommandEnabled || lastSongCommandEnabled {
                     CommandSettingRow(
-                        title: "Include song.link",
-                        triggers: "Appends a cross-platform link to !song and !last replies",
+                        title: "Add a song.link",
+                        triggers: "Replies get a link that opens in any music app",
                         isOn: $songCommandSongLinkEnabled,
                         accessibilityLabel: "Include song.link URL in song command reply",
                         accessibilityIdentifier: "songCommandSongLinkToggle"

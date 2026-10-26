@@ -52,7 +52,7 @@ struct OnboardingWelcomeStepView: View {
                     .opacity(titleVisible ? 1 : 0)
                     .offset(y: titleVisible ? 0 : Self.entranceRise)
 
-                Text("The new way to share your Apple Music with everyone.")
+                Text("Show what you play in Apple Music on Twitch, Discord, and your stream.")
                     .font(.system(size: DSFont.Size.base))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -100,13 +100,18 @@ struct OnboardingWelcomeStepView: View {
 
     // MARK: - Privacy Line
 
-    /// Short one-liner clarifying what WolfWave sees and where the privacy
+    /// How long setup takes, what WolfWave shares, and where the privacy
     /// policy lives, so first-launch consent is explicit.
     private var privacyLine: some View {
         VStack(spacing: DSSpace.s1) {
-            Text("Reads your Apple Music track. Shares only what you turn on.")
+            Text("Takes about two minutes. Skip anything you don't need.")
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("WolfWave shares only what you turn on.")
                 .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             if let url = URL(string: AppConstants.URLs.privacyPolicy) {

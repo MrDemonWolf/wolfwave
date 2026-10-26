@@ -16,7 +16,7 @@ extension DiscordRPCService {
     // MARK: - Temp Directory
 
     /// Known Discord bundle identifiers (stable, Canary, PTB).
-    private static let discordBundleIDs = [
+    static let discordBundleIDs = [
         "com.hnc.Discord",
         "com.hnc.Discord.Canary",
         "com.hnc.Discord.PTB"

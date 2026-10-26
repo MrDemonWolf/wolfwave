@@ -4,15 +4,15 @@
 
 ## Purpose
 
-Shared centered layout for every onboarding step, built so the icon lands at an identical
-Y offset on all of them. Without it, each step sized itself to its own content and the
-brand tile visibly jumped as the user clicked Next.
+Shared top-aligned layout for every interior onboarding step: icon, title, one-line
+description, then the step's controls, all hung from the same top edge.
 
-The trick is that the header block is constant-height (icon plus vertically fixed text) and
-the extras slot has a minimum-height floor, so the header-plus-extras column measures the
-same on every step. Balanced `Spacer(minLength: 0)` above and below then center that
-constant column identically. A step whose extras exceed the floor (the Twitch device-code
-state is the one that does) pushes the **bottom** spacer down and never shifts the header up.
+It used to center a fixed-height column with balanced spacers and a 220pt floor under the
+controls. That kept the icon still, but it floated short steps in the middle of the window
+with a big empty gap between the copy and the button, and a tall step (Notifications) still
+pushed its header up. Top alignment gets the same stillness for free: nothing above the
+controls depends on how tall they are, so the icon and title sit at an identical Y on every
+step, and the controls start right under the copy.
 
 ## API
 
@@ -20,7 +20,6 @@ state is the one that does) pushes the **bottom** spacer down and never shifts t
 OnboardingStepScaffold(
     title: String,
     description: String,
-    isOptional: Bool = false,
     icon: () -> Icon,       // @ViewBuilder
     extras: () -> Extras    // @ViewBuilder
 )
@@ -28,90 +27,78 @@ OnboardingStepScaffold(
 
 | Param | Type | Notes |
 |---|---|---|
-| `title` | `String` | H1 for the step. Rendered at 22pt bold, centered, multiline. |
-| `description` | `String` | One-line pitch under the title. 13pt secondary, capped at 440pt wide. |
-| `isOptional` | `Bool` | Shows an "Optional" eyebrow (`.sectionEyebrow()`) above the title. The line is always laid out and hidden from VoiceOver when `false`, so the icon and title sit at the same Y on every step. Discord, Twitch, OBS, Preferences and Notifications set it. |
+| `title` | `String` | H1 for the step. 22pt bold, centered, multiline, `.isHeader` for VoiceOver. |
+| `description` | `String` | One short sentence. 13pt secondary, capped at `contentMaxWidth`. |
 | `icon` | `@ViewBuilder () -> Icon` | Usually a [`BrandTile`](brand-tile.md). Any view works. |
-| `extras` | `@ViewBuilder () -> Extras` | Step-specific controls (buttons, toggle cards, status). Pass `EmptyView()` when the step has none; the floor still reserves the space. |
+| `extras` | `@ViewBuilder () -> Extras` | Step-specific controls, capped at `contentMaxWidth`. `EmptyView()` is fine. |
 
-Generic over `Icon: View` and `Extras: View`, so there is no `AnyView` erasure and the
-layout stays statically typed.
+The old `isOptional` eyebrow is gone. Nearly every step was optional, so the label was noise;
+the progress header ("Step 3 of 7 · Discord") and the primary button's **Skip** label now say
+what matters.
+
+Generic over `Icon: View` and `Extras: View`, so there is no `AnyView` erasure.
 
 ## Tokens used
 
-- `DSSpace.s7` (20) outer `VStack` spacing
-- `DSSpace.s4` (12) icon-to-text spacing
-- `DSSpace.s1` (4) title-to-description spacing
-- `DSSpace.s8` (24) horizontal padding on both the header and extras blocks
-- `.sectionEyebrow()` (11 semibold secondary) for the "Optional" eyebrow
+- `DSSpace.s6` (16) top padding
+- `DSSpace.s5` (14) icon-to-title gap
+- `DSSpace.s1h` (6) title-to-description gap
+- `DSSpace.s7` (20) description-to-controls gap
+- `DSSpace.s8` (24) horizontal and bottom padding
 - `DSFont.Size.x2xl` (22) `.bold` title
 - `DSFont.Size.base` (13) description, `.secondary`
-- `DSDimension.Onboarding.stepContentMinHeight` extras floor
-
-The 440pt max width on the description and extras is a literal, not a token. It is a
-measured line-length cap, not a reusable dimension.
+- `DSDimension.Onboarding.contentMaxWidth` (440) line-length cap for description and controls
 
 ## Anatomy
 
 ```mermaid
 graph TD
-  R[VStack spacing s7 · maxWidth/maxHeight infinity]
-  R --> S1[Spacer minLength 0]
-  R --> H[VStack spacing s4 · padding.horizontal s8]
-  R --> E["extras() · maxWidth 440 · minHeight stepContentMinHeight"]
-  R --> S2[Spacer minLength 0]
-  H --> I["icon()"]
-  H --> T[VStack spacing s1]
-  T --> TO["Text Optional · eyebrow · hidden unless isOptional"]
-  T --> TT["Text(title) · 22 bold · centered"]
-  T --> TD["Text(description) · 13 secondary · maxWidth 440"]
+  R["VStack spacing 0 · padding top s6 / sides s8 / bottom s8 · alignment top"]
+  R --> I["icon() · padding.bottom s5"]
+  R --> T["Text(title) · 22 bold · centered · isHeader"]
+  R --> D["Text(description) · 13 secondary · maxWidth contentMaxWidth · padding.top s1h"]
+  R --> E["extras() · maxWidth contentMaxWidth · padding.top s7"]
 ```
 
 ## Accessibility
 
-- Both `Text` views use `.fixedSize(horizontal: false, vertical: true)`, so larger Dynamic
-  Type sizes wrap to more lines instead of truncating.
-- The scaffold adds no accessibility traits of its own. The title is a plain `Text`, not
-  `.paneTitle()`, so it carries **no** `.isHeader` trait. If a step needs VoiceOver header
-  semantics, add them at the call site.
-- `Spacer(minLength: 0)` lets the column collapse rather than clip when the window is short.
-- The "Optional" eyebrow is `accessibilityHidden` when the step is required, so VoiceOver never reads an empty or stale label.
-- Order in the accessibility tree follows visual order: icon, eyebrow (optional steps only), title, description, extras.
+- The title carries the `.isHeader` trait, so VoiceOver's heading rotor lands on each step.
+- Both `Text` views use `.fixedSize(horizontal: false, vertical: true)`, so larger text wraps
+  to more lines instead of truncating.
+- The wizard wraps the step in a `ScrollView`, so a tall step scrolls instead of clipping.
+- Order in the accessibility tree follows visual order: icon (decorative), title,
+  description, controls.
 
 ## Do / Don't
 
-- ✅ Use it for every interior onboarding step, so the icon never jumps between screens.
-- ✅ Pass `EmptyView()` for `extras` on a step with no controls. The reserved floor is the point.
-- ✅ Let tall extras grow. They consume the bottom spacer by design.
-- ❌ Don't wrap it in another `Spacer`-balanced `VStack`. The scaffold already owns the vertical centering.
-- ❌ Don't restyle the title at the call site. Welcome and Completion are the deliberate 26pt hero bookends; every other step stays at 22pt.
-- ❌ Don't put a fixed-height container around it. It expects `maxHeight: .infinity` from its parent.
+- ✅ Use it for every interior onboarding step, so the header never moves between screens.
+- ✅ Keep the description to one short sentence. The controls explain the rest.
+- ✅ Let tall controls run down the window; the container scrolls.
+- ❌ Don't center it vertically again. That's what floated the controls away from the copy.
+- ❌ Don't add a second title or eyebrow above the title. The progress header names the step.
+- ❌ Don't restyle the title at the call site. Welcome and Completion are the 26pt bookends.
 
 ## Example
 
 ```swift
 OnboardingStepScaffold(
-    title: "Connect Discord",
-    description: "Show what you're listening to on your Discord profile.",
+    title: "Show your music on Discord",
+    description: "Friends see the song, artist, and cover art under your name.",
     icon: {
         BrandTile(
             background: AnyShapeStyle(AppConstants.Brand.discord),
             glowColor: AppConstants.Brand.discord,
-            glyph: Image(systemName: "bolt.fill")
-                .font(.system(size: DSFont.Size.xl, weight: .bold))
-                .foregroundStyle(.white)
+            glyph: BrandTileGlyph.asset("DiscordLogo")
         )
     },
     extras: {
-        PillButton(
-            background: AnyShapeStyle(AppConstants.Brand.discord),
-            action: connectDiscord
-        ) {
-            Text("Connect Discord")
-        }
+        ToggleSettingRow(
+            title: "Show on Discord",
+            subtitle: "Off. Turn it on any time.",
+            isOn: $presenceEnabled,
+            accessibilityLabel: "Show on Discord",
+            accessibilityIdentifier: "onboardingDiscordToggle"
+        )
     }
 )
 ```
-
-Both `#Preview` blocks in the source file ("With extras" and "No extras") demonstrate the
-constant header offset side by side.

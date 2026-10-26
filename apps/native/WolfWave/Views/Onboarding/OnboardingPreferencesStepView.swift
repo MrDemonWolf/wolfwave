@@ -11,8 +11,7 @@ import SwiftUI
 
 /// Preferences step. Wire up the Mac-level conveniences (launch at login,
 /// listening history) so the user doesn't have to hunt for them in Settings
-/// later. Apple Music access is the next step (Permissions) and notifications
-/// the one after it.
+/// later. The last step: its primary button reads Finish.
 ///
 /// Each toggle posts its change notification itself, because writing the
 /// preference alone does not start or stop the matching service.
@@ -37,9 +36,8 @@ struct OnboardingPreferencesStepView: View {
 
     var body: some View {
         OnboardingStepScaffold(
-            title: "A couple Mac settings",
-            description: "Start at login, remember your listening history, sync settings with iCloud.",
-            isOptional: true,
+            title: "Last few settings",
+            description: "All off for now. Turn on what helps, then click Finish.",
             icon: {
                 BrandTileGlyph.symbol("gearshape.fill", tint: Color.accentColor)
             },
@@ -49,7 +47,7 @@ struct OnboardingPreferencesStepView: View {
                         icon: "power",
                         iconColor: .green,
                         title: "Start WolfWave at login",
-                        subtitle: "Starts in the menu bar, no Dock icon clutter.",
+                        subtitle: "WolfWave starts quietly in the menu bar.",
                         isOn: Binding(
                             get: { launchAtLogin },
                             set: { newValue in
@@ -79,7 +77,7 @@ struct OnboardingPreferencesStepView: View {
                         icon: "chart.bar.xaxis",
                         iconColor: .purple,
                         title: "Remember my listening history",
-                        subtitle: "Private & on-device. Powers top artists and stats.",
+                        subtitle: "Stays on this Mac. Powers your top artists and stats.",
                         isOn: Binding(
                             get: { listeningHistoryEnabled },
                             set: { newValue in
@@ -96,7 +94,7 @@ struct OnboardingPreferencesStepView: View {
                         icon: "icloud.fill",
                         iconColor: .blue,
                         title: "Sync settings with iCloud",
-                        subtitle: "Pick up where you left off on another Mac. Accounts stay local.",
+                        subtitle: "Same settings on your other Macs. Sign-ins stay here.",
                         isOn: Binding(
                             get: { iCloudSettingsSyncEnabled },
                             set: { newValue in

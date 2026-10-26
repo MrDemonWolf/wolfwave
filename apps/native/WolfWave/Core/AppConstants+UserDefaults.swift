@@ -83,6 +83,10 @@ extension AppConstants {
         /// Whether the first-launch onboarding wizard has been completed (Bool, default: false)
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
 
+        /// Version of `FreshInstallDefaults` already applied to this install
+        /// (Int, absent until the first launch that runs it).
+        static let freshInstallDefaultsVersion = "freshInstallDefaultsVersion"
+
         /// Whether Discord Rich Presence is enabled (Bool, default: false)
         static let discordPresenceEnabled = "discordPresenceEnabled"
 
@@ -502,6 +506,7 @@ extension AppConstants {
             commandsLiveOnly,
             customCommands,
             hasCompletedOnboarding,
+            freshInstallDefaultsVersion,
             shareDiagnosticsEnabled,
             diagnosticsLaunchCount,
             discordPresenceEnabled,
@@ -639,6 +644,41 @@ extension AppConstants {
             /// control token, so an off default would disarm every deployed deck
             /// on the first launch after an update.
             static let streamDeckControlEnabled = true
+
+            // MARK: Twitch chat
+
+            /// What an UNSET `!song` key reads as. Fresh installs get an explicit
+            /// `true` from `FreshInstallDefaults`; this stays `false` so an install
+            /// that predates that never starts replying in chat after an update.
+            static let currentSongCommandEnabled = false
+            /// What an unset `!last` key reads as. Same rule as `!song`.
+            static let lastSongCommandEnabled = false
+            /// Off: many channels' link filters delete chat messages with URLs.
+            static let songCommandSongLinkEnabled = false
+            /// Off: self-promotion is the streamer's call, not ours.
+            static let wolfwaveCommandEnabled = false
+            /// Off: commands work offline too, which is how people test them.
+            static let commandsLiveOnly = false
+            /// Off: needs the opt-in Stats feature first.
+            static let statsCommandEnabled = false
+            /// Channel-wide and per-viewer cooldown for every built-in chat
+            /// command, in seconds. Seeds the sliders and the dispatcher fallback.
+            static let commandCooldown: Double = 15
+
+            // MARK: Discord
+
+            /// Off: showing your music to friends is opt-in.
+            static let discordPresenceEnabled = false
+            static let discordButtonsEnabled = true
+            static let discordButton1Enabled = true
+            static let discordButton2Enabled = true
+            /// Off: a playlist name can say more than a song does.
+            static let discordPlaylistEnabled = false
+            static let discordPlaylistShowName = true
+            /// On: "Listening to WolfWave" when music stops.
+            static let discordShowIdleStatus = true
+            /// Off: a paused song stays on your profile.
+            static let discordClearWhilePaused = false
         }
     }
 }
