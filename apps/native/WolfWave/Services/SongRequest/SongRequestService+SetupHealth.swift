@@ -93,6 +93,29 @@ extension SongRequestService {
         return outcome
     }
 
+    /// How long to wait for Music.app to see the playlist before calling it
+    /// missing. Pure, so the policy is testable.
+    ///
+    /// A playlist that was just made (or rebuilt) reaches Music through iCloud
+    /// sync seconds later, so one immediate probe would blame Sync Library for
+    /// sync latency. The full wait runs unless the playlist is already known to
+    /// be missing from Music (the stored status says so), where waiting again on
+    /// every launch would only repeat the same answer. `forceWait` (the banner's
+    /// "Check Again", pressed right after turning Sync Library on) always waits.
+    ///
+    /// - Parameters:
+    ///   - storedStatus: The status the last check recorded, if any.
+    ///   - rebuilt: Whether this check just remade a deleted playlist.
+    ///   - forceWait: Whether the streamer asked for a fresh check.
+    static func visibilityWait(
+        storedStatus: PlaylistSetupStatus?,
+        rebuilt: Bool,
+        forceWait: Bool
+    ) -> PlaylistVisibilityWait {
+        if forceWait || rebuilt { return .standard }
+        return storedStatus == .playlistNotInMusic ? .singleProbe : .standard
+    }
+
     /// Checks that the song-request playlist setup is still healthy and applies
     /// the fallback when it is not. Safe to call on launch and whenever the pane
     /// appears.
@@ -100,8 +123,17 @@ extension SongRequestService {
     /// Order of checks, cheapest and most essential first: setup not finished →
     /// nothing to police; Apple Music access lost → prompt a re-grant; otherwise
     /// probe the playlist (rebuilding it once if it was deleted) and resolve the
-    /// link state. An unreachable API changes nothing.
-    func runSetupHealthCheck() async {
+    /// link state. An unreachable API changes nothing, and neither does a check
+    /// cancelled mid-wait.
+    ///
+    /// - Parameters:
+    ///   - forceWait: Wait the full time for Music to see the playlist even when
+    ///     it is already known to be missing. The banner's "Check Again" sets it.
+    ///   - sleep: Pause between visibility probes; injectable for tests.
+    func runSetupHealthCheck(
+        forceWait: Bool = false,
+        sleep: (Duration) async throws -> Void = PlaylistVisibilityWait.taskSleep
+    ) async {
         let defaults = DefaultsStore.store
 
         // Before setup is finished the pane shows the "Set up" call to action,
@@ -125,17 +157,38 @@ extension SongRequestService {
         // A deleted playlist self-heals: rebuild it once before treating the loss
         // as an essential break. After a rebuild the new playlist is private, so
         // re-probe to capture the (not-yet-public) link state.
+        var rebuilt = false
         if case .missing = probe {
             library.resetCachedPlaylistID()
             if (try? await library.ensureRequestsPlaylist()) != nil {
+                rebuilt = true
                 probe = await library.probeRequestsPlaylist()
             }
         }
 
         // Second layer: the cloud probe above can say "healthy" about a playlist
         // Music.app cannot see, and AppleScript playback only ever reads the local
-        // library. Ask Music directly, in the terminology playback uses.
-        let localVisibility = await musicController.requestsPlaylistLocalVisibility()
+        // library. Ask Music directly, in the terminology playback uses. Skipped
+        // when the cloud answer already decides the outcome on its own.
+        let localVisibility: PlaylistLocalVisibility
+        switch probe {
+        case .unreachable, .missing:
+            localVisibility = .unknown
+        case .notPublic, .ok:
+            let stored = PlaylistSetupStatus(
+                rawValue: defaults.string(forKey: AppConstants.UserDefaults.songRequestPlaylistStatus) ?? "")
+            let wait = Self.visibilityWait(storedStatus: stored, rebuilt: rebuilt, forceWait: forceWait)
+            let controller = musicController
+            do {
+                localVisibility = try await wait.run(
+                    probe: { await controller.requestsPlaylistLocalVisibility() },
+                    sleep: sleep
+                )
+            } catch {
+                // Cancelled (the pane closed mid-wait): no verdict, change nothing.
+                return
+            }
+        }
 
         guard let outcome = Self.resolveHealth(
             probe: probe,
