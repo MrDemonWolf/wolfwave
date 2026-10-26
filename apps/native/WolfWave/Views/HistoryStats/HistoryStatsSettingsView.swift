@@ -339,12 +339,10 @@ struct HistoryStatsSettingsView: View {
 
     // MARK: - Intro
 
-    /// Pane heading and privacy promise above the toggles.
+    /// Privacy promise above the tracking controls.
     private var intro: some View {
-        SectionHeaderWithStatus(
-            title: "History & Stats",
-            subtitle: "WolfWave can remember what you play, kept on this Mac, never uploaded."
-        )
+        Text("WolfWave can remember what you play, kept on this Mac, never uploaded.")
+            .fieldSubtitle()
         .accessibilityIdentifier("historyStats.header")
     }
 

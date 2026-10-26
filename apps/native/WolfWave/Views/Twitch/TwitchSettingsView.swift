@@ -41,8 +41,6 @@ struct TwitchSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            headerView
-
             connectionStatus
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base),
@@ -114,16 +112,6 @@ struct TwitchSettingsView: View {
     }
 
     // MARK: - Subviews
-
-    /// Section header showing "Twitch" title, subtitle, and a colored status chip.
-    private var headerView: some View {
-        SectionHeaderWithStatus(
-            title: "Twitch",
-            subtitle: "Let people use chat commands to see what's playing.",
-            statusText: viewModel.statusChipText,
-            statusColor: viewModel.statusChipColor
-        )
-    }
 
     /// Global "commands only while live" switch. Applies to every chat command
     /// (`!song`, `!last`, `!stats`, `!sr`, `!queue`, …) in one place.

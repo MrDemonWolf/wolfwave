@@ -34,7 +34,7 @@ struct SoftwareUpdateSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.updateSkippedVersion)
     private var skippedVersion: String = ""
 
-    /// Mirror of the automatic-check preference, used only for the header chip
+    /// Mirror of the automatic-check preference, used only for the status chip
     /// and the callouts. The toggle itself writes through `SparkleUpdaterService`.
     @AppStorage(AppConstants.UserDefaults.updateCheckEnabled)
     private var updateCheckEnabled = AppConstants.UserDefaults.Defaults.updateCheckEnabled
@@ -87,7 +87,7 @@ struct SoftwareUpdateSettingsView: View {
         appDelegate?.sparkleUpdater?.recheckAfterChannelChange()
     }
 
-    /// Header chip text derived from live update state.
+    /// Status chip text derived from live update state.
     private var statusText: String {
         if isHomebrewInstall { return "Homebrew" }
         if isCheckingForUpdates { return "Checking…" }
@@ -96,7 +96,7 @@ struct SoftwareUpdateSettingsView: View {
         return updateCheckEnabled ? "Auto on" : "Auto off"
     }
 
-    /// Header chip color matching `statusText`.
+    /// Status chip color matching `statusText`.
     private var statusColor: Color {
         if isHomebrewInstall { return DSColor.neutral }
         if isCheckingForUpdates { return DSColor.warning }
@@ -107,17 +107,24 @@ struct SoftwareUpdateSettingsView: View {
         return updateCheckEnabled ? DSColor.success : DSColor.neutral
     }
 
+    /// Update progress and availability use the shared status symbols.
+    private var statusSymbol: String {
+        if isHomebrewInstall { return "shippingbox" }
+        if isCheckingForUpdates { return StatusChip.StateGlyph.starting }
+        if updateAvailable { return "arrow.down.circle.fill" }
+        if latestVersion != nil || updateCheckEnabled { return StatusChip.StateGlyph.on }
+        return StatusChip.StateGlyph.off
+    }
+
+    private var updateStatus: some View {
+        StatusChip(text: statusText, color: statusColor, systemImage: statusSymbol)
+            .accessibilityLabel("Software Update status: \(statusText)")
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "Software Update",
-                subtitle: "Check for new versions and manage automatic updates.",
-                statusText: statusText,
-                statusColor: statusColor
-            )
-
             softwareUpdateCard
                 .deepLinkSection("updates")
         }
@@ -151,6 +158,8 @@ struct SoftwareUpdateSettingsView: View {
     @ViewBuilder
     private var homebrewUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
+            updateStatus
+
             Text("Version \(currentVersion)")
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
@@ -188,6 +197,8 @@ struct SoftwareUpdateSettingsView: View {
     @ViewBuilder
     private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
+            updateStatus
+
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text("Version \(currentVersion)")
                     .font(.system(size: DSFont.Size.base, weight: .semibold))

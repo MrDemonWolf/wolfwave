@@ -269,7 +269,7 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Pane header chip label. While enabled but disconnected it names the
+    /// Connection status chip label. While enabled but disconnected it names the
     /// actual failure; with no failure recorded yet it reads "Connecting".
     var statusChipText: String {
         switch connectionState {
@@ -289,12 +289,23 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Pane header chip tint, matching `statusChipText`.
+    /// Connection status chip tint, matching `statusChipText`.
     var statusChipColor: Color {
         switch connectionState {
         case .connected:    return DSColor.success
         case .connecting:   return DSColor.warning
         case .disconnected: return presenceEnabled && connectionFailure == .none ? DSColor.warning : DSColor.neutral
+        }
+    }
+
+    /// Shape accompanies the text so connection states use the shared vocabulary.
+    var statusChipSymbol: String {
+        switch connectionState {
+        case .connected: return StatusChip.StateGlyph.on
+        case .connecting: return StatusChip.StateGlyph.starting
+        case .disconnected:
+            if !presenceEnabled { return StatusChip.StateGlyph.off }
+            return connectionFailure == .none ? StatusChip.StateGlyph.starting : StatusChip.StateGlyph.error
         }
     }
 

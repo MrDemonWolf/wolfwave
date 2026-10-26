@@ -44,11 +44,6 @@ struct AboutSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "About",
-                subtitle: "App info, links, and legal."
-            )
-
             identityCard
             actionsCard
             linksCard

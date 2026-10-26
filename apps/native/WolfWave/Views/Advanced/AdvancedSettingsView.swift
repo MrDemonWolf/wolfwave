@@ -120,11 +120,6 @@ struct AdvancedSettingsView: View {
     /// Main view body with setup wizard, diagnostics, and danger zone sections.
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "Advanced",
-                subtitle: "Diagnostics and reset options."
-            )
-
             if lastLaunchCrashed {
                 crashRecoveryCallout
             }

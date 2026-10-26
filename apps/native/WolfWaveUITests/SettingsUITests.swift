@@ -110,9 +110,14 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     func testToolbarTitleTracksTheSelectedPane() {
         let window = openSettings()
-        for section in ["General", "Stream Widgets", "Song Requests", "About"] {
+        for section in Self.sections {
             select(section)
             XCTAssertEqual(window.title, section)
+            let pane = app.descendants(matching: .any)["settings.pane.\(section)"].firstMatch
+            XCTAssertFalse(
+                pane.staticTexts.matching(NSPredicate(format: "label == %@", section)).firstMatch.exists,
+                "\(section) repeats its toolbar title in the content"
+            )
         }
     }
 

@@ -66,14 +66,6 @@ struct StreamDeckSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "Stream Deck",
-                subtitle: "Run WolfWave from a Stream Deck key.",
-                statusText: status.text,
-                statusColor: status.color,
-                statusSymbol: status.symbol
-            )
-
             controlCard
                 .deepLinkSection("control")
             tokenCard
@@ -135,6 +127,9 @@ struct StreamDeckSettingsView: View {
     /// draws it), and the callout sits one row gap below with its button inside.
     private var controlCard: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
+            StatusChip(text: status.text, color: status.color, systemImage: status.symbol)
+                .accessibilityLabel("Stream Deck status: \(status.text)")
+
             ToggleSettingRow(
                 title: "Allow Stream Deck commands",
                 subtitle: "Let a Stream Deck key skip songs, hold the queue, and toggle your overlay.",

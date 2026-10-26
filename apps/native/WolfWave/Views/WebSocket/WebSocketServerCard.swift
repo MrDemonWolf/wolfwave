@@ -31,9 +31,11 @@ struct WebSocketServerCard: View {
     @AppStorage(AppConstants.UserDefaults.websocketServerPort)
     private var storedPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
 
-    /// Live server state, owned by the parent so the header chip and this card
+    /// Live server state, owned by the parent so the status chip and this card
     /// can never disagree about whether the server came up.
     let serverState: WebSocketServerService.ServerState
+    /// Number of connected overlay clients.
+    let clientCount: Int
 
     /// This Mac's LAN IPv4 address, or `nil` when there is none (the summary
     /// then says "this Mac" only).
@@ -43,6 +45,9 @@ struct WebSocketServerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
+            StatusChip(text: serverStatusText, color: serverStatusColor, systemImage: serverStatusSymbol)
+                .accessibilityLabel("Stream Widgets status: \(serverStatusText)")
+
             // The hint states the reach of what the switch just turned on. The
             // server is bound on the LAN, not only on this Mac, and nothing in
             // the pane said so: a detail worth knowing before you put the
@@ -80,6 +85,40 @@ struct WebSocketServerCard: View {
     }
 
     // MARK: - Private Helpers
+
+    /// Server chip label; shows the client count while listening.
+    private var serverStatusText: String {
+        switch serverState {
+        case .listening:
+            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
+        case .starting:
+            return "Starting"
+        case .error:
+            return "Couldn't start"
+        case .stopped:
+            return "Stopped"
+        }
+    }
+
+    /// Server chip tint for `serverState`.
+    private var serverStatusColor: Color {
+        switch serverState {
+        case .listening: return DSColor.success
+        case .starting:  return DSColor.warning
+        case .error:     return DSColor.error
+        case .stopped:   return DSColor.neutral
+        }
+    }
+
+    /// Leading chip glyph so server state reads through shape as well as color.
+    private var serverStatusSymbol: String {
+        switch serverState {
+        case .listening: return StatusChip.StateGlyph.on
+        case .starting:  return StatusChip.StateGlyph.starting
+        case .error:     return StatusChip.StateGlyph.error
+        case .stopped:   return StatusChip.StateGlyph.off
+        }
+    }
 
     /// One sentence describing where the server can be reached right now.
     ///
