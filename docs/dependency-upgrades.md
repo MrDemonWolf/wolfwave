@@ -31,10 +31,11 @@ The Stream Deck TypeScript and Node type ranges, and the widget Tailwind range, 
 | Dependency | Retained | Reason |
 | --- | --- | --- |
 | TypeScript | 5.9.3 | The installed ESLint TypeScript parser declares support below 6.0.0. TypeScript 7 also changes the compiler API and requires configuration migration. |
-| Stream Deck SDK | 2.1.2 | [SDK 3 changes settings event behavior and requires Stream Deck 7.1](https://docs.elgato.com/streamdeck/sdk/releases/upgrading/v3/). The plugin currently supports 6.5. |
 | Widget Tailwind | 3.4.19 | Version 4 requires a separate CLI and CSS/build migration. The docs site already uses 4.3.3. |
 | Stream Deck Node types | 20.19.43 | Match the plugin's declared Node 20 runtime rather than Node 26. |
 | Bun | 1.3.11 | The committed widget bundle and CI depend on this version's minifier output. |
+
+Stream Deck SDK 3 (3.0.3) was adopted later. Its default settings events need Stream Deck 7.1, so the plugin sets [`useLegacySettingsBehavior`](https://docs.elgato.com/streamdeck/sdk/releases/upgrading/v3/) before connecting and keeps supporting Stream Deck 6.5. `manifest.test.ts` fails if the manifest allows a pre-7.1 version without that flag.
 
 The native app has one resolved Swift package: Sparkle 2.10.0, revision `eef1a539a373c1f1a320624b1130fc5de7b2e100`. It matches the [latest official stable release](https://github.com/sparkle-project/Sparkle/releases/tag/2.10.0), so neither `Package.resolved` nor the Xcode package requirement changed.
 

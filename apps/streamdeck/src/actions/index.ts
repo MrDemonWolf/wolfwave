@@ -8,7 +8,6 @@
 
 import {
   action,
-  type KeyAction,
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import { artworkDataURI } from "../artwork.js";
@@ -33,7 +32,7 @@ import {
 } from "../keyart.js";
 import { AUDIENCE_LABELS, type WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
-import { KeyState, WolfWaveKeyAction } from "./base.js";
+import { KeyState, WolfWaveKeyAction, type WolfWaveKey } from "./base.js";
 
 const PLUGIN_UUID = "com.mrdemonwolf.wolfwave";
 
@@ -46,7 +45,7 @@ class PlayPauseAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     // No track text. This is a transport control, and the Now Playing key is
@@ -63,7 +62,7 @@ class SkipAction extends WolfWaveKeyAction {
     return "skip";
   }
 
-  protected async render(key: KeyAction): Promise<void> {
+  protected async render(key: WolfWaveKey): Promise<void> {
     await key.setTitle("");
   }
 }
@@ -86,7 +85,7 @@ export class QueueHoldAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     await key.setImage(
@@ -108,7 +107,7 @@ class ApproveNextAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     // Pending is the whole point of this key. Amber rather than brand blue:
@@ -144,7 +143,7 @@ export class ClearQueueAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     await key.setImage(
@@ -164,7 +163,7 @@ class BlockCurrentAction extends WolfWaveKeyAction {
     return "block_current";
   }
 
-  protected async render(key: KeyAction): Promise<void> {
+  protected async render(key: WolfWaveKey): Promise<void> {
     await key.setTitle("");
   }
 }
@@ -178,7 +177,7 @@ class OverlayToggleAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     await key.setTitle("");
@@ -196,7 +195,7 @@ class AnnounceSongAction extends WolfWaveKeyAction {
     return "announce_song";
   }
 
-  protected async render(key: KeyAction): Promise<void> {
+  protected async render(key: WolfWaveKey): Promise<void> {
     await key.setTitle("");
   }
 }
@@ -212,7 +211,7 @@ class RejectCurrentAction extends WolfWaveKeyAction {
     return "reject_current";
   }
 
-  protected async render(key: KeyAction): Promise<void> {
+  protected async render(key: WolfWaveKey): Promise<void> {
     await key.setTitle("");
   }
 }
@@ -232,7 +231,7 @@ export class BlockRequesterAction extends WolfWaveKeyAction {
     return "block_requester";
   }
 
-  protected async render(key: KeyAction): Promise<void> {
+  protected async render(key: WolfWaveKey): Promise<void> {
     await key.setTitle("");
   }
 }
@@ -250,7 +249,7 @@ export class CycleAudienceAction extends WolfWaveKeyAction {
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     const open = state.requestAudience === "everyone";
@@ -290,14 +289,14 @@ export class NowPlayingAction extends WolfWaveKeyAction {
     super.onWillDisappear(ev);
   }
 
-  protected override onReset(action: KeyAction): void {
+  protected override onReset(action: WolfWaveKey): void {
     // Going offline must stop the marquee, or it keeps scrolling the last track
     // over the "Offline" title and reads as live.
     this.stopScrolling(action.id);
   }
 
   protected async render(
-    key: KeyAction,
+    key: WolfWaveKey,
     state: WolfWaveState,
   ): Promise<void> {
     // Every await below is a point where the key can go offline or disappear.
