@@ -66,6 +66,14 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - version-update:semver-major
+      # TypeScript 7 (the native compiler) ships no JS compiler API, and
+      # typescript-eslint, which the docs lint runs through eslint-config-next,
+      # refuses to load against it ("typescript-eslint does not support TS 7.0").
+      # Drop this once typescript-eslint supports TS 7
+      # (typescript-eslint/typescript-eslint#10940).
+      - dependency-name: "typescript"
+        versions:
+          - ">= 7"
     groups:
       bun-minor-and-patch:
         update-types:
