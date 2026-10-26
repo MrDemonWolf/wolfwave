@@ -295,7 +295,7 @@ If Twitch refuses an announcement, WolfWave sends a normal reply instead and the
 
 - No two custom commands can use the same trigger or alias. The editor names the command that already has it.
 - A trigger or alias can't have spaces. Chat only matches the first word.
-- A custom command with the same trigger as a built-in one answers instead of the built-in while it's on.
+- A custom command can't use a built-in trigger or alias, like `!song`, `!sr`, or an alias you added to one. The editor names the built-in. A custom command saved by an older version that does this is turned off, so the built-in answers again.
 
 Custom commands are included in your [settings backup](/docs/backup). A backup with a broken command (a duplicate trigger, a space in a trigger, or a cooldown the sliders can't set) is refused instead of half-imported.
 

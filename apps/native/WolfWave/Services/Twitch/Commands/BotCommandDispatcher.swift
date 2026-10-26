@@ -90,11 +90,12 @@ final class BotCommandDispatcher {
         userCooldownKey: AppConstants.UserDefaults.lastSongCommandUserCooldown,
         aliasesKey: AppConstants.UserDefaults.lastSongCommandAliases
     )
-    /// `!stats` / `!musicstats`. Live-gating lives in the enabled callback
-    /// wired by `setStatsCommandEnabled(callback:)`.
+    /// `!stats` / `!musicstats`. Enabled state comes from the callback wired by
+    /// `setStatsCommandEnabled(callback:)`; like every command it only waits
+    /// for a live stream when "Only reply while live" (`globalGate`) is on.
     private let statsCommand = TrackInfoCommand(
         triggers: ["!stats", "!musicstats"],
-        description: "Displays today's listening stats (live streams only)",
+        description: "Displays your listening stats",
         defaultMessage: "No listening stats yet",
         globalCooldownKey: AppConstants.UserDefaults.statsCommandGlobalCooldown,
         userCooldownKey: AppConstants.UserDefaults.statsCommandUserCooldown,
@@ -163,6 +164,12 @@ final class BotCommandDispatcher {
         }
     }
 
+    /// The registered built-in commands, in match order. Read by
+    /// `BuiltInCommandCatalogTests` to keep ``BuiltInCommandCatalog`` in step.
+    var builtInCommands: [BotCommand] {
+        lock.withLock { commands }
+    }
+
     /// Wires the enabled-state provider for the `!song` command.
     ///
     /// - Parameter callback: Closure returning `true` if `!song` should respond.
@@ -211,7 +218,8 @@ final class BotCommandDispatcher {
     /// Wires the enabled-state provider for the `!stats` command.
     ///
     /// - Parameter callback: Closure returning `true` if `!stats` should respond
-    ///   (Stats feature on, command on, and the stream is live).
+    ///   (Stats feature on and command on). Live-only replies are the global
+    ///   gate's job, not this callback's.
     func setStatsCommandEnabled(callback: @escaping () -> Bool) {
         lock.withLock {
             statsCommand.isEnabled = callback
@@ -274,10 +282,10 @@ final class BotCommandDispatcher {
     /// first, then the built-in commands. Rebuilt each message so edits in
     /// Settings apply on the next chat line without re-registration.
     ///
-    /// Custom commands come first so an enabled custom command that reuses a
-    /// built-in trigger (e.g. a custom `!song`) can override it. When that custom
-    /// command is disabled or denies the viewer, the dispatch loop `break`s to the
-    /// next match, falling back to the shadowed built-in.
+    /// `CustomCommandStore` keeps custom commands off every built-in trigger and
+    /// alias (`BuiltInCommandCatalog`), so the order only matters for a clash
+    /// created after load, such as a built-in alias added that a custom command
+    /// already uses. That clash is turned off on the next launch.
     private func commandSnapshot() -> [BotCommand] {
         let builtins = lock.withLock { commands }
         let vars = lock.withLock { customCommandVariables }

@@ -26,6 +26,10 @@ nonisolated enum CustomCommandIssue: Equatable, Sendable {
     /// `token` is already claimed by another command, named by its primary
     /// trigger in `owner`.
     case duplicate(String, owner: String)
+    /// `token` belongs to a built-in command, named by its primary trigger in
+    /// `builtIn` (e.g. `!np` → `!song`). Custom commands are matched first, so
+    /// allowing it would quietly replace the built-in.
+    case reservedTrigger(String, builtIn: String)
     /// The reply is empty, so the command would never answer.
     case emptyReply
     /// The reply is longer than Twitch allows in one message.
@@ -49,7 +53,7 @@ nonisolated enum CustomCommandIssue: Equatable, Sendable {
         switch self {
         case .emptyTrigger:
             return .trigger
-        case .hasSpaces(let token), .duplicate(let token, _):
+        case .hasSpaces(let token), .duplicate(let token, _), .reservedTrigger(let token, _):
             return token == trigger ? .trigger : .aliases
         case .badAlias:
             return .aliases
@@ -75,6 +79,10 @@ nonisolated enum CustomCommandIssue: Equatable, Sendable {
             return token == owner
                 ? "\(token) is already a command."
                 : "\(token) is already used by \(owner)."
+        case .reservedTrigger(let token, let builtIn):
+            return token == builtIn
+                ? "\(token) is a built-in command. Pick another trigger."
+                : "\(token) is already used by the built-in \(builtIn)."
         case .emptyReply:
             return "Add a reply."
         case .replyTooLong:

@@ -61,7 +61,8 @@ final class TrackInfoCommand: BotCommand {
 
     /// Closure that returns whether this command is enabled. `nil` means
     /// always enabled. Separate from the protocol's `enabledKey` (left `nil`)
-    /// because the gate can depend on runtime state, e.g. `!stats` is live-only.
+    /// because the gate can depend on runtime state, e.g. `!stats` also needs
+    /// the History & Stats feature on.
     /// Backed by a lock-guarded property (defense-in-depth on the
     /// MainActor-isolated type).
     var isEnabled: (() -> Bool)? {

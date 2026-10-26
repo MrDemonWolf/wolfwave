@@ -193,8 +193,9 @@ extension WebSocketServerService {
     /// Starts or stops the periodic task so disabled, hidden, paused, and
     /// client-free states have no timer wakeups at all.
     func reconcileProgressTimer() {
-        // Only overlay clients consume `progress`; a lone Stream Deck ignores
-        // the frame, so its presence must not keep the timer awake.
+        // Intentional: only overlay clients consume `progress`. The Stream Deck
+        // plugin parses it as `unknown` and drops it (apps/streamdeck
+        // protocol.ts), so a lone Stream Deck must not keep the timer awake.
         let shouldRun = Self.shouldRunProgressTimer(
             isEnabled: isEnabled,
             isOverlayVisible: isOverlayVisible,

@@ -110,11 +110,7 @@ extension BotCommand {
         var result = triggers
         if let key = aliasesKey,
            let custom = DefaultsStore.store.string(forKey: key) {
-            let aliases = custom.split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
-                .filter { !$0.isEmpty }
-                .map { $0.hasPrefix("!") ? $0 : "!\($0)" }
-            result += aliases
+            result += BuiltInCommandCatalog.parseAliases(custom)
         }
         return result
     }
