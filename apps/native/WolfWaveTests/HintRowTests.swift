@@ -28,6 +28,27 @@ final class HintRowTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
+    /// `ToggleSettingRow(hint:)` draws the footnote under the row; `nil` draws nothing.
+    func testToggleRowHintAddsAFootnote() {
+        func row(hint: String?) -> NSHostingView<ToggleSettingRow> {
+            let host = NSHostingView(rootView: ToggleSettingRow(
+                title: "Allow Stream Deck commands",
+                subtitle: "Let a key skip songs.",
+                isOn: .constant(true),
+                accessibilityLabel: "Toggle",
+                accessibilityIdentifier: "toggle",
+                hint: hint
+            ))
+            host.setFrameSize(NSSize(width: 360, height: 0))
+            host.layoutSubtreeIfNeeded()
+            return host
+        }
+        XCTAssertGreaterThan(
+            row(hint: "Commands are only accepted from this Mac.").fittingSize.height,
+            row(hint: nil).fittingSize.height
+        )
+    }
+
     func testRendersMultilineText() {
         let long = String(repeating: "This is a long inline tip. ", count: 6)
         let host = NSHostingView(rootView: HintRow(long))

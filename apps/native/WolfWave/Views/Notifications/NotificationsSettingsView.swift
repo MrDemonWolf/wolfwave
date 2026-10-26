@@ -113,16 +113,14 @@ struct NotificationsSettingsView: View {
 
     /// Shown when notifications are enabled in WolfWave but denied at the system level.
     private var permissionDeniedNotice: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            CalloutBanner(
-                "Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.",
-                style: .warning
-            )
-
+        CalloutBanner(
+            "Notifications are turned off for WolfWave. Enable them in System Settings to get these alerts.",
+            style: .warning
+        ) {
             Button("Open System Settings") {
                 NotificationService.shared.openSystemNotificationSettings()
             }
-            .font(.system(size: DSFont.Size.sm))
+            .buttonStyle(.bordered)
             .pointerCursor()
             .accessibilityIdentifier("openNotificationSettingsButton")
         }

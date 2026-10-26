@@ -291,7 +291,19 @@ jobs:
         env:
           MallocNanoZone: "0"
           WOLFWAVE_LOG_LEVEL: error
-        run: make test-ui
+          # Keeps the screenshot matrix from SettingsUITests.testCapturesEveryPane
+          # so a layout change can be reviewed without running the suite locally.
+          UI_RESULT_BUNDLE: UITestResults.xcresult
+        run: make test-ui UI_RESULT_BUNDLE="$UI_RESULT_BUNDLE"
+
+      - name: Upload UI Test Results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: UITestResults
+          path: UITestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
 
   docs:
     name: Docs Build

@@ -145,6 +145,7 @@ test-ui: sponsor-config
 		-destination '$(DESTINATION)' -configuration Debug \
 		-derivedDataPath '$(TEST_DERIVED_DATA)' \
 		-parallel-testing-enabled NO \
+		$(if $(UI_RESULT_BUNDLE),-resultBundlePath '$(UI_RESULT_BUNDLE)') \
 		$(UI_SIGN) \
 		test
 

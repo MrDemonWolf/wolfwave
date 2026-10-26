@@ -26,7 +26,7 @@ The banner does **not** self-gate on permission state. Callers wrap it in `if st
 ## Tokens used
 Inherited from [`ErrorCallout`](error-callout.md) and [`CalloutBanner`](callout-banner.md); this view adds no chrome of its own.
 - Tint: `DSColor.warning` via `CalloutBanner.Style.warning` (severity `.warning`), on both the banner wash and the filled button
-- `DSSpace.s4` (12): banner-to-button gap; `DSSpace.s2` (8): gap between buttons
+- `DSSpace.s2` (8): message-to-button gap and gap between buttons (the buttons sit inside the banner via its `actions` slot)
 - `DSFont.Size.body` (12) semibold title, `DSFont.Size.sm` (11) message
 - `AppConstants.SettingsUI.cardCornerRadius` rounded corners
 
@@ -35,7 +35,7 @@ Inherited from [`ErrorCallout`](error-callout.md) and [`CalloutBanner`](callout-
 graph TB
   Wrapper[MusicPermissionBanner] --> Callout[ErrorCallout, music.automationDenied]
   Callout --> Banner[CalloutBanner .warning: title + message]
-  Callout --> Actions[HStack, s2 gap]
+  Banner --> Actions[actions slot inside the box, HStack s2 gap]
   Actions --> Primary[Open System Settings, borderedProminent, warning tint]
   Actions --> Docs[Learn More, bordered]
 ```

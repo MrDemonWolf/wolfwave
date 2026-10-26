@@ -482,6 +482,12 @@ nonisolated enum AppConstants {
         /// Standard card padding
         static let cardPadding: CGFloat = DSDimension.Settings.cardPadding
 
+        /// Gap between stacked pieces inside one card: a toggle row, the
+        /// callout under it, the next control. A row's own footnote sits
+        /// closer (`ToggleSettingRow`'s `hint`), and a callout's buttons sit
+        /// inside it, so only this one value separates siblings in a card.
+        static let cardRowSpacing: CGFloat = DSSpace.s4
+
         /// Standard card corner radius (matches macOS 26 Liquid Glass card radius).
         static let cardCornerRadius: CGFloat = DSDimension.Settings.cardCornerRadius
 

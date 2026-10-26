@@ -64,13 +64,15 @@ extension SongRequestSetupView {
                             "Connect Twitch first. Requests come in through your chat.",
                             style: .info,
                             systemImage: "lock.fill"
-                        )
-                        Button("Open Twitch Settings") {
-                            dismiss()
-                            openTwitchSettings()
+                        ) {
+                            Button("Open Twitch Settings") {
+                                dismiss()
+                                openTwitchSettings()
+                            }
+                            .buttonStyle(.bordered)
+                            .pointerCursor()
+                            .accessibilityIdentifier("songRequestSetupOpenTwitchSettings")
                         }
-                        .pointerCursor()
-                        .accessibilityIdentifier("songRequestSetupOpenTwitchSettings")
                     }
                 }
             }
@@ -95,12 +97,14 @@ extension SongRequestSetupView {
                             "Apple Music access is off. Turn it on in "
                                 + "System Settings › Privacy & Security › Media & Apple Music.",
                             style: .warning
-                        )
-                        Button("Open System Settings") {
-                            ExternalLink.open(AppConstants.URLs.systemMusicSettings)
+                        ) {
+                            Button("Open System Settings") {
+                                ExternalLink.open(AppConstants.URLs.systemMusicSettings)
+                            }
+                            .buttonStyle(.bordered)
+                            .pointerCursor()
+                            .accessibilityIdentifier("songRequestSetup.openMusicPrivacy")
                         }
-                        .pointerCursor()
-                        .accessibilityIdentifier("songRequestSetup.openMusicPrivacy")
                     } else if musicAuthStatus == .restricted {
                         CalloutBanner(
                             "Apple Music access is blocked on this Mac. "
@@ -149,9 +153,10 @@ extension SongRequestSetupView {
                     } else if viewModel.playlistReady {
                         playlistReadyState
                     } else if let playlistError {
-                        CalloutBanner(playlistError, style: .warning)
-                        AsyncActionButton(title: "Try Again", showsSuccess: false) {
-                            await ensurePlaylist()
+                        CalloutBanner(playlistError, style: .warning) {
+                            AsyncActionButton(title: "Try Again", showsSuccess: false) {
+                                await ensurePlaylist()
+                            }
                         }
                     }
                 }
@@ -177,11 +182,12 @@ extension SongRequestSetupView {
                     + "You can finish setup now and fix this later.",
                 title: "Music can't see \(name) yet",
                 style: .warning
-            )
-            Button("Check Again") { checkPlaylistAgain() }
-                .controlSize(.small)
-                .pointerCursor()
-                .accessibilityIdentifier("songRequestSetup.checkPlaylistAgain")
+            ) {
+                Button("Check Again") { checkPlaylistAgain() }
+                    .buttonStyle(.bordered)
+                    .pointerCursor()
+                    .accessibilityIdentifier("songRequestSetup.checkPlaylistAgain")
+            }
         }
     }
 

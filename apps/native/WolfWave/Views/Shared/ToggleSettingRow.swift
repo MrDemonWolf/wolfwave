@@ -10,6 +10,10 @@ import SwiftUI
 
 /// A reusable toggle row with a title, subtitle, and switch control.
 /// Used across settings views and onboarding for consistent toggle presentation.
+///
+/// Pass `hint` for a footnote that belongs to this switch (e.g. who the setting
+/// lets in). The row draws it as a ``HintRow`` under the title column at a fixed
+/// gap, so a caller never stacks a divider, padding, and a hint by hand.
 struct ToggleSettingRow: View {
 
     // MARK: - Properties
@@ -34,11 +38,24 @@ struct ToggleSettingRow: View {
     /// to the binding, not only a click on this switch, so a write from
     /// elsewhere (another view, a defaults change) triggers it too.
     var onChange: ((Bool) -> Void)?
+    /// Optional footnote under the row, drawn as a ``HintRow``. `nil` draws nothing.
+    var hint: String?
+    /// The hint's leading SF Symbol.
+    var hintSystemImage: String = "info.circle.fill"
 
     // MARK: - Body
 
     var body: some View {
-        toggle
+        if let hint {
+            // Outside the Toggle on purpose: inside its label the hint would
+            // join the control's VoiceOver label and its click target.
+            VStack(alignment: .leading, spacing: DSSpace.s1h) {
+                toggle
+                HintRow(hint, systemImage: hintSystemImage)
+            }
+        } else {
+            toggle
+        }
     }
 
     // MARK: - Private Views
@@ -95,6 +112,17 @@ struct ToggleSettingRow: View {
             isDisabled: true,
             accessibilityLabel: "Disabled Feature",
             accessibilityIdentifier: "disabledToggle"
+        )
+        .cardStyle()
+
+        ToggleSettingRow(
+            title: "Allow Stream Deck commands",
+            subtitle: "Let a Stream Deck key skip songs and hold the queue.",
+            isOn: .constant(true),
+            accessibilityLabel: "Toggle Stream Deck commands",
+            accessibilityIdentifier: "hintedToggle",
+            hint: "Commands are only accepted from this Mac.",
+            hintSystemImage: "lock.fill"
         )
         .cardStyle()
     }
