@@ -30,6 +30,10 @@ class WolfWaveUITestCase: XCTestCase {
         var suppressWhatsNew = true
         /// Render configured Song Requests without external accounts.
         var songRequestsEnabled = false
+        /// Pin the app appearance (`"light"` / `"dark"`); `nil` follows the system.
+        var appearance: String?
+        /// Keep the onboarding completion screen up until Done is clicked.
+        var holdCompletion = false
     }
 
     /// Overridden by subclasses that need a different starting state.
@@ -53,16 +57,30 @@ class WolfWaveUITestCase: XCTestCase {
         // A UI test that keeps running after its first failed assertion just
         // produces a cascade of downstream noise around one real cause.
         continueAfterFailure = false
+        launch(with: launchOptions)
+    }
 
+    /// Launches (or relaunches) the app with `options`. Every launch starts
+    /// from a wiped isolated suite, so a relaunch is a fresh first run.
+    func launch(with options: LaunchOptions) {
+        if app.state != .notRunning {
+            app.terminate()
+        }
         var environment = [UITestEnvironment.enabled: "1"]
-        if launchOptions.onboarded {
+        if options.onboarded {
             environment[UITestEnvironment.onboarded] = "1"
         }
-        if launchOptions.suppressWhatsNew {
+        if options.suppressWhatsNew {
             environment[UITestEnvironment.suppressWhatsNew] = "1"
         }
-        if launchOptions.songRequestsEnabled {
+        if options.songRequestsEnabled {
             environment[UITestEnvironment.songRequestsEnabled] = "1"
+        }
+        if let appearance = options.appearance {
+            environment[UITestEnvironment.appearance] = appearance
+        }
+        if options.holdCompletion {
+            environment[UITestEnvironment.holdCompletion] = "1"
         }
         app.launchEnvironment = environment
         app.launch()
@@ -109,6 +127,7 @@ enum UITestEnvironment {
     static let songRequestsEnabled = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
     static let settingsSize = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
     static let appearance = "WOLFWAVE_UI_TEST_APPEARANCE"
+    static let holdCompletion = "WOLFWAVE_UI_TEST_HOLD_COMPLETION"
 }
 
 /// Window identifiers, mirrored from the app for the same reason as the

@@ -1,7 +1,7 @@
 ---
 title: Install
 metaTitle: "Install on Mac: DMG, Homebrew & Setup Wizard"
-description: Install WolfWave on a Mac with macOS 26 and Apple Silicon. Download the signed DMG or use Homebrew, then walk through the 8-step setup wizard.
+description: Install WolfWave on a Mac with macOS 26 and Apple Silicon. Download the signed DMG or use Homebrew, then walk through the 7-step setup wizard.
 ogTitle: Install WolfWave. Free Apple Music Bot for Twitch on Mac
 ogDescription: Download the DMG or use Homebrew, then follow the short setup wizard. macOS 26+ on Apple Silicon. Signed, notarized, and free.
 ogEyebrow: Install in 2 minutes
@@ -72,11 +72,12 @@ brew upgrade --cask wolfwave
 
 ## Step 2: The setup wizard
 
-The wizard opens the first time you launch WolfWave. It has 8 steps.
+The wizard opens the first time you launch WolfWave. It has 7 short steps and takes about two minutes.
 
-- **Optional steps** say "Optional" above the title. Click **Next** or **Skip** to move on.
-- **Back** returns to the step before.
-- **Skip All** ends the wizard and keeps the default settings.
+- The top of the window says where you are, like **Step 3 of 7 · Discord**.
+- **Next** moves on. On Apple Music and Twitch it reads **Skip** until you finish that step. Press **Return** for it (on Twitch, Return joins your channel instead).
+- **Back** (or **Escape**) returns to the step before.
+- **Skip setup** ends the wizard and keeps the default settings.
 - You can finish anything later in **Settings**, or open the wizard again from **Settings → Advanced → Rerun Setup Wizard**.
 
 <Steps>
@@ -85,28 +86,44 @@ The wizard opens the first time you launch WolfWave. It has 8 steps.
 
 ### Welcome
 
-A quick hello. WolfWave reads your Apple Music track and only shares what you turn on.
+A quick hello. WolfWave shares only what you turn on.
 
 </Step>
 
 <Step>
 
-### Discord *(optional)*
+### Apple Music
 
-Turn on **Show music on Discord** to show your song on your Discord profile.
+**This one matters.** It lets WolfWave see the song that's playing.
 
-- Keep the Discord app open on this Mac. WolfWave talks to it directly.
+1. Click **Allow Apple Music access**.
+2. Click **OK** when macOS asks.
+
+Clicked "Don't Allow" by mistake? Click **Open System Settings**, go to **Privacy & Security → Automation → WolfWave**, turn on **Music**, then come back. WolfWave checks again on its own, or click **Check again**.
+
+</Step>
+
+<Step>
+
+### Discord
+
+Turn on **Show on Discord** to show your song on your Discord profile.
+
+- The step tells you whether Discord is open. WolfWave talks to it directly, so it has to be.
+- **Listen buttons** ("Listen on Apple Music" and a link for any other music app) are on. One tap turns them off.
 - No bot or token needed.
 
 </Step>
 
 <Step>
 
-### Twitch *(optional)*
+### Twitch
 
 1. Click **Connect with Twitch**.
 2. Your browser opens **twitch.tv/activate**. Enter the code WolfWave shows and approve.
 3. Type your channel name under **Which channel should WolfWave join?** and click **Join**.
+
+`!song` and `!last` are already on, so chat can ask what's playing right away. Turn either off on this step.
 
 Your sign-in is saved in your Mac's Keychain. You never type your Twitch password into WolfWave.
 
@@ -114,10 +131,10 @@ Your sign-in is saved in your Mac's Keychain. You never type your Twitch passwor
 
 <Step>
 
-### OBS Widget *(optional)*
+### Stream overlay
 
-1. Turn on **Turn on Stream Widgets**.
-2. Click **Copy overlay URL**.
+1. Turn on **Stream overlay**.
+2. Click **Copy** next to the overlay link.
 3. In OBS, add a **Browser Source** and paste the link.
 
 Sizes and styles are in [Stream Widgets](/docs/features#now-playing-widget).
@@ -126,32 +143,7 @@ Sizes and styles are in [Stream Widgets](/docs/features#now-playing-widget).
 
 <Step>
 
-### Preferences *(optional)*
-
-Three switches:
-
-- **Start WolfWave at login.**
-- **Remember my listening history.** Kept on this Mac only. Powers [History & Stats](/docs/listening-history).
-- **Sync settings with iCloud.** Your preferences follow you to your other Macs. Accounts stay on this one. See [Back Up & Restore](/docs/backup).
-
-</Step>
-
-<Step>
-
-### Permissions
-
-**This one matters.** It lets WolfWave read the song that's playing.
-
-1. Click **Allow Music access**.
-2. Click **OK** when macOS asks.
-
-Clicked "Don't Allow" by mistake? Click **Open System Settings**, go to **Privacy & Security → Automation → WolfWave**, turn on **Music**, then click **Recheck**.
-
-</Step>
-
-<Step>
-
-### Notifications *(optional)*
+### Alerts
 
 1. Click **Allow notifications**.
 2. Pick your alerts: **Song changes**, **Skip vote started**, **Skip vote passed**.
@@ -162,15 +154,19 @@ All are off unless you turn them on.
 
 <Step>
 
-### Menu Bar
+### Mac settings
 
-An arrow points to the wolf icon in your menu bar. Click it any time to see what's playing or open **Settings**.
+Three switches, all off until you turn them on:
+
+- **Start WolfWave at login.**
+- **Remember my listening history.** Kept on this Mac only. Powers [History & Stats](/docs/listening-history).
+- **Sync settings with iCloud.** Your preferences follow you to your other Macs. Accounts stay on this one. See [Back Up & Restore](/docs/backup).
 
 </Step>
 
 </Steps>
 
-Click **Finish**, then **Done**. You're set.
+Click **Finish**. The last screen points at the wolf icon in your menu bar: click it any time to see what's playing or open **Settings**. Click **Done** and you're set.
 
 ## Step 3: Turn on what you need
 

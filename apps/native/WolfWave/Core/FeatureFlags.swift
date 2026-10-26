@@ -28,7 +28,10 @@ nonisolated enum FeatureFlags {
     /// Discord Rich Presence preference. Default `false`. This is the stored
     /// setting, not whether the IPC socket is actually connected.
     static var discordEnabled: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.discordPresenceEnabled)
+        Preferences.bool(
+            AppConstants.UserDefaults.discordPresenceEnabled,
+            default: AppConstants.UserDefaults.Defaults.discordPresenceEnabled
+        )
     }
 
     /// The shared overlay / Stream Deck WebSocket server switch. Default `false`.
@@ -60,13 +63,19 @@ nonisolated enum FeatureFlags {
     /// `discordShowIdleStatus` has been explicitly written it returns the
     /// stored value.
     static var discordShowIdleStatus: Bool {
-        Preferences.bool(AppConstants.UserDefaults.discordShowIdleStatus, default: true)
+        Preferences.bool(
+            AppConstants.UserDefaults.discordShowIdleStatus,
+            default: AppConstants.UserDefaults.Defaults.discordShowIdleStatus
+        )
     }
 
     /// Opt-in: clear Discord presence while paused rather than keeping the
     /// loaded track on the profile. Default false.
     static var discordClearWhilePaused: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.discordClearWhilePaused)
+        Preferences.bool(
+            AppConstants.UserDefaults.discordClearWhilePaused,
+            default: AppConstants.UserDefaults.Defaults.discordClearWhilePaused
+        )
     }
 
     /// The static widget HTTP server (serves `widget.html`). Default `false`.
@@ -115,7 +124,10 @@ nonisolated enum FeatureFlags {
 
     /// Whether `!song` / `!last` replies append a song.link URL. Default `false`.
     static var songCommandSongLinkEnabled: Bool {
-        defaults.bool(forKey: AppConstants.UserDefaults.songCommandSongLinkEnabled)
+        Preferences.bool(
+            AppConstants.UserDefaults.songCommandSongLinkEnabled,
+            default: AppConstants.UserDefaults.Defaults.songCommandSongLinkEnabled
+        )
     }
 
     /// Opt-in macOS banner on every track change. Default `false`.

@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **A shorter, clearer setup wizard.** Seven steps instead of eight, with Apple Music access right after Welcome because everything builds on it. The top says where you are ("Step 3 of 7 · Discord"), every step keeps its title in the same spot, and there is one button to move on: it reads Skip until you finish a sign-in, Next otherwise. Escape goes back. Shorter, plainer copy throughout.
+- **Setup shows what's on and lets you change it in one tap.** The Discord step tells you whether Discord is open and has a Listen-buttons switch. The Twitch step shows `!song` and `!last` with a switch each. Notifications are a button, not a switch you can't turn off. The last screen points at the wolf in your menu bar, even if you skip setup.
+- **`!song` and `!last` are on for new installs.** Connect Twitch and chat can ask what's playing right away. If you already use WolfWave, nothing changes: your commands stay exactly as you had them.
+- **Clearer Discord choices for when the music stops.** The "When not playing" switches are now two plain choices. When you pause: Keep the song, or Hide the song. When music stops: Listening to WolfWave, or Nothing. Your current choices carry over. Other Discord and Twitch labels got plainer too ("Any-app link", "Add a song.link").
 - **Settings fits smaller workspaces.** The minimum width is 640 points for MacBook half-screen layouts. Integration rows stack their status and Configure action when space is tight, toolbar titles follow the selected pane, and sidebar group labels share one heading style.
 - **Queue controls stay above the songs.** Skip, Hold/Resume, and Clear Requests use larger native buttons at the top of the queue. Hold is available before the first request arrives.
 - **Native switches throughout Settings.** Labels and descriptions belong to their macOS controls, switches use the standard size, and helper text is easier to read and wraps without clipping.
@@ -124,6 +128,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **One home for Twitch and Discord defaults.** Every `@AppStorage` seed and `Preferences.bool(_:default:)` read for those keys now references `AppConstants.UserDefaults.Defaults`. New `FreshInstallDefaults` writes day-one values once per install at launch (fresh installs get them, existing installs get their old values pinned), so a new default never flips an upgrade. The onboarding UI tests gained Escape and progress-header coverage plus a light/dark screenshot capture (`testCapturesEveryStep`), backed by new `WOLFWAVE_UI_TEST_APPEARANCE` and `WOLFWAVE_UI_TEST_HOLD_COMPLETION` switches. The `stepContentMinHeight` token is replaced by `contentMaxWidth`.
 - **Debug and Release share the activation policy.** Both packaged apps set `LSUIElement = NO`; Dock and menu-only behavior remains controlled at runtime. A hosted regression checks the app's actual metadata.
 - **Settings window lookup uses scene identity.** Existing and minimized windows are matched by their exact identifier; the hidden scene bridge and timing-based lookup are removed.
 - `PlaylistVisibilityWait` (Services/SongRequest) re-probes Music.app's local library every 2 s for about 40 s after the requests playlist is made, so iCloud sync latency no longer reads as Sync Library being off. The setup step runs it in a `.task` keyed on the step and a Check Again counter, so it is cancelled with the step or sheet. `runSetupHealthCheck(forceWait:)` uses the same wait unless the gap is already on the banner. Covered by `PlaylistVisibilityWaitTests` with a scripted probe and sleep.

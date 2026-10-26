@@ -25,13 +25,20 @@ struct OnboardingTwitchStepView: View {
     /// Stable owner supplied by the containing Onboarding presentation.
     let oauthOwner: TwitchViewModel.OAuthPresentationOwner
 
+    /// `!song`. Unset reads as off; a fresh install was given `true` at launch.
+    @AppStorage(AppConstants.UserDefaults.currentSongCommandEnabled)
+    private var currentSongCommandEnabled = AppConstants.UserDefaults.Defaults.currentSongCommandEnabled
+
+    /// `!last`. Same rule as `!song`.
+    @AppStorage(AppConstants.UserDefaults.lastSongCommandEnabled)
+    private var lastSongCommandEnabled = AppConstants.UserDefaults.Defaults.lastSongCommandEnabled
+
     // MARK: - Body
 
     var body: some View {
         OnboardingStepScaffold(
-            title: "Connect WolfWave to Twitch",
-            description: "So !song works in your chat automatically. We only listen, we never post unless you ask.",
-            isOptional: true,
+            title: "Answer !song in your Twitch chat",
+            description: "Viewers type !song and WolfWave replies with what's playing.",
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -40,20 +47,28 @@ struct OnboardingTwitchStepView: View {
                 )
             },
             extras: {
-                Group {
-                    if twitchViewModel.isLoadingSavedCredentials {
-                        LoadingRow(text: "Loading Twitch account…")
-                    } else {
-                        switch twitchViewModel.integrationState {
-                        case .notConnected:
-                            notConnectedContent
-                        case .authorizing:
-                            authorizingContent
-                        case .connected:
-                            connectedContent
-                        case .error(let message):
-                            errorContent(message: message)
+                VStack(spacing: DSSpace.s5) {
+                    Group {
+                        if twitchViewModel.isLoadingSavedCredentials {
+                            LoadingRow(text: "Loading Twitch account…")
+                        } else {
+                            switch twitchViewModel.integrationState {
+                            case .notConnected:
+                                notConnectedContent
+                            case .authorizing:
+                                authorizingContent
+                            case .connected:
+                                connectedContent
+                            case .error(let message):
+                                errorContent(message: message)
+                            }
                         }
+                    }
+
+                    // Hidden while the device code is up, so that screen has
+                    // one job: finish signing in.
+                    if !isAuthorizing {
+                        commandsCard
                     }
                 }
                 .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: stateKey)
@@ -101,9 +116,9 @@ struct OnboardingTwitchStepView: View {
             .accessibilityLabel("Connect with Twitch")
             .accessibilityHint("Opens Twitch in your browser to authorize WolfWave")
 
-            Text("Opens twitch.tv/activate in your browser. Takes about 10 seconds.")
+            Text("Opens Twitch in your browser. Takes about 10 seconds.")
                 .font(.system(size: DSFont.Size.sm))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -186,7 +201,7 @@ struct OnboardingTwitchStepView: View {
             .disabled(twitchViewModel.isAccountTeardownInProgress)
         }
         .padding(DSSpace.s5)
-        .cardStyle()
+        .cardStyleUnpadded()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
     }
@@ -267,12 +282,13 @@ struct OnboardingTwitchStepView: View {
             }
         }
         .padding(DSSpace.s5)
-        .cardStyle()
+        .cardStyleUnpadded()
     }
 
     /// Inline feedback below the channel field mirroring the settings pane.
     /// `.valid` shows nothing because a successful join swaps the whole card
-    /// for the "In your chat" row. The `.error` reason is only in the tooltip.
+    /// for the "In your chat" row. The `.error` reason is shown inline, not
+    /// hidden in a tooltip.
     @ViewBuilder
     private var channelValidationIndicator: some View {
         switch twitchViewModel.channelValidationState {
@@ -283,7 +299,7 @@ struct OnboardingTwitchStepView: View {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.mini)
-                Text("Verifying channel\u{2026}")
+                Text("Checking the channel\u{2026}")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.secondary)
             }
@@ -292,20 +308,24 @@ struct OnboardingTwitchStepView: View {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(DSColor.error)
                     .font(.system(size: DSFont.Size.sm))
-                Text("Channel not found")
+                    .accessibilityHidden(true)
+                Text("No Twitch channel by that name. Check the spelling.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(DSColor.error)
             }
+            .accessibilityElement(children: .combine)
         case .error(let message):
-            HStack(spacing: DSSpace.s1) {
+            HStack(alignment: .top, spacing: DSSpace.s1) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(DSColor.warning)
                     .font(.system(size: DSFont.Size.sm))
-                Text("Couldn't check channel")
+                    .accessibilityHidden(true)
+                Text("Couldn't check the channel: \(message)")
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(DSColor.warning)
-                    .help(message)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityElement(children: .combine)
         }
     }
 
@@ -325,7 +345,7 @@ struct OnboardingTwitchStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(DSSpace.s4)
-            .cardStyle()
+            .cardStyleUnpadded()
 
             Button("Try Again") {
                 twitchViewModel.startOAuth(owner: oauthOwner)
@@ -335,7 +355,49 @@ struct OnboardingTwitchStepView: View {
         }
     }
 
+    // MARK: - Chat Commands
+
+    /// The two song commands, on for a fresh install (`FreshInstallDefaults`),
+    /// each one tap to turn off. Cooldowns and the rest live in Settings → Twitch.
+    private var commandsCard: some View {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
+            Text("Chat commands")
+                .sectionEyebrow()
+
+            ToggleSettingRow(
+                title: "!song",
+                subtitle: "Replies with the song playing now.",
+                isOn: $currentSongCommandEnabled,
+                accessibilityLabel: "!song command",
+                accessibilityIdentifier: "onboardingSongCommandToggle"
+            )
+
+            Divider()
+
+            ToggleSettingRow(
+                title: "!last",
+                subtitle: "Replies with the song before it.",
+                isOn: $lastSongCommandEnabled,
+                accessibilityLabel: "!last command",
+                accessibilityIdentifier: "onboardingLastSongCommandToggle"
+            )
+
+            HintRow("Each one runs at most once every \(Self.cooldownSeconds) seconds. More in Settings → Twitch.")
+        }
+        .padding(DSSpace.s5)
+        .cardStyleUnpadded()
+    }
+
     // MARK: - Helpers
+
+    /// The default command cooldown, in whole seconds, for the hint line.
+    private static let cooldownSeconds = Int(AppConstants.UserDefaults.Defaults.commandCooldown)
+
+    /// `true` while the device-code flow is on screen.
+    private var isAuthorizing: Bool {
+        if case .authorizing = twitchViewModel.integrationState { return true }
+        return false
+    }
 
     /// Whether the Join button should be disabled (empty channel or busy).
     private var joinDisabled: Bool {

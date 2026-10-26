@@ -169,13 +169,17 @@ nonisolated enum DiscordPresenceBuilder {
         url: String?,
         defaults: UserDefaults
     ) -> [String: String]? {
-        guard (defaults.object(forKey: AppConstants.UserDefaults.discordButtonsEnabled) as? Bool) ?? true,
+        guard (defaults.object(forKey: AppConstants.UserDefaults.discordButtonsEnabled) as? Bool)
+                ?? AppConstants.UserDefaults.Defaults.discordButtonsEnabled,
               let sourceURL = url, let url = Preferences.normalizedHTTPSURL(sourceURL, maxLength: 2_048),
               !url.isEmpty else { return nil }
         guard let keys = buttonKeys(for: index) else { return nil }
 
-        // Missing key defaults to enabled (true).
-        let enabled = (defaults.object(forKey: keys.enabled) as? Bool) ?? true
+        // A missing key reads as the canonical default (on for both buttons).
+        let defaultEnabled = index == 1
+            ? AppConstants.UserDefaults.Defaults.discordButton1Enabled
+            : AppConstants.UserDefaults.Defaults.discordButton2Enabled
+        let enabled = (defaults.object(forKey: keys.enabled) as? Bool) ?? defaultEnabled
         guard enabled else { return nil }
 
         let stored = (defaults.string(forKey: keys.label) ?? "")
@@ -246,7 +250,8 @@ nonisolated enum DiscordPresenceBuilder {
         }
 
         // Missing key defaults to revealing the name (true).
-        let showName = (defaults.object(forKey: AppConstants.UserDefaults.discordPlaylistShowName) as? Bool) ?? true
+        let showName = (defaults.object(forKey: AppConstants.UserDefaults.discordPlaylistShowName) as? Bool)
+            ?? AppConstants.UserDefaults.Defaults.discordPlaylistShowName
         return showName ? .named(name) : .anonymous
     }
 

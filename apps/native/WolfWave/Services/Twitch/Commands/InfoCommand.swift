@@ -88,7 +88,8 @@ final class InfoCommand: BotCommand {
         guard allTriggers.contains(where: { token == $0.lowercased() }) else {
             return nil
         }
-        guard Preferences.bool(enabledDefaultsKey, default: false) else {
+        let enabledByDefault = AppConstants.UserDefaults.Defaults.wolfwaveCommandEnabled
+        guard Preferences.bool(enabledDefaultsKey, default: enabledByDefault) else {
             return nil
         }
         return messageProvider().truncatedForChat()

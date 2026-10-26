@@ -28,27 +28,27 @@ struct DiscordSettingsView: View {
 
     /// Master Rich Presence switch.
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
-    var presenceEnabled = false
+    var presenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
 
     /// Master switch for both profile buttons.
     @AppStorage(AppConstants.UserDefaults.discordButtonsEnabled)
-    var buttonsEnabled = true
+    var buttonsEnabled = AppConstants.UserDefaults.Defaults.discordButtonsEnabled
 
     /// "Listen on Apple Music" button.
     @AppStorage(AppConstants.UserDefaults.discordButton1Enabled)
-    var button1Enabled = true
+    var button1Enabled = AppConstants.UserDefaults.Defaults.discordButton1Enabled
 
     /// Cross-service song.link button.
     @AppStorage(AppConstants.UserDefaults.discordButton2Enabled)
-    var button2Enabled = true
+    var button2Enabled = AppConstants.UserDefaults.Defaults.discordButton2Enabled
 
     /// Include the source playlist in the presence.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistEnabled)
-    var playlistEnabled = false
+    var playlistEnabled = AppConstants.UserDefaults.Defaults.discordPlaylistEnabled
 
     /// Show the real playlist name; off substitutes a generic label.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistShowName)
-    var playlistShowName = true
+    var playlistShowName = AppConstants.UserDefaults.Defaults.discordPlaylistShowName
 
     /// Where the playlist appears: on the state line or in the icon tooltip.
     @AppStorage(AppConstants.UserDefaults.discordPlaylistStyle)
@@ -56,11 +56,11 @@ struct DiscordSettingsView: View {
 
     /// Keep an idle "Listening to WolfWave" activity instead of clearing.
     @AppStorage(AppConstants.UserDefaults.discordShowIdleStatus)
-    var showIdleStatus = true
+    var showIdleStatus = AppConstants.UserDefaults.Defaults.discordShowIdleStatus
 
     /// Clear the track (rather than show it paused) while playback is paused.
     @AppStorage(AppConstants.UserDefaults.discordClearWhilePaused)
-    var clearWhilePaused = false
+    var clearWhilePaused = AppConstants.UserDefaults.Defaults.discordClearWhilePaused
 
     // MARK: - State
 

@@ -31,7 +31,8 @@ struct DebugSettingsView: View {
     // Preference toggles, read only to fill the Preferences table of Copy
     // Diagnostics. Defaults must match the ones the owning panes use.
     @AppStorage(AppConstants.UserDefaults.trackingEnabled) private var musicTrackingEnabled = true
-    @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled) private var discordPresenceEnabled = false
+    @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
+    private var discordPresenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) private var widgetHTTPEnabled = false
 
     /// Rail selection + scroll target. Drives the highlight and the jump.

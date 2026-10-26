@@ -10,11 +10,11 @@ import SwiftUI
 
 /// Music Sync uses Apple Events for the current track; optional Song Requests
 /// use separate MusicKit access for catalog and playlist operations.
-/// Notification alerts live on their own step right after this one.
+/// Second step, right after Welcome: everything else builds on this grant.
 ///
 /// This step only handles the Apple Events (Automation) grant for Music.app.
 /// The state shows one of three layouts: a grant button (`.unknown`), a
-/// confirmation (`.granted`), or fix-it steps with Recheck (`.denied`).
+/// confirmation (`.granted`), or fix-it steps with Check again (`.denied`).
 struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music State
@@ -37,10 +37,25 @@ struct OnboardingPermissionsStepView: View {
 
     var body: some View {
         OnboardingStepScaffold(
-            title: "Let WolfWave read your music",
-            description: "The Automation permission lets Music Sync read the current track from Music. Song Requests use Apple Music access separately.",
+            title: "Let WolfWave see your music",
+            description: "WolfWave needs to see what's playing in Apple Music. Everything else builds on this.",
             icon: {
-                BrandTileGlyph.symbol("lock.shield.fill", tint: Color.accentColor)
+                BrandTile(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [
+                                AppConstants.Brand.appleMusicGradientStart,
+                                AppConstants.Brand.appleMusicGradientEnd
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    ),
+                    glowColor: AppConstants.Brand.appleMusicGradientEnd,
+                    glyph: Image(systemName: "music.note")
+                        .font(BrandTileGlyph.font)
+                        .foregroundStyle(.white)
+                )
             },
             extras: {
                 appleMusicSection
@@ -64,112 +79,94 @@ struct OnboardingPermissionsStepView: View {
 
     // MARK: - Apple Music Section
 
-    /// Eyebrow plus the layout for the current `permissionState`.
+    /// The layout for the current `permissionState`: a grant button, a done
+    /// row, or the fix-it steps.
     @ViewBuilder
     private var appleMusicSection: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s3) {
-            Label("Apple Music access", systemImage: "music.note")
-                .sectionEyebrow()
+        switch permissionState {
+        case .granted:
+            HStack(spacing: DSSpace.s3) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: DSFont.Size.lg))
+                    .foregroundStyle(DSColor.success)
+                    .accessibilityHidden(true)
+                Text("Done. WolfWave can see what's playing.")
+                    .font(.system(size: DSFont.Size.base, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+            .padding(DSSpace.s4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyleUnpadded()
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("onboardingAppleMusic.granted")
 
-            switch permissionState {
-            case .granted:
-                HStack(spacing: DSSpace.s3) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: DSFont.Size.lg))
-                        .foregroundStyle(DSColor.success)
-                    Text("Access granted. Sync Music is on.")
-                        .font(.system(size: DSFont.Size.base))
-                        .foregroundStyle(.primary)
+        case .denied:
+            // The fix buttons sit inside the callout, on its text column.
+            CalloutBanner(
+                "In System Settings, open **Privacy & Security → Automation** and turn on "
+                    + "**Music** under WolfWave. Then come back here.",
+                title: "macOS blocked it",
+                style: .warning
+            ) {
+                Button("Open System Settings") {
+                    MusicPermissionChecker.openAutomationSettings()
                 }
-                .padding(DSSpace.s4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                .buttonStyle(.borderedProminent)
+                .pointerCursor()
+                .accessibilityHint("Opens Privacy and Security so you can allow Apple Music access")
+                .accessibilityIdentifier("onboardingAppleMusic.openSystemSettingsButton")
 
-            case .denied:
-                VStack(spacing: DSSpace.s3) {
-                    HStack(alignment: .top, spacing: DSSpace.s2) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(DSColor.warning)
-                        Text("Access was denied. Enable in **System Settings → Privacy & Security → Automation → WolfWave → Music**.")
-                            .font(.system(size: DSFont.Size.base))
-                            .foregroundStyle(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(DSSpace.s4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
-                            .fill(DSColor.warning.opacity(0.10))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.lg, style: .continuous)
-                            .stroke(DSColor.warning.opacity(0.40), lineWidth: 0.5)
-                    )
-
-                    HStack(spacing: DSSpace.s2) {
-                        Button(action: recheckTapped) {
-                            HStack(spacing: DSSpace.s1h) {
-                                if isRechecking {
-                                    ProgressView()
-                                        .progressViewStyle(.circular)
-                                        .controlSize(.small)
-                                }
-                                Text("Recheck")
-                            }
+                Button(action: recheckTapped) {
+                    HStack(spacing: DSSpace.s1h) {
+                        if isRechecking {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
-                        .pointerCursor()
-                        .disabled(isRechecking)
-                        .accessibilityLabel("Recheck Apple Music access")
-                        .accessibilityHint("Re-queries macOS for the current automation permission state")
-                        .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
-
-                        Button("Open System Settings") {
-                            MusicPermissionChecker.openAutomationSettings()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .pointerCursor()
-                        .accessibilityLabel("Open System Settings")
-                        .accessibilityHint("Opens Privacy and Security to grant Apple Music access")
-                        .accessibilityIdentifier("onboardingAppleMusic.openSystemSettingsButton")
+                        Text("Check again")
                     }
                 }
+                .buttonStyle(.bordered)
+                .pointerCursor()
+                .disabled(isRechecking)
+                .accessibilityLabel("Check Apple Music access again")
+                .accessibilityIdentifier("onboardingAppleMusic.recheckButton")
+            }
 
-            case .unknown:
-                VStack(spacing: DSSpace.s3) {
-                    PillButton(
-                        background: AnyShapeStyle(
-                            LinearGradient(
-                                colors: [
-                                    AppConstants.Brand.appleMusicGradientStart,
-                                    AppConstants.Brand.appleMusicGradientEnd
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        ),
-                        disabled: isRequesting,
-                        action: requestAccess,
-                        label: {
-                            HStack(spacing: DSSpace.s2) {
-                                if isRequesting {
-                                    ProgressView()
-                                        .progressViewStyle(.circular)
-                                        .controlSize(.small)
-                                        .tint(.white)
-                                }
-                                Text("Allow Music access")
+        case .unknown:
+            VStack(spacing: DSSpace.s3) {
+                PillButton(
+                    background: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [
+                                AppConstants.Brand.appleMusicGradientStart,
+                                AppConstants.Brand.appleMusicGradientEnd
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    ),
+                    disabled: isRequesting,
+                    action: requestAccess,
+                    label: {
+                        HStack(spacing: DSSpace.s2) {
+                            if isRequesting {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.small)
+                                    .tint(.white)
                             }
+                            Text("Allow Apple Music access")
                         }
-                    )
-                    .accessibilityLabel("Allow Music access")
-                    .accessibilityIdentifier("onboardingAppleMusicGrant")
+                    }
+                )
+                .accessibilityLabel("Allow Apple Music access")
+                .accessibilityIdentifier("onboardingAppleMusicGrant")
 
-                    Text("macOS will ask once. You can change this later in System Settings → Privacy → Automation.")
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                }
+                Text("macOS asks once. Click OK.")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
         }
     }

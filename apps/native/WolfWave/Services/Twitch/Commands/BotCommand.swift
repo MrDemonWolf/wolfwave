@@ -80,10 +80,10 @@ extension BotCommand {
     /// Default: a threaded reply to the chatter. Only custom commands override it.
     var delivery: ReplyDelivery { .reply }
     /// Default global cooldown: 15 seconds between any uses.
-    var globalCooldown: TimeInterval { 15.0 }
+    var globalCooldown: TimeInterval { AppConstants.UserDefaults.Defaults.commandCooldown }
 
     /// Default per-user cooldown: 15 seconds between uses by the same user.
-    var userCooldown: TimeInterval { 15.0 }
+    var userCooldown: TimeInterval { AppConstants.UserDefaults.Defaults.commandCooldown }
 
     /// Default: no UserDefaults override.
     var globalCooldownKey: String? { nil }

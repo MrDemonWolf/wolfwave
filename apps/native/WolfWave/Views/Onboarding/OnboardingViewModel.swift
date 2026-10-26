@@ -22,34 +22,40 @@ final class OnboardingViewModel {
 
     /// Ordered onboarding steps.
     ///
-    /// Streaming-related steps (Twitch, OBS) are kept adjacent so the user mentally
-    /// finishes "stream stuff" before moving to system-level prefs and Apple Music.
+    /// Core first: Apple Music access is the one thing WolfWave can't work
+    /// without, so it comes straight after Welcome. Then the three integrations
+    /// (Discord, Twitch, overlay), then alerts and Mac settings. Permissions and
+    /// Notifications stay two screens so each has one job. "Find WolfWave in the
+    /// menu bar" lives on the completion screen, which every ending reaches.
     ///
     /// Raw values must stay contiguous from `0`: navigation steps by `rawValue ± 1`
-    /// and the progress indicator reports `rawValue + 1` as the step number.
+    /// and the progress header reports `rawValue + 1` as the step number.
     enum OnboardingStep: Int, CaseIterable {
         case welcome = 0
-        case discordConnect = 1
-        case twitchConnect = 2
-        case obsWidget = 3
-        case preferences = 4
-        case permissions = 5
-        case notifications = 6
-        case menuBarPointer = 7
+        case permissions = 1
+        case discordConnect = 2
+        case twitchConnect = 3
+        case obsWidget = 4
+        case notifications = 5
+        case preferences = 6
 
-        /// Short spoken name for VoiceOver, used in the progress indicator's
-        /// accessibility value (e.g. "Step 3 of 8: Twitch").
+        /// Short name shown beside the progress dots and spoken by VoiceOver
+        /// (e.g. "Step 4 of 7: Twitch").
         nonisolated var accessibilityTitle: String {
             switch self {
             case .welcome: return "Welcome"
+            case .permissions: return "Apple Music"
             case .discordConnect: return "Discord"
             case .twitchConnect: return "Twitch"
-            case .obsWidget: return "OBS Widget"
-            case .preferences: return "Preferences"
-            case .permissions: return "Permissions"
-            case .notifications: return "Notifications"
-            case .menuBarPointer: return "Menu Bar"
+            case .obsWidget: return "Stream overlay"
+            case .notifications: return "Alerts"
+            case .preferences: return "Mac settings"
             }
+        }
+
+        /// "Step 4 of 7", for the progress header.
+        nonisolated var progressText: String {
+            "Step \(rawValue + 1) of \(Self.allCases.count)"
         }
     }
 
@@ -60,7 +66,7 @@ final class OnboardingViewModel {
     /// `true` once `completeOnboarding(skipped:)` runs; swaps the wizard for
     /// `OnboardingCompletionView`.
     var showCompletion = false
-    /// `true` when the wizard ended through Skip All, so the completion screen
+    /// `true` when the wizard ended through Skip setup, so the completion screen
     /// can use its lighter "Skipped" copy.
     private(set) var completedBySkipping = false
 
@@ -71,7 +77,7 @@ final class OnboardingViewModel {
         currentStep == OnboardingStep.allCases.first
     }
 
-    /// Whether the wizard is on its last step (Next becomes Finish, Skip All hides).
+    /// Whether the wizard is on its last step (Next becomes Finish, Skip setup hides).
     var isLastStep: Bool {
         currentStep == OnboardingStep.allCases.last
     }
@@ -93,10 +99,10 @@ final class OnboardingViewModel {
     /// Persists the onboarding-completed flag so the wizard won't show again.
     ///
     /// The flag is written before the completion screen appears, so quitting
-    /// during the celebration still counts as completed. Skip All writes the
+    /// during the celebration still counts as completed. Skip setup writes the
     /// same flag: a skipped wizard does not come back on the next launch.
     ///
-    /// - Parameter skipped: Pass `true` when the user chose Skip All, so the
+    /// - Parameter skipped: Pass `true` when the user chose Skip setup, so the
     ///   completion screen shows the lighter "Skipped" ending.
     func completeOnboarding(skipped: Bool = false) {
         DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)

@@ -8,12 +8,15 @@
 
 import SwiftUI
 
-/// First-launch onboarding wizard with progress dots, step content, and navigation.
+/// First-launch onboarding wizard: a progress header, the current step, and a
+/// navigation bar with one primary button.
 ///
-/// Steps: Welcome → Discord → Twitch → OBS → Preferences → Permissions → Notifications → Menu bar pointer.
-/// Hosted in a dedicated `NSWindow` created by `AppDelegate.showOnboarding()`.
-/// Closing that window before Finish / Skip All leaves the completed flag unset,
-/// so the wizard opens again on the next launch.
+/// Steps: Welcome → Apple Music → Discord → Twitch → Stream overlay → Alerts →
+/// Mac settings, then `OnboardingCompletionView` (which also shows where
+/// WolfWave lives in the menu bar). Hosted in a dedicated `NSWindow` created by
+/// `AppDelegate.showOnboarding()`. Closing that window before Finish / Skip
+/// setup leaves the completed flag unset, so the wizard opens again on the next
+/// launch.
 struct OnboardingView: View {
 
     // MARK: - State
@@ -35,7 +38,7 @@ struct OnboardingView: View {
     // bindings. Writes persist immediately, even if the wizard is abandoned.
 
     @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
-    private var discordPresenceEnabled = false
+    private var discordPresenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
 
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
     private var websocketEnabled = false
@@ -49,8 +52,8 @@ struct OnboardingView: View {
     /// Tracks navigation direction for slide transitions.
     @State private var navigationDirection: Edge = .trailing
 
-    /// Re-read on every step change so the Skip button stays in sync with
-    /// permission grants without needing each step view to publish state up.
+    /// Re-read on every step change so the primary button's "Skip" label stays
+    /// in sync with permission grants without each step publishing state up.
     /// Seeded from the last persisted decision (a cheap defaults read) and then
     /// filled by an off-main probe (see `refreshMusicPermissionState()`), so
     /// building the view never blocks on the Apple Events check.
@@ -72,27 +75,27 @@ struct OnboardingView: View {
                     .transition(.opacity)
             } else {
                 VStack(spacing: 0) {
-                    progressDots
+                    progressHeader
                         .padding(.top, DSSpace.s7)
-                        .padding(.bottom, DSSpace.s6)
+                        .padding(.bottom, DSSpace.s4)
 
                     GeometryReader { geo in
-                        ScrollView(.vertical, showsIndicators: false) {
+                        ScrollView(.vertical) {
                             stepContent
                                 .frame(maxWidth: .infinity)
-                                .frame(minHeight: geo.size.height)
+                                .frame(minHeight: geo.size.height, alignment: .top)
                         }
+                        .scrollBounceBehavior(.basedOnSize)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
-                        .animation(DSMotion.Spring.snappy, value: viewModel.currentStep)
+                        .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: viewModel.currentStep)
                     }
 
                     Divider()
 
                     navigationBar
                         .padding(.horizontal, DSSpace.s8)
-                        .padding(.vertical, DSSpace.s6)
-                        .background(.regularMaterial)
+                        .padding(.vertical, DSSpace.s5)
                 }
             }
         }
@@ -101,7 +104,10 @@ struct OnboardingView: View {
             height: AppConstants.OnboardingUI.windowHeight
         )
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeInOut(duration: DSMotion.Duration.slow), value: viewModel.showCompletion)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.slow),
+            value: viewModel.showCompletion
+        )
         .task(id: viewModel.currentStep) {
             await refreshMusicPermissionState()
         }
@@ -110,34 +116,48 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Progress Dots
+    // MARK: - Progress Header
 
-    /// One dot per step, the current one enlarged and accent-filled. Visual only:
-    /// VoiceOver reads the whole row as a single "Step N of M: name" element.
-    private var progressDots: some View {
-        HStack(spacing: 8) {
-            ForEach(OnboardingViewModel.OnboardingStep.allCases, id: \.rawValue) { step in
-                ZStack {
-                    Circle()
-                        .fill(step == viewModel.currentStep
-                            ? Color.accentColor
-                            : Color.secondary.opacity(0.3))
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(step == viewModel.currentStep ? 1.3 : 1.0)
-                        .shadow(
-                            color: step == viewModel.currentStep ? Color.accentColor.opacity(0.40) : .clear,
-                            radius: 3, x: 0, y: 1
+    /// One dot per step plus "Step N of M · Name", so it's always clear how
+    /// much is left. VoiceOver reads the whole header as one element.
+    private var progressHeader: some View {
+        VStack(spacing: DSSpace.s2) {
+            HStack(spacing: DSSpace.s1h) {
+                ForEach(OnboardingViewModel.OnboardingStep.allCases, id: \.rawValue) { step in
+                    Capsule()
+                        .fill(dotColor(for: step))
+                        .frame(
+                            width: step == viewModel.currentStep ? DSSpace.s6 : DSSpace.s1h,
+                            height: DSSpace.s1h
                         )
                         .motionSafe(DSMotion.Spring.gentle, value: viewModel.currentStep)
                 }
-                .frame(width: 12, height: 12)
-                .accessibilityHidden(true)
             }
+
+            Text("\(viewModel.currentStep.progressText) · \(viewModel.currentStep.accessibilityTitle)")
+                .font(.system(size: DSFont.Size.sm, weight: .medium))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
+        // One element whose label is the whole sentence. A label (rather than
+        // a value on a "Setup progress" label) is what both VoiceOver and the
+        // UI tests read reliably for a non-control element on macOS.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Setup progress")
-        .accessibilityValue("Step \(viewModel.currentStep.rawValue + 1) of \(OnboardingViewModel.OnboardingStep.allCases.count): \(viewModel.currentStep.accessibilityTitle)")
-        .accessibilityHint("Shows how far you are through WolfWave setup. Use Back and Next to move between steps.")
+        .accessibilityLabel(progressLabel)
+        .accessibilityIdentifier("onboarding.progress")
+    }
+
+    /// "Setup progress. Step 2 of 7: Apple Music", spoken as one sentence.
+    private var progressLabel: String {
+        let step = viewModel.currentStep
+        return "Setup progress. \(step.progressText): \(step.accessibilityTitle)"
+    }
+
+    /// Done steps and the current one take the accent; steps ahead stay grey.
+    private func dotColor(for step: OnboardingViewModel.OnboardingStep) -> Color {
+        step.rawValue <= viewModel.currentStep.rawValue
+            ? Color.accentColor
+            : Color.secondary.opacity(0.3)
     }
 
     // MARK: - Step Content
@@ -151,6 +171,8 @@ struct OnboardingView: View {
             switch viewModel.currentStep {
             case .welcome:
                 OnboardingWelcomeStepView()
+            case .permissions:
+                OnboardingPermissionsStepView()
             case .discordConnect:
                 OnboardingDiscordStepView(presenceEnabled: $discordPresenceEnabled)
             case .twitchConnect:
@@ -160,14 +182,10 @@ struct OnboardingView: View {
                 )
             case .obsWidget:
                 OnboardingOBSWidgetStepView(websocketEnabled: $websocketEnabled)
-            case .preferences:
-                OnboardingPreferencesStepView(launchAtLogin: $launchAtLogin)
-            case .permissions:
-                OnboardingPermissionsStepView()
             case .notifications:
                 OnboardingNotificationsStepView()
-            case .menuBarPointer:
-                OnboardingMenuBarPointerStepView()
+            case .preferences:
+                OnboardingPreferencesStepView(launchAtLogin: $launchAtLogin)
             }
         }
         .id(viewModel.currentStep)
@@ -182,94 +200,87 @@ struct OnboardingView: View {
 
     // MARK: - Navigation Bar
 
-    /// Back / Skip All on the left, Skip and Next / Finish on the right.
+    /// Back and Skip setup on the left; one primary button on the right.
+    ///
+    /// The primary button reads **Skip** while a step's main action (Twitch
+    /// sign-in, Apple Music access) is still undone, **Next** otherwise, and
+    /// **Finish** on the last step. One button, so there is never a Skip and a
+    /// Next side by side that do the same thing.
     ///
     /// Every exit path calls `cancelTwitchOAuthIfNeeded()` first, so a pending
     /// device-code poll never outlives the Twitch step.
     private var navigationBar: some View {
-        HStack {
-            // Left: Back (≥step 2) + Skip All (when not on the last step).
-            // Back is rendered as a hidden placeholder on step 1 so the rest of
-            // the bar doesn't shift horizontally between steps.
-            HStack(spacing: 8) {
-                Button("Back") {
-                    navigationDirection = .leading
-                    cancelTwitchOAuthIfNeeded()
-                    viewModel.goToPreviousStep()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .opacity(viewModel.isFirstStep ? 0 : 1)
-                .disabled(viewModel.isFirstStep)
-                .accessibilityHidden(viewModel.isFirstStep)
-                .accessibilityLabel("Go back")
-                .accessibilityHint("Returns to the previous setup step")
-                .accessibilityIdentifier("onboarding.back")
+        HStack(spacing: DSSpace.s4) {
+            // Back is laid out (hidden) on step one so the bar never shifts.
+            Button("Back") {
+                navigationDirection = .leading
+                cancelTwitchOAuthIfNeeded()
+                viewModel.goToPreviousStep()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            // Escape steps back. Never bound to anything that ends setup.
+            .keyboardShortcut(viewModel.isFirstStep ? nil : .cancelAction)
+            .pointerCursor()
+            .opacity(viewModel.isFirstStep ? 0 : 1)
+            .disabled(viewModel.isFirstStep)
+            .accessibilityHidden(viewModel.isFirstStep)
+            .accessibilityLabel("Back")
+            .accessibilityHint("Returns to the previous step")
+            .accessibilityIdentifier("onboarding.back")
 
-                Button("Skip All") {
+            Spacer()
+
+            if !viewModel.isLastStep {
+                Button("Skip setup") {
                     finishOnboarding(skipped: true)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .pointerCursor()
-                .opacity(viewModel.isLastStep ? 0 : 1)
-                .disabled(viewModel.isLastStep)
-                .accessibilityHidden(viewModel.isLastStep)
-                .accessibilityLabel("Skip all steps")
-                .accessibilityHint("Skips the setup wizard and uses default settings")
+                .accessibilityHint("Ends setup now. You can change everything later in Settings.")
                 .accessibilityIdentifier("onboarding.skipAll")
             }
 
-            Spacer()
-
-            // Right: Skip (toggled via opacity to keep layout stable) + Next/Finish.
-            Button("Skip") {
-                navigationDirection = .trailing
-                cancelTwitchOAuthIfNeeded()
-                viewModel.goToNextStep()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .pointerCursor()
-            .opacity(shouldShowSkip ? 1 : 0)
-            .disabled(!shouldShowSkip)
-            .accessibilityLabel("Skip this step")
-            .accessibilityHint("Skips the current setup step without making changes")
-            .accessibilityIdentifier("onboarding.skip")
-
-            if viewModel.isLastStep {
-                Button("Finish") {
-                    finishOnboarding()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .keyboardShortcut(.defaultAction)
-                .pointerCursor()
-                .accessibilityLabel("Finish setup")
-                .accessibilityHint("Completes the setup wizard and starts using WolfWave")
-                .accessibilityIdentifier("onboarding.finish")
-            } else {
-                Button("Next") {
-                    navigationDirection = .trailing
-                    cancelTwitchOAuthIfNeeded()
-                    viewModel.goToNextStep()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                // Not on the Twitch step: Return in its channel field submits
-                // the join, and would otherwise also advance the wizard before
-                // the join result (or a "channel not found") is shown.
-                .keyboardShortcut(nextShortcut)
-                .pointerCursor()
-                .accessibilityLabel("Next step")
-                .accessibilityHint("Continues to the next setup step")
-                .accessibilityIdentifier("onboarding.next")
-            }
+            primaryButton
         }
         // Keep the bar still while the step content animates; only the content
         // area should move on a step change.
         .transaction { $0.animation = nil }
+    }
+
+    /// Next / Skip / Finish. Bound to Return except on the Twitch step, whose
+    /// channel field owns Return (it submits the join, and would otherwise also
+    /// advance the wizard before the join result is shown).
+    @ViewBuilder
+    private var primaryButton: some View {
+        if viewModel.isLastStep {
+            Button("Finish") {
+                finishOnboarding()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .pointerCursor()
+            .accessibilityHint("Finishes setup")
+            .accessibilityIdentifier("onboarding.finish")
+        } else {
+            Button(shouldOfferSkip ? "Skip" : "Next") {
+                navigationDirection = .trailing
+                cancelTwitchOAuthIfNeeded()
+                viewModel.goToNextStep()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(nextShortcut)
+            .pointerCursor()
+            .accessibilityHint(
+                shouldOfferSkip
+                    ? "Moves on without finishing this step. You can do it later in Settings."
+                    : "Goes to the next step"
+            )
+            .accessibilityIdentifier("onboarding.next")
+        }
     }
 
     // MARK: - Helpers
@@ -280,13 +291,13 @@ struct OnboardingView: View {
         viewModel.currentStep == .twitchConnect ? nil : .defaultAction
     }
 
-    /// Returns `true` only for steps where Skip means something different from
-    /// "Next with the toggle off" (i.e. OAuth and system permissions).
+    /// Whether the primary button should read "Skip": the step's main action is
+    /// a sign-in or a system grant that hasn't happened yet.
     ///
-    /// Twitch: shown until a sign-in is saved. Permissions: shown until the Music
-    /// Automation grant is `.granted`, read from `musicPermissionState`, which is
-    /// refreshed on each step change rather than live.
-    private var shouldShowSkip: Bool {
+    /// Twitch: until a sign-in is saved. Apple Music: until the Automation grant
+    /// is `.granted`, read from `musicPermissionState`, which is refreshed on
+    /// each step change rather than live.
+    private var shouldOfferSkip: Bool {
         switch viewModel.currentStep {
         case .twitchConnect:
             return !twitchViewModel.credentialsSaved
@@ -315,7 +326,7 @@ struct OnboardingView: View {
         }
     }
 
-    /// Persists the completion flag and shows the ending screen. Skip All
+    /// Persists the completion flag and shows the ending screen. Skip setup
     /// passes `skipped: true` for the lighter copy.
     private func finishOnboarding(skipped: Bool = false) {
         cancelTwitchOAuthIfNeeded()

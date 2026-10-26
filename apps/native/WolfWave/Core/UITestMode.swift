@@ -72,6 +72,15 @@ nonisolated enum UITestMode {
         isActive && ProcessInfo.processInfo.environment[songRequestsEnabledKey] == "1"
     }
 
+    /// Set to `"1"` to keep the onboarding completion screen up until Done,
+    /// so a screenshot capture is not racing its auto-dismiss timer.
+    static let holdCompletionKey = "WOLFWAVE_UI_TEST_HOLD_COMPLETION"
+
+    /// True when the UI test asked to keep the completion screen up.
+    static var holdsCompletion: Bool {
+        isActive && ProcessInfo.processInfo.environment[holdCompletionKey] == "1"
+    }
+
     /// True when the UI test asked to start past onboarding.
     static var startsOnboarded: Bool {
         isActive && ProcessInfo.processInfo.environment[skipOnboardingKey] == "1"
@@ -94,6 +103,9 @@ nonisolated enum UITestMode {
     static var enablesSongRequests: Bool { false }
     static var settingsWindowSize: CGSize? { nil }
     static var appearancePreference: String? { nil }
+
+    /// Always `false` in Release.
+    static var holdsCompletion: Bool { false }
     #endif
 
     /// True when *any* test harness owns this process: the hosted unit bundle

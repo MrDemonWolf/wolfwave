@@ -75,7 +75,7 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
 ### What the UI suite covers today
 
 - **Onboarding**: the window opens on a true first launch; walking Next through
-  every step reaches Finish and closes the wizard; Back returns a step; Skip All
+  every step reaches Finish and closes the wizard; Back (and Escape) returns a step; the progress header names the step; Skip setup
   dismisses it.
 - **Settings**: the native App menu opens the window, and every sidebar pane renders. That
   second one exists because of a real shipped bug: a persisted value outside a

@@ -32,7 +32,7 @@ struct TwitchSettingsView: View {
     @State private var reauthTask: Task<Void, Never>?
     /// Global "commands only while live" switch. Applies to every chat command.
     @AppStorage(AppConstants.UserDefaults.commandsLiveOnly)
-    private var commandsLiveOnly = false
+    private var commandsLiveOnly = AppConstants.UserDefaults.Defaults.commandsLiveOnly
 
     /// Collapses card and status transitions under Reduce Motion.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

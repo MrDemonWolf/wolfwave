@@ -33,8 +33,33 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testTotalStepsEquals8() {
-        XCTAssertEqual(OnboardingViewModel.OnboardingStep.allCases.count, 8)
+    func testTotalStepsEquals7() {
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep.allCases.count, 7)
+    }
+
+    /// Apple Music access is step two: everything else depends on it.
+    func testAppleMusicComesStraightAfterWelcome() {
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep.allCases.first, .welcome)
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep(rawValue: 1), .permissions)
+    }
+
+    /// Permissions and Notifications stay two separate screens.
+    func testPermissionsAndNotificationsAreSeparateSteps() {
+        XCTAssertNotEqual(
+            OnboardingViewModel.OnboardingStep.permissions,
+            OnboardingViewModel.OnboardingStep.notifications
+        )
+    }
+
+    func testProgressTextCountsFromOne() {
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep.welcome.progressText, "Step 1 of 7")
+        XCTAssertEqual(OnboardingViewModel.OnboardingStep.preferences.progressText, "Step 7 of 7")
+    }
+
+    func testEveryStepHasADistinctName() {
+        let names = OnboardingViewModel.OnboardingStep.allCases.map(\.accessibilityTitle)
+        XCTAssertEqual(Set(names).count, names.count)
+        XCTAssertFalse(names.contains(""))
     }
 
     func testIsFirstStepAtWelcome() {
@@ -47,47 +72,21 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
 
     // MARK: - Forward Navigation
 
-    func testGoToNextStepFromWelcomeReachesDiscord() {
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .discordConnect)
-    }
+    /// Forward order, step by step: `next` calls from Welcome reach each step.
+    private static let forwardOrder: [OnboardingViewModel.OnboardingStep] = [
+        .permissions, .discordConnect, .twitchConnect, .obsWidget, .notifications, .preferences
+    ]
 
-    func testTwoNextStepsReachesTwitch() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
-    }
-
-    func testThreeNextStepsReachesOBS() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
-        XCTAssertEqual(viewModel.currentStep, .obsWidget)
-    }
-
-    func testFourNextStepsReachesPreferences() {
-        for _ in 0..<4 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .preferences)
-    }
-
-    func testFiveNextStepsReachesPermissions() {
-        for _ in 0..<5 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .permissions)
-    }
-
-    func testSixNextStepsReachesNotifications() {
-        for _ in 0..<6 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .notifications)
-    }
-
-    func testSevenNextStepsReachesMenuBarPointer() {
-        for _ in 0..<7 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
+    func testEachNextStepFollowsTheOrder() {
+        for (index, expected) in Self.forwardOrder.enumerated() {
+            viewModel.goToNextStep()
+            XCTAssertEqual(viewModel.currentStep, expected, "Next #\(index + 1)")
+        }
     }
 
     func testGoToNextStepAtLastStepStays() {
         for _ in 0..<10 { viewModel.goToNextStep() }
-        XCTAssertEqual(viewModel.currentStep, .menuBarPointer)
+        XCTAssertEqual(viewModel.currentStep, .preferences)
     }
 
     // MARK: - Backward Navigation
@@ -97,22 +96,22 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
-    func testGoToPreviousStepFromDiscord() {
+    func testGoToPreviousStepFromAppleMusic() {
         viewModel.goToNextStep()
         viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .welcome)
     }
 
     func testGoToPreviousStepFromTwitch() {
-        viewModel.goToNextStep()
-        viewModel.goToNextStep()
+        for _ in 0..<3 { viewModel.goToNextStep() }
+        XCTAssertEqual(viewModel.currentStep, .twitchConnect)
         viewModel.goToPreviousStep()
         XCTAssertEqual(viewModel.currentStep, .discordConnect)
     }
 
     // MARK: - Step Properties
 
-    func testIsNotFirstStepAtDiscord() {
+    func testIsNotFirstStepAtAppleMusic() {
         viewModel.goToNextStep()
         XCTAssertFalse(viewModel.isFirstStep)
     }
@@ -122,8 +121,9 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
         XCTAssertFalse(viewModel.isLastStep)
     }
 
-    func testIsLastStepAtMenuBarPointer() {
-        for _ in 0..<7 { viewModel.goToNextStep() }
+    func testIsLastStepAtPreferences() {
+        for _ in 0..<6 { viewModel.goToNextStep() }
+        XCTAssertEqual(viewModel.currentStep, .preferences)
         XCTAssertTrue(viewModel.isLastStep)
     }
 
@@ -154,10 +154,7 @@ final class OnboardingViewModelTests: WolfWaveTestCase {
     func testFullNavigationCycleForwardAndBack() {
         XCTAssertEqual(viewModel.currentStep, .welcome)
 
-        let order: [OnboardingViewModel.OnboardingStep] = [
-            .discordConnect, .twitchConnect, .obsWidget, .preferences,
-            .permissions, .notifications, .menuBarPointer
-        ]
+        let order = Self.forwardOrder
 
         for expected in order {
             viewModel.goToNextStep()

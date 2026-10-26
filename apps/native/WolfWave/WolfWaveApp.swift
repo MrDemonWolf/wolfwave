@@ -315,6 +315,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Ahead of every read below, and a no-op in a normal launch.
         UITestMode.seedRequestedState()
 
+        // Day-one Twitch / Discord values for a fresh install, or the old
+        // values pinned for an existing one. Before any service reads them.
+        FreshInstallDefaults.apply()
+
         // Apply the stored appearance override before any UI is built so the
         // menu bar menu, status item, and onboarding adopt it from first paint.
         AppearanceController.applyStored()

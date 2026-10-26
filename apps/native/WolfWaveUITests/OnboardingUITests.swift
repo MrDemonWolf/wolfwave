@@ -26,6 +26,8 @@ final class OnboardingUITests: WolfWaveUITestCase {
         static let finish = "onboarding.finish"
         static let back = "onboarding.back"
         static let skipAll = "onboarding.skipAll"
+        static let done = "onboarding.done"
+        static let progress = "onboarding.progress"
     }
 
     /// Upper bound on wizard steps. Guards the walk loop against an infinite
@@ -85,6 +87,32 @@ final class OnboardingUITests: WolfWaveUITestCase {
         )
     }
 
+    /// Escape steps back, and is never bound to anything that ends setup.
+    func testEscapeGoesBackAStep() {
+        expect(app.buttons[ID.next], "the wizard's Next button")
+        app.buttons[ID.next].click()
+        expect(app.buttons[ID.back], "Back on step two")
+
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(
+            app.buttons[ID.back].waitForNonExistence(timeout: Self.timeout),
+            "Escape did not return to the first step"
+        )
+        XCTAssertTrue(app.windows[UITestWindow.onboarding].exists, "Escape closed the wizard")
+    }
+
+    /// The progress header says where you are, in words, not just dots.
+    func testProgressHeaderNamesTheStep() {
+        let progress = app.descendants(matching: .any)[ID.progress]
+        expect(progress, "the progress header")
+        XCTAssertEqual(progress.label, "Setup progress. Step 1 of 7: Welcome")
+
+        app.buttons[ID.next].click()
+        let advanced = NSPredicate(format: "label == %@", "Setup progress. Step 2 of 7: Apple Music")
+        let moved = expectation(for: advanced, evaluatedWith: progress)
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: Self.timeout), .completed)
+    }
+
     func testSkipAllClosesTheWizard() {
         let skipAll = app.buttons[ID.skipAll]
         expect(skipAll, "the wizard's Skip All button")
@@ -94,5 +122,77 @@ final class OnboardingUITests: WolfWaveUITestCase {
             "The onboarding window stayed open after Skip All"
         )
     }
-}
 
+    // MARK: - Screenshot Capture
+
+    /// Attaches a screenshot of every wizard step and both endings, in light
+    /// and dark appearance.
+    ///
+    /// Assertion-light on purpose, like `SettingsUITests.testCapturesEveryPane`:
+    /// layout, hierarchy, and contrast are things a person has to look at. Export
+    /// the PNGs with
+    ///
+    ///     xcrun xcresulttool export attachments \
+    ///       --path DerivedData/Tests/Logs/Test/<newest>.xcresult \
+    ///       --output-path /tmp/onboarding
+    ///
+    /// `manifest.json` beside the exported files maps each UUID back to its name.
+    func testCapturesEveryStep() {
+        for appearance in ["light", "dark"] {
+            launch(with: LaunchOptions(appearance: appearance, holdCompletion: true))
+            let window = app.windows[UITestWindow.onboarding]
+            expect(window, "the onboarding window in \(appearance) appearance")
+            waitUntilHittable(app.buttons[ID.next], "the wizard's Next button")
+
+            var step = 1
+            while true {
+                capture(window, named: "Onboarding \(appearance) \(String(format: "%02d", step))")
+                if app.buttons[ID.finish].exists { break }
+                XCTAssertLessThan(step, Self.maxSteps, "Never reached the last step")
+                app.buttons[ID.next].click()
+                step += 1
+                // Let the step transition settle so the shot is not mid-slide.
+                Thread.sleep(forTimeInterval: 0.6)
+            }
+
+            app.buttons[ID.finish].click()
+            // `holdCompletion` keeps the ending up; wait for Done, then let the
+            // entrance animation finish.
+            expect(app.buttons[ID.done], "the completion screen's Done button")
+            Thread.sleep(forTimeInterval: 1.0)
+            capture(window, named: "Onboarding \(appearance) \(String(format: "%02d", step + 1)) completed")
+
+            launch(with: LaunchOptions(appearance: appearance, holdCompletion: true))
+            let skipAll = app.buttons[ID.skipAll]
+            waitUntilHittable(skipAll, "the wizard's Skip All button")
+            skipAll.click()
+            expect(app.buttons[ID.done], "the skipped ending's Done button")
+            Thread.sleep(forTimeInterval: 1.0)
+            capture(app.windows[UITestWindow.onboarding], named: "Onboarding \(appearance) \(String(format: "%02d", step + 2)) skipped")
+        }
+    }
+
+    /// Activates the app and waits until `element` can take a click. An
+    /// inactive app reports everything as unhittable, and a window shot taken
+    /// then is of whatever covers it.
+    private func waitUntilHittable(_ element: XCUIElement, _ description: String) {
+        app.activate()
+        let hittable = expectation(for: NSPredicate(format: "isHittable == true"), evaluatedWith: element)
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [hittable], timeout: Self.timeout), .completed,
+            "Timed out waiting for \(description) to be clickable"
+        )
+    }
+
+    /// Adds `window`'s screenshot as a kept attachment. Activates first so the
+    /// onboarding window is frontmost: `screenshot()` grabs screen pixels.
+    private func capture(_ window: XCUIElement, named name: String) {
+        app.activate()
+        Thread.sleep(forTimeInterval: 0.3)
+        let shot = XCTAttachment(screenshot: window.screenshot())
+        shot.name = name
+        // XCTest drops attachments from passing tests unless told otherwise.
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+}

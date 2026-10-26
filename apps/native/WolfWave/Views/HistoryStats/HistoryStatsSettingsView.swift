@@ -48,15 +48,15 @@ struct HistoryStatsSettingsView: View {
 
     /// `!stats` chat command switch.
     @AppStorage(AppConstants.UserDefaults.statsCommandEnabled)
-    var statsCommandEnabled = false
+    var statsCommandEnabled = AppConstants.UserDefaults.Defaults.statsCommandEnabled
 
     /// Channel-wide `!stats` cooldown, in seconds.
     @AppStorage(AppConstants.UserDefaults.statsCommandGlobalCooldown)
-    var statsGlobalCooldown: Double = 15
+    var statsGlobalCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
 
     /// Per-viewer `!stats` cooldown, in seconds.
     @AppStorage(AppConstants.UserDefaults.statsCommandUserCooldown)
-    var statsUserCooldown: Double = 15
+    var statsUserCooldown: Double = AppConstants.UserDefaults.Defaults.commandCooldown
 
     /// Comma-separated extra triggers for `!stats`.
     @AppStorage(AppConstants.UserDefaults.statsCommandAliases)

@@ -89,7 +89,7 @@ final class OnboardingStepAccessibilityTests: XCTestCase {
     func testTitlesMatchDocumentedStepOrder() {
         XCTAssertEqual(
             OnboardingViewModel.OnboardingStep.allCases.map(\.accessibilityTitle),
-            ["Welcome", "Discord", "Twitch", "OBS Widget", "Preferences", "Permissions", "Notifications", "Menu Bar"]
+            ["Welcome", "Apple Music", "Discord", "Twitch", "Stream overlay", "Alerts", "Mac settings"]
         )
     }
 }

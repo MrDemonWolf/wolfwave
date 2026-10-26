@@ -17,9 +17,9 @@ final class OnboardingCompletionViewTests: XCTestCase {
 
     // MARK: - Dismiss Contract
 
-    /// The view auto-dismisses after the animation window. Window is ~1.8s
-    /// under normal motion (280ms hero + 1500ms text hold) and ~1.2s under
-    /// Reduce Motion. Test the contract with a generous timeout.
+    /// The view auto-dismisses after the animation window: a 280ms hero beat
+    /// plus `autoDismissDelay` (the delay alone under Reduce Motion). Test the
+    /// contract with a generous timeout.
     func testOnDismissFiresAfterAnimationWindow() async {
         let expectation = expectation(description: "onDismiss invoked")
         expectation.assertForOverFulfill = false
@@ -34,7 +34,7 @@ final class OnboardingCompletionViewTests: XCTestCase {
         // Force a layout pass so the task modifier fires.
         host.layoutSubtreeIfNeeded()
 
-        await fulfillment(of: [expectation], timeout: 3.0)
+        await fulfillment(of: [expectation], timeout: 10.0)
     }
 
     // MARK: - VoiceOver Policy
@@ -50,8 +50,22 @@ final class OnboardingCompletionViewTests: XCTestCase {
     // MARK: - Style Copy
 
     func testSkippedStyleUsesLighterCopy() {
-        XCTAssertEqual(OnboardingCompletionView.Style.skipped.title, "Skipped.")
+        XCTAssertEqual(OnboardingCompletionView.Style.skipped.title, "No problem.")
         XCTAssertTrue(OnboardingCompletionView.Style.skipped.message.contains("Settings"))
+    }
+
+    /// Both endings point at the menu bar, because the old Menu Bar step is
+    /// now part of this screen and Skip setup must not skip it.
+    func testBothEndingsPointAtTheMenuBar() {
+        for style in [OnboardingCompletionView.Style.completed, .skipped] {
+            XCTAssertTrue(style.message.contains("menu bar"), "\(style) never says where WolfWave lives")
+            XCTAssertTrue(style.accessibilitySummary.contains("menu bar"))
+        }
+    }
+
+    /// Long enough to read the menu bar hint, short enough not to feel stuck.
+    func testAutoDismissDelayLeavesTimeToRead() {
+        XCTAssertGreaterThanOrEqual(OnboardingCompletionView.autoDismissDelay, .seconds(4))
     }
 
     func testCompletedAndSkippedCopyDiffer() {
