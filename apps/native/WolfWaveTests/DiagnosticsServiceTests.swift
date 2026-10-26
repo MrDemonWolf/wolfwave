@@ -21,22 +21,22 @@ import XCTest
 @MainActor
 final class DiagnosticsServiceTests: WolfWaveTestCase {
 
-    private var suiteName: String!
+    private var scratch: ThrowawayDefaults!
     private var defaults: UserDefaults!
     private var service: DiagnosticsService!
 
     override func setUp() async throws {
         try await super.setUp()
-        suiteName = "DiagnosticsServiceTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        scratch = ThrowawayDefaults("DiagnosticsServiceTests")
+        defaults = scratch.defaults
         service = DiagnosticsService(defaults: defaults)
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: suiteName)
         service = nil
+        scratch.destroy()
         defaults = nil
-        suiteName = nil
+        scratch = nil
         cleanupTrackedTempDirs()
         try await super.tearDown()
     }

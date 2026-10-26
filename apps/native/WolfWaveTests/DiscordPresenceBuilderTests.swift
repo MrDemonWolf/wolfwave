@@ -11,24 +11,24 @@ import XCTest
 
 /// Tests the pure payload-building helpers in `DiscordPresenceBuilder`.
 ///
-/// Uses an isolated `UserDefaults(suiteName:)` per test so settings can't leak
+/// Uses an isolated `ThrowawayDefaults` suite per test so settings can't leak
 /// between tests or pollute the user's real defaults.
 @MainActor
 final class DiscordPresenceBuilderTests: WolfWaveTestCase {
 
     private var defaults: UserDefaults!
-    private var suiteName: String!
+    private var scratch: ThrowawayDefaults!
 
     override func setUp() async throws {
         try await super.setUp()
-        suiteName = "DiscordPresenceBuilderTests.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        scratch = ThrowawayDefaults("DiscordPresenceBuilderTests")
+        defaults = scratch.defaults
     }
 
     override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: suiteName)
+        scratch.destroy()
         defaults = nil
-        suiteName = nil
+        scratch = nil
         try await super.tearDown()
     }
 
