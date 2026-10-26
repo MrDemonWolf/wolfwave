@@ -326,7 +326,7 @@ nonisolated enum DSDimension {
 
     enum Onboarding {
         static let windowWidth: CGFloat = 680
-        static let windowHeight: CGFloat = 560
+        static let windowHeight: CGFloat = 600
         static let primaryButtonHeight: CGFloat = 32
         static let primaryButtonMinWidth: CGFloat = 200
         static let navButtonMinWidth: CGFloat = 80

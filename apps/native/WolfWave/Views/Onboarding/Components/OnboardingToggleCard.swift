@@ -95,7 +95,9 @@ struct OnboardingToggleCard: View {
 /// Stream Widgets): a neutral opaque card when off that brightens with a
 /// brand-tinted fill, stroke, and glow when on.
 ///
-/// The off state renders exactly like `subtleCardShell(cornerRadius: DSRadius.lg2)`.
+/// The off state is an opaque card with a 1pt `primary.opacity(0.14)` edge:
+/// the subtler 0.06 hairline all but vanished against the dark window
+/// background, so an off switch looked like it floated on nothing.
 /// The Discord and OBS steps carried byte-identical copies of this chrome that
 /// differed only in tint and glow numbers, so those stay parameters.
 struct OnboardingTintedToggleShell: ViewModifier {
@@ -127,8 +129,8 @@ struct OnboardingTintedToggleShell: ViewModifier {
                 shape.stroke(
                     isOn
                         ? tint.opacity(0.40)
-                        : Color.primary.opacity(0.06),
-                    lineWidth: 0.5
+                        : Color.primary.opacity(0.14),
+                    lineWidth: isOn ? 0.5 : 1
                 )
             )
             .shadow(

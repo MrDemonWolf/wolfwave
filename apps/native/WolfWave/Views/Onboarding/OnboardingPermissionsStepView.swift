@@ -96,7 +96,7 @@ struct OnboardingPermissionsStepView: View {
             }
             .padding(DSSpace.s4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+            .cardStyleUnpadded()
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("onboardingAppleMusic.granted")
 

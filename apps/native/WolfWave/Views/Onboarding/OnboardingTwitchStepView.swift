@@ -201,7 +201,7 @@ struct OnboardingTwitchStepView: View {
             .disabled(twitchViewModel.isAccountTeardownInProgress)
         }
         .padding(DSSpace.s5)
-        .cardStyle()
+        .cardStyleUnpadded()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Twitch connected as \(twitchViewModel.botUsername).")
     }
@@ -282,7 +282,7 @@ struct OnboardingTwitchStepView: View {
             }
         }
         .padding(DSSpace.s5)
-        .cardStyle()
+        .cardStyleUnpadded()
     }
 
     /// Inline feedback below the channel field mirroring the settings pane.
@@ -345,7 +345,7 @@ struct OnboardingTwitchStepView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(DSSpace.s4)
-            .cardStyle()
+            .cardStyleUnpadded()
 
             Button("Try Again") {
                 twitchViewModel.startOAuth(owner: oauthOwner)
@@ -385,7 +385,7 @@ struct OnboardingTwitchStepView: View {
             HintRow("Each one runs at most once every \(Self.cooldownSeconds) seconds. More in Settings → Twitch.")
         }
         .padding(DSSpace.s5)
-        .cardStyle()
+        .cardStyleUnpadded()
     }
 
     // MARK: - Helpers

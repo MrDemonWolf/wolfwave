@@ -67,6 +67,12 @@ struct OnboardingOBSWidgetStepView: View {
                     glowColor: Color.black,
                     glyph: BrandTileGlyph.asset("OBSLogo")
                 )
+                // OBS's near-black tile melts into a dark window; a faint
+                // edge keeps its shape readable in both appearances.
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSDimension.Onboarding.brandTileRadius)
+                        .stroke(Color.primary.opacity(0.18), lineWidth: 1)
+                )
             },
             extras: {
                 VStack(spacing: DSSpace.s4) {
