@@ -65,75 +65,69 @@ struct SongRequestSettingsView: View {
     /// a second in-pane side-nav rail here, which read as a confusing nested
     /// sidebar next to the main settings sidebar.)
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-                SongRequestHeader()
-                if playlistStatus != .ok {
-                    SongRequestHealthBanner(
-                        status: playlistStatus,
-                        onAction: { await handleHealthAction(playlistStatus) }
-                    )
-                }
-
-                if isCheckingPlaylistHealth {
-                    LoadingRow(text: "Checking Apple Music playlist…")
-                }
-                twitchNotice
-                if songRequestEnabled && setupComplete {
-                    SongRequestQueueView()
-                        .deepLinkSection("queue")
-                }
-                SongRequestMasterToggleCard(
-                    isTwitchConnected: isTwitchConnected,
-                    setupComplete: setupComplete,
-                    onSetUp: { openSetup(at: .intro) }
+        SettingsPaneScroll {
+            SongRequestHeader()
+            if playlistStatus != .ok {
+                SongRequestHealthBanner(
+                    status: playlistStatus,
+                    onAction: { await handleHealthAction(playlistStatus) }
                 )
+            }
 
-                // Vote-skip works without a request queue, so it stays reachable
-                // whether or not song requests are on.
-                VoteSkipCard()
-                    .deepLinkSection("vote-skip")
+            if isCheckingPlaylistHealth {
+                LoadingRow(text: "Checking Apple Music playlist…")
+            }
+            twitchNotice
+            if songRequestEnabled && setupComplete {
+                SongRequestQueueView()
+                    .deepLinkSection("queue")
+            }
+            SongRequestMasterToggleCard(
+                isTwitchConnected: isTwitchConnected,
+                setupComplete: setupComplete,
+                onSetUp: { openSetup(at: .intro) }
+            )
 
-                // The configuration cards only appear once setup is finished and
-                // the feature is on. Apple Music access is handled inside the
-                // setup sheet, so there's no inline auth card here anymore.
-                if songRequestEnabled && setupComplete {
-                    VStack(alignment: .leading, spacing: DSSpace.s4) {
-                        Text("Request setup")
-                            .sectionHeader()
-                            .accessibilityAddTraits(.isHeader)
-                        SongRequestAccessCard()
-                            .deepLinkSection("access")
-                        SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
-                            .deepLinkSection("commands")
-                        SongRequestRedemptionsCard()
-                            .deepLinkSection("redemptions")
-                    }
+            // Vote-skip works without a request queue, so it stays reachable
+            // whether or not song requests are on.
+            VoteSkipCard()
+                .deepLinkSection("vote-skip")
 
-                    VStack(alignment: .leading, spacing: DSSpace.s4) {
-                        Text("Queue behavior")
-                            .sectionHeader()
-                            .accessibilityAddTraits(.isHeader)
-                        SongRequestQueueConfigCard()
-                            .deepLinkSection("queue-settings")
-                        SongRequestPlaybackCard()
-                            .deepLinkSection("playback")
-                    }
+            // The configuration cards only appear once setup is finished and
+            // the feature is on. Apple Music access is handled inside the
+            // setup sheet, so there's no inline auth card here anymore.
+            if songRequestEnabled && setupComplete {
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    Text("Request setup")
+                        .sectionHeader()
+                        .accessibilityAddTraits(.isHeader)
+                    SongRequestAccessCard()
+                        .deepLinkSection("access")
+                    SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
+                        .deepLinkSection("commands")
+                    SongRequestRedemptionsCard()
+                        .deepLinkSection("redemptions")
+                }
 
-                    VStack(alignment: .leading, spacing: DSSpace.s4) {
-                        Text("Moderation")
-                            .sectionHeader()
-                            .accessibilityAddTraits(.isHeader)
-                        SongRequestBlocklistCard(
-                            blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-                            .deepLinkSection("blocklist")
-                    }
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    Text("Queue behavior")
+                        .sectionHeader()
+                        .accessibilityAddTraits(.isHeader)
+                    SongRequestQueueConfigCard()
+                        .deepLinkSection("queue-settings")
+                    SongRequestPlaybackCard()
+                        .deepLinkSection("playback")
+                }
+
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    Text("Moderation")
+                        .sectionHeader()
+                        .accessibilityAddTraits(.isHeader)
+                    SongRequestBlocklistCard(
+                        blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                        .deepLinkSection("blocklist")
                 }
             }
-            .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.horizontal, AppConstants.SettingsUI.contentPaddingH)
-            .padding(.vertical, AppConstants.SettingsUI.contentPaddingV)
         }
         .onAppear {
             refreshTwitchState()
@@ -345,10 +339,12 @@ fileprivate struct SongRequestMasterToggleCard: View {
                     }
                 )
 
-                Button("Re-run setup") { onSetUp() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
+                // A real bordered button, like the pane's other secondary
+                // actions (Manage, Open Stream Widgets). It used to be plain grey
+                // text with nothing saying it could be clicked.
+                Button("Run Setup Again", systemImage: "arrow.counterclockwise") { onSetUp() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .pointerCursor()
                     .accessibilityIdentifier("songRequests.rerunSetup")
             } else {

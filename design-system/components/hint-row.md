@@ -39,10 +39,9 @@ graph LR
 
 ## Example
 ```swift
-VStack(alignment: .leading, spacing: DSSpace.s2) {
-    // ...command toggles...
-}
-.cardStyleUnpadded()
-
-HintRow("Cooldowns don't apply to you or your mods.")
+// Directly under the control it explains. For a cooldown note, prefer
+// `CommandCooldown(note:)`, which draws this under the sliders.
+ToggleSettingRow(title: "Enable Feature", subtitle: "What it does", isOn: $isOn,
+                 accessibilityLabel: "Enable Feature", accessibilityIdentifier: "featureToggle")
+HintRow("Nothing is uploaded. Everything stays on this Mac.", systemImage: "lock.fill")
 ```

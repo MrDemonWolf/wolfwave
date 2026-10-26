@@ -27,7 +27,8 @@ CommandSettingRow(title: …, triggers: …, isOn: …, accessibilityLabel: …,
 
 // Cooldown config bag:
 CommandCooldown(global: Binding<Double>, user: Binding<Double>,
-                globalRange: 0...30, userRange: 0...60, step: 5)
+                globalRange: 0...30, userRange: 0...60, step: 5,
+                note: "Cooldowns don't apply to you or your mods.")
 ```
 
 | Param | Type | Notes |
@@ -36,7 +37,7 @@ CommandCooldown(global: Binding<Double>, user: Binding<Double>,
 | `triggers` | `String` | Subtitle line: the trigger list, or a one-line explanation for a non-command toggle. |
 | `isOn` | `Binding<Bool>` | Enable state; drives whether the details block shows. |
 | `accessibilityLabel` / `accessibilityIdentifier` | `String` | Required. For the toggle; cooldown sliders derive `"\(id).everyoneCooldown"` / `.perUserCooldown`. |
-| `cooldown` | `CommandCooldown?` | `nil` → no sliders. Renders the Everyone / Per-person pair two-up via [`CooldownSliderPair`](cooldown-slider-pair.md). |
+| `cooldown` | `CommandCooldown?` | `nil` → no sliders. Renders the Everyone / Per-person pair two-up via [`CooldownSliderPair`](cooldown-slider-pair.md). Its optional `note` draws a [`HintRow`](hint-row.md) directly under the sliders. |
 | `aliases` | `Binding<String>?` | `nil` → no alias field. Renders [`CommandAliasField`](command-alias-field.md). |
 | `aliasPlaceholder` / `aliasAccessibilityLabel` / `aliasAccessibilityIdentifier` | `String` / `String?` | Forwarded to `CommandAliasField`. |
 | `isLast` | `Bool` | Suppresses the trailing hairline on the final row of the card. |
@@ -54,6 +55,7 @@ flowchart TD
   Row[VStack spacing 0] --> Toggle[ToggleSettingRow: title + triggers + switch]
   Row -->|isOn && hasContent| Details[VStack spacing s2]
   Details --> CD["CooldownSliderPair, Everyone | Per person, two-up (if cooldown)"]
+  Details --> Note["HintRow (if cooldown.note)"]
   Details --> Alias["CommandAliasField (if aliases)"]
   Details --> Extra["extra() - e.g. reply picker"]
   Row --> Divider["Divider (bottom, unless isLast)"]
@@ -68,6 +70,8 @@ flowchart TD
 - ✅ Stack rows in `VStack(spacing: 1) { … }.cardStyleUnpadded()` so hairlines align.
 - ✅ Mark the final row `isLast: true`.
 - ✅ Pass per-command pane-specific cooldown ranges via `CommandCooldown`.
+- ✅ Put a footnote about the cooldown in `CommandCooldown.note`, so it sits under the sliders it qualifies.
+- ❌ Don't trail a cooldown footnote after the card; it ends up next to unrelated rows.
 - ❌ Don't add manual padding/dividers around it; the row owns both.
 - ❌ Don't reintroduce a per-pane copy of the toggle/cooldown/alias rows. Extend this instead.
 
@@ -80,7 +84,11 @@ VStack(spacing: 1) {
         isOn: $srCommandEnabled,
         accessibilityLabel: "Enable song request command",
         accessibilityIdentifier: "srCommandToggle",
-        cooldown: .init(global: $globalCooldown, user: $userCooldown),
+        cooldown: .init(
+            global: $globalCooldown,
+            user: $userCooldown,
+            note: "Cooldowns don't apply to you or your mods."
+        ),
         aliases: $srAliases,
         aliasPlaceholder: "e.g. play, add",
         aliasAccessibilityIdentifier: "srCommandAliases"

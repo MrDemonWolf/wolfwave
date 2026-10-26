@@ -75,6 +75,28 @@ Seen but left alone in this pass:
 - The widget port field dims while the widget page is off, though it is only
   locked while it is on.
 
+## Third pass: what the second pass left alone (2026-10-26)
+
+Each item the second pass saw but did not change, fixed at the shared layer
+where one exists, so the other panes cannot drift back.
+
+| Item | Cause | Fix |
+|---|---|---|
+| Stream Deck token card stacked four levels of text (eyebrow, paragraph, field title, caption) | The card wrapped the shared editor in its own header and intro | The card is now only `WebSocketTokenEditorRow`: "Stream Deck Control Token" with its lock, one line ("A password for the Stream Deck plugin. Not your overlay token."), the field with Reveal and Copy, then Regenerate. The setup steps below already say where to paste it. Stream Widgets renders the same row for the Overlay Token, so both panes now read the same way; its line is shortened to match. |
+| Song Requests "Re-run setup" looked like plain grey text | `.buttonStyle(.plain)` with secondary text | "Run Setup Again", `.bordered` and `.small` with an `arrow.counterclockwise` glyph, like the pane's other secondary actions (Manage). The UI-test identifier is unchanged. |
+| Widget port dimmed while the widget page was off | The opacity condition was inverted (`websocketEnabled && widgetHTTPEnabled ? 1 : 0.5`) | Dims only while the page is on, which is the only time the field is disabled. Same rule as the overlay port. |
+| "Cooldowns don't apply to you or your mods." sat under the song-list link block | A trailing `HintRow` after the card | `CommandCooldown` gains `note:`; `CommandSettingRow` draws it as a `HintRow` directly under the `!sr` sliders. |
+| Software Update sat a few points right of every other pane in CI | Each pane centered its column inside the scroll view's *content* width. With always-visible scroll bars a pane that overflows loses the scroller gutter from that width and a short pane does not, so the short pane's column centered further right. | New shared `SettingsPaneScroll` centers the column on the scroll view's own width (measured with `onGeometryChange`) and lets the right inset absorb the gutter. The shell's shared wrapper, General, and Song Requests all use it, so the column lands at the same x on every pane with any scroll-bar style. Panes with a jump rail keep `SettingsNavRail`. |
+| SwiftLint baseline had stale Advanced entries | PR #529 split and re-indented the crash-recovery message, so the two grandfathered long lines no longer exist | Removed those two entries by hand, plus the Stream Deck paragraph entry this pass deletes. The file was not regenerated, so key order is untouched. Other stale-looking entries (setup sheet copy, three tests) were left for a later baseline pass. |
+
+Catalog: `settings-pane-scroll.md` (new), `command-setting-row.md` (`note`),
+and `hint-row.md` (example no longer shows the trailing cooldown hint).
+
+Evidence: before and after captures for Stream Deck, Stream Widgets, Song
+Requests, and Software Update come from the CI `ui-test` xcresult (minimum and
+ideal size, Light and Dark). The pane build, SwiftLint, header, sync, and
+design-system checks pass locally; unit and UI tests ran in CI.
+
 ## References and approach
 
 - [Apple layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout)

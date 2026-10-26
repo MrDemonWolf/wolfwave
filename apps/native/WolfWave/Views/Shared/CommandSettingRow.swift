@@ -23,6 +23,9 @@ struct CommandCooldown {
     var userRange: ClosedRange<Double> = 0...60
     /// Slider step for both sliders, in seconds.
     var step: Double = 5
+    /// Optional footnote drawn as a ``HintRow`` directly under the sliders,
+    /// e.g. who the cooldown skips. `nil` draws nothing.
+    var note: String?
 }
 
 /// One chat-command row for the "list inside a card" settings pattern.
@@ -173,6 +176,10 @@ struct CommandSettingRow<Extra: View>: View {
                         accessibilityIdentifier: "\(accessibilityIdentifier).perUserCooldown"
                     )
                 )
+
+                if let note = cooldown.note {
+                    HintRow(note)
+                }
             }
 
             if let aliases {

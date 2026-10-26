@@ -331,7 +331,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                         if enabled { applyWidgetPort() }
                     }
             }
-            .opacity(websocketEnabled && widgetHTTPEnabled ? 1.0 : 0.5)
+            // Dim only while the field is really locked (the page is on), the
+            // same rule as the overlay port. This used to be inverted: the
+            // field looked dead while the page was off, which is exactly when
+            // it can be edited.
+            .opacity(widgetHTTPEnabled ? 0.5 : 1.0)
 
             if !widgetPortText.isEmpty && !isWidgetPortValid {
                 FieldValidationRow(
