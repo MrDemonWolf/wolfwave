@@ -71,7 +71,7 @@ struct SongRequestSettingsView: View {
                 if playlistStatus != .ok {
                     SongRequestHealthBanner(
                         status: playlistStatus,
-                        onAction: { handleHealthAction(playlistStatus) }
+                        onAction: { await handleHealthAction(playlistStatus) }
                     )
                 }
 
@@ -205,32 +205,34 @@ struct SongRequestSettingsView: View {
     }
 
     /// Re-checks playlist health via the live service so the banner stays honest.
-    private func runHealthCheck() async {
+    ///
+    /// - Parameter forceWait: Wait the full time for Music to see the playlist,
+    ///   even when it is already known to be missing ("Check Again").
+    private func runHealthCheck(forceWait: Bool = false) async {
         guard !isCheckingPlaylistHealth else { return }
         isCheckingPlaylistHealth = true
         defer { isCheckingPlaylistHealth = false }
-        await appDelegate?.songRequestService?.runSetupHealthCheck()
+        await appDelegate?.songRequestService?.runSetupHealthCheck(forceWait: forceWait)
     }
 
     /// Routes the health banner's primary action to the right fix: re-grant
     /// Apple Music access inline, re-open the share step, or redo full setup.
-    private func handleHealthAction(_ status: PlaylistSetupStatus) {
+    /// Awaited by the banner button, which shows a spinner until it returns.
+    private func handleHealthAction(_ status: PlaylistSetupStatus) async {
         switch status {
         case .ok:
             break
         case .musicAccessLost:
-            Task {
-                _ = await MusicAuthorization.request()
-                await runHealthCheck()
-            }
+            _ = await MusicAuthorization.request()
+            await runHealthCheck()
         case .playlistMissing:
             openSetup(at: .intro)
         case .linkUnshared:
             openSetup(at: .shareLink)
         case .playlistNotInMusic:
-            // Only the streamer can turn Sync Library on, so the action is simply
-            // to re-probe once they have.
-            Task { await runHealthCheck() }
+            // Only the streamer can turn Sync Library on, so the action is to
+            // re-probe once they have, waiting for sync to catch up.
+            await runHealthCheck(forceWait: true)
         }
     }
 }
@@ -243,8 +245,9 @@ struct SongRequestSettingsView: View {
 fileprivate struct SongRequestHealthBanner: View {
     /// Current playlist health; the parent only shows this for non-`.ok`.
     let status: PlaylistSetupStatus
-    /// Runs the fix for `status` (see `handleHealthAction`).
-    let onAction: () -> Void
+    /// Runs the fix for `status` (see `handleHealthAction`). The button shows
+    /// a spinner until it returns, so a "Check Again" wait is visible.
+    let onAction: () async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s2) {
@@ -253,10 +256,14 @@ fileprivate struct SongRequestHealthBanner: View {
                 style: status.isError ? .error : .warning
             )
             if let label = status.actionLabel {
-                Button(label) { onAction() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .accessibilityIdentifier("songRequests.healthBanner.action")
+                AsyncActionButton(
+                    title: label,
+                    style: .borderedProminent,
+                    showsSuccess: false,
+                    accessibilityIdentifier: "songRequests.healthBanner.action"
+                ) {
+                    await onAction()
+                }
             }
         }
         .accessibilityIdentifier("songRequests.healthBanner")

@@ -96,8 +96,24 @@ not escalate to an essential break: Sync Library latency (and possibly an
 empty-playlist edge case, see below) can produce a `.notVisible` that clears
 itself, and holding the whole feature on that would be worse than a banner.
 Only the streamer can turn Sync Library on, so the banner action is "Check
-Again", which just re-probes. The wizard's playlist step warns the same way
-without blocking Next.
+Again", which re-probes. The wizard's playlist step warns the same way without
+blocking Next.
+
+**Sync latency.** The playlist is made in the cloud and reaches Music.app
+through iCloud seconds later, so a probe straight after the create almost
+always answers `.notVisible`. `PlaylistVisibilityWait` re-probes every 2 s for
+about 40 s (`.standard`) and stops early on `.visible` or `.unknown`; only a
+`.notVisible` that outlasts it counts. The wizard's playlist step runs it in a
+`.task` keyed on the step plus a Check Again counter (`StepTaskID`), so leaving
+the step or closing the sheet cancels it and resets the state to `unchecked`.
+Finishing setup records `.playlistNotInMusic` instead of `.ok` when the wait
+ended in `notInMusic`. `runSetupHealthCheck(forceWait:)` picks its wait with
+`visibilityWait(storedStatus:rebuilt:forceWait:)`: the full wait the first time
+it sees a gap, after a rebuild, or on the banner's Check Again; one probe when
+the banner already shows the gap. A cancelled wait changes nothing. Whether
+Sync Library is *off* versus *still syncing* can't be told apart from a
+sandboxed app (Music's preferences aren't readable and AppleScript doesn't
+expose the setting), so the copy never claims which one it is.
 
 > **Open question.** It is unconfirmed whether an *empty* cloud playlist
 > materializes in Music.app at all, or only once it holds a track. If it is the

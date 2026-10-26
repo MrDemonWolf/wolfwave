@@ -45,10 +45,10 @@ struct SongRequestSetupView: View {
     @State var ensuringPlaylist = false
     /// Shown with a Try Again button when playlist creation failed.
     @State var playlistError: String?
-    /// Whether Music.app can actually see the playlist WolfWave just created in
-    /// the cloud library. Surfaced here because the cloud create succeeding is
-    /// not the same thing as playback being able to find it.
-    @State var playlistLocalVisibility: PlaylistLocalVisibility = .unknown
+    /// Bumped by the playlist step's "Check Again" button (see
+    /// `checkPlaylistAgain()`). Part of the step task's id, so a re-check runs
+    /// inside that task and is cancelled with it when the step or sheet goes away.
+    @State var musicCheckRun = 0
 
     /// Result line under the share steps after "Fetch link".
     @State var fetchStatus: String?
@@ -127,9 +127,16 @@ struct SongRequestSetupView: View {
                 viewModel.isTwitchConnected = connected
             }
         }
-        .task(id: viewModel.currentStep) {
-            if viewModel.currentStep == .playlist, !viewModel.playlistReady {
+        .task(id: StepTaskID(step: viewModel.currentStep, musicCheckRun: musicCheckRun)) {
+            guard viewModel.currentStep == .playlist else { return }
+            if !viewModel.playlistReady {
                 await ensurePlaylist()
+            } else if viewModel.playlistMusicState != .inMusic {
+                // Coming back to a playlist already known to be missing asks
+                // once; "Check Again" resets the state first, so it waits again.
+                await confirmPlaylistInMusic(
+                    wait: viewModel.playlistMusicState == .notInMusic ? .singleProbe : .standard
+                )
             }
         }
     }
@@ -289,34 +296,48 @@ struct SongRequestSetupView: View {
     }
 
     /// Ensures the WolfWave Requests playlist exists, flipping `playlistReady`
-    /// so the step's Next button unlocks. Surfaces a retry on failure.
-    ///
-    /// The create call talks to the Apple Music cloud library; playback reads
-    /// Music.app's local library. So the local visibility probe runs straight
-    /// after, and a `.notVisible` answer warns instead of blocking: Sync Library
-    /// can take a moment, and stranding a streamer in the wizard over a state
-    /// that clears itself would be worse than letting them finish and showing the
-    /// same warning in the pane.
+    /// so the step's Next button unlocks, then waits for Music to see it.
+    /// Surfaces a retry on failure.
     @MainActor
     func ensurePlaylist() async {
         ensuringPlaylist = true
         playlistError = nil
-        defer { ensuringPlaylist = false }
         do {
             _ = try await libraryService.ensureRequestsPlaylist()
+            ensuringPlaylist = false
             viewModel.playlistReady = true
-            await refreshPlaylistLocalVisibility()
+            await confirmPlaylistInMusic()
         } catch {
+            ensuringPlaylist = false
+            // Leaving the step cancels this task; that is not a failure to show.
+            guard !Task.isCancelled else { return }
             viewModel.playlistReady = false
-            playlistError = "Couldn't create the playlist. Check your Apple Music subscription, then try again."
+            playlistError = "Couldn't make the playlist. "
+                + "Check your Apple Music sign-in and subscription, then try again."
         }
     }
 
-    /// Re-asks Music.app whether it can see the playlist, for the step's "Check
-    /// Again" button after the streamer turns Sync Library on.
+    /// Waits for Music.app to see the playlist (see
+    /// `SongRequestSetupViewModel.confirmPlaylistInMusic`).
+    ///
+    /// The create call talks to the Apple Music cloud library; playback reads
+    /// Music.app's local library, which only catches up through iCloud sync a
+    /// few seconds later. So this re-probes for a bounded time instead of
+    /// asking once, and a playlist still missing after that warns without
+    /// blocking Next. Runs inside the step's `.task`, so it stops with the step.
     @MainActor
-    func refreshPlaylistLocalVisibility() async {
-        playlistLocalVisibility = await musicController.requestsPlaylistLocalVisibility()
+    func confirmPlaylistInMusic(wait: PlaylistVisibilityWait = .standard) async {
+        let controller = musicController
+        await viewModel.confirmPlaylistInMusic(wait: wait) {
+            await controller.requestsPlaylistLocalVisibility()
+        }
+    }
+
+    /// "Check Again": forgets the last verdict and restarts the step task,
+    /// which runs the full wait again.
+    func checkPlaylistAgain() {
+        viewModel.playlistMusicState = .unchecked
+        musicCheckRun += 1
     }
 
     /// Resolves the playlist's public share link, fills the field, and turns
@@ -344,6 +365,19 @@ struct SongRequestSetupView: View {
     func openPlaylistInMusic() async {
         _ = try? await libraryService.ensureRequestsPlaylist()
         await musicController.revealRequestsPlaylist()
+    }
+}
+
+// MARK: - Step Task ID
+
+extension SongRequestSetupView {
+    /// Identity of the step's `.task`: a new step, or a "Check Again" press,
+    /// cancels the running work and starts fresh.
+    struct StepTaskID: Hashable {
+        /// The step on screen.
+        let step: SongRequestSetupViewModel.Step
+        /// The playlist step's re-check counter.
+        let musicCheckRun: Int
     }
 }
 

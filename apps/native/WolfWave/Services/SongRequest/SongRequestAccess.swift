@@ -564,7 +564,8 @@ enum PlaylistSetupStatus: String, CaseIterable {
         case .musicAccessLost:
             return "WolfWave lost access to Apple Music. Grant access again to keep song requests playing."
         case .playlistNotInMusic:
-            return "Music can't see your WolfWave Requests playlist yet, so requests have nothing to play from. Turn on Sync Library in Music, Settings, General, then check again."
+            return "Music on this Mac can't see your WolfWave Requests playlist, so requests can't play. "
+                + "Turn on Music › Settings › General › Sync Library, then check again."
         }
     }
 
