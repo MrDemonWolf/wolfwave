@@ -16,9 +16,9 @@ extension SettingsBackupServiceTests {
     /// `SideEffects` (the real login item, `NSApp`, and Sparkle are never touched) and counted as
     /// restored.
     func testApplyEnactsSystemBackedPreferences() async throws {
-        let suiteName = "SettingsBackupServiceTests.sideEffects.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.sideEffects")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         var launchAtLoginEnabled = false
         var launchRequests: [Bool] = []
@@ -71,9 +71,9 @@ extension SettingsBackupServiceTests {
     /// If the system refuses the login-item change, the stored value reverts to off, nothing
     /// counts as restored, and a warning explains it.
     func testApplyReconcilesRejectedLaunchAtLoginChange() async throws {
-        let suiteName = "SettingsBackupServiceTests.loginFailure.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.loginFailure")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         var launchRequests: [Bool] = []
         let sideEffects = SettingsBackupService.SideEffects(
@@ -115,12 +115,9 @@ extension SettingsBackupServiceTests {
     /// A login item that needs approval in System Settings is kept on and counted, with a warning
     /// about approval.
     func testApplyCountsPendingLaunchAtLoginAndWarnsAboutSystemApproval() async {
-        let suiteName = "SettingsBackupServiceTests.loginApproval.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            XCTFail("Could not create isolated UserDefaults suite")
-            return
-        }
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.loginApproval")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         var launchAtLoginEnabled = false
         let sideEffects = SettingsBackupService.SideEffects(
@@ -152,12 +149,9 @@ extension SettingsBackupServiceTests {
     /// Song Request settings are neither previewed nor restored on a Mac whose Song Request
     /// setup is incomplete; the key is forced off, ignored, and a warning is given.
     func testSongRequestsAreNotPreviewedOrRestoredBeforeSetupCompletes() async {
-        let suiteName = "SettingsBackupServiceTests.songRequestSetup.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            XCTFail("Could not create isolated UserDefaults suite")
-            return
-        }
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.songRequestSetup")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let keys = AppConstants.UserDefaults.self
         defaults.set(true, forKey: keys.songRequestEnabled)
@@ -180,12 +174,9 @@ extension SettingsBackupServiceTests {
     /// The import sheet opens with local sharing settings off, so its
     /// "replaces N settings" count must leave those keys out.
     func testRestorableCountMatchesImportSheetDefaults() {
-        let suiteName = "SettingsBackupServiceTests.restorableLocal.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            XCTFail("Could not create isolated UserDefaults suite")
-            return
-        }
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.restorableLocal")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let keys = AppConstants.UserDefaults.self
         let backup = makeBackup(settings: [
@@ -203,12 +194,9 @@ extension SettingsBackupServiceTests {
     }
 
     func testSongRequestsArePreviewedAndRestoredAfterSetupCompletes() async {
-        let suiteName = "SettingsBackupServiceTests.songRequestReady.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            XCTFail("Could not create isolated UserDefaults suite")
-            return
-        }
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests.songRequestReady")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let keys = AppConstants.UserDefaults.self
         defaults.set(true, forKey: keys.songRequestSetupComplete)

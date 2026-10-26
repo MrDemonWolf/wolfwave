@@ -66,9 +66,9 @@ struct SongRequestSetupViewModelTests {
 
     @Test("complete records the gate, ok status, and enables the feature")
     func completeWrites() throws {
-        let name = "test.sr.setup.complete"
-        let defaults = try #require(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratch = ThrowawayDefaults("test.sr.setup.complete")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         SongRequestSetupViewModel().complete(defaults: defaults)
 

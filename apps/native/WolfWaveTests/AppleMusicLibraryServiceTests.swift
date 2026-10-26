@@ -61,8 +61,9 @@ struct AppleMusicLibraryServiceTests {
 
     @Test("ownership matching requires the exact WolfWave description marker")
     func ownershipMatchingRequiresMarker() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let data = try libraryData([
             (
                 id: "p.user",
@@ -88,8 +89,9 @@ struct AppleMusicLibraryServiceTests {
 
     @Test("same-name user playlist without marker is ignored")
     func sameNameWithoutMarkerIsIgnored() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let data = try libraryData([
             (
                 id: "p.user",
@@ -111,8 +113,9 @@ struct AppleMusicLibraryServiceTests {
 
     @Test("persisted playlist id survives a user-edited description")
     func persistedPlaylistIDAllowsEditedDescription() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let playlistID = "p.persisted"
         defaults.set(playlistID, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
         let ownedData = try libraryData([
@@ -140,8 +143,9 @@ struct AppleMusicLibraryServiceTests {
 
     @Test("stale persisted id falls back to owned playlist scan")
     func stalePersistedIDRecoversFromScan() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set("p.deleted", forKey: AppConstants.UserDefaults.songRequestPlaylistID)
         let recoveredID = "p.recovered"
         let recoveredData = try libraryData([
@@ -212,14 +216,6 @@ struct AppleMusicLibraryServiceTests {
     }
 
     // MARK: - Fixtures
-
-    /// A throwaway `UserDefaults` suite (emptied before use) and its name; the caller removes it.
-    func isolatedDefaults() throws -> (UserDefaults, String) {
-        let suiteName = "AppleMusicLibraryServiceTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defaults.removePersistentDomain(forName: suiteName)
-        return (defaults, suiteName)
-    }
 
     /// Builds a library-playlists JSON page from `(id, name, description)` tuples. `next` adds a
     /// pagination link.

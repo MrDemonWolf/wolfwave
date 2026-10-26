@@ -17,11 +17,9 @@ final class WolfWaveReplyStyleTests: WolfWaveTestCase {
 
     /// A fresh, isolated UserDefaults suite, auto-cleaned at tear-down.
     private func makeStore() throws -> UserDefaults {
-        let suiteName = "test.wolfwaveReplyStyle.\(UUID().uuidString)"
-        let store = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        store.removePersistentDomain(forName: suiteName)
-        addTeardownBlock { store.removePersistentDomain(forName: suiteName) }
-        return store
+        let scratch = ThrowawayDefaults("WolfWaveReplyStyleTests")
+        addTeardownBlock { scratch.destroy() }
+        return scratch.defaults
     }
 
     // MARK: - Cases & defaults

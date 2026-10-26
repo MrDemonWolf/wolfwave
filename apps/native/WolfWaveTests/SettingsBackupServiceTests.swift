@@ -43,12 +43,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
     /// resolved overlay config: port 0 resolves to the default WebSocket port, and the widget
     /// port and enabled flags come through. Uses a private `NotificationCenter` and defaults suite.
     func testApplyBroadcastsCompleteResolvedOverlayConfiguration() async {
-        let suiteName = "SettingsBackupServiceTests.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            XCTFail("Could not create isolated UserDefaults suite")
-            return
-        }
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let center = NotificationCenter()
         let received = ThreadSafeBox<Notification?>(nil)
@@ -96,9 +93,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
     }
 
     func testBackupUsesCanonicalChannelProviderInsteadOfLegacyDefault() throws {
-        let suiteName = "SettingsBackupCanonicalChannel.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupCanonicalChannel")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set("stale-channel", forKey: AppConstants.UserDefaults.twitchChannelName)
         let service = SettingsBackupService(
             defaults: defaults,
@@ -115,9 +112,9 @@ final class SettingsBackupServiceTests: WolfWaveTestCase {
     /// (`CustomCommandStore`, `SongBlocklist`), replacing stale local data, in memory and in
     /// persisted storage.
     func testBackupRoundTripsPortableCollectionsThroughLiveOwners() async throws {
-        let suiteName = "SettingsBackupCollections." + UUID().uuidString
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupCollections")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let importedCommands = [
             CustomCommand(trigger: "!hello", response: "Hi!")

@@ -15,8 +15,9 @@ import Testing
 extension AppleMusicLibraryServiceTests {
     @Test("a stale cached playlist 404 re-resolves once and persists the new id")
     func staleCachedPlaylistRecoversOnce() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let oldID = "p.deleted"
         let newID = "p.recovered"
         defaults.set(oldID, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
@@ -61,8 +62,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("concurrent stale 404s share one recovery and both retry the new id")
     func concurrentMissingPlaylistFailuresShareRecovery() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let oldID = "p.deleted"
         let newID = "p.recovered"
         defaults.set(oldID, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
@@ -107,8 +109,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("a non-404 track failure never resets or retries the playlist")
     func nonMissingTrackFailureDoesNotRetry() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let playlistID = "p.current"
         defaults.set(playlistID, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
         let data = try libraryData([
@@ -145,8 +148,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("a second missing-playlist failure propagates without a retry loop")
     func secondMissingPlaylistFailureDoesNotLoop() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let oldID = "p.deleted"
         let newID = "p.also-deleted"
         defaults.set(oldID, forKey: AppConstants.UserDefaults.songRequestPlaylistID)
@@ -193,8 +197,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("playlist discovery follows pagination beyond twenty pages")
     func discoveryHasNoFixedPageCap() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let targetPage = 21
         let targetID = "p.page-21"
         var responses: [String: Data] = [:]
@@ -226,8 +231,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("a repeated pagination next path terminates and creates once")
     func repeatedNextPathCannotLoop() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let path = "/me/library/playlists?limit=100"
         let response = try libraryData([], next: "/v1\(path)")
         let transport = PagingPlaylistTransport(responses: [path: response])
@@ -242,8 +248,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("concurrent first ensures share one lookup and creation")
     func concurrentEnsuresAreCoalesced() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let transport = CoalescingPlaylistTransport()
         let service = AppleMusicLibraryService(
             defaults: defaults,
@@ -265,8 +272,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("failed ensure clears the shared task so a later call can retry")
     func failedEnsureCanRetry() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let recoveredData = try libraryData([
             (
                 id: "p.retry",
@@ -293,8 +301,9 @@ extension AppleMusicLibraryServiceTests {
 
     @Test("reset cancels an old ensure without clearing a newer result")
     func resetInvalidatesInFlightEnsure() async throws {
-        let (defaults, suiteName) = try isolatedDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("AppleMusicLibraryServiceTests")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         defaults.set("p.old", forKey: AppConstants.UserDefaults.songRequestPlaylistID)
         let newData = try libraryData([
             (

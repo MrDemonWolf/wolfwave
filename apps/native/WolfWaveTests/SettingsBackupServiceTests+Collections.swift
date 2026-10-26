@@ -15,9 +15,9 @@ extension SettingsBackupServiceTests {
     /// Malformed command or blocklist payloads are ignored before reaching the owners (zero
     /// replace calls), so live and persisted data are unchanged and both are counted as ignored.
     func testMalformedPortableCollectionsPreserveLiveAndPersistedState() async throws {
-        let suiteName = "SettingsBackupMalformedCollections." + UUID().uuidString
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupMalformedCollections")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
 
         let priorCommands = [CustomCommand(trigger: "!keep", response: "Kept")]
         let priorBlocklist = [BlocklistItem(value: "Keep Artist", type: .artist)]
@@ -88,9 +88,9 @@ extension SettingsBackupServiceTests {
     /// before the (suspended) blocklist replacement finishes, so requests are never live without
     /// their blocklist.
     func testApplyDisablesUnsafeSongRequestsBeforePortableOwnerSuspends() async throws {
-        let suiteName = "SettingsBackupSongRequestSafety." + UUID().uuidString
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupSongRequestSafety")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let blocklistData = try JSONCoders.camelCaseEncoder.encode([
             BlocklistItem(value: "Blocked Song", type: .song)
         ])
@@ -152,9 +152,9 @@ extension SettingsBackupServiceTests {
     /// An imported Twitch channel is staged only as a pending hint. The stored grant is
     /// unchanged, the legacy channel key is cleared, and the re-auth flag is raised.
     func testTwitchImportStagesPendingChannelWithoutMutatingCanonicalGrant() async throws {
-        let suiteName = "SettingsBackupPendingChannel.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let scratch = ThrowawayDefaults("SettingsBackupPendingChannel")
+        defer { scratch.destroy() }
+        let defaults = scratch.defaults
         let original = KeychainService.TwitchCredentialGrant(
             accessToken: "ACCESS",
             refreshToken: "REFRESH",
