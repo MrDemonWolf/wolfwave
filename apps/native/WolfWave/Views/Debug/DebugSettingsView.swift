@@ -10,20 +10,7 @@
 import AppKit
 import SwiftUI
 
-/// Root detail pane for the DEBUG-only "Debug" settings tab.
-///
-/// Lays out developer tooling as a two-column page: a fixed jump-nav rail on the
-/// left and an always-visible, scrollable column of section cards on the right:
-/// state inspectors, performance metrics, logs/events, UI previews, and service
-/// controls. Sections no longer collapse; the rail lets you jump straight to any
-/// one because the full page is long. Clicking a rail row scrolls its section to
-/// the top via `ScrollViewReader`, and the rail highlights wherever you are.
-///
-/// Because every section is mounted at once, the `DebugMetricsCard` polling loop
-/// runs the whole time the Debug tab is on-screen (it cancels on tab switch via
-/// structured concurrency). That's an accepted cost for a DEBUG-only tab that
-/// ships zero footprint in release. The entire view compiles out under
-/// `#if DEBUG`.
+/// Developer tools, displaying only the selected tool so inactive polling stops.
 struct DebugSettingsView: View {
 
     // MARK: - Properties
@@ -35,73 +22,93 @@ struct DebugSettingsView: View {
     private var discordPresenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) private var widgetHTTPEnabled = false
 
-    /// Rail selection + scroll target. Drives the highlight and the jump.
+    /// The selected tool is shared by the wide list and compact picker.
     @State private var selected: DebugSection = .inspectors
 
     var body: some View {
-        SettingsNavRail(
-            selection: $selected,
-            groups: DebugSection.railGroups,
-            accessibilityIDPrefix: "debugNav"
-        ) {
-            header
-
-            groupLabel("State & Diagnostics")
-            sectionBlock(.inspectors) { DebugInspectorsCard() }
-            sectionBlock(.metrics) { DebugMetricsCard() }
-            sectionBlock(.logViewer) { DebugLogViewerCard() }
-            sectionBlock(.logs) { DebugLogsAndEventsCard() }
-
-            groupLabel("Active Controls")
-            warningBanner
-            sectionBlock(.previews) { DebugUIPreviewsCard() }
-            sectionBlock(.controls) { DebugServiceControlsCard() }
-
-            groupLabel("Design System")
-            sectionBlock(.components) { DebugComponentGalleryCard() }
-            sectionBlock(.tokens) { DebugTokenGalleryCard() }
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                if geometry.size.width >= Self.railThreshold {
+                    toolList
+                    Divider()
+                }
+                SettingsPaneScroll {
+                    if geometry.size.width < Self.railThreshold {
+                        Picker("Tool", selection: $selected) {
+                            ForEach(DebugSection.allCases, id: \.self) { section in
+                                Label(section.title, systemImage: section.icon).tag(section)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityIdentifier("debugToolPicker")
+                    }
+                    header
+                    if selected == .previews || selected == .controls {
+                        warningBanner
+                    }
+                    selectedTool
+                        .id(selected)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("debugTool.\(selected.rawValue)")
+                }
+            }
         }
     }
 
-    // MARK: - Section Block
+    /// Leaves the detail column enough space for its controls before adding a rail.
+    private static var railThreshold: CGFloat {
+        DSDimension.Settings.navRailWidth + DSDimension.Settings.inlineActionsMinWidth
+            + 2 * AppConstants.SettingsUI.contentPaddingH
+    }
 
-    /// Wraps a card with its section heading and tags it as the rail's scroll
-    /// anchor for `section`. Content is built once and stays mounted.
-    @ViewBuilder
-    private func sectionBlock<Content: View>(
-        _ section: DebugSection,
-        @ViewBuilder _ content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: DSSpace.s3) {
-            Text(section.title)
-                .sectionHeader()
-            content()
+    private var toolList: some View {
+        List(selection: Binding<DebugSection?>(
+            get: { selected },
+            set: { if let section = $0 { selected = section } }
+        )) {
+            ForEach(DebugSection.railGroups) { group in
+                Section(group.title ?? "Tools") {
+                    ForEach(group.sections, id: \.self) { section in
+                        Label(section.title, systemImage: section.icon)
+                            .tag(section)
+                            .accessibilityIdentifier("debugNav.\(section.rawValue)")
+                    }
+                }
+            }
         }
-        .railSection(section)
+        .listStyle(.sidebar)
+        .frame(width: DSDimension.Settings.navRailWidth)
+        .accessibilityLabel("Debug tools")
+    }
+
+    @ViewBuilder
+    private var selectedTool: some View {
+        switch selected {
+        case .inspectors: DebugInspectorsCard()
+        case .metrics: DebugMetricsCard()
+        case .logViewer: DebugLogViewerCard()
+        case .logs: DebugLogsAndEventsCard()
+        case .previews: DebugUIPreviewsCard()
+        case .controls: DebugServiceControlsCard()
+        case .components: DebugComponentGalleryCard()
+        case .tokens: DebugTokenGalleryCard()
+        }
     }
 
     // MARK: - Header
 
-    /// Pane title, subtitle, and the Copy Diagnostics button.
+    /// Selected tool title and the shared diagnostics action.
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Debug Tools")
-                    .sectionHeader()
-                Text("Developer-only tools. Not shipped in release builds.")
-                    .font(.system(size: DSFont.Size.base))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: DSSpace.s3) {
+            Text(selected.title)
+                .sectionHeader()
+            AsyncActionButton(
+                title: "Copy Diagnostics", systemImage: "doc.on.doc",
+                accessibilityIdentifier: "debugCopyDiagnostics"
+            ) {
+                try await copyDiagnostics()
             }
-            Spacer()
-            Button {
-                copyDiagnostics()
-            } label: {
-                Label("Copy Diagnostics", systemImage: "doc.on.doc")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .pointerCursor()
-            .help("Copy environment + service state as markdown for a GitHub issue.")
+            .help("Copy environment and service state for a GitHub issue.")
         }
     }
 
@@ -116,15 +123,6 @@ struct DebugSettingsView: View {
         )
     }
 
-    // MARK: - Group label
-
-    /// Eyebrow that introduces a group of cards. Matches the rail's group titles.
-    private func groupLabel(_ title: String) -> some View {
-        Text(title)
-            .sectionEyebrow()
-            .padding(.top, DSSpace.s2)
-    }
-
     // MARK: - Copy Diagnostics
 
     /// Builds the diagnostics blob and puts it on the pasteboard.
@@ -135,9 +133,8 @@ struct DebugSettingsView: View {
     /// balled the pane on a large log, which is the exact stall
     /// `DebugLogsAndEventsCard` already documents moving off-main to avoid.
     ///
-    /// Fire and forget: the copy lands a moment after the click, and there is no
-    /// visible confirmation beyond the `devTools` log line.
-    private func copyDiagnostics() {
+    /// Cancellation leaves the clipboard unchanged if the pane closes during the read.
+    private func copyDiagnostics() async throws {
         // Live connection state, read on the main actor where the services live.
         // Captured before the detached hop so the snapshot reflects click time.
         let twitchConnected = AppDelegate.shared?.twitchService?.currentlyConnected == true
@@ -149,41 +146,38 @@ struct DebugSettingsView: View {
             widget: widgetHTTPEnabled
         )
 
-        Task {
-            let heavy = await Task.detached(priority: .userInitiated) {
-                (
-                    size: Log.logFileSize(),
-                    lines: Log.logLineCount(),
-                    tokenStored: KeychainService.loadTwitchToken() != nil
-                )
-            }.value
-
-            let snapshot = DebugDiagnostics.Snapshot(
-                appVersion: AppConstants.AppInfo.shortVersion,
-                build: AppConstants.AppInfo.buildNumber,
-                osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-                arch: BugReportURL.currentArch(),
-                installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",
-                logSizeBytes: heavy.size,
-                logLineCount: heavy.lines,
-                musicTrackingEnabled: preferences.music,
-                discordPresenceEnabled: preferences.discord,
-                widgetHTTPEnabled: preferences.widget,
-                twitchConnected: twitchConnected,
-                discordConnection: discordConnection,
-                twitchTokenStored: heavy.tokenStored
+        let heavy = await Task.detached(priority: .userInitiated) {
+            (
+                size: Log.logFileSize(),
+                lines: Log.logLineCount(),
+                tokenStored: KeychainService.loadTwitchToken() != nil
             )
-            Pasteboard.copy(DebugDiagnostics.markdown(snapshot))
-            Log.info("Copied diagnostics snapshot to pasteboard", category: .devTools)
-        }
+        }.value
+        try Task.checkCancellation()
+
+        let snapshot = DebugDiagnostics.Snapshot(
+            appVersion: AppConstants.AppInfo.shortVersion,
+            build: AppConstants.AppInfo.buildNumber,
+            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+            arch: BugReportURL.currentArch(),
+            installMethod: Bundle.main.isHomebrewInstall ? "Homebrew" : "DMG",
+            logSizeBytes: heavy.size,
+            logLineCount: heavy.lines,
+            musicTrackingEnabled: preferences.music,
+            discordPresenceEnabled: preferences.discord,
+            widgetHTTPEnabled: preferences.widget,
+            twitchConnected: twitchConnected,
+            discordConnection: discordConnection,
+            twitchTokenStored: heavy.tokenStored
+        )
+        Pasteboard.copy(DebugDiagnostics.markdown(snapshot))
+        Log.info("Copied diagnostics snapshot to pasteboard", category: .devTools)
     }
 }
 
 // MARK: - Debug Section
 
-/// The Debug tab's jump-nav sections, in display order. `title` labels both the
-/// rail row and the section heading; the enum case doubles as the
-/// `ScrollViewReader` anchor attached via `.railSection(_:)`.
+/// Tool identity shared by the wide navigation list and compact picker.
 enum DebugSection: String, SettingsRailSection, CaseIterable {
 
     /// Rail layout. Hand-ordered because the grouping is editorial, but
