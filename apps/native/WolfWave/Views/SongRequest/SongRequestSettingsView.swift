@@ -240,8 +240,8 @@ struct SongRequestSettingsView: View {
 // MARK: - Health Banner
 
 /// Top-of-pane banner shown when the requests playlist is broken. Pairs the
-/// `PlaylistSetupStatus` message with a primary action button (CalloutBanner is
-/// text-only), so the streamer can jump straight to the fix.
+/// `PlaylistSetupStatus` message with its fix, inside the callout, so the
+/// streamer can jump straight to it.
 fileprivate struct SongRequestHealthBanner: View {
     /// Current playlist health; the parent only shows this for non-`.ok`.
     let status: PlaylistSetupStatus
@@ -250,20 +250,26 @@ fileprivate struct SongRequestHealthBanner: View {
     let onAction: () async -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            CalloutBanner(
-                status.bannerMessage ?? "",
-                style: status.isError ? .error : .warning
-            )
+        Group {
             if let label = status.actionLabel {
-                AsyncActionButton(
-                    title: label,
-                    style: .borderedProminent,
-                    showsSuccess: false,
-                    accessibilityIdentifier: "songRequests.healthBanner.action"
+                CalloutBanner(
+                    status.bannerMessage ?? "",
+                    style: status.isError ? .error : .warning
                 ) {
-                    await onAction()
+                    AsyncActionButton(
+                        title: label,
+                        style: .borderedProminent,
+                        showsSuccess: false,
+                        accessibilityIdentifier: "songRequests.healthBanner.action"
+                    ) {
+                        await onAction()
+                    }
                 }
+            } else {
+                CalloutBanner(
+                    status.bannerMessage ?? "",
+                    style: status.isError ? .error : .warning
+                )
             }
         }
         .accessibilityIdentifier("songRequests.healthBanner")

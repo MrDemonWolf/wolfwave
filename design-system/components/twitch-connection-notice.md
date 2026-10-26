@@ -37,7 +37,7 @@ TwitchConnectionNotice(
 `State.resolve(isConnected:reauthNeeded:)` and `expiredError(message:)` are pure, `nonisolated` static functions, unit-tested by `TwitchConnectionNoticeTests` (which also checks that a reconnect handler adds the action row).
 
 ## Tokens used
-Inherited entirely from [`CalloutBanner`](callout-banner.md) and, for the actionable expired state, [`ErrorCallout`](error-callout.md): `DSColor.warning` / `.info`, `DSFont.Size.body` / `.sm`, `DSSpace.s1` / `s2` / `s4`, `AppConstants.SettingsUI.cardCornerRadius`. This view adds no chrome of its own.
+Inherited entirely from [`CalloutBanner`](callout-banner.md) and, for the actionable expired state, [`ErrorCallout`](error-callout.md): `DSColor.warning` / `.info`, `DSFont.Size.body` / `.sm`, `DSSpace.s1` / `s2` / `s3` / `s4`, `AppConstants.SettingsUI.cardCornerRadius`. This view adds no chrome of its own.
 
 ## Anatomy
 ```mermaid

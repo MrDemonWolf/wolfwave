@@ -95,26 +95,23 @@ struct AdvancedSettingsView: View {
     /// `CrashReporter`; reporting a bug or dismissing clears the flag.
     @ViewBuilder
     private var crashRecoveryCallout: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s2) {
-            CalloutBanner(
-                shareDiagnosticsEnabled
-                    ? "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report so we can dig in."
-                    : "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report. You can also turn on the private, on-device diagnostics below. Nothing leaves your Mac.",
-                title: "Recovered from a crash",
-                style: .warning
-            )
-
-            HStack(spacing: DSSpace.s2) {
-                Button("Report a Bug\u{2026}") {
-                    AppDelegate.shared?.reportBug()
-                    lastLaunchCrashed = false
-                }
-                Spacer()
-                Button("Dismiss") { lastLaunchCrashed = false }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+        CalloutBanner(
+            shareDiagnosticsEnabled
+                ? "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report so we can dig in."
+                : "WolfWave closed unexpectedly last time. If it keeps happening, send a bug report."
+                    + " You can also turn on the private, on-device diagnostics below. Nothing leaves your Mac.",
+            title: "Recovered from a crash",
+            style: .warning
+        ) {
+            Button("Report a Bug\u{2026}") {
+                AppDelegate.shared?.reportBug()
+                lastLaunchCrashed = false
             }
-            .font(.system(size: DSFont.Size.sm))
+            .buttonStyle(.bordered)
+            .pointerCursor()
+            Button("Dismiss") { lastLaunchCrashed = false }
+                .buttonStyle(.bordered)
+                .pointerCursor()
         }
     }
 

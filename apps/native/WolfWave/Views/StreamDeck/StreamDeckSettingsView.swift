@@ -127,74 +127,61 @@ struct StreamDeckSettingsView: View {
 
     // MARK: - Control Card
 
-    /// The command switch, the loopback-only note, and a callout when the
-    /// shared server is off or failed to start (each with a jump to Stream
-    /// Widgets, where the fix lives).
+    /// The command switch with its loopback-only footnote, and a callout when
+    /// the shared server is off or failed to start. The callout carries its own
+    /// jump to Stream Widgets, where the fix lives.
+    ///
+    /// One padded card, one rhythm: the footnote belongs to the switch (the row
+    /// draws it), and the callout sits one row gap below with its button inside.
     private var controlCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
             ToggleSettingRow(
                 title: "Allow Stream Deck commands",
                 subtitle: "Let a Stream Deck key skip songs, hold the queue, and toggle your overlay.",
                 isOn: $controlEnabled,
                 accessibilityLabel: "Toggle Stream Deck commands",
-                accessibilityIdentifier: "streamDeckControlEnabledToggle"
-            )
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
-
-            Divider().padding(.leading, cardPadding)
-
-            HintRow(
-                "Commands are only accepted from this Mac. A Stream Deck on another"
+                accessibilityIdentifier: "streamDeckControlEnabledToggle",
+                hint: "Commands are only accepted from this Mac. A Stream Deck on another"
                     + " machine, or anything on your network, is refused.",
-                systemImage: "lock.laptopcomputer"
+                hintSystemImage: "lock.fill"
             )
-            .padding(.horizontal, cardPadding)
-            .padding(.bottom, DSSpace.s4)
 
             // The coupling, stated rather than hidden. Both panes are served by
             // one WebSocketServerService on one port, so turning this on while
             // the server is off does nothing, and a key would just sit there
             // looking broken.
             if !websocketEnabled {
-                VStack(alignment: .leading, spacing: DSSpace.s2) {
-                    CalloutBanner(
-                        "Stream Deck and your overlay share one connection, and it's currently off."
-                            + " Turn on Stream Widgets and your keys start working.",
-                        title: "The connection is off",
-                        style: .warning,
-                        systemImage: "bolt.horizontal.circle"
-                    )
+                CalloutBanner(
+                    "Stream Deck and your overlay share one connection, and it's currently off."
+                        + " Turn on Stream Widgets and your keys start working.",
+                    title: "The connection is off",
+                    style: .warning,
+                    systemImage: "bolt.horizontal.circle"
+                ) {
                     Button("Open Stream Widgets", action: openStreamWidgets)
                         .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        .tint(CalloutBanner.Style.warning.tint)
+                        .pointerCursor()
                         .accessibilityIdentifier("streamDeckOpenStreamWidgetsButton")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, cardPadding)
-                .padding(.bottom, DSSpace.s4)
             } else if serverState == .error {
                 // Switch on, server dead: a key would do nothing, so say why and
                 // where the fix lives (the port is set in Stream Widgets).
-                VStack(alignment: .leading, spacing: DSSpace.s2) {
-                    CalloutBanner(
-                        "Port may be in use. Turn Stream Widgets off, pick another port, then turn it back on.",
-                        title: "Couldn't start",
-                        style: .error,
-                        systemImage: "exclamationmark.octagon"
-                    )
+                CalloutBanner(
+                    "Port may be in use. Turn Stream Widgets off, pick another port, then turn it back on.",
+                    title: "Couldn't start",
+                    style: .error,
+                    systemImage: "exclamationmark.octagon"
+                ) {
                     Button("Open Stream Widgets", action: openStreamWidgets)
                         .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .pointerCursor()
                         .accessibilityIdentifier("streamDeckServerErrorOpenStreamWidgetsButton")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, cardPadding)
-                .padding(.bottom, DSSpace.s4)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyleUnpadded()
+        .cardStyle()
     }
 
     // MARK: - Token Card

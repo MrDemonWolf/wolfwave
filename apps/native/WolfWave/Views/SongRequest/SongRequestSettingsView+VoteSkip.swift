@@ -177,7 +177,8 @@ struct VoteSkipCard: View {
                     subtitle: "Affiliate/Partner only. Shows a native poll on stream instead of a chat tally",
                     isOn: $usePolls,
                     accessibilityLabel: "Use Twitch polls for vote-skip",
-                    accessibilityIdentifier: "voteSkip.usePolls"
+                    accessibilityIdentifier: "voteSkip.usePolls",
+                    hint: "Turning this on may ask you to sign in to Twitch again to grant poll permission."
                 )
                 .onChange(of: usePolls) { _, enabled in
                     NotificationCenter.default.postEnabled(
@@ -203,8 +204,6 @@ struct VoteSkipCard: View {
                         .labelsHidden()
                         .frame(width: 80)
                     }
-
-                    HintRow("Turning this on may ask you to sign in to Twitch again to grant poll permission.")
                 } else {
                     Divider()
 

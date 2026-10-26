@@ -139,23 +139,24 @@ struct AppVisibilitySettingsView: View {
             )
 
             if let launchAtLoginError {
-                CalloutBanner(launchAtLoginError, style: .warning)
-                Button("Open Login Items") {
-                    LaunchAtLoginService.openLoginItemsSettings()
+                CalloutBanner(launchAtLoginError, style: .warning) {
+                    Button("Open Login Items") {
+                        LaunchAtLoginService.openLoginItemsSettings()
+                    }
+                    .buttonStyle(.bordered)
+                    .pointerCursor()
                 }
-                .pointerCursor()
             }
 
             if loginItemNeedsApproval {
-                VStack(alignment: .leading, spacing: DSSpace.s2) {
-                    CalloutBanner(
-                        "macOS needs you to approve WolfWave in Login Items before it can start at login.",
-                        style: .info
-                    )
+                CalloutBanner(
+                    "macOS needs you to approve WolfWave in Login Items before it can start at login.",
+                    style: .info
+                ) {
                     Button("Approve in Login Items\u{2026}") {
                         LaunchAtLoginService.openLoginItemsSettings()
                     }
-                    .font(.system(size: DSFont.Size.base))
+                    .buttonStyle(.bordered)
                     .pointerCursor()
                     .accessibilityIdentifier("approveLoginItemButton")
                 }

@@ -39,13 +39,14 @@ struct WebSocketServerCard: View {
     /// then says "this Mac" only).
     let localNetworkIP: String?
 
-    /// Shorthand for the standard settings card inset.
-    private let cardPadding = AppConstants.SettingsUI.cardPadding
-
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
+            // The hint states the reach of what the switch just turned on. The
+            // server is bound on the LAN, not only on this Mac, and nothing in
+            // the pane said so: a detail worth knowing before you put the
+            // address in a browser source on a shared network.
             ToggleSettingRow(
                 title: "Enable Stream Widgets",
                 subtitle: "Show live song updates in your overlay.",
@@ -56,20 +57,10 @@ struct WebSocketServerCard: View {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                         notifyServerSettingChanged()
                     }
-                }
+                },
+                hint: serverReachSummary,
+                hintSystemImage: "network"
             )
-            .padding(.horizontal, cardPadding)
-            .padding(.vertical, DSSpace.s4)
-
-            Divider().padding(.leading, cardPadding)
-
-            // States the reach of what the switch just turned on. The server is
-            // bound on the LAN, not only on this Mac, and nothing in the pane
-            // said so — a detail worth knowing before you put the address in a
-            // browser source on a shared network.
-            HintRow(serverReachSummary, systemImage: "network")
-            .padding(.horizontal, cardPadding)
-            .padding(.bottom, DSSpace.s4)
 
             // The switch is on but the listener is not: usually the port is
             // taken. Say so here, next to the switch, instead of leaving a
@@ -81,12 +72,11 @@ struct WebSocketServerCard: View {
                     style: .error,
                     systemImage: "exclamationmark.octagon"
                 )
-                .padding(.horizontal, cardPadding)
-                .padding(.bottom, DSSpace.s4)
                 .transition(.opacity)
             }
         }
-        .cardStyleUnpadded()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     // MARK: - Private Helpers
