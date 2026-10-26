@@ -125,6 +125,9 @@ struct SoftwareUpdateSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Check for new versions and manage automatic updates.")
+                .fieldSubtitle()
+
             softwareUpdateCard
                 .deepLinkSection("updates")
         }

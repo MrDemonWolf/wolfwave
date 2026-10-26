@@ -41,6 +41,9 @@ struct TwitchSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Connect your account and choose how WolfWave responds in chat.")
+                .fieldSubtitle()
+
             connectionStatus
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base),

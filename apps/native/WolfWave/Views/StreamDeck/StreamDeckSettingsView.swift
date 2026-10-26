@@ -66,6 +66,9 @@ struct StreamDeckSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Control WolfWave from your Stream Deck.")
+                .fieldSubtitle()
+
             controlCard
                 .deepLinkSection("control")
             tokenCard

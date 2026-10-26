@@ -92,6 +92,9 @@ struct DiscordSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Share what you're playing on your Discord profile.")
+                .fieldSubtitle()
+
             connectionSection
                 .deepLinkSection("presence")
             if presenceEnabled && hasClientID {

@@ -41,6 +41,9 @@ struct WebSocketSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Set up and customize your now-playing overlay.")
+                .fieldSubtitle()
+
             // Card order is the decision order, not the implementation order.
             // Turn it on, then take the ready-made widget (which is what almost
             // everyone wants), then style it. The raw WebSocket feed is last

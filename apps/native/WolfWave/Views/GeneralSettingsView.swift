@@ -27,6 +27,9 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         SettingsPaneScroll {
+            Text("Manage music tracking, appearance, and notifications.")
+                .fieldSubtitle()
+
             MusicMonitorSettingsView(configure: configure)
                 .deepLinkSection("music")
 

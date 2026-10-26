@@ -44,6 +44,9 @@ struct AboutSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Version details, helpful links, and legal information.")
+                .fieldSubtitle()
+
             identityCard
             actionsCard
             linksCard

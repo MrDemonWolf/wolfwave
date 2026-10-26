@@ -66,6 +66,9 @@ struct SongRequestSettingsView: View {
     /// sidebar next to the main settings sidebar.)
     var body: some View {
         SettingsPaneScroll {
+            Text("Let viewers request songs and manage what plays next.")
+                .fieldSubtitle()
+
             SongRequestHeader()
             if playlistStatus != .ok {
                 SongRequestHealthBanner(
