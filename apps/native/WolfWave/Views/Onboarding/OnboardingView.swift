@@ -143,8 +143,14 @@ struct OnboardingView: View {
         // a value on a "Setup progress" label) is what both VoiceOver and the
         // UI tests read reliably for a non-control element on macOS.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Setup progress. \(viewModel.currentStep.progressText): \(viewModel.currentStep.accessibilityTitle)")
+        .accessibilityLabel(progressLabel)
         .accessibilityIdentifier("onboarding.progress")
+    }
+
+    /// "Setup progress. Step 2 of 7: Apple Music", spoken as one sentence.
+    private var progressLabel: String {
+        let step = viewModel.currentStep
+        return "Setup progress. \(step.progressText): \(step.accessibilityTitle)"
     }
 
     /// Done steps and the current one take the accent; steps ahead stay grey.
