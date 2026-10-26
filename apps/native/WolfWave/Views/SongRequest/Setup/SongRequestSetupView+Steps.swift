@@ -206,7 +206,6 @@ extension SongRequestSetupView {
             title: "Share your playlist",
             description: "Want !playlist to post a link to your requests playlist in chat? "
                 + "Make it public here, or skip.",
-            isOptional: true,
             icon: {
                 BrandTile(
                     background: AnyShapeStyle(AppConstants.Brand.twitch),
@@ -307,12 +306,10 @@ extension SongRequestSetupView {
         )
     }
 
-    /// Wraps a step's extras: one consistent stack, pinned to the top of the
-    /// scaffold's extras slot. The scaffold centers short extras in a tall
-    /// slot, which left a large gap under the header; filling the slot from
-    /// the top keeps every step's content right under its description. It also
-    /// keeps multi-view extras in one stack, where a bare `Group` let the
-    /// scaffold frame each child separately.
+    /// Wraps a step's extras in one consistent stack, so multi-view extras
+    /// lay out together instead of the scaffold framing each child of a bare
+    /// `Group` separately. The scaffold is top-aligned, so the content sits
+    /// right under the description.
     func stepExtras<Content: View>(
         alignment: HorizontalAlignment = .center,
         @ViewBuilder _ content: () -> Content
@@ -321,7 +318,6 @@ extension SongRequestSetupView {
             content()
         }
         .frame(maxWidth: .infinity, alignment: Alignment(horizontal: alignment, vertical: .top))
-        .frame(minHeight: DSDimension.Onboarding.stepContentMinHeight, alignment: .top)
     }
 
     /// Persists the share-link draft when it is blank or a valid HTTPS link

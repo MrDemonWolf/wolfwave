@@ -71,7 +71,7 @@ graph TD
 
 ## Do / Don't
 
-- ✅ Use it for every interior onboarding step, so the header never moves between screens.
+- ✅ Use it for every interior onboarding step, so the header never moves between screens. The Song Requests guided setup (`SongRequestSetupView+Steps.swift`) uses it too.
 - ✅ Keep the description to one short sentence. The controls explain the rest.
 - ✅ Let tall controls run down the window; the container scrolls.
 - ❌ Don't center it vertically again. That's what floated the controls away from the copy.
