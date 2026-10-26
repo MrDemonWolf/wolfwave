@@ -27,6 +27,12 @@ struct AppConstantsTests {
         #endif
     }
 
+    @Test("Dock and menu visibility are controlled at runtime")
+    func testAppDoesNotLaunchAsAnAgent() {
+        let isAgent = Bundle.main.object(forInfoDictionaryKey: "LSUIElement") as? Bool ?? false
+        #expect(!isAgent, "Debug and Release must both support the runtime Dock visibility policy")
+    }
+
     @Test("Version and build number constants are defined")
     func testVersionAndBuildNumber() async throws {
         // Hosted tests run inside the app product, so the real Info.plist values

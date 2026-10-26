@@ -134,49 +134,64 @@ struct CopyableURLRow<Trailing: View>: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: DSSpace.s2) {
-            VStack(alignment: .leading, spacing: DSSpace.s0) {
-                if let label {
-                    HStack(spacing: DSSpace.s2) {
-                        Text(label)
-                            .font(.system(size: DSFont.Size.sm, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        if isStreamerMode { StreamerModeBadge() }
-                    }
-                } else if isStreamerMode {
-                    HStack { StreamerModeBadge(); Spacer() }
-                }
-
-                Text(StreamerMode.mask(url, style: .url, isOn: isStreamerMode))
-                    .font(.system(size: DSFont.Size.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .contentTransition(.opacity)
-                    .lineLimit(urlLineLimit)
-                    .fixedSize(horizontal: false, vertical: urlLineLimit != nil)
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            Spacer()
-
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: DSSpace.s2) {
-                CopyButton(
-                    text: url,
-                    label: copyLabel,
-                    copiedLabel: copiedLabel,
-                    isDisabled: effectiveDisabled,
-                    accessibilityLabel: copyAccessibilityLabel,
-                    accessibilityIdentifier: copyAccessibilityIdentifier,
-                    disabledHint: disabledHint
-                )
-                trailing()
+                details
+                Spacer()
+                actions
             }
-            .help(disabledHint ?? "")
+            .frame(minWidth: DSDimension.Settings.inlineActionsMinWidth)
+
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                details
+                actions
+            }
         }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s0) {
+            if let label {
+                HStack(spacing: DSSpace.s2) {
+                    Text(label)
+                        .font(.system(size: DSFont.Size.sm, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    if isStreamerMode { StreamerModeBadge() }
+                }
+            } else if isStreamerMode {
+                HStack { StreamerModeBadge(); Spacer() }
+            }
+
+            Text(StreamerMode.mask(url, style: .url, isOn: isStreamerMode))
+                .font(.system(size: DSFont.Size.body, design: .monospaced))
+                .textSelection(.enabled)
+                .contentTransition(.opacity)
+                .lineLimit(urlLineLimit)
+                .fixedSize(horizontal: false, vertical: urlLineLimit != nil)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: DSSpace.s2) {
+            CopyButton(
+                text: url,
+                label: copyLabel,
+                copiedLabel: copiedLabel,
+                isDisabled: effectiveDisabled,
+                accessibilityLabel: copyAccessibilityLabel,
+                accessibilityIdentifier: copyAccessibilityIdentifier,
+                disabledHint: disabledHint
+            )
+            trailing()
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .help(disabledHint ?? "")
     }
 }
 

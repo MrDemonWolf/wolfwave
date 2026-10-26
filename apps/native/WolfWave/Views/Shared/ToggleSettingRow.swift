@@ -20,11 +20,11 @@ struct ToggleSettingRow: View {
     let subtitle: String
     /// The setting being toggled.
     @Binding var isOn: Bool
-    /// Switch size; small by default to match settings rows.
-    var controlSize: ControlSize = .small
+    /// Standard macOS control size; compact callers can explicitly opt into small.
+    var controlSize: ControlSize = .regular
     /// Disables the switch and dims the whole row.
     var isDisabled: Bool = false
-    /// VoiceOver label for the switch (the visible title is not attached to it).
+    /// VoiceOver label for the toggle.
     var accessibilityLabel: String
     /// UI-test identifier for the switch.
     var accessibilityIdentifier: String
@@ -35,37 +35,30 @@ struct ToggleSettingRow: View {
     /// elsewhere (another view, a defaults change) triggers it too.
     var onChange: ((Bool) -> Void)?
 
-    /// Inherited enabled state. The row dims when either this or `isDisabled`
-    /// turns it off, so a `.disabled(_:)` on an ancestor dims it too.
-    @Environment(\.isEnabled) private var isEnabled
-
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: DSSpace.s4) {
+        toggle
+    }
+
+    // MARK: - Private Views
+
+    /// Keep the label inside the native control for keyboard and VoiceOver routing.
+    @ViewBuilder
+    private var toggle: some View {
+        let base = Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: DSSpace.s0) {
                 Text(title)
                     .font(.system(size: DSFont.Size.base, weight: .medium))
                 Text(subtitle)
                     .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            toggle
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .opacity(!isEnabled || isDisabled ? 0.5 : 1.0)
-    }
-
-    // MARK: - Private Views
-
-    /// The label-hidden switch carrying the accessibility contract.
-    @ViewBuilder
-    private var toggle: some View {
-        let base = Toggle("", isOn: $isOn)
-            .labelsHidden()
             .toggleStyle(.switch)
             .controlSize(controlSize)
-            .pointerCursor()
             .disabled(isDisabled)
             .accessibilityLabel(accessibilityLabel)
             .accessibilityIdentifier(accessibilityIdentifier)

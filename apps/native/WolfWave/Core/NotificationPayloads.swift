@@ -146,14 +146,6 @@ extension NotificationCenter {
         post(name: .updateStateChanged, object: nil, userInfo: info)
     }
 
-    /// Posts `.openSettingsRequested`: a bare signal asking `SettingsSceneBridge`
-    /// (hosted in the hidden helper window) to invoke the live `openSettings`
-    /// environment action. Carries no payload; callers that want a specific
-    /// pane set `SettingsNavigation.shared.pending` first (`navigateSettings(to:)`).
-    nonisolated func postOpenSettingsRequested() {
-        post(name: .openSettingsRequested, object: nil)
-    }
-
     /// Posts `.voteSkipStateChanged`. Passing `nil` clears the indicator (no
     /// active session) by posting an empty payload.
     nonisolated func postVoteSkipState(_ state: (count: Int, needed: Int)?) {

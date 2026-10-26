@@ -75,7 +75,7 @@ struct NowPlayingHeroCard: View {
 
                     Text(track ?? emptyStateTitle)
                         .font(.system(size: DSFont.Size.lg, weight: .semibold))
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .foregroundStyle(track == nil ? .secondary : .primary)
                         .contentTransition(.opacity)
                         .id(track ?? emptyStateTitle)
@@ -84,7 +84,7 @@ struct NowPlayingHeroCard: View {
                         Text(subtitle)
                             .font(.system(size: DSFont.Size.base))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .lineLimit(2)
                             .contentTransition(.opacity)
                             .id(subtitle)
                     }

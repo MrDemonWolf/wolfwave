@@ -143,6 +143,8 @@ update with `brew upgrade --cask`.
   access; if your settings don't sync, Export and Import always work.
 - **Menu bar, Dock, or both.** Plus launch at login and Light, Dark,
   or System appearance.
+- **Native settings controls.** Standard macOS switches keep their labels,
+  keyboard behavior, and readable descriptions together across settings panes.
 - **Updates your way.** Stable by default, or opt into
   [Nightly builds](https://mrdemonwolf.github.io/wolfwave/docs/nightly)
   in Settings > Software Update.

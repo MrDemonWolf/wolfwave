@@ -33,8 +33,8 @@ NowPlayingHeroCard(
 ## Tokens used
 - `DSDimension.Settings.cardCornerRadius` (14): card corner radius via `.cardStyleUnpadded()` (opaque `controlBackgroundColor` surface)
 - `.sectionEyebrow()` (`DSFont.Size.sm` 11, semibold, `.secondary`, sentence case): "Now playing" / "Paused" eyebrow label
-- `DSFont.Size.lg` (17) `.semibold`: track title
-- `DSFont.Size.base` (13) `.secondary`: artist · album subtitle
+- `DSFont.Size.lg` (17) `.semibold`: track title, up to two lines in compact panes
+- `DSFont.Size.base` (13) `.secondary`: artist · album subtitle, up to two lines
 - `DSFont.Size.sm` (11) monospaced: scrubber timestamps
 - `DSSpace.s7` (20): card outer padding
 - `DSSpace.s6` (16): artwork ↔ text gap

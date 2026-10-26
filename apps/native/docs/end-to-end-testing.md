@@ -39,9 +39,10 @@ Adding or enabling it grants broad device-control access and may require the
 Mac's owner to unlock System Settings. Handle that approval manually.
 
 `Timed out while enabling automation mode` before any test case starts is a
-runner setup failure. Check Xcode Helper's permission before changing app code
-or rerunning the entire suite. A successful build does not prove that UI tests
-executed.
+runner setup failure. An absent Xcode Helper entry alone does not establish its
+cause. Try one focused test in a fresh session before changing app code or
+permissions. If macOS requests helper access, handle that approval explicitly.
+A successful build does not prove that UI tests executed.
 
 That is possible because of one seam: `Core/UITestMode.swift`. The UI test bundle
 sets `WOLFWAVE_UI_TEST=1` on the app's launch environment, and the app responds by
@@ -61,6 +62,8 @@ Additional environment flags shape the starting state, declared in
 | `WOLFWAVE_UI_TEST_ONBOARDED=1` | Start past the wizard. |
 | `WOLFWAVE_UI_TEST_NO_WHATS_NEW=1` | Suppress the What's New window. |
 | `WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED=1` | Show configured Song Requests without external accounts. |
+| `WOLFWAVE_UI_TEST_SETTINGS_SIZE=minimum` or `ideal` | Use the design system's corresponding window dimensions. |
+| `WOLFWAVE_UI_TEST_APPEARANCE=light` or `dark` | Seed the isolated appearance preference before the first frame. |
 
 Subclasses of `WolfWaveUITestCase` declare what they want through
 `launchOptions` and get a launched, activated `app`.
@@ -74,16 +77,20 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
 - **Onboarding**: the window opens on a true first launch; walking Next through
   every step reaches Finish and closes the wizard; Back returns a step; Skip All
   dismisses it.
-- **Settings**: Cmd+, opens the window, and every sidebar pane renders. That
+- **Settings**: the native App menu opens the window, and every sidebar pane renders. That
   second one exists because of a real shipped bug: a persisted value outside a
   picker's tag set trapped inside SwiftUI's layout and took the whole settings
   window down. No unit test can see that, because the crash is in SwiftUI, not
   in our code. Rendering each pane for real is the assertion. A second pass over
   the panes catches teardown that only misbehaves on a revisit.
-- **Pane screenshots**: `testCapturesEveryPane` attaches an image of every pane
-  to the result bundle (`lifetime = .keepAlways`) and asserts nothing on
-  purpose. Rendering proves a pane doesn't trap; it says nothing about how it
-  looks, which is how mismatched card widths shipped. Pull them out with:
+- **Window lifecycle and navigation**: close and reopen Settings three times
+  with Cmd+comma, restore a minimized window, keep one Settings instance, follow
+  the selected pane in the toolbar title, and navigate the stock sidebar with
+  Down/Up Arrow.
+- **Pane screenshots**: `testCapturesEveryPane` captures every pane at minimum
+  and ideal width, in Light and Dark (40 images). It checks the window width,
+  minimum sidebar width, and horizontal pane containment. The images still need visual review for internal
+  alignment, wrapping, and density. Pull them out with:
 
   ```bash
   make test-ui
@@ -102,6 +109,9 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
 - **Layout regressions**: History & Stats retains its pane heading, and the
   request queue action appears above request configuration. These cover the
   title omission and queue-below-settings ordering found in the spacing review.
+- **Compact queue controls**: the 640-point window keeps Hold and Clear Requests
+  reachable, and Hold changes to Resume even before any songs arrive. Populated
+  queues and real Apple Music playback remain separate release checks.
 
 ### Adding a UI test
 

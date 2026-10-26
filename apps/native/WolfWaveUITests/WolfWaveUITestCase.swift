@@ -107,6 +107,8 @@ enum UITestEnvironment {
     static let onboarded = "WOLFWAVE_UI_TEST_ONBOARDED"
     static let suppressWhatsNew = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
     static let songRequestsEnabled = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
+    static let settingsSize = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
+    static let appearance = "WOLFWAVE_UI_TEST_APPEARANCE"
 }
 
 /// Window identifiers, mirrored from the app for the same reason as the

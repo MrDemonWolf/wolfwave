@@ -87,6 +87,9 @@ struct SongRequestQueueView: View {
                 }
             }
 
+            // Keep playback controls above the list even when many requests arrive.
+            actionButtons
+
             // Why nothing plays. Shown under the header so the chip's short
             // label always has a plain-language reason next to it. An empty
             // queue explains the hold in its own empty state instead.
@@ -119,9 +122,6 @@ struct SongRequestQueueView: View {
                 queueList
             }
 
-            // Actions. Held always shows them, so Resume stays reachable even
-            // with an empty queue.
-            actionButtons
             if isClearingRequests {
                 LoadingRow(text: "Clearing queue and request playlist…")
             } else if requestPlaylistClearFailed {
@@ -307,7 +307,7 @@ struct SongRequestQueueView: View {
 
     /// Plain-language reason the queue is held, with the way out.
     private var heldNote: some View {
-        statusNote("On hold. Requests still queue, but nothing plays until you tap Resume.")
+        statusNote("On hold. Requests still queue; choose Resume to play them.")
             .accessibilityIdentifier("songRequestQueue.heldNote")
     }
 
@@ -333,7 +333,7 @@ struct SongRequestQueueView: View {
                 .foregroundStyle(.secondary)
             // `LocalizedStringKey`, not `String`, so the `!sr` code span renders.
             Text(isHeld
-                ? LocalizedStringKey("The queue is on hold. Tap Resume when you're ready.")
+                ? LocalizedStringKey("The queue is on hold. Choose Resume when you're ready.")
                 : LocalizedStringKey("Viewers can request songs with `!sr` in Twitch chat"))
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
@@ -354,6 +354,7 @@ struct SongRequestQueueView: View {
                 AsyncActionButton(
                     title: "Skip",
                     systemImage: "forward.fill",
+                    size: .regular,
                     labelSize: DSFont.Size.sm,
                     showsSuccess: false,
                     accessibilityIdentifier: "songRequestQueue.skip"
@@ -363,18 +364,17 @@ struct SongRequestQueueView: View {
                 }
             }
 
-            if !isQueueEmpty || isHeld {
-                AsyncActionButton(
-                    title: isHeld ? "Resume" : "Hold",
-                    systemImage: isHeld ? "play.fill" : "pause.fill",
-                    tint: isHeld ? DSColor.success : DSColor.warning,
-                    labelSize: DSFont.Size.sm,
-                    showsSuccess: false,
-                    accessibilityIdentifier: "songRequestQueue.hold"
-                ) {
-                    await service?.setHold(!isHeld)
-                    refreshState()
-                }
+            AsyncActionButton(
+                title: isHeld ? "Resume" : "Hold",
+                systemImage: isHeld ? "play.fill" : "pause.fill",
+                size: .regular,
+                tint: isHeld ? DSColor.success : DSColor.warning,
+                labelSize: DSFont.Size.sm,
+                showsSuccess: false,
+                accessibilityIdentifier: "songRequestQueue.hold"
+            ) {
+                await service?.setHold(!isHeld)
+                refreshState()
             }
 
             Button {
@@ -384,7 +384,7 @@ struct SongRequestQueueView: View {
                     .font(.system(size: DSFont.Size.sm))
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
+            .controlSize(.regular)
             .disabled(isClearingRequests)
             .help("Clear the queue and WolfWave Requests playlist. Songs stay in your Apple Music library.")
             .accessibilityIdentifier("songRequestQueue.clearRequests")
@@ -404,6 +404,8 @@ struct SongRequestQueueView: View {
                         refreshState()
                     }
                 }
+                Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("songRequestQueue.cancelClear")
             } message: {
                 Text(isQueueEmpty
                     ? "This empties WolfWave Requests, including its shared playlist link. "
@@ -415,6 +417,7 @@ struct SongRequestQueueView: View {
 
             Spacer()
         }
+        .disabled(isClearingRequests)
     }
 
     // MARK: - Artwork Placeholders

@@ -80,7 +80,7 @@ struct AboutSettingsView: View {
     /// icon-left / text-right layout.
     private var hero: some View {
         HStack(alignment: .center, spacing: DSSpace.s5) {
-            Image(nsImage: NSApp.applicationIconImage)
+            Image(AboutCopy.iconAssetName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 72, height: 72)

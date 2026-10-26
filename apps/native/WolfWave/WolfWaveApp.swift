@@ -28,8 +28,9 @@ struct WolfWaveApp: App {
     @AppStorage(AppConstants.UserDefaults.sponsorLinksEnabled)
     private var sponsorLinksEnabled = AppConstants.UserDefaults.Defaults.sponsorLinksEnabled
 
-    /// Identifier for the Settings `Window` scene. Shared with
-    /// `SettingsSceneBridge`, which opens it via `@Environment(\.openWindow)`.
+    @Environment(\.openWindow) private var openWindow
+
+    /// Identifier shared by the SwiftUI scene and its realized AppKit window.
     static let settingsWindowID = "wolfwave-settings"
 
     /// True when the app is launched as a test host by xcodebuild.
@@ -43,28 +44,6 @@ struct WolfWaveApp: App {
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
-        // Hidden helper window that hosts `SettingsSceneBridge`, declared BEFORE
-        // the Settings `Window` scene. Scene order is load-bearing: a helper
-        // window placed after the Settings scene leaves the bridge's
-        // `openWindow(id:)` action a silent no-op. It gives the AppKit entry
-        // points (tray menu, Dock menu, Dock reopen, Twitch re-auth) a live
-        // SwiftUI scene tree to drive, so they open Settings via the public
-        // `openWindow(id:)` environment action rather than the private
-        // `showSettingsWindow:` selector. `BridgeWindowNeutralizer` keeps this
-        // window offscreen and invisible, so it never appears and never trips
-        // `applyDockVisibility`'s probe. The app stays alive when this window
-        // orders out via `applicationShouldTerminateAfterLastWindowClosed`
-        // returning `false`.
-        Window("WolfWave Settings Bridge", id: SettingsSceneBridge.windowID) {
-            SettingsSceneBridge()
-        }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 1, height: 1)
-        .commandsRemoved()
-        // Hidden 1×1 host: never persist/restore its frame (avoids the
-        // "window frame from string '… 0 1 …' failed" restore log).
-        .restorationBehavior(.disabled)
-
         // Settings lives in a dedicated SwiftUI `Window` scene (NOT a `Settings`
         // scene). A real window scene is the only host where SwiftUI fully owns
         // the window chrome the way the Landmarks sample does: the
@@ -78,10 +57,7 @@ struct WolfWaveApp: App {
         // reopening just fronts the existing window. `.restorationBehavior(.disabled)`
         // keeps a menu-bar app from auto-restoring Settings at launch.
         //
-        // AppDelegate still drives *when* the window opens (dock-visibility
-        // activation policy, tray/reopen entry points) by posting
-        // `.openSettingsRequested` to `SettingsSceneBridge`, which now runs the
-        // public `openWindow(id:)` action.
+        // AppKit entry points retain their request until this scene realizes.
         Window("WolfWave Settings", id: WolfWaveApp.settingsWindowID) {
             // Points every `@AppStorage` below this scene at the same store the
             // rest of the app writes through. In a normal launch that is
@@ -91,16 +67,18 @@ struct WolfWaveApp: App {
             SettingsView()
                 .defaultAppStorage(DefaultsStore.store)
         }
+        .defaultSize(
+            width: UITestMode.settingsWindowSize?.width ?? AppConstants.SettingsUI.idealWidth,
+            height: UITestMode.settingsWindowSize?.height ?? AppConstants.SettingsUI.idealHeight
+        )
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
+        .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
-        // Suppress the scene's default macOS commands. A `Window(_:id:)` scene
-        // otherwise injects a "WolfWave Settings" entry into the Window menu that
-        // duplicates Cmd+, and reads oddly for a menu-bar app. `openWindow(id:)`
-        // (used by `SettingsSceneBridge`) is an environment action, not a menu
-        // command, so it keeps working. Our explicit `.commands` below are added
-        // on top and are unaffected.
-        .commandsRemoved()
+        .onChange(of: SettingsNavigation.shared.isOpenRequested, initial: true) { _, requested in
+            if requested { openWindow(id: Self.settingsWindowID) }
+        }
+        // Keep native Quit, Hide, Edit, and window commands available in Dock mode.
         .commands {
             // Route the standard App menu's About/Settings to our AppKit
             // windows so the system main menu matches the tray when the app
@@ -117,8 +95,7 @@ struct WolfWaveApp: App {
             }
             // Cmd+, routes through `appDelegate.openSettings()`, the same path
             // the tray/Dock/Twitch-reauth entry points use, so there is exactly
-            // one way the Settings window opens (post `.openSettingsRequested` →
-            // `SettingsSceneBridge` runs `openWindow(id:)`). `SettingsLink` is not
+            // one way the Settings window opens. `SettingsLink` is not
             // usable here because it only opens a `Settings` scene, which this app
             // no longer declares.
             //
@@ -467,11 +444,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Keeps the menu-bar app alive when its last window closes.
     ///
     /// WolfWave lives in the status bar (and optionally the Dock) and quits only
-    /// via the explicit Quit item, never by closing a window. Returning `false`
-    /// matters now that `WolfWaveApp.body` declares a hidden `Window` scene for
-    /// `SettingsSceneBridge`: that helper window is ordered out at launch, so
-    /// without this the app could see zero windows and auto-terminate right after
-    /// launching.
+    /// via the explicit Quit item, never by closing a window.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }

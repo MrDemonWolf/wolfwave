@@ -19,7 +19,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Settings fits smaller workspaces.** The minimum width is 640 points for MacBook half-screen layouts. Integration rows stack their status and Configure action when space is tight, toolbar titles follow the selected pane, and sidebar group labels share one heading style.
+- **Queue controls stay above the songs.** Skip, Hold/Resume, and Clear Requests use larger native buttons at the top of the queue. Hold is available before the first request arrives.
+- **Native switches throughout Settings.** Labels and descriptions belong to their macOS controls, switches use the standard size, and helper text is easier to read and wraps without clipping.
 - **Calmer website motion.** Shorter, smaller entrances replace the pronounced section movement. Scroll replay resets only once content leaves the screen, and hero elements appear with less stagger.
+- **Settings opens at its preferred size.** Fresh settings windows use the design system's preferred dimensions, with the existing minimum size still supported.
 - **Clearer pane headings and queue access.** History & Stats has a full pane heading. Song Requests keeps its title aligned, folds the explainer behind “How it works,” and puts the active queue before configuration controls.
 - **Consistent spacing across Settings.** Twitch, Discord, Software Update, Advanced, and About use the same section spacing as the other panes, while related controls keep their tighter grouping.
 - **Clear Requests also clears the shared playlist.** Settings and the menu bar ask first, then empty WolfWave Requests; Music stops when requests are queued, pending, or playing, but keeps playing when only the old playlist is cleared. Songs stay in your library. The menu bar reports cleanup failures, and `!clearqueue` tells chat when cleanup fails.
@@ -52,6 +56,10 @@ All notable changes to this project will be documented in this file.
 - **The last `!stats` fact can't be switched off.** Its chip locks with "Keep at least one." instead of ignoring your click.
 
 ### Fixed
+
+- **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
+- **About follows the app appearance.** The app icon uses its existing Light and Dark artwork, including the DEV badge in development builds.
+- **Standard Mac menu commands are back.** Quit, Hide, and the Edit menu are available while Settings is open.
 
 - **Credential prompts leave the interface responsive.** Startup Twitch validation, reconnect checks, the General dashboard, and the Twitch account pane read credentials away from the main actor. The Twitch pane shows loading feedback while Keychain waits.
 - **Local builds reuse an available Apple signing identity.** Debug builds and tests prefer Apple Development, then Developer ID Application, so rebuilds do not keep changing the app's identity. Moving from an unsigned build may still require a one-time macOS data-access confirmation.
@@ -111,6 +119,8 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **Debug and Release share the activation policy.** Both packaged apps set `LSUIElement = NO`; Dock and menu-only behavior remains controlled at runtime. A hosted regression checks the app's actual metadata.
+- **Settings window lookup uses scene identity.** Existing and minimized windows are matched by their exact identifier; the hidden scene bridge and timing-based lookup are removed.
 - **Stream Deck protocol v3.** `StreamDeckAction` adds `announce_song`, `reject_current`, `block_requester`, and `cycle_audience`, drops the Discord / Music Sync / theme / status actions, and `StreamDeckControl.protocolVersion` is 3. Change the TypeScript mirror in `apps/streamdeck/src/wolfwave/` in the same PR.
 - **Stream Deck plugin.** `WolfWaveClient` swallows a late ack from a timed-out press and reports handshake rejections; `src/connection-status.ts` maps client state to the Property Inspector message; key repaints use a paint generation so a suspended render can't install a timer late; the Property Inspector saves a 64-hex control token on paste.
 - **`streamDeckControlEnabled` and `StreamDeckPaneStatus`.** The command switch defaults to on (read it through `FeatureFlags`). The header-chip precedence (server off, server error, starting, commands off, then Ready only for `.listening`) is a pure `nonisolated` resolver with tests, and `WebSocketServerCard` takes the parent's `serverState`.

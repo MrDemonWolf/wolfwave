@@ -5,6 +5,8 @@
 ## Purpose
 A settings row that shows a copyable URL - optional label + `StreamerModeBadge`, the URL in a masked monospaced font, an optional helper subtitle, and a trailing `CopyButton` (plus an optional accessory like `OpenInBrowserButton`). Folds the four hand-rolled masked-URL rows in Stream Widgets settings into one component so Streamer Mode masking, the badge guard, and the copy-disabled rule live in a single place.
 
+At compact widths, the actions move beneath the URL so Copy Link and Open retain their complete labels.
+
 ## API
 ```swift
 CopyableURLRow(
@@ -53,6 +55,7 @@ CopyableURLRow(
 - `DSFont.Size.sm` (11) - label / `DSFont.Size.body` (12) monospaced URL / `DSFont.Size.xs` (10) subtitle
 - `DSSpace.s2` (8) - row + label + trailing-button gaps
 - `DSSpace.s0` (2) - vertical rhythm inside the text column
+- `DSDimension.Settings.inlineActionsMinWidth` (480) - minimum width for inline actions; narrower rows stack through `ViewThatFits`
 - Delegates the copy affordance to `CopyButton` and masking to `StreamerMode.mask(_:style:.url:)`
 
 ## Anatomy
