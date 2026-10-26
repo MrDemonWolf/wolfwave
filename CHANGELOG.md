@@ -19,8 +19,16 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Settings fits smaller workspaces.** The minimum width is 640 points for MacBook half-screen layouts. Integration rows stack their status and Configure action when space is tight, toolbar titles follow the selected pane, and sidebar group labels share one heading style.
+- **Queue controls stay above the songs.** Skip, Hold/Resume, and Clear Requests use larger native buttons at the top of the queue. Hold is available before the first request arrives.
+- **Native switches throughout Settings.** Labels and descriptions belong to their macOS controls, switches use the standard size, and helper text is easier to read and wraps without clipping.
 - **Calmer website motion.** Shorter, smaller entrances replace the pronounced section movement. Scroll replay resets only once content leaves the screen, and hero elements appear with less stagger.
-
+- **Settings opens at its preferred size.** Fresh settings windows use the design system's preferred dimensions, with the existing minimum size still supported.
+- **Clearer pane headings and queue access.** History & Stats has a full pane heading. Song Requests keeps its title aligned, folds the explainer behind “How it works,” and puts the active queue before configuration controls.
+- **Consistent spacing across Settings.** Twitch, Discord, Software Update, Advanced, and About use the same section spacing as the other panes, while related controls keep their tighter grouping.
+- **Clear Requests also clears the shared playlist.** Settings and the menu bar ask first, then empty WolfWave Requests; Music stops when requests are queued, pending, or playing, but keeps playing when only the old playlist is cleared. Songs stay in your library. The menu bar reports cleanup failures, and `!clearqueue` tells chat when cleanup fails.
+- **Song Requests are easier to scan.** The live queue stays near the top, settings are grouped into Request Setup, Queue Behavior, and Moderation, and slow playlist checks and clears show progress. The AutoPlay setting explains that Music's AutoPlay must be enabled in Playing Next and that a fallback playlist takes priority.
+- **Stream Deck credentials show their loading state.** The control-token editor keeps its layout and shows progress while Keychain values load.
 - **Updated web and tooling dependencies.** Refreshed Next.js, Fumadocs, React, the overlay test environment, Stream Deck SDK, and marketing tooling. Compatible updates and remaining migration limits are recorded in `docs/dependency-upgrades.md`.
 
 - **Simpler documentation.** The sidebar separates getting started, everyday guides, and help. The docs home is shorter, and setup tabs have larger targets, clearer selection and keyboard focus, and consistent reading space. Landing feature cards link directly to their guides, and scroll entrances replay when you return to a section.
@@ -49,6 +57,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
+- **About follows the app appearance.** The app icon uses its existing Light and Dark artwork, including the DEV badge in development builds.
+- **Standard Mac menu commands are back.** Quit, Hide, and the Edit menu are available while Settings is open.
+
+- **Credential prompts leave the interface responsive.** Startup Twitch validation, reconnect checks, the General dashboard, and the Twitch account pane read credentials away from the main actor. The Twitch pane shows loading feedback while Keychain waits.
+- **Local builds reuse an available Apple signing identity.** Debug builds and tests prefer Apple Development, then Developer ID Application, so rebuilds do not keep changing the app's identity. Moving from an unsigned build may still require a one-time macOS data-access confirmation.
+- **CI checks cover every changed area.** An aggregate check verifies the applicable native, UI, docs, Stream Deck, and lint jobs. Sponsor refreshes report a missing token instead of failing every day.
+- **App Visibility follows the selected mode.** Menu Bar Only hides the Dock icon after the last window closes, and Dock Only hides the menu bar item as soon as WolfWave starts.
 - **Song Requests setup no longer cries wolf about Sync Library.** Right after making the WolfWave Requests playlist, setup used to warn that Music couldn't see it, before iCloud had a chance to sync. It now waits up to about 40 seconds ("Adding it to Music…") and only warns if the playlist still hasn't shown up. The warning names the exact switch, Music › Settings › General › Sync Library, and Check Again waits again. The Song Requests settings banner works the same way, and its Check Again button shows a spinner while it checks. Setup steps also sit right under their headings now, with shorter wording.
 - **`!song`, `!last`, and `!stats` honor their cooldown.** When several viewers sent one at the same moment, they all got a reply.
 - **A refused `!sr` no longer blocks everyone else.** A viewer who isn't allowed to request, or `!sr` while requests are off, no longer puts it on cooldown for the rest of chat. Those refusal replies are throttled so they can't flood chat.
@@ -107,6 +123,8 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **Debug and Release share the activation policy.** Both packaged apps set `LSUIElement = NO`; Dock and menu-only behavior remains controlled at runtime. A hosted regression checks the app's actual metadata.
+- **Settings window lookup uses scene identity.** Existing and minimized windows are matched by their exact identifier; the hidden scene bridge and timing-based lookup are removed.
 - `PlaylistVisibilityWait` (Services/SongRequest) re-probes Music.app's local library every 2 s for about 40 s after the requests playlist is made, so iCloud sync latency no longer reads as Sync Library being off. The setup step runs it in a `.task` keyed on the step and a Check Again counter, so it is cancelled with the step or sheet. `runSetupHealthCheck(forceWait:)` uses the same wait unless the gap is already on the banner. Covered by `PlaylistVisibilityWaitTests` with a scripted probe and sleep.
 - **Stream Deck protocol v3.** `StreamDeckAction` adds `announce_song`, `reject_current`, `block_requester`, and `cycle_audience`, drops the Discord / Music Sync / theme / status actions, and `StreamDeckControl.protocolVersion` is 3. Change the TypeScript mirror in `apps/streamdeck/src/wolfwave/` in the same PR.
 - **Stream Deck plugin.** `WolfWaveClient` swallows a late ack from a timed-out press and reports handshake rejections; `src/connection-status.ts` maps client state to the Property Inspector message; key repaints use a paint generation so a suspended render can't install a timer late; the Property Inspector saves a 64-hex control token on paste.

@@ -23,27 +23,45 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      - name: Check SponsorKit configuration
+        id: sponsorkit
+        env:
+          SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_TOKEN }}
+        run: |
+          if [[ -n "$SPONSORKIT_GITHUB_TOKEN" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Sponsor refresh skipped: SPONSORKIT_TOKEN is not configured."
+            echo "Sponsor refresh skipped because SPONSORKIT_TOKEN is not configured." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       # Generation has no persisted checkout credential; only the final step
       # receives the repository token used to open the generated update PR.
       - name: Checkout
+        if: steps.sponsorkit.outputs.available == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup Bun
+        if: steps.sponsorkit.outputs.available == 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.11
 
       - name: Install pinned dependencies
+        if: steps.sponsorkit.outputs.available == 'true'
         run: bun install --frozen-lockfile
 
       - name: Generate sponsors SVG
+        if: steps.sponsorkit.outputs.available == 'true'
         env:
           SPONSORKIT_GITHUB_TOKEN: ${{ secrets.SPONSORKIT_TOKEN }}
         run: bun run sponsorkit
 
       - name: Create sponsor update pull request
+        if: steps.sponsorkit.outputs.available == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           add-paths: apps/docs/public/sponsors.svg

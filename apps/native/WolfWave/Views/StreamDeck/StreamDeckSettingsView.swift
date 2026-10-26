@@ -43,6 +43,9 @@ struct StreamDeckSettingsView: View {
     /// the editor writes rotations back through this binding.
     @State private var currentControlToken: String = ""
 
+    /// Keeps the token editor from showing an empty value while Keychain loads.
+    @State private var isLoadingTokens = true
+
     /// The overlay credential, read but never shown here. The editor needs it to
     /// reject a control token that collides with it.
     @State private var currentOverlayToken: String = ""
@@ -88,6 +91,7 @@ struct StreamDeckSettingsView: View {
             }.value
             currentControlToken = tokens.0
             currentOverlayToken = tokens.1
+            isLoadingTokens = false
         }
         .task(id: websocketEnabled) {
             // Re-seed when the switch flips: the notification may have fired
@@ -211,14 +215,21 @@ struct StreamDeckSettingsView: View {
             // No divider: the eyebrow above is this card's only header, and the
             // row below carries its own field label. A rule between them read as
             // two separate headed sections stacked in one card.
-            WebSocketTokenEditorRow(
-                role: .control,
-                title: "Stream Deck Control Token",
-                subtitle: "Different from your overlay token, and it must stay different.",
-                currentToken: $currentControlToken,
-                streamerMode: streamerMode,
-                otherToken: currentOverlayToken
-            )
+            ZStack {
+                WebSocketTokenEditorRow(
+                    role: .control,
+                    title: "Stream Deck Control Token",
+                    subtitle: "Different from your overlay token, and it must stay different.",
+                    currentToken: $currentControlToken,
+                    streamerMode: streamerMode,
+                    otherToken: currentOverlayToken
+                )
+                .skeleton(isLoadingTokens)
+
+                if isLoadingTokens {
+                    LoadingRow(text: "Loading Stream Deck credentials…")
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyleUnpadded()

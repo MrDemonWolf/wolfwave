@@ -16,12 +16,9 @@ extension AppDelegate {
     /// Opens or brings the Settings window to the front.
     ///
     /// Settings is a SwiftUI `Window(_:id:)` scene (`WolfWaveApp.body`), so SwiftUI
-    /// creates, reuses (single-instance), and tears down the window. Rather than
-    /// construct an `NSWindow` ourselves (which would steal the `NSToolbar` and
-    /// reintroduce the sidebar `>>` flash), we hand off to the hidden
-    /// `SettingsSceneBridge` by posting `.openSettingsRequested`. The bridge runs
-    /// the public `openWindow(id: WolfWaveApp.settingsWindowID)` environment
-    /// action, which avoids the private `showSettingsWindow:` selector.
+    /// creates, reuses, and tears down the window. Existing windows are restored
+    /// and fronted directly; new windows use the App's public `openWindow` action.
+    /// The request stays pending until the real window attaches.
     ///
     /// The single entry point for every Settings open: tray, Dock, Cmd-comma,
     /// Dock reopen, deep links, and the Twitch re-auth path.
@@ -40,11 +37,13 @@ extension AppDelegate {
 
         RunLoop.main.perform {
             MainActor.assumeIsolated {
-                // Hand off to the live SwiftUI scene tree: `SettingsSceneBridge`
-                // (hosted in the hidden helper window) reads
-                // `@Environment(\.openWindow)`, activates the app, and opens the
-                // Settings `Window` scene by id via the public action.
-                NotificationCenter.default.postOpenSettingsRequested()
+                if let window = SettingsWindowConfigurator.settingsWindow() {
+                    if window.isMiniaturized { window.deminiaturize(nil) }
+                    window.makeKeyAndOrderFront(nil)
+                    NSApp.activate()
+                } else {
+                    SettingsNavigation.shared.requestOpen()
+                }
             }
         }
     }
@@ -102,8 +101,7 @@ extension AppDelegate {
     ///
     /// Single source for the menu-only activation-policy decision so the initial
     /// apply and the window-close restore never diverge on what counts as a
-    /// "visible" window. (Distinct from `SettingsSceneBridge`'s window lookup,
-    /// which uses a different predicate to locate a specific window.)
+    /// "visible" window.
     private var hasVisibleNormalWindow: Bool {
         NSApp.windows.contains { $0.isVisible && $0.canBecomeKey && $0.level == .normal }
     }
@@ -136,16 +134,15 @@ extension AppDelegate {
     func restoreMenuOnlyIfNeeded() {
         guard currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly else { return }
 
-        if !hasVisibleNormalWindow {
-            // Defer past the current AppKit layout pass: calling
-            // setActivationPolicy(.accessory) inline during a window-close
-            // animation triggers "layoutSubtreeIfNeeded on a view already
-            // being laid out" warnings. RunLoop.main.perform schedules this
-            // on the next .common runloop tick, after layout settles.
-            RunLoop.main.perform {
-                MainActor.assumeIsolated {
-                    _ = NSApp.setActivationPolicy(.accessory)
-                }
+        // `willCloseNotification` fires before AppKit marks the window hidden,
+        // so check visibility only after the close pass has completed.
+        // Deferring also avoids layout warnings from changing policy mid-close.
+        RunLoop.main.perform { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self,
+                      self.currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly,
+                      !self.hasVisibleNormalWindow else { return }
+                _ = NSApp.setActivationPolicy(.accessory)
             }
         }
     }

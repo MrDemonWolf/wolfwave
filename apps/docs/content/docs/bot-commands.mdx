@@ -1,9 +1,9 @@
 ---
 title: Bot Commands
 metaTitle: "Twitch Chat Commands for Apple Music (!song, !sr)"
-description: "Every WolfWave chat command: !song, !sr, !queue, !voteskip and more. What viewers type, what the bot replies, and how streamers set up cooldowns."
+description: "Every WolfWave chat command: !song, !sr, !queue, !clearqueue, !voteskip and more, including what happens to the shared request playlist."
 ogTitle: "!song, !sr, !queue, !voteskip. Apple Music in Twitch chat"
-ogDescription: "What viewers can type in chat, what the bot says back, and how streamers set up cooldowns, aliases, and custom commands."
+ogDescription: "What viewers can type, what the bot replies, and how !clearqueue empties the shared request playlist safely."
 ogEyebrow: Chat commands
 ogChips:
   - "!song"
@@ -18,6 +18,7 @@ keywords:
   - channel point song requests twitch
   - bits song request twitch
   - twitch custom commands mac
+  - clear twitch song request playlist
   - what can i type in twitch chat song request
 ---
 
@@ -148,7 +149,7 @@ Song requests have a master switch: **Enable Song Requests** in Settings → Son
 ### What the mod commands do
 
 - **`!skip` / `!next`** plays the next request. Chat sees the new song. If the queue is empty, it says `Skipped. Queue is now empty.` If Music is busy, it says `Couldn't skip right now, try again.`
-- **`!clearqueue` / `!cq`** removes every request and says how many were removed.
+- **`!clearqueue` / `!cq`** removes every request and empties the shared **WolfWave Requests** playlist. Songs stay in your Apple Music library; the `!playlist` link is empty until new requests arrive.
 - **`!hold`** pauses request playback. New requests still join the queue but don't play. **`!resume`** or **`!unhold`** starts them again. This is the same as the **Hold Queue** switch.
 
 ### Who can request

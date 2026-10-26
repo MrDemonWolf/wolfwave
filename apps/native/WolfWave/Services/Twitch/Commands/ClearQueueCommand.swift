@@ -38,8 +38,7 @@ final class ClearQueueCommand: ServiceBoundCommand {
 
     // MARK: - AsyncBotCommand
 
-    /// Clears every entry in the song request queue (and Music.app's queue,
-    /// via `SongRequestService.clearQueue`).
+    /// Clears the song request queue and the dedicated Apple Music playlist.
     ///
     /// Non-privileged callers are already refused by `isAllowed(context:)`
     /// before the cooldown is claimed; the guard here is defense in depth.
@@ -53,11 +52,15 @@ final class ClearQueueCommand: ServiceBoundCommand {
         guard let service = requirePrivilegedService(context: context) else { return nil }
 
         guard !Task.isCancelled else { return nil }
-        let count = await service.clearQueue()
+        let result = await service.clearQueueAndRequestsPlaylist()
         guard !Task.isCancelled else { return nil }
-        if count > 0 {
-            return "Queue cleared (\(count) \(count == 1 ? "song" : "songs") removed)"
+        guard result.requestPlaylistCleared else {
+            return "Queue cleared, but WolfWave Requests couldn't be cleared."
         }
-        return "Queue is already empty."
+        if result.count > 0 {
+            let noun = result.count == 1 ? "song" : "songs"
+            return "Queue and WolfWave Requests cleared (\(result.count) \(noun) removed)"
+        }
+        return "Queue was already empty; WolfWave Requests was cleared."
     }
 }

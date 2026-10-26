@@ -38,6 +38,8 @@ struct SongRequestSettingsView: View {
     /// Playlist health. Anything other than `.ok` shows the top-of-pane banner.
     @AppStorage(AppConstants.UserDefaults.songRequestPlaylistStatus)
     private var playlistStatus: PlaylistSetupStatus = .ok
+    /// Shows feedback while the playlist health probe is in progress.
+    @State private var isCheckingPlaylistHealth = false
 
     /// Live Twitch connection, from the service and `twitchConnectionStateChanged`.
     @State private var isTwitchConnected = false
@@ -64,9 +66,8 @@ struct SongRequestSettingsView: View {
     /// sidebar next to the main settings sidebar.)
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: DSSpace.s8) {
-                // Broken-playlist banner sits above everything so a "needs setup
-                // again" state is the first thing the streamer sees.
+            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                SongRequestHeader()
                 if playlistStatus != .ok {
                     SongRequestHealthBanner(
                         status: playlistStatus,
@@ -74,16 +75,22 @@ struct SongRequestSettingsView: View {
                     )
                 }
 
-                SongRequestHeader()
+                if isCheckingPlaylistHealth {
+                    LoadingRow(text: "Checking Apple Music playlist…")
+                }
                 twitchNotice
+                if songRequestEnabled && setupComplete {
+                    SongRequestQueueView()
+                        .deepLinkSection("queue")
+                }
                 SongRequestMasterToggleCard(
                     isTwitchConnected: isTwitchConnected,
                     setupComplete: setupComplete,
                     onSetUp: { openSetup(at: .intro) }
                 )
 
-                // Vote-skip skips the live Apple Music track even with no request
-                // queue, so it stays reachable whether or not song requests are on.
+                // Vote-skip works without a request queue, so it stays reachable
+                // whether or not song requests are on.
                 VoteSkipCard()
                     .deepLinkSection("vote-skip")
 
@@ -91,24 +98,36 @@ struct SongRequestSettingsView: View {
                 // the feature is on. Apple Music access is handled inside the
                 // setup sheet, so there's no inline auth card here anymore.
                 if songRequestEnabled && setupComplete {
-                    // The live queue sits up top: it's the thing you check and act
-                    // on mid-stream (skip/hold/clear), so it leads. The set-once
-                    // configuration cards follow below.
-                    SongRequestQueueView()
-                        .deepLinkSection("queue")
-                    SongRequestAccessCard()
-                        .deepLinkSection("access")
-                    SongRequestQueueConfigCard()
-                        .deepLinkSection("queue-settings")
-                    SongRequestPlaybackCard()
-                        .deepLinkSection("playback")
-                    SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
-                        .deepLinkSection("commands")
-                    SongRequestRedemptionsCard()
-                        .deepLinkSection("redemptions")
-                    SongRequestBlocklistCard(
-                        blocklistProvider: { appDelegate?.songRequestService?.blocklist })
-                        .deepLinkSection("blocklist")
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Request setup")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestAccessCard()
+                            .deepLinkSection("access")
+                        SongRequestCommandsCard(onManageLink: { openSetup(at: .shareLink) })
+                            .deepLinkSection("commands")
+                        SongRequestRedemptionsCard()
+                            .deepLinkSection("redemptions")
+                    }
+
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Queue behavior")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestQueueConfigCard()
+                            .deepLinkSection("queue-settings")
+                        SongRequestPlaybackCard()
+                            .deepLinkSection("playback")
+                    }
+
+                    VStack(alignment: .leading, spacing: DSSpace.s4) {
+                        Text("Moderation")
+                            .sectionHeader()
+                            .accessibilityAddTraits(.isHeader)
+                        SongRequestBlocklistCard(
+                            blocklistProvider: { appDelegate?.songRequestService?.blocklist })
+                            .deepLinkSection("blocklist")
+                    }
                 }
             }
             .frame(maxWidth: AppConstants.SettingsUI.maxContentWidth, alignment: .topLeading)
@@ -190,6 +209,9 @@ struct SongRequestSettingsView: View {
     /// - Parameter forceWait: Wait the full time for Music to see the playlist,
     ///   even when it is already known to be missing ("Check Again").
     private func runHealthCheck(forceWait: Bool = false) async {
+        guard !isCheckingPlaylistHealth else { return }
+        isCheckingPlaylistHealth = true
+        defer { isCheckingPlaylistHealth = false }
         await appDelegate?.songRequestService?.runSetupHealthCheck(forceWait: forceWait)
     }
 
@@ -262,11 +284,15 @@ fileprivate struct SongRequestHeader: View {
             )
             .accessibilityAddTraits(.isHeader)
 
-            CalloutBanner(
+            DisclosureGroup("How it works") {
+                CalloutBanner(
                 "Viewers type **!sr song name** in your Twitch chat. WolfWave finds the song on Apple Music and adds it to the queue. Songs play one by one in your Music.app. No window pops up, it just plays quietly in the background. You stay in control: use **!skip** to jump to the next song, or **!clearqueue** to wipe the queue. Only you and your mods can skip or clear.",
-                title: "How it works",
-                style: .info
-            )
+                    title: "How it works",
+                    style: .info
+                )
+            }
+            .font(.system(size: DSFont.Size.base))
+            .accessibilityIdentifier("songRequests.howItWorks")
         }
         // `.contain`, not `.combine`: VoiceOver reaches the heading and the
         // "How it works" callout as separate elements instead of one long

@@ -130,7 +130,7 @@ struct SettingsView: View {
     /// The running `AppDelegate`, or `nil` in previews. Source of the live
     /// Twitch, WebSocket, and song-request services.
     private var appDelegate: AppDelegate? {
-        NSApplication.shared.delegate as? AppDelegate
+        AppDelegate.shared
     }
 
     /// Drives the reset confirmation alert. Bound into `AdvancedSettingsView`,
@@ -213,6 +213,7 @@ struct SettingsView: View {
             .padding(.top, DSSpace.s2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
+            .navigationTitle(selectedSection.rawValue)
             // The sidebar toggle lives on the DETAIL toolbar, not the sidebar's.
             // SwiftUI's automatic toggle sits in the leading (sidebar) toolbar
             // segment; while the column animates to zero width that segment can't
@@ -244,8 +245,8 @@ struct SettingsView: View {
         .onDisappear {
             twitchViewModel.requestOAuthCancellation(ifOwnedBy: twitchOAuthOwner)
         }
-        // `SettingsWindowConfigurator` hides the window title and makes the title
-        // bar transparent for the clean full-height-sidebar look. The automatic
+        // `SettingsWindowConfigurator` keeps the native title visible and the title
+        // bar transparent. The automatic
         // sidebar toggle is removed on the sidebar column itself (above); our
         // detail-toolbar toggle replaces it. `columnVisibility` is threaded in so
         // every sidebar toggle re-asserts the chrome (the toggle re-themes the
@@ -257,7 +258,6 @@ struct SettingsView: View {
             minHeight: AppConstants.SettingsUI.minHeight,
             idealHeight: AppConstants.SettingsUI.idealHeight
         )
-        .navigationSplitViewStyle(.automatic)
         .alert("Erase everything?", isPresented: $showingResetAlert) {
             TextField("Type \(resetConfirmWord) to confirm", text: $resetConfirmText)
                 .accessibilityLabel("Type \(resetConfirmWord) to confirm reset")
@@ -679,16 +679,17 @@ struct SettingsView: View {
 // MARK: - Window Configurator
 
 /// Reaches the SwiftUI `Settings` window via `view.window` and applies the
-/// clean full-height-sidebar chrome: hidden title text and a transparent title
-/// bar. This matches the native reference look (no centered "WolfWave Settings"
-/// label) and frees title-bar width, so `NavigationSplitView`'s sidebar toggle
-/// and tracking separator stop overflowing into AppKit's `>>` clip chevron while
-/// the sidebar animates.
+/// native title and transparent title bar. The detail's `navigationTitle` names
+/// the selected pane consistently, including after the sidebar is toggled.
 ///
 /// Chrome and the initial sidebar width are configured; `styleMask` is left to SwiftUI,
-/// so `SettingsSceneBridge.settingsWindow()`'s titled / non-fullSizeContentView
-/// detection and the dock-visibility probe keep working.
+/// so SwiftUI retains ownership of the window's native behavior.
 struct SettingsWindowConfigurator: NSViewRepresentable {
+    /// Includes ordered-out and minimized Settings without matching another window.
+    static func settingsWindow(in windows: [NSWindow] = NSApp.windows) -> NSWindow? {
+        windows.first { $0.identifier?.rawValue == WolfWaveApp.settingsWindowID }
+    }
+
     /// Bound to the split view's column visibility so `updateNSView` fires on
     /// every sidebar toggle and the initial width repair leaves a hidden column alone.
     let columnVisibility: NavigationSplitViewVisibility
@@ -725,7 +726,7 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
         /// window doesn't linger; a new window gets its own repair.
         private weak var repairedWindow: NSWindow?
 
-        /// Hides the title and makes the title bar transparent (every call,
+        /// Shows the native title and makes the title bar transparent (every call,
         /// cheap when already set). Until the repair has landed for this
         /// window it also turns off the split view's frame autosave and pins
         /// the divider to `SettingsUI.sidebarWidth`.
@@ -735,7 +736,13 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
         /// user closed; it retries on the next update instead.
         func configure(_ window: NSWindow?, visibility: NavigationSplitViewVisibility) {
             guard let window else { return }
-            if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+            window.identifier = NSUserInterfaceItemIdentifier(WolfWaveApp.settingsWindowID)
+            if SettingsNavigation.shared.consumeOpenRequest() {
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
+            if window.titleVisibility != .visible { window.titleVisibility = .visible }
             if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
 
             guard repairedWindow !== window,

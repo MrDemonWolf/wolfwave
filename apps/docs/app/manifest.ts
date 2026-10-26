@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "WolfWave. Your Music, Live Everywhere.",
     short_name: "WolfWave",
     description:
-      "Free macOS menu bar app that shares your Apple Music now-playing to Twitch chat, Discord Rich Presence, and OBS stream overlays.",
+      "Free macOS menu bar app for Apple Music AutoPlay, Twitch song requests, Discord Rich Presence, and OBS stream overlays.",
     start_url: `${basePath || ""}/`,
     scope: `${basePath || ""}/`,
     display: "standalone",

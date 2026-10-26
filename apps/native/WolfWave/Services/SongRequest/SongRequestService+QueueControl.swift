@@ -187,14 +187,27 @@ extension SongRequestService {
         return true
     }
 
-    /// Removes every request from the queue and clears Music.app's player.
+    /// Removes queued, pending, and playing requests and clears the app-owned
+    /// playlist. Music is stopped when requests or a playback transition exist;
+    /// clearing an old playlist by itself leaves current playback alone.
     ///
     /// Invalidates any playback await already in flight. If that stale operation
     /// later succeeds, it observes the new generation and stops Music again.
     ///
     /// - Returns: Number of items that were in the queue before clearing.
     func clearQueue() async -> Int {
-        guard !Task.isCancelled else { return 0 }
+        await clearQueueAndRequestsPlaylist().count
+    }
+
+    /// Clears the request queue and the dedicated Apple Music playlist, returning
+    /// whether both pieces of state were cleared successfully.
+    func clearQueueAndRequestsPlaylist() async -> (count: Int, requestPlaylistCleared: Bool) {
+        guard !Task.isCancelled else { return (0, false) }
+        let shouldClearPlayer = queue.nowPlaying != nil
+            || queue.count > 0
+            || queue.pendingCount > 0
+            || isStartingPlayback
+            || isNativeClearInFlight
         playbackGeneration &+= 1
         let generation = playbackGeneration
         pendingClearReconciliationGeneration = nil
@@ -204,17 +217,32 @@ extension SongRequestService {
         playAttemptCounts.removeAll()
         isPlayingFallback = false
 
-        let operation = beginNativeClear()
+        let operation = beginNativeClear(stopMusic: shouldClearPlayer)
         await operation.task.value
 
         // Only the newest overlapping clear publishes completion. An older
         // waiter must not release the shared gate or reconcile state erased by a
         // later clear.
-        guard generation == playbackGeneration else { return count }
+        guard generation == playbackGeneration else { return (count, false) }
+
+        let requestPlaylistCleared: Bool
+        do {
+            try await musicController.clearRequestsPlaylist()
+            requestPlaylistCleared = true
+        } catch {
+            requestPlaylistCleared = false
+            Log.warn(
+                "SongRequestService: Queue cleared, but the request playlist couldn't be cleared: "
+                    + error.localizedDescription,
+                category: .songRequest
+            )
+        }
+
+        guard generation == playbackGeneration else { return (count, requestPlaylistCleared) }
         releaseNativeClear(operation.id)
         pendingClearReconciliationGeneration = generation
         await reconcilePendingClearIfNeeded()
-        return count
+        return (count, requestPlaylistCleared)
     }
 
     /// Bit-cheer boost: moves the cheerer's oldest queued request to the

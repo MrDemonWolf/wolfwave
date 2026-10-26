@@ -218,7 +218,7 @@ export default async function HomePage() {
                 icon: TwitchIcon,
                 id: "twitch",
                 title: "Let chat pick the next song.",
-                body: "Viewers request a song with !sr. Approve it, hold the queue, or let the next track play automatically.",
+                body: "Viewers request with !sr. Approve songs or hold the queue, then choose Apple Music AutoPlay or a fallback playlist for what plays next.",
                 href: "/docs/features#song-requests",
                 cta: "Song request setup",
               },

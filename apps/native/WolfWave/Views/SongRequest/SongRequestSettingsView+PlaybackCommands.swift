@@ -62,10 +62,11 @@ struct SongRequestPlaybackCard: View {
             )
 
             ToggleSettingRow(
-                title: "Resume Autoplay When Empty",
-                subtitle: "Let Apple Music's autoplay take over when the queue is empty",
+                title: "Resume Apple Music AutoPlay",
+                subtitle: "Hands playback back to Music when the queue empties. "
+                    + "Enable AutoPlay in Playing Next; a fallback playlist takes priority.",
                 isOn: $autoplayWhenEmpty,
-                accessibilityLabel: "Resume autoplay when queue is empty",
+                accessibilityLabel: "Resume Apple Music AutoPlay when queue is empty",
                 accessibilityIdentifier: "songRequests.autoplayWhenEmpty"
             )
 

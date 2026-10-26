@@ -152,6 +152,9 @@ protocol AppleMusicControlling {
     /// Clears Music.app's player queue and stops playback.
     func clearPlayerQueue() async
 
+    /// Removes entries from the app-owned requests playlist, leaving library songs intact.
+    func clearRequestsPlaylist() async throws
+
     /// Replaces the player queue with `songs` and starts the first item.
     func rebuildPlayerQueue(from songs: [Song]) async throws
 
@@ -181,6 +184,8 @@ extension AppleMusicControlling {
     /// Stubs and any future conformer default to "no information", which every
     /// caller already treats as "change nothing".
     func requestsPlaylistLocalVisibility() async -> PlaylistLocalVisibility { .unknown }
+    /// Stubs do not touch Music.app or the user's library.
+    func clearRequestsPlaylist() async throws {}
 }
 
 /// Whether Music.app can see the `WolfWave Requests` playlist in the local
@@ -707,6 +712,21 @@ final class AppleMusicController: AppleMusicControlling {
                 category: .songRequest
             )
         }
+    }
+
+    /// Clears only the playlist entries; the songs remain in the Apple Music library.
+    func clearRequestsPlaylist() async throws {
+        guard let pid = MusicProcess.pid else { throw PlaybackError.musicAppNotRunning }
+        let name = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistName)
+        let description = sanitizeForAppleScript(AppConstants.Music.requestsPlaylistDescription)
+        let script = Self.musicTargetedScript("""
+        set matches to every user playlist whose name is "\(name)" and description is "\(description)"
+        if (count of matches) is not 1 then error "WolfWave Requests playlist was not found or is ambiguous"
+        delete every track of (item 1 of matches)
+        """, seconds: ScriptTimeout.command)
+        let result = runAppleScript(script, targetPID: pid)
+        try requireCommandSuccess(result, command: "clear requests playlist")
+        Log.debug("AppleMusicController: Cleared WolfWave Requests playlist", category: .songRequest)
     }
 
     /// No-op on macOS. Music.app's Up Next queue is not scriptable.

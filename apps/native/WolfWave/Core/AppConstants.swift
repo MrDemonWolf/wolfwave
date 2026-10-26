@@ -449,13 +449,10 @@ nonisolated enum AppConstants {
     /// `design-system/tokens.json`). These wrappers keep the existing call sites
     /// stable while the design system stays the single source of truth.
     enum SettingsUI {
-        /// Minimum width for settings window. Sized so sidebar + detail pane fit
-        /// the integration dashboard rows (icon · text · status chip · Configure)
-        /// without truncation, while still working on a 1280×720 display.
+        /// Minimum width supports half of a 1280-point MacBook workspace.
         static let minWidth: CGFloat = DSDimension.Settings.minWidth
 
-        /// Minimum height for settings window. Fits the General tab's hero card
-        /// plus the four-row integrations list on a 720p display with Dock visible.
+        /// Minimum content height; longer panes scroll within the window.
         static let minHeight: CGFloat = DSDimension.Settings.minHeight
 
         /// Ideal width for settings window when first opened.

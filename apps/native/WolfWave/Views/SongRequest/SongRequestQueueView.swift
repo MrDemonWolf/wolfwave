@@ -45,6 +45,9 @@ struct SongRequestQueueView: View {
     @State private var nowPlaying: SongRequestItem?
     /// Presents the clear-queue confirmation.
     @State private var showingClearConfirm = false
+    /// Shows playlist cleanup progress and any Apple Music failure.
+    @State private var isClearingRequests = false
+    @State private var requestPlaylistClearFailed = false
     /// Music.app isn't running; requests buffer until it opens.
     @State private var isMusicAppClosed = false
     /// Hold mode: requests queue but nothing plays.
@@ -84,6 +87,9 @@ struct SongRequestQueueView: View {
                 }
             }
 
+            // Keep playback controls above the list even when many requests arrive.
+            actionButtons
+
             // Why nothing plays. Shown under the header so the chip's short
             // label always has a plain-language reason next to it. An empty
             // queue explains the hold in its own empty state instead.
@@ -116,10 +122,14 @@ struct SongRequestQueueView: View {
                 queueList
             }
 
-            // Actions. Held always shows them, so Resume stays reachable even
-            // with an empty queue.
-            if nowPlaying != nil || !items.isEmpty || !pending.isEmpty || isHeld {
-                actionButtons
+            if isClearingRequests {
+                LoadingRow(text: "Clearing queue and request playlist…")
+            } else if requestPlaylistClearFailed {
+                CalloutBanner(
+                    "The queue was cleared, but WolfWave Requests couldn't be cleared. "
+                        + "Open Music, make sure the playlist is available, then try again.",
+                    style: .error
+                )
             }
         }
         .cardStyle()
@@ -297,7 +307,7 @@ struct SongRequestQueueView: View {
 
     /// Plain-language reason the queue is held, with the way out.
     private var heldNote: some View {
-        statusNote("On hold. Requests still queue, but nothing plays until you tap Resume.")
+        statusNote("On hold. Requests still queue; choose Resume to play them.")
             .accessibilityIdentifier("songRequestQueue.heldNote")
     }
 
@@ -323,7 +333,7 @@ struct SongRequestQueueView: View {
                 .foregroundStyle(.secondary)
             // `LocalizedStringKey`, not `String`, so the `!sr` code span renders.
             Text(isHeld
-                ? LocalizedStringKey("The queue is on hold. Tap Resume when you're ready.")
+                ? LocalizedStringKey("The queue is on hold. Choose Resume when you're ready.")
                 : LocalizedStringKey("Viewers can request songs with `!sr` in Twitch chat"))
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
@@ -337,25 +347,27 @@ struct SongRequestQueueView: View {
 
     // MARK: - Action Buttons
 
-    /// Skip (needs a now-playing request), Hold / Resume, and Clear Queue
-    /// (confirmed).
+    /// Queue controls plus a confirmed playlist clear action that stays available when idle.
     private var actionButtons: some View {
         HStack(spacing: DSSpace.s2) {
-            AsyncActionButton(
-                title: "Skip",
-                systemImage: "forward.fill",
-                isDisabled: nowPlaying == nil,
-                labelSize: DSFont.Size.sm,
-                showsSuccess: false,
-                accessibilityIdentifier: "songRequestQueue.skip"
-            ) {
-                _ = await service?.skip()
-                refreshState()
+            if nowPlaying != nil {
+                AsyncActionButton(
+                    title: "Skip",
+                    systemImage: "forward.fill",
+                    size: .regular,
+                    labelSize: DSFont.Size.sm,
+                    showsSuccess: false,
+                    accessibilityIdentifier: "songRequestQueue.skip"
+                ) {
+                    _ = await service?.skip()
+                    refreshState()
+                }
             }
 
             AsyncActionButton(
                 title: isHeld ? "Resume" : "Hold",
                 systemImage: isHeld ? "play.fill" : "pause.fill",
+                size: .regular,
                 tint: isHeld ? DSColor.success : DSColor.warning,
                 labelSize: DSFont.Size.sm,
                 showsSuccess: false,
@@ -368,24 +380,44 @@ struct SongRequestQueueView: View {
             Button {
                 showingClearConfirm = true
             } label: {
-                Label("Clear Queue", systemImage: "trash")
+                Label("Clear Requests", systemImage: "trash")
                     .font(.system(size: DSFont.Size.sm))
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(isQueueEmpty)
+            .controlSize(.regular)
+            .disabled(isClearingRequests)
+            .help("Clear the queue and WolfWave Requests playlist. Songs stay in your Apple Music library.")
+            .accessibilityIdentifier("songRequestQueue.clearRequests")
             .confirmationDialog(
-                "Clear all song requests?",
+                "Clear the queue and request playlist?",
                 isPresented: $showingClearConfirm,
                 titleVisibility: .visible
             ) {
-                Button("Clear Queue", role: .destructive) {
-                    Task { _ = await service?.clearQueue(); refreshState() }
+                Button("Clear Requests", role: .destructive) {
+                    Task {
+                        guard let service else { return }
+                        isClearingRequests = true
+                        requestPlaylistClearFailed = false
+                        let result = await service.clearQueueAndRequestsPlaylist()
+                        requestPlaylistClearFailed = !result.requestPlaylistCleared
+                        isClearingRequests = false
+                        refreshState()
+                    }
                 }
+                Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("songRequestQueue.cancelClear")
+            } message: {
+                Text(isQueueEmpty
+                    ? "This empties WolfWave Requests, including its shared playlist link. "
+                        + "Music keeps playing, and songs stay in your Apple Music library."
+                    : "This clears queued, pending, and playing requests, stops Music playback, "
+                        + "and empties WolfWave Requests, including its shared playlist link. "
+                        + "Songs stay in your Apple Music library.")
             }
 
             Spacer()
         }
+        .disabled(isClearingRequests)
     }
 
     // MARK: - Artwork Placeholders

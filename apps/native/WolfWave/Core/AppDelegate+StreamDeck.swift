@@ -90,8 +90,8 @@ extension AppDelegate {
             guard let service = songRequestService else {
                 return .failure(action.rawValue, "unavailable")
             }
-            _ = await service.clearQueue()
-            return .success(action)
+            let result = await service.clearQueueAndRequestsPlaylist()
+            return result.requestPlaylistCleared ? .success(action) : .failure(action.rawValue, "playlist-clear-failed")
 
         case .blockCurrent:
             guard let service = songRequestService, let title = currentSong, !title.isEmpty else {

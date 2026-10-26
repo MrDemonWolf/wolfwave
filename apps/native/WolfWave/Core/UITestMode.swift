@@ -46,6 +46,32 @@ nonisolated enum UITestMode {
     /// appearing over the app mid-test is a focus race, not a finding.
     static let suppressWhatsNewKey = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
 
+    static let songRequestsEnabledKey = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
+    static let settingsSizeKey = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
+    static let appearanceKey = "WOLFWAVE_UI_TEST_APPEARANCE"
+
+    static var settingsWindowSize: CGSize? {
+        guard isActive else { return nil }
+        switch ProcessInfo.processInfo.environment[settingsSizeKey] {
+        case "minimum":
+            return CGSize(width: AppConstants.SettingsUI.minWidth, height: AppConstants.SettingsUI.minHeight)
+        case "ideal":
+            return CGSize(width: AppConstants.SettingsUI.idealWidth, height: AppConstants.SettingsUI.idealHeight)
+        default:
+            return nil
+        }
+    }
+
+    static var appearancePreference: String? {
+        guard isActive, let mode = ProcessInfo.processInfo.environment[appearanceKey],
+              mode == AppConstants.Appearance.light || mode == AppConstants.Appearance.dark else { return nil }
+        return mode
+    }
+
+    static var enablesSongRequests: Bool {
+        isActive && ProcessInfo.processInfo.environment[songRequestsEnabledKey] == "1"
+    }
+
     /// True when the UI test asked to start past onboarding.
     static var startsOnboarded: Bool {
         isActive && ProcessInfo.processInfo.environment[skipOnboardingKey] == "1"
@@ -64,6 +90,10 @@ nonisolated enum UITestMode {
 
     /// Always `false` in Release.
     static var suppressesWhatsNew: Bool { false }
+
+    static var enablesSongRequests: Bool { false }
+    static var settingsWindowSize: CGSize? { nil }
+    static var appearancePreference: String? { nil }
     #endif
 
     /// True when *any* test harness owns this process: the hosted unit bundle
@@ -75,7 +105,16 @@ nonisolated enum UITestMode {
     /// suite. Must run before anything reads onboarding state. No-op outside a
     /// UI test, so a normal launch never reaches the write.
     static func seedRequestedState() {
-        guard startsOnboarded else { return }
-        DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        guard isActive else { return }
+        if let appearancePreference {
+            DefaultsStore.store.set(appearancePreference, forKey: AppConstants.UserDefaults.appearancePreference)
+        }
+        if startsOnboarded {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        }
+        if enablesSongRequests {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
+        }
     }
 }

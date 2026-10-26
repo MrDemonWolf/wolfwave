@@ -40,7 +40,7 @@ struct TwitchSettingsView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             headerView
 
             connectionStatus
@@ -48,7 +48,14 @@ struct TwitchSettingsView: View {
                     reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base),
                     value: viewModel.connectionError)
 
-            authCard
+            ZStack {
+                authCard
+                    .disabled(viewModel.isLoadingSavedCredentials)
+                    .skeleton(viewModel.isLoadingSavedCredentials)
+                if viewModel.isLoadingSavedCredentials {
+                    LoadingRow(text: "Loading Twitch account…")
+                }
+            }
                 .deepLinkSection("account")
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .animation(
@@ -75,7 +82,7 @@ struct TwitchSettingsView: View {
             // recursion that has been associated with the post-onboarding hang.
             Task { @MainActor in
                 Log.debug("TwitchSettingsView: onAppear first-mount, loading credentials", category: .twitch)
-                viewModel.loadSavedCredentials()
+                await viewModel.loadSavedCredentials()
 
                 if viewModel.twitchService == nil {
                     if let appDelegate = AppDelegate.shared {

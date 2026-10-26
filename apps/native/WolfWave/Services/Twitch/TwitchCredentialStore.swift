@@ -143,6 +143,14 @@ nonisolated final class TwitchCredentialStore: @unchecked Sendable {
         }
     }
 
+    /// UI callers suspend while the lock or Keychain waits for user approval.
+    @concurrent
+    func loadConnectionSnapshot(
+        matchingAccessToken expectedAccessToken: String? = nil
+    ) async -> ConnectionSnapshot? {
+        connectionSnapshot(matchingAccessToken: expectedAccessToken)
+    }
+
     /// Synchronous ownership check for results returning from an await.
     /// Returns `false` when the Keychain read throws, so an unreadable record
     /// is treated as "not ours" rather than authorizing a mutation.
