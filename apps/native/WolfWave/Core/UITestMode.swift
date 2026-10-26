@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if DEBUG
+import MusicKit
+#endif
 
 /// Whether this launch is being driven by the `WolfWaveUITests` XCUITest bundle.
 ///
@@ -46,6 +49,8 @@ nonisolated enum UITestMode {
     /// appearing over the app mid-test is a focus race, not a finding.
     static let suppressWhatsNewKey = "WOLFWAVE_UI_TEST_NO_WHATS_NEW"
 
+    static let queueScenarioKey = "WOLFWAVE_UI_TEST_QUEUE"
+
     static let songRequestsEnabledKey = "WOLFWAVE_UI_TEST_SONG_REQUESTS_ENABLED"
     static let settingsSizeKey = "WOLFWAVE_UI_TEST_SETTINGS_SIZE"
     static let appearanceKey = "WOLFWAVE_UI_TEST_APPEARANCE"
@@ -70,6 +75,32 @@ nonisolated enum UITestMode {
 
     static var enablesSongRequests: Bool {
         isActive && ProcessInfo.processInfo.environment[songRequestsEnabledKey] == "1"
+    }
+
+    /// A fixed, offline queue for hosted UI layout checks; never active in normal launches.
+    static var hasPopulatedHeldQueue: Bool {
+        isActive && ProcessInfo.processInfo.environment[queueScenarioKey] == "populated-held"
+    }
+
+    /// Seeds the real queue model without requesting MusicKit or Apple Music access.
+    @MainActor
+    static func seedQueue(_ queue: SongRequestQueue) {
+        guard hasPopulatedHeldQueue else { return }
+        let playing = SongRequestItem(song: .debugPlaceholder(
+            id: "ui-playing", title: "Evening Signal", artist: "Demo Artist", album: "Demo Album"
+        ), requesterUsername: "demo_playing")
+        _ = queue.add(playing)
+        _ = queue.commitNext(id: playing.id)
+        for index in 1...2 {
+            _ = queue.add(SongRequestItem(song: .debugPlaceholder(
+                id: "ui-upcoming-\(index)", title: "Upcoming Signal \(index)",
+                artist: "Demo Artist", album: "Demo Album"
+            ), requesterUsername: "demo_upcoming_\(index)"))
+        }
+        _ = queue.addPending(SongRequestItem(song: .debugPlaceholder(
+            id: "ui-pending", title: "A Very Long Pending Song Title for the Compact Queue",
+            artist: "A Long Fictional Artist Name", album: "Demo Album"
+        ), requesterUsername: "demo_long_requester_name"))
     }
 
     /// Set to `"1"` to keep the onboarding completion screen up until Done,
@@ -101,6 +132,7 @@ nonisolated enum UITestMode {
     static var suppressesWhatsNew: Bool { false }
 
     static var enablesSongRequests: Bool { false }
+    static var hasPopulatedHeldQueue: Bool { false }
     static var settingsWindowSize: CGSize? { nil }
     static var appearancePreference: String? { nil }
 
@@ -123,6 +155,10 @@ nonisolated enum UITestMode {
         }
         if startsOnboarded {
             DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+        }
+        if hasPopulatedHeldQueue {
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestHoldEnabled)
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestApprovalRequired)
         }
         if enablesSongRequests {
             DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)

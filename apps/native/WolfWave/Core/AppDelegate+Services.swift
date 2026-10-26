@@ -254,6 +254,9 @@ extension AppDelegate {
         SongRequestService.migrateSetupState()
 
         let queue = SongRequestQueue()
+        #if DEBUG
+        UITestMode.seedQueue(queue)
+        #endif
         let blocklist = SongBlocklist()
         let musicController = AppleMusicController()
         let searchResolver = SongSearchResolver(musicController: musicController)
@@ -288,15 +291,17 @@ extension AppDelegate {
 
         // Start playback monitoring if song requests are enabled
         let enabled = FeatureFlags.songRequestEnabled
-        if enabled {
+        if enabled, !UITestMode.hasPopulatedHeldQueue {
             songRequestService?.startPlaybackMonitoring()
         }
 
         // Verify the requests playlist is still set up and shared. Catches a
         // playlist deleted or un-shared between launches and surfaces the "needs
         // setup again" banner; no-op until the guided setup has been finished.
-        Task { [weak self] in
-            await self?.songRequestService?.runSetupHealthCheck()
+        if !UITestMode.hasPopulatedHeldQueue {
+            Task { [weak self] in
+                await self?.songRequestService?.runSetupHealthCheck()
+            }
         }
 
         setupSkipVoteManager()
