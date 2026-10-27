@@ -10,13 +10,7 @@
 import Testing
 @testable import WolfWave
 
-/// Guards the Debug tab's jump-nav rail against silently losing a section.
-///
-/// `DebugSection.railGroups` is hand-ordered because the grouping is editorial,
-/// which means adding a case and forgetting to place it produces no compile
-/// error and no visible failure. The section still renders in the scroll column,
-/// so the only symptom is that it cannot be reached from the rail. These tests
-/// turn that into a test failure.
+/// Guards the grouped tool list and compact picker against losing a section.
 /// `@MainActor` because the app module defaults to main-actor isolation, so
 /// `DebugSection.title` / `.icon` / `.railGroups` are isolated members. The
 /// test target uses `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`, so this has
@@ -57,10 +51,8 @@ struct DebugSectionCoverageTests {
         }
     }
 
-    @Test("Rail order matches the on-screen card order")
+    @Test("Wide list order matches the compact picker")
     func testRailOrderMatchesDeclarationOrder() {
-        // The rail highlights whichever section is scrolled to, so a rail whose
-        // order disagrees with the page jumps around as the user scrolls.
         #expect(railSections == DebugSection.allCases)
     }
 }

@@ -23,16 +23,12 @@ struct GeneralSettingsView: View {
     /// keeps previews self-contained.
     var configure: (IntegrationDashboardView.Section) -> Void = { _ in }
 
-    /// Master music-tracking switch. Read here only to drive the header chip;
-    /// the toggle itself lives in `MusicMonitorSettingsView`.
-    @AppStorage(AppConstants.UserDefaults.trackingEnabled)
-    private var trackingEnabled = true
-
     // MARK: - Body
 
     var body: some View {
         SettingsPaneScroll {
-            header
+            Text("Manage music tracking, appearance, and notifications.")
+                .fieldSubtitle()
 
             MusicMonitorSettingsView(configure: configure)
                 .deepLinkSection("music")
@@ -48,18 +44,6 @@ struct GeneralSettingsView: View {
         }
     }
 
-    // MARK: - Header
-
-    /// Pane title plus a "Music on" / "Music off" chip mirroring `trackingEnabled`.
-    private var header: some View {
-        SectionHeaderWithStatus(
-            title: "General",
-            subtitle: "Manage how WolfWave tracks your music and where it shows up.",
-            statusText: trackingEnabled ? "Music on" : "Music off",
-            statusColor: trackingEnabled ? DSColor.success : DSColor.neutral
-        )
-        .accessibilityIdentifier("generalSettings.header")
-    }
 }
 
 #Preview("General Settings") {

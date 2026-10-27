@@ -41,13 +41,8 @@ struct WebSocketSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "Stream Widgets",
-                subtitle: "Put your current song on screen in OBS.",
-                statusText: serverStatusText,
-                statusColor: serverStatusColor,
-                statusSymbol: serverStatusSymbol
-            )
+            Text("Set up and customize your now-playing overlay.")
+                .fieldSubtitle()
 
             // Card order is the decision order, not the implementation order.
             // Turn it on, then take the ready-made widget (which is what almost
@@ -55,7 +50,7 @@ struct WebSocketSettingsView: View {
             // because it is only for people building their own overlay, and
             // leading with it made a two-click setup look like a programming
             // task.
-            WebSocketServerCard(serverState: serverState, localNetworkIP: localNetworkIP)
+            WebSocketServerCard(serverState: serverState, clientCount: clientCount, localNetworkIP: localNetworkIP)
                 .deepLinkSection("server")
 
             WebSocketBrowserSourceCard(localNetworkIP: localNetworkIP)
@@ -95,40 +90,6 @@ struct WebSocketSettingsView: View {
     }
 
     // MARK: - Status helpers
-
-    /// Header chip label; shows the client count while listening.
-    private var serverStatusText: String {
-        switch serverState {
-        case .listening:
-            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
-        case .starting:
-            return "Starting"
-        case .error:
-            return "Couldn't start"
-        case .stopped:
-            return "Stopped"
-        }
-    }
-
-    /// Header chip tint for `serverState`.
-    private var serverStatusColor: Color {
-        switch serverState {
-        case .listening: return DSColor.success
-        case .starting:  return DSColor.warning
-        case .error:     return DSColor.error
-        case .stopped:   return DSColor.neutral
-        }
-    }
-
-    /// Leading chip glyph so server state reads through shape as well as color.
-    private var serverStatusSymbol: String {
-        switch serverState {
-        case .listening: return StatusChip.StateGlyph.on
-        case .starting:  return StatusChip.StateGlyph.starting
-        case .error:     return StatusChip.StateGlyph.error
-        case .stopped:   return StatusChip.StateGlyph.off
-        }
-    }
 
     /// Pulls the latest server state + client count from the shared
     /// `WebSocketServerService` so the view's chips stay in sync with the

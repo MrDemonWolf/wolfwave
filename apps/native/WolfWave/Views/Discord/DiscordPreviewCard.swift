@@ -27,6 +27,9 @@ import SwiftUI
 /// Discord, not native chrome, so `.glassEffect()` should NOT be applied here.
 struct DiscordPreviewCard: View {
 
+    @State private var artworkLoader = ArtworkImageLoader()
+    @Environment(\.accessibilityReduceMotion) private var reduceArtworkMotion
+
     // MARK: - Types
 
     /// What the card is currently representing. Drives the header, dot color,
@@ -204,23 +207,18 @@ struct DiscordPreviewCard: View {
     /// badge in its bottom-trailing corner.
     private var artworkView: some View {
         ZStack(alignment: .bottomTrailing) {
-            Group {
-                if let artworkURL {
-                    AsyncImage(url: artworkURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            // Matches the real presence fallback: `large_image`
-                            // is `artworkURL ?? "apple_music"`, so no art = the
-                            // Apple Music tile, not the WolfMark.
-                            appleMusicTile
-                        }
-                    }
+            ZStack {
+                if let image = artworkLoader.image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                        .id(artworkLoader.revision)
+                        .transition(.opacity)
                 } else {
-                    appleMusicTile
+                    appleMusicTile.transition(.opacity)
                 }
             }
+            .animation(reduceArtworkMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: artworkLoader.revision)
+            .transaction { if reduceArtworkMotion { $0.animation = nil } }
+            .task(id: artworkURL) { await artworkLoader.load(artworkURL) }
             .frame(width: 80, height: 80)
             .saturation(mode == .paused ? 0.4 : 1)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))

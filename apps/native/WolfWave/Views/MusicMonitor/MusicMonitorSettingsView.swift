@@ -60,8 +60,8 @@ struct MusicMonitorSettingsView: View {
     @State private var currentTrack: String?
     @State private var currentArtist: String?
     @State private var currentAlbum: String?
-    /// Artwork resolved by `ArtworkService`; reset to `nil` only on a track
-    /// identity change so a pause flip doesn't restart the image fetch.
+    /// Artwork resolved by `ArtworkService`; retain the previous URL while the
+    /// next track lookup is pending, then replace it (or clear a resolved miss).
     @State private var currentArtworkURL: URL?
     @State private var currentIsPaused: Bool = false
 
@@ -184,16 +184,14 @@ struct MusicMonitorSettingsView: View {
         .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
             let payload = notification.nowPlaying
             // The source re-emits the same track ~every 5s. Only the track
-            // identity change needs to drop the artwork URL and restart the
-            // AsyncImage fetch; a pause flip updates in place. Skipping the
-            // per-tick nil-then-refetch stops AsyncImage from restarting each tick.
+            // identity change needs another artwork lookup; a pause flip updates
+            // in place. Keep the old cover until the next lookup resolves.
             let trackChanged = currentTrack != payload.track || currentArtist != payload.artist
             withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
                 currentTrack = payload.track
                 currentArtist = payload.artist
                 currentAlbum = payload.album
                 currentIsPaused = payload.isPaused
-                if trackChanged { currentArtworkURL = nil }
             }
             // A successful track read implies the user has granted access.
             if currentTrack != nil, permissionState == .denied {
@@ -241,10 +239,26 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Permission status row
 
-    /// Icon, title, and optional subtitle describing the grant, plus the
-    /// state-specific trailing control. Hidden by `body` while denied.
-    @ViewBuilder
+    /// Keep action labels intact; explanatory text and actions stack in narrow panes.
     private var permissionStatusRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DSSpace.s4) {
+                permissionSummary
+                Spacer(minLength: DSSpace.s2)
+                permissionTrailingControl
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .frame(minWidth: permissionSubtitle == nil ? nil : DSDimension.Settings.inlineActionsMinWidth)
+
+            VStack(alignment: .leading, spacing: DSSpace.s3) {
+                permissionSummary
+                permissionTrailingControl
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+
+    private var permissionSummary: some View {
         HStack(spacing: DSSpace.s4) {
             Image(systemName: permissionIconName)
                 .font(.system(size: DSFont.Size.md, weight: .semibold))
@@ -261,10 +275,6 @@ struct MusicMonitorSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            Spacer(minLength: DSSpace.s2)
-
-            permissionTrailingControl
         }
     }
 
@@ -487,6 +497,9 @@ struct MusicMonitorSettingsView: View {
         }
         ArtworkService.shared.fetchTrackLinks(track: track, artist: artist) { links in
             Task { @MainActor in
+                // A different track can arrive while the shared lookup is in flight.
+                // Check after the actor hop, immediately before publishing its result.
+                guard currentTrack == track, currentArtist == artist else { return }
                 currentArtworkURL = links.artworkURL.flatMap(URL.init(string:))
             }
         }

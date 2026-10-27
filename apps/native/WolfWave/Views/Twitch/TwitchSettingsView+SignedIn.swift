@@ -106,7 +106,11 @@ struct SignedInView: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer()
-            statusIcon(reauthNeeded: reauthNeeded)
+            StatusChip(
+                text: reauthNeeded ? "Sign-in expired" : "Signed in",
+                color: reauthNeeded ? DSColor.warning : DSColor.success,
+                systemImage: reauthNeeded ? StatusChip.StateGlyph.error : StatusChip.StateGlyph.on
+            )
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
@@ -235,14 +239,10 @@ struct SignedInView: View {
     private var connectionIcon: some View {
         switch (isChannelConnected, reauthNeeded) {
         case (true, _):
-            Image(systemName: "wifi")
-                .foregroundStyle(DSColor.success)
-                .font(.system(size: DSFont.Size.md))
+            StatusChip(text: "Connected", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
                 .accessibilityLabel("Connected to channel")
         case (false, true):
-            Image(systemName: "wifi.slash")
-                .foregroundStyle(DSColor.warning)
-                .font(.system(size: DSFont.Size.md))
+            StatusChip(text: "Disconnected", color: DSColor.warning, systemImage: StatusChip.StateGlyph.error)
                 .accessibilityLabel("Disconnected, sign-in expired")
         case (false, false):
             EmptyView()
@@ -390,17 +390,5 @@ struct SignedInView: View {
             return !validChannel
         }
         return botUsername.isEmpty || !validChannel
-    }
-
-    /// Builds the connection-status SF Symbol (warning exclamation for
-    /// re-auth needed, success checkmark otherwise).
-    ///
-    /// - Parameter reauthNeeded: When `true`, returns the warning icon.
-    /// - Returns: A pre-sized status icon view.
-    @ViewBuilder
-    private func statusIcon(reauthNeeded: Bool) -> some View {
-        Image(systemName: reauthNeeded ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-            .foregroundStyle(reauthNeeded ? DSColor.warning : DSColor.success)
-            .font(.system(size: DSFont.Size.md))
     }
 }

@@ -44,10 +44,8 @@ struct AboutSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "About",
-                subtitle: "App info, links, and legal."
-            )
+            Text("Version details, helpful links, and legal information.")
+                .fieldSubtitle()
 
             identityCard
             actionsCard
@@ -222,21 +220,17 @@ struct AboutSettingsView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
             Text(AboutCopy.independenceNotice)
-                .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.trademarkNotice)
-                .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(AboutCopy.copyrightLine)
-                .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.tertiary)
         }
+        .font(.system(size: DSFont.Size.body))
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

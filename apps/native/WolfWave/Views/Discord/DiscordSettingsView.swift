@@ -92,6 +92,9 @@ struct DiscordSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            Text("Share what you're playing on your Discord profile.")
+                .fieldSubtitle()
+
             connectionSection
                 .deepLinkSection("presence")
             if presenceEnabled && hasClientID {
@@ -269,7 +272,7 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Pane header chip label. While enabled but disconnected it names the
+    /// Connection status chip label. While enabled but disconnected it names the
     /// actual failure; with no failure recorded yet it reads "Connecting".
     var statusChipText: String {
         switch connectionState {
@@ -289,12 +292,23 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Pane header chip tint, matching `statusChipText`.
+    /// Connection status chip tint, matching `statusChipText`.
     var statusChipColor: Color {
         switch connectionState {
         case .connected:    return DSColor.success
         case .connecting:   return DSColor.warning
         case .disconnected: return presenceEnabled && connectionFailure == .none ? DSColor.warning : DSColor.neutral
+        }
+    }
+
+    /// Shape accompanies the text so connection states use the shared vocabulary.
+    var statusChipSymbol: String {
+        switch connectionState {
+        case .connected: return StatusChip.StateGlyph.on
+        case .connecting: return StatusChip.StateGlyph.starting
+        case .disconnected:
+            if !presenceEnabled { return StatusChip.StateGlyph.off }
+            return connectionFailure == .none ? StatusChip.StateGlyph.starting : StatusChip.StateGlyph.error
         }
     }
 
@@ -341,12 +355,15 @@ struct DiscordSettingsView: View {
         let album = payload.album ?? ""
         let playlist = payload.playlist ?? ""
         let links = ArtworkService.shared.cachedTrackLinks(track: track, artist: artist)
+        // The service resolves metadata separately from the image download. Keep
+        // the previous cover during that lookup, but clear a completed miss.
+        let artworkPending = !ArtworkService.shared.hasAttemptedTrackLinks(track: track, artist: artist)
         nowPlaying = NowPlayingSnapshot(
             track: track,
             artist: artist,
             album: album,
             playlist: playlist,
-            artworkURL: links.artworkURL,
+            artworkURL: links.artworkURL ?? (artworkPending ? nowPlaying.artworkURL : nil),
             appleMusicURL: links.trackViewURL,
             songLinkURL: links.songLinkURL
         )

@@ -14,29 +14,27 @@ extension DiscordSettingsView {
 
     // MARK: - Sections
 
-    /// Header + status chip, the enable toggle, and either the "Not
+    /// Connection status, the enable toggle, and either the "Not
     /// configured" banner or the current connection error.
     var connectionSection: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
-            SectionHeaderWithStatus(
-                title: "Discord",
-                subtitle: "Show your music on your Discord profile.",
-                statusText: statusChipText,
-                statusColor: statusChipColor
-            )
+            VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
+                StatusChip(text: statusChipText, color: statusChipColor, systemImage: statusChipSymbol)
+                    .accessibilityLabel("Discord status: \(statusChipText)")
 
-            ToggleSettingRow(
-                title: "Show on Discord",
-                subtitle: "Displays the song and cover art on your profile",
-                isOn: $presenceEnabled,
-                isDisabled: !hasClientID,
-                accessibilityLabel: "Enable Discord Status",
-                accessibilityIdentifier: "discordPresenceToggle",
-                accessibilityHint: "Toggle to enable or disable Discord Status",
-                onChange: { newValue in
-                    notifyPresenceSettingChanged(enabled: newValue)
-                }
-            )
+                ToggleSettingRow(
+                    title: "Show on Discord",
+                    subtitle: "Displays the song and cover art on your profile",
+                    isOn: $presenceEnabled,
+                    isDisabled: !hasClientID,
+                    accessibilityLabel: "Enable Discord Status",
+                    accessibilityIdentifier: "discordPresenceToggle",
+                    accessibilityHint: "Toggle to enable or disable Discord Status",
+                    onChange: { newValue in
+                        notifyPresenceSettingChanged(enabled: newValue)
+                    }
+                )
+            }
             .cardStyle()
 
             if !hasClientID {

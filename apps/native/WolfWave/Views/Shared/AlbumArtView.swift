@@ -15,15 +15,15 @@ import SwiftUI
 /// and intended for any other album thumbnail the design adds.
 ///
 /// Source precedence: `image` wins over `url`; with neither, the placeholder
-/// shows. A URL load that is still pending or failed also shows the placeholder,
-/// so a broken link never leaves an empty box.
+/// shows. While a replacement loads, the previous cover stays visible; a resolved
+/// failure uses the placeholder.
 struct AlbumArtView: View {
 
     // MARK: - Properties
 
     /// Artwork already in memory. Takes precedence over `url`.
     var image: NSImage?
-    /// Remote artwork, loaded with `AsyncImage` (fades in unless Reduce Motion is on).
+    /// Remote artwork, crossfaded after loading unless Reduce Motion is on.
     var url: URL?
     /// Edge length of the square tile, in points.
     var size: CGFloat = 64
@@ -31,34 +31,29 @@ struct AlbumArtView: View {
     /// floor so tiny thumbnails stay rounded.
     var cornerRadius: CGFloat?
 
-    /// Disables the `AsyncImage` fade-in transaction.
+    @State private var loader = ArtworkImageLoader()
+
+    /// Disables artwork crossfades.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Body
 
     var body: some View {
         let radius = cornerRadius ?? max(4, size * 0.10)
-        Group {
-            if let image {
-                Image(nsImage: image)
+        ZStack {
+            if let displayed = image ?? loader.image {
+                Image(nsImage: displayed)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .id(image == nil ? loader.revision : 0)
                     .transition(.opacity)
-            } else if let url {
-                AsyncImage(url: url, transaction: Transaction(animation: reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base))) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().aspectRatio(contentMode: .fill)
-                    case .empty, .failure:
-                        placeholder
-                    @unknown default:
-                        placeholder
-                    }
-                }
             } else {
-                placeholder
+                placeholder.transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: loader.revision)
+        .transaction { if reduceMotion { $0.animation = nil } }
+        .task(id: image == nil ? url : nil) { await loader.load(image == nil ? url : nil) }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .overlay(

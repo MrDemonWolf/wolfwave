@@ -3,14 +3,13 @@
 **File:** [`apps/native/WolfWave/Views/Shared/SettingsPaneScroll.swift`](../../apps/native/WolfWave/Views/Shared/SettingsPaneScroll.swift)
 
 ## Purpose
-The scrolling content column every settings pane without a jump rail sits in: the `SettingsView` shared pane wrapper (Twitch, Discord, Stream Widgets, Stream Deck, Software Update, Advanced, About), General, and Song Requests. It clamps the column to the 720-point maximum, centers it, and applies the standard insets.
+The scrolling content column used by the `SettingsView` shared pane wrapper (Twitch, Discord, Stream Widgets, Stream Deck, Software Update, Advanced, About), General, Song Requests, History & Stats, and the selected Debug tool. It clamps the column to the 720-point maximum, centers it, and applies the standard insets.
 
 The column is centered on the **scroll view's own width**, scroller included. With legacy (always-visible) scroll bars, a pane that overflows loses the scroller gutter from its content width and a short pane does not, so centering inside the content put a short pane a few points right of every long one. Measuring the outer frame puts every pane's column at the same x; the right-hand inset absorbs the gutter.
 
 ## API
 ```swift
 SettingsPaneScroll {
-    SectionHeaderWithStatus(title: "Software Update", subtitle: "…")
     softwareUpdateCard
 }
 ```
@@ -46,7 +45,6 @@ flowchart TD
 ```swift
 var body: some View {
     SettingsPaneScroll {
-        header
         MusicMonitorSettingsView(configure: configure)
             .deepLinkSection("music")
         NotificationsSettingsView()

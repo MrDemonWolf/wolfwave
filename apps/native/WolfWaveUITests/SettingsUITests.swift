@@ -110,9 +110,14 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     func testToolbarTitleTracksTheSelectedPane() {
         let window = openSettings()
-        for section in ["General", "Stream Widgets", "Song Requests", "About"] {
+        for section in Self.sections {
             select(section)
             XCTAssertEqual(window.title, section)
+            let pane = app.descendants(matching: .any)["settings.pane.\(section)"].firstMatch
+            XCTAssertFalse(
+                pane.staticTexts.matching(NSPredicate(format: "label == %@", section)).firstMatch.exists,
+                "\(section) repeats its toolbar title in the content"
+            )
         }
     }
 
@@ -153,6 +158,56 @@ final class SettingsUITests: WolfWaveUITestCase {
         expectation(for: resumedLabel, evaluatedWith: hold)
         waitForExpectations(timeout: Self.timeout)
         XCTAssertTrue(app.descendants(matching: .any)["songRequestQueue.empty"].exists)
+    }
+
+    func testPopulatedHeldQueueAtMinimumSize() {
+        app.terminate()
+        app.launchEnvironment[UITestEnvironment.settingsSize] = "minimum"
+        app.launchEnvironment[UITestEnvironment.queueScenario] = "populated-held"
+        app.launch()
+        let window = openSettings()
+        select("Song Requests")
+        XCTAssertEqual(window.frame.width, 640, accuracy: 1)
+        let pane = app.scrollViews["settings.pane.Song Requests"]
+        let hold = app.buttons["songRequestQueue.hold"]
+        expect(hold, "held queue control")
+        XCTAssertTrue(hold.label.contains("Resume"))
+
+        let approve = app.buttons["songRequestQueue.approve"].firstMatch
+        let decline = app.buttons["songRequestQueue.decline"].firstMatch
+        expect(approve, "pending request approval")
+        for _ in 0..<4 where !approve.isHittable {
+            pane.swipeUp()
+        }
+        XCTAssertTrue(approve.isHittable)
+        XCTAssertTrue(decline.isHittable)
+        let pendingLabel = "Awaiting approval: A Very Long Pending Song Title for the Compact Queue, "
+            + "A Long Fictional Artist Name, requested by demo_long_requester_name"
+        let details = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@", pendingLabel)
+        ).firstMatch
+        expect(details, "pending request details")
+        XCTAssertGreaterThanOrEqual(approve.frame.minY, details.frame.maxY)
+        for control in [approve, decline] {
+            XCTAssertGreaterThanOrEqual(control.frame.minX, pane.frame.minX)
+            XCTAssertLessThanOrEqual(control.frame.maxX, pane.frame.maxX)
+        }
+        let pendingShot = XCTAttachment(screenshot: window.screenshot())
+        pendingShot.name = "Settings - minimum - populated pending approval"
+        pendingShot.lifetime = .keepAlways
+        add(pendingShot)
+
+        let upcoming = app.staticTexts["songRequestQueue.upNext"]
+        expect(upcoming, "upcoming count independent of held status")
+        for _ in 0..<4 where !upcoming.isHittable {
+            pane.swipeUp()
+        }
+        XCTAssertTrue(upcoming.isHittable)
+        XCTAssertEqual(upcoming.label, "Up next · 2")
+        let countShot = XCTAttachment(screenshot: window.screenshot())
+        countShot.name = "Settings - minimum - held upcoming count"
+        countShot.lifetime = .keepAlways
+        add(countShot)
     }
 
     func testEveryPaneRenders() {
