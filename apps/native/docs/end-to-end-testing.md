@@ -106,12 +106,9 @@ Subclasses of `WolfWaveUITestCase` declare what they want through
   leaves the queue controls available. Actual Music playlist mutation remains a
   manual account check; unit tests cover active, idle, and cleanup-failure paths.
 
-- **Layout regressions**: History & Stats retains its pane heading, and the
-  request queue action appears above request configuration. These cover the
-  title omission and queue-below-settings ordering found in the spacing review.
+- **Layout regressions**: History & Stats retains its privacy introduction, the selected pane title appears in the native toolbar, and the request queue appears above request configuration.
 - **Compact queue controls**: the 640-point window keeps Hold and Clear Requests
-  reachable, and Hold changes to Resume even before any songs arrive. Populated
-  queues and real Apple Music playback remain separate release checks.
+  reachable, and Hold changes to Resume even before any songs arrive. A fixed offline fixture also checks the held queue count and pending approval actions at 640 points. Real Apple Music playback remains a separate release check.
 
 ### Adding a UI test
 

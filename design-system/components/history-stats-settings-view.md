@@ -33,7 +33,7 @@ HistoryStatsSettingsView(
 
 ```mermaid
 flowchart TD
-  Pane[HistoryStatsSettingsView] --> Intro[Pane title + private, on-device explanation]
+  Pane[HistoryStatsSettingsView] --> Intro[Private, on-device explanation; title in window toolbar]
   Pane --> Toggles[Listening History + Stats toggles]
   Pane --> Dashboard[Summary, top track, charts, leaderboards]
   Pane --> Recent[Recent plays]
