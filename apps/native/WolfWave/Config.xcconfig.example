@@ -75,7 +75,7 @@ GITHUB_REPO_NAME = wolfwave
 // token so the full URL survives. Keep that escape on ANY value with "//".
 
 // Docs site root. Privacy / terms / changelog pages derive from this.
-DOCS_URL = https:/$()/mrdemonwolf.github.io/wolfwave
+DOCS_URL = https:/$()/wolfwave.mrdemonwolf.dev
 
 // Community Discord invite, opened from tray menu "Help > Join Discord Community".
 COMMUNITY_DISCORD_URL = https:/$()/mrdwolf.net/discord

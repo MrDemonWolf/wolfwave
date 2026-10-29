@@ -7,9 +7,8 @@ export const dynamic = "force-static";
 export const revalidate = false;
 
 // Submit `${siteUrl}/sitemap.xml` in Google Search Console and Bing Webmaster
-// Tools after a deploy that adds or removes pages. On GitHub Pages the robots.txt
-// that points here is not read (it is not at the domain root), so a direct
-// submission is the only reliable way crawlers learn about it.
+// Tools after a deploy that adds or removes pages. The custom domain also
+// exposes the sitemap through its root-level robots.txt.
 
 type Freq = MetadataRoute.Sitemap[number]["changeFrequency"];
 

@@ -12,7 +12,7 @@ import { join, relative } from 'node:path';
  */
 
 const OUT = join(import.meta.dir, '..', 'out');
-const SITE = 'https://mrdemonwolf.github.io/wolfwave';
+const SITE = 'https://wolfwave.mrdemonwolf.dev';
 /** Google truncates snippets to the device width; ~160 characters is the practical ceiling. */
 const MAX_DESCRIPTION = 160;
 const MIN_DESCRIPTION = 50;
@@ -169,6 +169,18 @@ describe.skipIf(!hasBuild)('built pages', () => {
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).sort();
     const expected = indexable.map((p) => `${SITE}/${relative(OUT, p).replace(/index\.html$/, '')}`).sort();
     expect(locs).toEqual(expected);
+  });
+
+  test('exported pages load Next assets from the domain root', () => {
+    for (const page of pages) {
+      const html = readFileSync(page, 'utf8');
+      const assets = [...html.matchAll(/(?:src|href)="(\/[^"]*_next\/[^"]+)"/g)];
+      expect(assets.length).toBeGreaterThan(0);
+      for (const [, asset] of assets) {
+        expect(asset.startsWith('/_next/')).toBe(true);
+        expect(existsSync(join(OUT, decode(asset).split('?')[0]))).toBe(true);
+      }
+    }
   });
 
   test('robots.txt points at the sitemap', () => {

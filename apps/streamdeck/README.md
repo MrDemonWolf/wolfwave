@@ -179,3 +179,5 @@ Announce song and the now-playing key both shipped in protocol v3. What is still
 deferred from WW-45 is the *dial* form of now playing: an encoder with album art
 and rotation-bound volume. That wants `setFeedback`/`setFeedbackLayout` and an
 app-side volume seam, neither of which exists yet.
+
+User setup: [WolfWave Stream Deck guide](https://wolfwave.mrdemonwolf.dev/docs/streamdeck/).

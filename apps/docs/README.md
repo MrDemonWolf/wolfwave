@@ -1,7 +1,7 @@
 # WolfWave Docs Site
 
 The public documentation site for WolfWave at
-[mrdemonwolf.github.io/wolfwave](https://mrdemonwolf.github.io/wolfwave).
+[wolfwave.mrdemonwolf.dev](https://wolfwave.mrdemonwolf.dev).
 This is a Next.js app powered by [Fumadocs](https://fumadocs.dev) with
 static export, deployed to GitHub Pages by `.github/workflows/docs.yml`.
 
@@ -35,3 +35,16 @@ bun run build --filter docs
 ```
 
 Outputs a static export to `apps/docs/out/`.
+
+## Custom domain
+
+GitHub Pages serves `https://wolfwave.mrdemonwolf.dev/` from the domain root.
+`NEXT_PUBLIC_BASE_PATH` defaults to an empty string, and the deployment workflow
+sets it explicitly. Keep `lib/site.ts`, `lib/utils.ts`, and `next.config.mjs` in
+sync when changing deployment paths. Canonical URLs, the sitemap, robots, LLM
+exports, and social images derive their absolute URLs from `lib/site.ts`.
+
+DNS uses a DNS-only CNAME from `wolfwave` to `mrdemonwolf.github.io`. Configure the
+custom domain and Enforce HTTPS in repository Settings → Pages. GitHub handles
+redirects from the previous project URL. The Homebrew cask lives in the separate
+`MrDemonWolf/homebrew-den` repository; keep its homepage aligned with this domain.

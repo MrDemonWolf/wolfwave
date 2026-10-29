@@ -1,5 +1,5 @@
-/** Canonical production origin plus project path. Used for absolute URLs; it does not follow `NEXT_PUBLIC_BASE_PATH`. */
-export const siteUrl = "https://mrdemonwolf.github.io/wolfwave";
+/** Canonical production origin. Used for absolute URLs; it does not follow `NEXT_PUBLIC_BASE_PATH`. */
+export const siteUrl = "https://wolfwave.mrdemonwolf.dev";
 
 /**
  * Canonical GitHub URLs. Single source of truth so the homepage links and the
@@ -10,14 +10,14 @@ export const orgUrl = "https://github.com/MrDemonWolf";
 export const repoUrl = "https://github.com/MrDemonWolf/WolfWave";
 
 /**
- * Deployment base path for in-site asset and route URLs: `/wolfwave` by default,
+ * Deployment base path for in-site asset and route URLs: empty by default,
  * `""` when `NEXT_PUBLIC_BASE_PATH` is empty or `/`, otherwise the path of the
  * env value (URL or path). Same rules as `next.config.mjs` and `getAssetPath`;
  * keep the three in step.
  */
 export const basePath = (() => {
   const envValue = process.env.NEXT_PUBLIC_BASE_PATH;
-  if (envValue === undefined) return "/wolfwave";
+  if (envValue === undefined) return "";
   if (envValue === "" || envValue === "/") return "";
   let path = envValue;
   try {
