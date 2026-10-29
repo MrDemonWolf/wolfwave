@@ -3,11 +3,11 @@
 **File:** [`apps/native/WolfWave/Views/Shared/SettingsNavRail.swift`](../../apps/native/WolfWave/Views/Shared/SettingsNavRail.swift)
 
 ## Purpose
-Two-column settings layout shared by long detail panes: a fixed jump-nav rail on
+Reusable two-column jump-navigation layout: a fixed rail on
 the left and one always-mounted, scrollable content column on the right. Tapping a
 rail row scrolls its section to the top; scrolling manually moves the highlight to
 whatever section you land on. Replaces in-pane segmented tabs (which swapped
-content) so a pane reads as one scroll with focused groups. Used by the Debug tab.
+content) so a pane reads as one scroll with focused groups. No current Settings pane uses this layout. Debug displays one selected tool using a native list or compact picker instead.
 
 ## API
 ```swift
@@ -28,7 +28,7 @@ RawValue == String`) supplying `title` (row label) + `icon` (SF Symbol). Tag the
 top view of each section with `.railSection(_:)`; **pass the explicit enum case**
 (`MySection.second`, not `.second`); the modifier is generic and can't infer the
 type from a leading-dot member. Grouped rails pass several `SettingsRailGroup`s with
-titles (e.g. Debug's "State & Diagnostics" / "Active Controls"); flat rails pass one
+titles; flat rails pass one
 group with a `nil` title.
 
 `SettingsRailGroup` is `Identifiable`. Its `id` is the title plus the first section's raw
@@ -83,8 +83,7 @@ graph LR
   readable line lengths regardless of window size.
 
 ## Do / Don't
-- ✅ Use for long settings panes that bypass the shell's `standardDetailScroll` and
-  own the full detail width (wire the bypass in `SettingsView.detailPane`).
+- ✅ Use when a future view needs scroll-synchronized jump navigation and owns its detail width. Do not add a second rail to the current Settings panes.
 - ✅ Tag exactly one view per section with `.railSection(_:)`, the one that should
   sit at the top when its row is tapped (usually the section's first card or the
   page header for the top section).
@@ -96,20 +95,20 @@ graph LR
 
 ## Example
 ```swift
-private enum DebugSection: String, SettingsRailSection {
-    case inspectors, metrics, logs
+private enum MySection: String, SettingsRailSection {
+    case overview, details, advanced
     var title: String { /* … */ }
     var icon: String { /* … */ }
 }
 
 SettingsNavRail(
     selection: $selected,
-    groups: [SettingsRailGroup(title: "State & Diagnostics",
-                               sections: [.inspectors, .metrics, .logs])],
-    accessibilityIDPrefix: "debugNav"
+    groups: [SettingsRailGroup(title: "Settings",
+                               sections: [.overview, .details, .advanced])],
+    accessibilityIDPrefix: "exampleNav"
 ) {
-    DebugInspectorsCard().railSection(DebugSection.inspectors)
-    DebugMetricsCard().railSection(DebugSection.metrics)
-    DebugLogsAndEventsCard().railSection(DebugSection.logs)
+    OverviewCard().railSection(MySection.overview)
+    DetailsCard().railSection(MySection.details)
+    AdvancedCard().railSection(MySection.advanced)
 }
 ```

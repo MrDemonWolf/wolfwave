@@ -44,7 +44,7 @@ flowchart TD
 
 ## Accessibility
 
-- The shared pane heading exposes the History & Stats title and privacy subtitle together.
+- The window toolbar names the pane; the on-device privacy explanation is the first item in its scroll column.
 - Toggle rows provide explicit labels and stable accessibility identifiers.
 - Loading data keeps the dashboard footprint with skeleton placeholders instead of shifting focus targets.
 - Destructive clearing requires a confirmation alert and exposes a dedicated confirm-button identifier.

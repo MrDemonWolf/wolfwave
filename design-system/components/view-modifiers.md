@@ -113,7 +113,7 @@ scales via `@ScaledMetric` for Dynamic Type.
 - Body text: `.fieldSubtitle()` (13) and `.captionText()` (10).
 
 The old `.sectionSubHeader()` (15) was retired 2026-06-05 because it collided with the
-17pt pane title. Do not reintroduce a size between 14 and 17.
+former 17pt pane title. Do not reintroduce a size between 14 and 17.
 
 ### `.stableWidth(ghosts:)`
 
