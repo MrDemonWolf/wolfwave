@@ -77,7 +77,7 @@ graph LR
 ## Do / Don't
 - ✅ Place once on the General tab below `NowPlayingHeroCard`.
 - ✅ Always pass `permissionPaused`; without it, chips show "Live" while audio tracking is actually frozen.
-- ❌ Don't reuse for per-integration settings panes; those have their own `SectionHeaderWithStatus`.
+- ❌ Don't reuse the dashboard as an integration settings pane; put its status beside that pane's relevant controls.
 - ❌ Don't duplicate rows; the four broadcast surfaces are fixed. New integrations need their own row + chip wiring.
 
 ## Example
