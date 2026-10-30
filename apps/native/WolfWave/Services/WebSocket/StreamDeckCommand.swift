@@ -62,9 +62,11 @@ nonisolated struct CommandAck: Sendable, Equatable {
     let ok: Bool
     /// Short machine-readable reason when `ok` is `false`, e.g. `"protocol"`,
     /// `"unknown_action"`, `"unauthorized"`, `"disabled"`, `"unavailable"`,
-    /// `"empty"`, `"full"` (`approve_next` with the live request queue at its
-    /// cap). The plugin keys its key states off these, so treat them as
-    /// part of the wire contract. `nil` on success (and omitted from the JSON).
+    /// `"music"`, `"twitch"`, `"empty"`, `"full"` (`approve_next` with the live
+    /// request queue at its cap), `"playlist-clear-failed"` (`clear_queue`
+    /// cleared the request queue but not the WolfWave Requests playlist). The
+    /// plugin keys its key states off these, so treat them as part of the wire
+    /// contract. `nil` on success (and omitted from the JSON).
     let error: String?
 
     /// JSON object form for `WebSocketServerService.sendJSON`.

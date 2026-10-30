@@ -17,9 +17,10 @@
 //                   https://discord.com/developers/applications
 //  [ ] 4. Discord art assets (REQUIRED for Rich Presence icons):
 //                   in your Discord app, open Rich Presence > Art Assets and
-//                   upload BOTH of these with the exact lowercase names:
+//                   upload ALL THREE of these with the exact lowercase names:
 //                     - "apple_music"  (512x512 PNG, the Apple Music mark)
 //                     - "pause"        (512x512 PNG, white pause glyph)
+//                     - "wolfwave"     (1024x1024 PNG, the WolfWave icon)
 //                   Source PNGs live in the discord-assets/ folder.
 //                   CDN takes ~10 min to propagate after upload.
 //  [ ] 5. Build the app (make build, or Cmd+R in Xcode).
@@ -44,20 +45,22 @@ TWITCH_CLIENT_ID = your_twitch_client_id_here
 // on your Discord profile.
 // Create an app: https://discord.com/developers/applications
 //
-// Reminder: the ID alone is not enough. You must also upload the "apple_music"
-// and "pause" art assets to that same Discord app (step 4 above), or the
-// presence icons render broken. The PNGs are in the discord-assets/ folder.
+// Reminder: the ID alone is not enough. You must also upload the "apple_music",
+// "pause", and "wolfwave" art assets to that same Discord app (step 4 above),
+// or the presence icons render broken. The PNGs are in the discord-assets/ folder.
 DISCORD_CLIENT_ID = your_discord_application_id_here
 
 
 // ----------------------------------------------------------------------------
-// AUTO-UPDATE / SPARKLE  (optional for local dev, required for releases)
+// GITHUB REPOSITORY  (optional)
 // ----------------------------------------------------------------------------
-// Repo the updater checks for new releases:
-//   https://api.github.com/repos/{owner}/{repo}/releases/latest
-// Leave the defaults if you are not cutting your own signed releases.
-GITHUB_REPO_OWNER = your_github_username
-GITHUB_REPO_NAME = wolfwave
+// The repo behind the app's GitHub, Releases, and Report a Bug links
+// (github.com/{owner}/{repo}). These keys do not choose the update feed:
+// Sparkle reads SUFeedURL from Info.plist.
+// Blank means "use the defaults" (mrdemonwolf/wolfwave). Fill both in only if
+// you ship a fork and want those links to point at your own repo.
+GITHUB_REPO_OWNER =
+GITHUB_REPO_NAME =
 
 
 // ----------------------------------------------------------------------------

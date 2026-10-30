@@ -29,14 +29,15 @@ struct SectionHeaderWithStatus: View {
 
     /// Which heading level this header renders at.
     ///
-    /// `.pane` is the H1 at the top of a settings pane (22pt via `.paneTitle()`).
-    /// `.section` is an H2 for a sub-section inside a pane (17pt via
-    /// `.sectionHeader()`), so a pane that hosts both a title and sub-sections
-    /// keeps a clear two-step hierarchy instead of two near-identical headings.
+    /// `.pane` is a standalone content title (22pt via `.paneTitle()`) for a view
+    /// with no window toolbar above it, such as a sheet. Settings panes do not use
+    /// it: the window toolbar already names the selected pane.
+    /// `.section` is an H2 for a section inside a pane (17pt via
+    /// `.sectionHeader()`), which is what every Settings call site passes.
     enum Prominence {
-        /// Pane title (H1).
+        /// Standalone title (22pt). Not for a Settings pane.
         case pane
-        /// Sub-section heading (H2).
+        /// Section heading inside a pane (H2).
         case section
     }
 
@@ -46,7 +47,7 @@ struct SectionHeaderWithStatus: View {
     let title: String
     /// One-line description under the heading.
     let subtitle: String
-    /// Heading level; pane title by default.
+    /// Heading level. Defaults to `.pane`, so a Settings call site passes `.section`.
     var prominence: Prominence = .pane
     /// Chip label. The chip shows only when both this and `statusColor` are set.
     var statusText: String?

@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time to file a bug report. Please fill out the sections below.
 
-        Tip: you can pre-fill most of this from inside the app via **Settings → Advanced → Report a Bug**.
+        Tip: you can pre-fill most of this from inside the app via the menu bar icon's **Help → Report a Bug**, or **Settings → About → Send Feedback**.
 
   - type: textarea
     id: description

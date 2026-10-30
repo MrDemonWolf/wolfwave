@@ -100,20 +100,26 @@ extension View {
     }
 }
 
-// MARK: - Pane Title Style (H1)
+// MARK: - Pane Title Style (standalone title)
 
-/// Top-level pane title styling: the single biggest heading on a settings pane.
+/// Standalone title styling: the biggest heading on a sheet or other view that
+/// has no window toolbar above it.
 ///
-/// This is the H1 of the type ramp. It sits two clear steps above the section
-/// header (`.sectionHeader()`, 17pt) so the eye reads "pane → section → label"
-/// without ambiguity. Per NN/g visual-hierarchy guidance, the most important
-/// element is the biggest, and adjacent levels need a perceptible size step
-/// (here 22 → 17 → 11) rather than the old 2pt 17 → 15 collision.
+/// This is the top step of the type ramp. Settings panes do not use it: the
+/// native window toolbar names the selected pane (`SettingsView` sets
+/// `navigationTitle`), so a title in the content would repeat it. The custom
+/// command editor sheet is the in-app example.
+///
+/// It sits two clear steps above the section header (`.sectionHeader()`, 17pt)
+/// so the eye reads "title → section → label" without ambiguity. Per NN/g
+/// visual-hierarchy guidance, the most important element is the biggest, and
+/// adjacent levels need a perceptible size step (here 22 → 17 → 11) rather than
+/// the old 2pt 17 → 15 collision.
 ///
 /// Carries the `.isHeader` accessibility trait so VoiceOver's heading rotor can
-/// jump straight to each pane title. Use exactly once per pane, on the title.
+/// jump straight to the title. Use once per standalone view, on its title.
 struct PaneTitleModifier: ViewModifier {
-    /// Scales the 22pt token relative to the `.title` text style so the H1
+    /// Scales the 22pt token relative to the `.title` text style so the title
     /// tracks the user's Dynamic Type setting while keeping its default size.
     @ScaledMetric(relativeTo: .title) private var size = DSFont.Size.x2xl
 
@@ -125,9 +131,10 @@ struct PaneTitleModifier: ViewModifier {
 }
 
 extension View {
-    /// Applies the pane title style: 22pt bold, tagged as an accessibility header.
+    /// Applies the standalone title style: 22pt bold, tagged as an accessibility header.
     ///
-    /// H1 of the ramp. One per pane. For section titles inside a pane use
+    /// Top of the ramp. One per sheet or window; not for a Settings pane, which
+    /// the window toolbar already names. For section titles inside a pane use
     /// `.sectionHeader()`; for in-card labels use `.sectionEyebrow()`.
     func paneTitle() -> some View {
         modifier(PaneTitleModifier())

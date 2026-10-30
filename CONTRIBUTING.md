@@ -79,7 +79,9 @@ make build
 make test
 ```
 
-`make test` prints the current file and pass count. Run it before opening a PR.
+`make test` prints a summary line: the total test count, the failure count, and how
+many of those ran through Swift Testing (`N tests, 0 failures (K via Swift Testing)`).
+Run it before opening a PR.
 All `make test*` targets use the gitignored `DerivedData/Tests` directory so the
 unsigned test host never replaces your signed Debug app.
 
@@ -140,8 +142,9 @@ bun run tokens
 ```
 
 Never use literal numbers for font sizes, spacing, or padding. Use `DSFont.Size.*`,
-`DSSpace.*`, `DSRadius.*`, `DSDimension.*`. Legacy literals are tracked in
-`design-system/lint-allowlist.txt`; migrate them, do not add to them.
+`DSSpace.*`, `DSRadius.*`, `DSDimension.*`. The lint allowlist,
+`design-system/lint-allowlist.txt`, is empty on purpose and the tree passes every
+rule. Fix the source; do not add entries to it.
 
 When you touch a component under `Views/Shared/`, `Views/Onboarding/Components/`,
 or `Views/HistoryStats/`, update its entry in
@@ -191,9 +194,11 @@ from `scripts/version.sh`. The reasoning is in
 
 ## Reporting Bugs
 
-Use the in-app flow when you can: **Settings > Advanced > Report a Bug** exports
-your logs and opens a pre-filled GitHub issue with your build info already in it.
-That is faster than filling in the template by hand and gives a far more useful report.
+Use the in-app flow when you can: **Help > Report a Bug** in the menu bar icon's
+menu, or **Settings > About > Send Feedback**, opens a pre-filled GitHub issue with
+your build info already in it. Attach the file from **Settings > Advanced > Export
+Logs** for context. That is faster than filling in the template by hand and gives a
+far more useful report.
 
 Include your macOS version, your WolfWave version, and whether you installed via
 DMG or Homebrew.

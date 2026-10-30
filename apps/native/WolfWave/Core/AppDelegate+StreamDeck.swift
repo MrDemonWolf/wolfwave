@@ -45,7 +45,10 @@ extension AppDelegate {
     /// Failure reasons are short tokens the plugin renders on the key:
     /// `unavailable` (the backing service does not exist yet), `music`
     /// (the Music.app AppleScript call threw), `empty` (nothing to act on),
-    /// and `twitch` (not connected to chat).
+    /// `full` (`approve_next` with the live request queue at its cap),
+    /// `twitch` (not connected to chat), and `playlist-clear-failed`
+    /// (`clear_queue` cleared the request queue but not the WolfWave Requests
+    /// playlist).
     ///
     /// - Returns: The ack for the originating connection.
     private func performStreamDeckAction(_ command: StreamDeckCommand) async -> CommandAck {

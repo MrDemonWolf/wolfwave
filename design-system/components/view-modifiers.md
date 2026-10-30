@@ -19,7 +19,7 @@ extension View {
     func subtleCardShell(cornerRadius: CGFloat = AppConstants.SettingsUI.cardCornerRadius) -> some View
     func pointerCursor() -> some View
     func skeleton(_ isLoading: Bool) -> some View
-    func paneTitle() -> some View        // H1
+    func paneTitle() -> some View        // standalone title (sheet), not a Settings pane
     func sectionHeader() -> some View    // H2
     func sectionEyebrow() -> some View   // H3
     func fieldSubtitle() -> some View    // body
@@ -107,8 +107,8 @@ QueueRow(item: placeholder).skeleton(isLoading)
 Standardized heading typography. Each adds `.isHeader` for VoiceOver where appropriate and
 scales via `@ScaledMetric` for Dynamic Type.
 
-- `.paneTitle()` (H1): `DSFont.Size.x2xl` (22) / `.bold`.
-- `.sectionHeader()` (H2): `DSFont.Size.lg` (17) / `.semibold`.
+- `.paneTitle()` (top of the ramp): `DSFont.Size.x2xl` (22) / `.bold`. For a standalone title with no window toolbar above it, such as a sheet (the custom command editor). **Not for a Settings pane:** the native window toolbar names the selected pane (`navigationTitle`), so a title in the content would repeat it. Use it at most once per sheet or window.
+- `.sectionHeader()` (H2): `DSFont.Size.lg` (17) / `.semibold`. The title of a section inside a Settings pane.
 - `.sectionEyebrow()` (H3): sentence-case micro-header inside cards. See [`section-eyebrow.md`](section-eyebrow.md).
 - Body text: `.fieldSubtitle()` (13) and `.captionText()` (10).
 
@@ -170,7 +170,7 @@ graph LR
 
 ## Accessibility
 
-- `paneTitle()` and `sectionHeader()` add `.accessibilityAddTraits(.isHeader)`, so VoiceOver users can jump between panes and sections with the rotor. `sectionEyebrow()` does not; add the trait on the container when the eyebrow labels a section.
+- `paneTitle()` and `sectionHeader()` add `.accessibilityAddTraits(.isHeader)`, so VoiceOver users can jump between headings with the rotor. `sectionEyebrow()` does not; add the trait on the container when the eyebrow labels a section.
 - All five text modifiers size through `@ScaledMetric`, so they follow the user's text size setting.
 - `skeleton(true)` hides the content from VoiceOver and disables hit testing, so a placeholder is never read aloud or tapped.
 - `motionSafe(_:value:)` and `withMotionSafeAnimation` drop the animation under Reduce Motion; the state change still lands instantly.
