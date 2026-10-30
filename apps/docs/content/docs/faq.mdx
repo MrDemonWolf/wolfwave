@@ -50,7 +50,7 @@ See [Features](/docs/features) for everything it does.
 
 - A Mac with Apple Silicon (M1 or later). Intel Macs aren't supported.
 - macOS 26 (Tahoe) or newer.
-- The Apple Music app. Song requests also need an Apple Music subscription, with **Sync Library** on in Music → Settings → General.
+- The Apple Music app. Song requests also need an Apple Music subscription, with **Sync Library** on in **Music → Settings → General**.
 
 Start with [Installation](/docs/installation).
 
@@ -106,7 +106,7 @@ Check the command's switch first. `!song` and `!last` are on for new installs, b
 
 <Accordion title="Can I approve song requests before they play?">
 
-Yes. Turn on **Require My Approval** in Settings → Song Requests. Every request waits until you approve or decline it. It's off by default. See [Song requests](/docs/features#song-requests).
+Yes. Turn on **Require My Approval** in **Settings → Song Requests**. Every request waits until you approve or decline it. It's off by default. See [Song requests](/docs/features#song-requests).
 
 </Accordion>
 
@@ -122,7 +122,7 @@ Basic chat requests and chat vote-to-skip don't need these Twitch tools. Twitch 
 
 <Accordion title="My !playlist link stopped working">
 
-WolfWave checks your **WolfWave Requests** playlist when it starts and when you open Settings → Song Requests, then reacts to what it finds:
+WolfWave checks your **WolfWave Requests** playlist when it starts and when you open **Settings → Song Requests**, then reacts to what it finds:
 
 - **Sharing turned off.** WolfWave turns `!playlist` off so chat never gets a broken link, and a banner offers **Re-share Playlist**. Song requests keep working.
 - **Playlist deleted.** WolfWave makes a new one. A new playlist starts private, so share it again to bring `!playlist` back. If WolfWave can't make one, it turns Song Requests off and the banner offers **Set Up Again**.
@@ -151,7 +151,7 @@ Performance depends on your Mac, OBS scene, and other apps. These are design cho
 
 <Accordion title="Can I use it with OBS on a second PC?">
 
-Yes. The overlay can be reached from another computer on your home network. Settings → Stream Widgets shows a network address for it. That address includes your overlay token, so keep it private. If it leaks, make a new token.
+Yes. The overlay can be reached from another computer on your home network. **Settings → Stream Widgets** shows a network address for it. That address includes your overlay token, so keep it private. If it leaks, make a new token.
 
 Stream Deck control is different: it only works from the same Mac. See [Security](/docs/security#websocket-server-security).
 
@@ -209,7 +209,7 @@ There is no WolfWave server, and no analytics. WolfWave only talks to:
 - iCloud, only if you turn on **Sync with iCloud**.
 - GitHub, to check for updates.
 
-**Share Diagnostics** (Settings → Advanced) is off by default. When on, WolfWave keeps Apple's crash and performance reports on your Mac. Nothing is uploaded. See the [Privacy Policy](/docs/privacy-policy).
+**Share Diagnostics** (**Settings → Advanced**) is off by default. When on, WolfWave keeps Apple's crash and performance reports on your Mac. Nothing is uploaded. See the [Privacy Policy](/docs/privacy-policy).
 
 </Accordion>
 
@@ -223,7 +223,7 @@ On your Mac, in a local file. Listening History is off by default, nothing is up
 
 The ready-made same-Mac address (`http://localhost:…`) doesn't need a token in the URL; WolfWave supplies the read-only overlay credential to a local request. A network address for a second computer includes `?token=…`, so keep that one private. If you added a token to any address yourself, keep that address private too.
 
-Turn on [Streamer Mode](/docs/streamer-mode) to hide addresses on screen. If a token was exposed, replace it in Settings → Stream Widgets. See [WebSocket security](/docs/security#websocket-server-security).
+Turn on [Streamer Mode](/docs/streamer-mode) to hide addresses on screen. If a token was exposed, replace it in **Settings → Stream Widgets**. See [WebSocket security](/docs/security#websocket-server-security).
 
 </Accordion>
 
@@ -239,7 +239,7 @@ WolfWave updates itself with Sparkle, a common Mac updater. Every update is sign
 
 - **Stable** is the default channel.
 - **Nightly** is opt-in and gets new changes first. See [Nightly builds](/docs/nightly).
-- To check by hand: menu bar icon → Help → **Check for Updates…**
+- To check by hand: **menu bar icon → Help → Check for Updates…**
 
 Installed with Homebrew? Run `brew upgrade wolfwave` instead. The built-in updater turns itself off.
 

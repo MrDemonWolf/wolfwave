@@ -28,7 +28,7 @@ This page maps the code for contributors. To build it, start with [Development](
 ## How data flows
 
 ```mermaid
-flowchart LR
+flowchart TD
     M[Music.app] -->|ScriptingBridge + notifications| S[AppleMusicSource]
     S -->|PlaybackSourceDelegate| A[AppDelegate]
     A --> T[TwitchChatService]
@@ -54,7 +54,7 @@ flowchart LR
 - UI tests: [`apps/native/WolfWaveUITests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveUITests)
 - Internal design notes (control API, logging format, end-to-end testing): [`apps/native/docs/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/docs)
 
-```
+```text
 WolfWave/
 ├── WolfWaveApp.swift      # @main app + the AppDelegate class
 ├── Core/                  # App-wide plumbing, by job:

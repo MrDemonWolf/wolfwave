@@ -3,6 +3,7 @@ import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { z } from 'zod';
 import { remarkReleasedChangelog } from './lib/remark-released-changelog';
+import { rehypeIssueBlocks, rehypeMermaid, rehypeUiPaths } from './lib/rehype-docs';
 
 // Adds the SEO / Open Graph fields read by `app/og/docs/[...slug]/route.tsx`
 // and page metadata; all optional so existing pages stay valid.
@@ -37,5 +38,8 @@ export const docs = defineDocs({
 export default defineConfig({
   mdxOptions: {
     remarkPlugins: [remarkReleasedChangelog],
+    // `defaults` is Fumadocs' [rehypeCode, rehypeToc]. Mermaid must run before
+    // rehypeCode, or the fence turns into a highlighted code block first.
+    rehypePlugins: (defaults) => [rehypeMermaid, ...defaults, rehypeUiPaths, rehypeIssueBlocks],
   },
 });

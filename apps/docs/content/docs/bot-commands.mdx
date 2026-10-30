@@ -144,17 +144,17 @@ Everything below is set up in WolfWave's **Settings** window. Commands only work
 
 | Command | Default | Where to turn it on |
 |---|---|---|
-| `!song`, `!last` | On for new installs, and the setup wizard lets you switch them off. If you were already set up when you updated, they stay as you had them. | Settings → Twitch → Bot Commands |
-| `!wolfwave` | Off | Settings → Twitch → Bot Commands |
-| `!stats` | Off | Settings → History & Stats → **!stats command** (needs Listening History and **Show Stats & Charts** on) |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On. `!sr` stays quiet until Song Requests is on. | Settings → Song Requests → Song Request Commands |
-| `!playlist` | Off. The guided setup turns it on when you fetch your link. With no link set, it stays quiet. | Settings → Song Requests → Song Request Commands → **!playlist Command**. Use **Manage** next to **Song list link** to set the link. |
-| `!voteskip` | On, but it stays quiet until vote-skip is on | Settings → Song Requests → Chat Vote-Skip |
+| `!song`, `!last` | On for new installs, and the setup wizard lets you switch them off. If you were already set up when you updated, they stay as you had them. | **Settings → Twitch → Bot Commands** |
+| `!wolfwave` | Off | **Settings → Twitch → Bot Commands** |
+| `!stats` | Off | **Settings → History & Stats → !stats command** (needs Listening History and **Show Stats & Charts** on) |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On. `!sr` stays quiet until Song Requests is on. | **Settings → Song Requests → Song Request Commands** |
+| `!playlist` | Off. The guided setup turns it on when you fetch your link. With no link set, it stays quiet. | **Settings → Song Requests → Song Request Commands → !playlist Command**. Use **Manage** next to **Song list link** to set the link. |
+| `!voteskip` | On, but it stays quiet until vote-skip is on | **Settings → Song Requests → Chat Vote-Skip** |
 | `!hold`, `!resume`, `!unhold` | Always on | No switch. Mods and you only. |
 
-Song requests have a master switch: **Enable Song Requests** in Settings → Song Requests. It's off until you turn it on. The first time, **Set up Song Requests** walks you through it. The **Song Request Commands** card shows up once Song Requests is set up and on. Details are in [Song requests](/docs/features#song-requests).
+Song requests have a master switch: **Enable Song Requests** in **Settings → Song Requests**. It's off until you turn it on. The first time, **Set up Song Requests** walks you through it. The **Song Request Commands** card shows up once Song Requests is set up and on. Details are in [Song requests](/docs/features#song-requests).
 
-**Only reply while live.** In Settings → Twitch → Chat commands, this one switch keeps every command quiet until your stream goes live. It's off by default, so commands reply anytime.
+**Only reply while live.** In **Settings → Twitch → Chat commands**, this one switch keeps every command quiet until your stream goes live. It's off by default, so commands reply anytime.
 
 ### What the mod commands do
 
@@ -164,7 +164,7 @@ Song requests have a master switch: **Enable Song Requests** in Settings → Son
 
 ### Who can request
 
-Set this in Settings → Song Requests → **Who Can Request**. Pick a preset:
+Set this in **Settings → Song Requests → Who Can Request**. Pick a preset:
 
 | Preset | What it does |
 |---|---|
@@ -181,7 +181,7 @@ Set this in Settings → Song Requests → **Who Can Request**. Pick a preset:
 
 ### Channel points and Bits
 
-Turn these on in Settings → Song Requests → **Channel Points & Bits**.
+Turn these on in **Settings → Song Requests → Channel Points & Bits**.
 
 - **Channel Point Requests.** WolfWave adds a **Request a Song** reward to your channel. Pick the **Reward cost**: 100, 250, 500 (default), 1000, 2500, or 5000. Failed requests are refunded automatically.
 - **Bit Requests.** A cheer with a song name requests it. Pick the **Minimum bits**: 1, 50, 100 (default), 200, 500, or 1000.
@@ -196,7 +196,7 @@ You need:
 
 ### Vote-skip settings
 
-Settings → Song Requests → **Chat Vote-Skip**. Turn on **Enable Vote-Skip** first.
+**Settings → Song Requests → Chat Vote-Skip**. Turn on **Enable Vote-Skip** first.
 
 | Setting | Default | Choices |
 |---|---|---|
@@ -213,7 +213,7 @@ A vote skips the request playing now. If no request is playing, it skips the cur
 
 ### `!stats` settings
 
-In Settings → History & Stats → **!stats command**:
+In **Settings → History & Stats → !stats command**:
 
 - **Window:** Today (default), This stream, Last 7 days, or All time. "This stream" uses Today while you're offline.
 - **What to show:** Plays, Listening time, Top track, Top artist. Plays and Top track are on by default. At least one stays on.
@@ -221,7 +221,7 @@ In Settings → History & Stats → **!stats command**:
 
 ### `!wolfwave` reply styles
 
-Pick one in Settings → Twitch → Bot Commands. Each one credits MrDemonWolf and links the WolfWave site.
+Pick one in **Settings → Twitch → Bot Commands**. Each one credits MrDemonWolf and links the WolfWave site.
 
 - **Credit + maker** (default)
 - **Viewer how-to.** Points viewers at `!song`, `!last`, and `!sr`.
@@ -248,7 +248,7 @@ A cooldown is how long a command waits before it answers again.
 | `!clearqueue` | 5s | 5s | No (mods skip it anyway) |
 | `!voteskip` | none | none | Uses **Cooldown between votes** instead (chat votes only) |
 
-**Sub / VIP priority** (Settings → Song Requests) can let subs and VIPs skip the `!sr` cooldown, or skip it and jump ahead in the queue. Off by default.
+**Sub / VIP priority** (**Settings → Song Requests**) can let subs and VIPs skip the `!sr` cooldown, or skip it and jump ahead in the queue. Off by default.
 
 ### Custom aliases
 
@@ -256,16 +256,16 @@ Add extra words for a built-in command. Type them comma-separated, without `!`. 
 
 | Command | Where |
 |---|---|
-| `!song`, `!last`, `!wolfwave` | Settings → Twitch → Bot Commands |
-| `!stats` | Settings → History & Stats |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!playlist`, `!voteskip` | Settings → Song Requests |
+| `!song`, `!last`, `!wolfwave` | **Settings → Twitch → Bot Commands** |
+| `!stats` | **Settings → History & Stats** |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!playlist`, `!voteskip` | **Settings → Song Requests** |
 
 - Aliases follow the same on/off, cooldown, audience, and live-only rules as the command.
 - `!hold` and `!resume` have no aliases.
 
 ### Custom commands
 
-Make your own commands in Settings → Twitch → **Custom Commands**. Click **Add command**.
+Make your own commands in **Settings → Twitch → Custom Commands**. Click **Add command**.
 
 Each command has:
 
