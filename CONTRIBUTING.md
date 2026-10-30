@@ -108,7 +108,7 @@ Five lint gates run in CI. Crash safety, file headers, and source/docs sync are 
 make lint                # SwiftLint against the tracked baseline
 make lint-crash-safety   # Blocking. No new force unwrap, try!, or as!
 make lint-headers        # Blocking. Swift file-header convention
-make lint-sync           # Blocking. Source-derived lists, catalog, docs values, lint claims
+make lint-sync           # Blocking. Source-derived lists, catalog, docs values, lint claims, bug-report form
 bun run ds:lint          # Design-system lint (no literal spacing or font sizes)
 bun run ds:schema        # Validate tokens.json against tokens.schema.json
 ```

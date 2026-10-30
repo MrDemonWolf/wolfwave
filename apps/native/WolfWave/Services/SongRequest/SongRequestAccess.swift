@@ -497,7 +497,9 @@ enum RedemptionStatus: String {
     case storageUnavailable
     /// A Twitch redemption stayed unresolved after bounded retries.
     case resolutionStuck
-    /// The signed-in account cannot create custom channel-point rewards.
+    /// The signed-in account cannot create custom channel-point rewards (Twitch
+    /// answered 403). The name predates Twitch opening Channel Points beyond
+    /// Affiliates and Partners; the raw value is persisted, so it stays.
     case notAffiliate
 
     /// Banner message shown to the streamer, or `nil` when everything is fine.
@@ -517,7 +519,8 @@ enum RedemptionStatus: String {
         case .resolutionStuck:
             return "A channel-point redemption is still unresolved. Check Twitch, then reconnect to retry it."
         case .notAffiliate:
-            return "Channel points need Twitch Affiliate or Partner."
+            return "Twitch won't let this channel create channel-point rewards. "
+                + "Turn on Channel Points in your Creator Dashboard, then reconnect to Twitch."
         }
     }
 }

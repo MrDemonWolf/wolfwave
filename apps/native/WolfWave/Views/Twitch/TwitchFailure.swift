@@ -17,7 +17,8 @@ extension TwitchViewModel {
     /// sign-in genuinely helps.
     enum Failure {
         /// The stored grant exists but the Keychain read failed (not "no
-        /// credentials"), so Try Again is offered before a new sign-in.
+        /// credentials"), so Try Again is offered before a new sign-in. Try
+        /// Again reads the Keychain again (`RetryTarget.reloadCredentials`).
         static func keychainUnreadable() -> UserFacingError {
             UserFacingError(
                 id: "twitch.keychainUnreadable",
@@ -248,6 +249,38 @@ extension TwitchViewModel {
                 severity: .warning,
                 actions: [.retry]
             )
+        }
+    }
+
+    // MARK: - Try Again Routing
+
+    /// What the error banner's Try Again button should re-run.
+    ///
+    /// `.retry` means a different thing per failure: a failed sign-in retries
+    /// the sign-in, a failed sign-out retries the sign-out, and a failed
+    /// Keychain read reads it again. Routing every one of them to Join (the old
+    /// behavior) made Try Again on an expired code try to join a channel with
+    /// no account.
+    nonisolated enum RetryTarget: Equatable, Sendable {
+        case signIn
+        case signOut
+        case joinChannel
+        /// Re-read the saved sign-in (`loadSavedCredentials()`).
+        case reloadCredentials
+    }
+
+    /// Maps a surfaced failure to the work its Try Again button repeats.
+    nonisolated static func retryTarget(for error: UserFacingError) -> RetryTarget {
+        switch error.id {
+        case "twitch.oauthFailed", "twitch.deviceCodeExpired",
+             "twitch.accountSwitchDisconnectFailed":
+            return .signIn
+        case "twitch.credentialClearFailed", "twitch.signOutDisconnectFailed":
+            return .signOut
+        case "twitch.keychainUnreadable":
+            return .reloadCredentials
+        default:
+            return .joinChannel
         }
     }
 }

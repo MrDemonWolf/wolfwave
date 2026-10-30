@@ -86,12 +86,12 @@ struct HistoryStatsSettingsView: View {
     @State var showClearAlert = false
     /// Shown when `clearHistory()` couldn't finish removing the files.
     @State private var showClearFailureAlert = false
-    /// Confirm alert for a shorter retention that would delete existing plays.
+    /// Confirm alert for a shorter retention that would delete plays or totals.
     @State private var showRetentionAlert = false
     /// Retention choice awaiting confirmation.
     @State private var pendingRetentionDays = 0
-    /// How many plays `pendingRetentionDays` would remove (for the alert title).
-    @State private var pendingExpiredCount = 0
+    /// What `pendingRetentionDays` would delete (drives the alert's copy).
+    @State private var pendingRetentionImpact = RetentionImpact.empty
     /// Music Automation grant. Seeded from the session cache, then re-probed
     /// on appear and whenever the app becomes active.
     @State var musicPermission: MusicPermissionState = MusicPermissionCache.read() ?? .unknown
@@ -212,27 +212,28 @@ struct HistoryStatsSettingsView: View {
         } message: {
             Text("WolfWave will retry before saving any new plays.")
         }
-        .alert("Remove \(pendingExpiredCount) plays older than \(pendingRetentionDays) days?", isPresented: $showRetentionAlert) {
+        .alert(pendingRetentionImpact.confirmationTitle(days: pendingRetentionDays), isPresented: $showRetentionAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {
                 applyRetentionDays(pendingRetentionDays)
             }
             .accessibilityIdentifier("historyRetentionConfirmButton")
         } message: {
-            Text("These plays will be removed from history and statistics. Can't be undone.")
+            Text(pendingRetentionImpact.confirmationMessage(days: pendingRetentionDays))
         }
     }
 
     // MARK: - Retention Actions
 
-    /// Picker setter for retention. A shorter window that would delete existing
-    /// plays asks first (`showRetentionAlert`); anything else applies at once.
+    /// Picker setter for retention. A shorter window that would delete plays or
+    /// the All time and Top totals asks first (`showRetentionAlert`); anything
+    /// else applies at once.
     func chooseRetentionDays(_ days: Int) {
         let shorter = days > 0 && (historyRetentionDays == 0 || days < historyRetentionDays)
-        let count = service?.expiredRecordCount(retentionDays: days) ?? 0
-        if shorter, count > 0 {
+        let impact = service?.retentionImpact(retentionDays: days) ?? .empty
+        if shorter, impact.deletesData {
             pendingRetentionDays = days
-            pendingExpiredCount = count
+            pendingRetentionImpact = impact
             showRetentionAlert = true
         } else {
             applyRetentionDays(days)

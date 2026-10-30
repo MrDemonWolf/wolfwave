@@ -68,6 +68,24 @@ final class SettingsFeedbackTests: XCTestCase {
         XCTAssertEqual(attempts, 2)
     }
 
+    func testKeychainResetErrorSaysNothingWasErased() {
+        let error = SettingsView.keychainResetError()
+        XCTAssertEqual(error.id, "settings.resetAborted")
+        XCTAssertTrue(error.message.contains("nothing was erased"))
+    }
+
+    /// The reset alert shows its message as plain text, so a Markdown marker in any reset
+    /// error would print literally (the `**nothing was erased**` regression).
+    func testResetErrorsCarryNoMarkdown() async throws {
+        let twitchError = await SettingsView.twitchResetError(clearCredentials: { false })
+        let twitch = try XCTUnwrap(twitchError)
+        let incomplete = try XCTUnwrap(SettingsView.containerWipeError(wipe: { false }))
+        for error in [twitch, SettingsView.keychainResetError(), incomplete] {
+            XCTAssertFalse(error.message.contains("**"), "\(error.id) would show literal asterisks")
+            XCTAssertFalse(error.message.contains("`"), "\(error.id) would show literal backticks")
+        }
+    }
+
     func testLaunchAtLoginFailureSurfacesError() {
         let failure = AppVisibilitySettingsView.requestLaunchAtLogin(true, register: { enabled in
             XCTAssertTrue(enabled)

@@ -9,7 +9,7 @@
     "preview": "remotion preview src/index.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "MrDemonWolf, Inc.",
   "license": "GPL-3.0",
   "type": "commonjs",
   "dependencies": {

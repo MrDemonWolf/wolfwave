@@ -229,7 +229,10 @@ extension TwitchChatServiceTests {
                 == .storageUnavailable)
         #expect(RedemptionStatus.storageUnavailable.bannerMessage != nil)
         #expect(RedemptionStatus.resolutionStuck.bannerMessage != nil)
-        #expect(RedemptionStatus.notAffiliate.bannerMessage?.contains("Affiliate or Partner") == true)
+        // Twitch opened Channel Points beyond Affiliates and Partners, so the
+        // banner points at the dashboard switch instead of a status.
+        #expect(RedemptionStatus.notAffiliate.bannerMessage?.contains("Creator Dashboard") == true)
+        #expect(RedemptionStatus.notAffiliate.bannerMessage?.contains("Affiliate") == false)
         #expect(operations.value.contains {
             $0.url.contains("/channel_points/custom_rewards?")
                 && !$0.url.contains("/redemptions")

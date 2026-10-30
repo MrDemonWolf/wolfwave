@@ -57,7 +57,8 @@ struct SettingsImportSheet: View {
                     .sectionEyebrow()
                 ToggleSettingRow(
                     title: "Import local sharing and server settings",
-                    subtitle: "Includes diagnostics sharing, update channel, and local widget or Stream Deck servers.",
+                    subtitle: "Includes diagnostics sharing, automatic update checks, the update channel, "
+                        + "and local widget or Stream Deck servers.",
                     isOn: $includeLocalSharingSettings,
                     accessibilityLabel: "Import local sharing and server settings",
                     accessibilityIdentifier: "importLocalSharingSettingsToggle"

@@ -48,7 +48,7 @@ flowchart TD
 - Toggle rows provide explicit labels and stable accessibility identifiers.
 - Loading data keeps the dashboard footprint with skeleton placeholders instead of shifting focus targets.
 - Destructive clearing requires a confirmation alert and exposes a dedicated confirm-button identifier.
-- Shortening retention confirms the service-computed number of expired plays before applying the new window.
+- Shortening retention confirms first with the service-computed `RetentionImpact`: the expired plays plus any All time and Top totals the new window deletes, so leaving Forever never drops them unasked.
 - The layout collapses through `ResponsiveRow`, preserving the same top-to-bottom reading order at narrow widths.
 
 ## Do / Don't

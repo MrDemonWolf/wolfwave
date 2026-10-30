@@ -153,6 +153,9 @@ jobs:
               # The landing-protocol check reads these two.
               - 'apps/docs/app/(home)/page.tsx'
               - 'apps/docs/app/(home)/DeveloperTabs.tsx'
+              # The bug-report check matches BugReportURL.FormField (under
+              # apps/native/WolfWave above) against this form's field ids.
+              - '.github/ISSUE_TEMPLATE/bug_report.yml'
               # release-notes.test.mjs renders the real CHANGELOG's newest
               # section; a malformed entry must fail here, not mid-release.
               - 'CHANGELOG.md'
