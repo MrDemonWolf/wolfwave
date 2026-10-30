@@ -6,17 +6,9 @@ import type { TileTint } from "@/lib/docs-nav";
  * System Settings sidebar. Decorative: the label beside it carries the meaning.
  * Colors come from `[data-tint]` rules in `app/docs/docs.css`.
  */
-export function IconTile({
-  icon: Icon,
-  tint,
-  size = "sm",
-}: {
-  icon: LucideIcon;
-  tint: TileTint;
-  size?: "sm" | "md" | "lg";
-}) {
+export function IconTile({ icon: Icon, tint }: { icon: LucideIcon; tint: TileTint }) {
   return (
-    <span className="ww-tile" data-tint={tint} data-size={size} aria-hidden="true">
+    <span className="ww-tile" data-tint={tint} aria-hidden="true">
       <Icon strokeWidth={2.25} />
     </span>
   );
