@@ -273,12 +273,11 @@
 /* Small colored tiles with a white glyph, as in the System Settings
    sidebar. The color says what a page is about (lib/docs-nav.ts). */
 .ww-docs .ww-tile {
-  --ww-tile-size: 1.375rem;
   display: inline-grid;
   flex-shrink: 0;
   place-items: center;
-  width: var(--ww-tile-size);
-  height: var(--ww-tile-size);
+  width: 1.375rem;
+  height: 1.375rem;
   border-radius: var(--ds-radius-sm);
   background: var(--ww-tile-bg, var(--ds-color-neutral));
   color: #fff;
@@ -286,14 +285,6 @@
 .ww-docs .ww-tile svg {
   width: 62%;
   height: 62%;
-}
-.ww-docs .ww-tile[data-size="md"] {
-  --ww-tile-size: 2rem;
-  border-radius: var(--ds-radius-md);
-}
-.ww-docs .ww-tile[data-size="lg"] {
-  --ww-tile-size: 2.5rem;
-  border-radius: var(--ds-radius-lg);
 }
 .ww-docs .ww-tile[data-tint="brand"] { --ww-tile-bg: var(--ds-color-brand-500); }
 .ww-docs .ww-tile[data-tint="indigo"] { --ww-tile-bg: var(--ds-color-brand-700); }
@@ -381,7 +372,7 @@
   width: 0.875rem;
   height: 0.875rem;
 }
-.ww-docs .ww-page-head h1 {
+.ww-docs :is(.ww-page-head, .ww-home-head) h1 {
   margin: 0;
   font-family: var(--font-montserrat), var(--ds-font-family-display);
   font-size: clamp(2rem, 1.5rem + 1.6vw, 2.625rem);
@@ -391,8 +382,8 @@
   color: var(--ds-color-text-primary);
   text-wrap: balance;
 }
-/* The lede (frontmatter description). */
-.ww-docs .ww-page-head h1 + p {
+/* The lede (frontmatter description, or the home's own). */
+.ww-docs :is(.ww-page-head, .ww-home-head) h1 + p {
   margin: 0.875rem 0 0;
   font-size: 1.1875rem;
   line-height: 1.55;
@@ -872,324 +863,161 @@
 }
 
 /* ── 15. Docs home ───────────────────────────────────────── */
-/* components/docs/home.tsx. The home is a full-width page (no TOC). */
-.ww-docs .ww-docs-hero {
-  display: grid;
-  gap: 2.5rem;
-  align-items: center;
-  margin-block: 0 1rem;
+/* components/docs/home.tsx. A help page, not a pitch: the header matches
+   every other page's (section 6), then groups of links two across. */
+.ww-docs :is(.ww-home-head, .ww-home-grid) {
+  --ww-home-gap: 1.75rem;
 }
-.ww-docs .ww-docs-hero h1 {
-  margin: 0;
-  font-family: var(--font-montserrat), var(--ds-font-family-display);
-  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 3.5rem);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  color: var(--ds-color-text-primary);
-}
-.ww-docs .ww-docs-lede {
-  max-width: 32rem;
-  margin-top: 1.125rem;
-  font-size: 1.25rem;
-  line-height: 1.55;
-  color: var(--ds-color-text-secondary);
-  text-wrap: pretty;
-}
-.ww-docs .ww-docs-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
-}
-.ww-docs .ww-button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding-inline: 1.125rem;
-  border: 1px solid var(--ds-color-surface-hairline);
-  border-radius: var(--ds-radius-md);
-  background-color: var(--ds-color-surface-base);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--ds-color-text-primary);
-  transition: background-color var(--ww-fast) var(--ww-ease), border-color var(--ww-fast) var(--ww-ease);
-}
-.ww-docs .ww-button:hover {
-  background-color: var(--ww-fill);
-}
-.ww-docs .ww-button[data-variant="primary"] {
-  border-color: transparent;
-  background-color: var(--brand-fill);
-  color: #fff;
-}
-.ww-docs .ww-button[data-variant="primary"]:hover {
-  background-color: color-mix(in srgb, var(--brand-fill) 88%, #000);
-}
-@media (min-width: 1024px) {
-  .ww-docs .ww-docs-hero {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: 3.5rem;
-    margin-block: 0 1.5rem;
-  }
+.ww-docs .ww-home-head {
+  margin-bottom: 2.75rem;
 }
 
-/* The home carries its own hero, so it starts closer to the top bar. */
-.ww-docs #nd-page:has(.ww-docs-hero) {
-  padding-top: 1.5rem;
-}
-
-/* The menu map: WolfWave's menu bar menu, with real links for rows. */
-.ww-docs .ww-menu {
-  margin: 0;
-}
-.ww-docs .ww-menu-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.875rem;
-  height: 1.875rem;
-  padding-inline: 0.875rem;
-  border-radius: var(--ds-radius-md) var(--ds-radius-md) 0 0;
-  background-color: var(--ds-color-surface-surface);
-  border: 1px solid var(--ds-color-surface-hairline);
-  border-bottom: 0;
-}
-.ww-docs .ww-menu-bar-wolf {
-  width: 1.75rem;
-  height: 1.375rem;
-  border-radius: var(--ds-radius-xs);
-  background-color: var(--ww-fill-strong);
-  position: relative;
-}
-.ww-docs .ww-menu-bar-wolf::after {
-  content: "";
-  position: absolute;
-  inset: 0.1875rem 0.3125rem;
-  background-color: var(--ds-color-text-primary);
-  -webkit-mask: var(--ww-logo) center / contain no-repeat;
-  mask: var(--ww-logo) center / contain no-repeat;
-}
-.ww-docs .ww-menu-bar-dot {
-  width: 0.875rem;
-  height: 0.5rem;
-  border-radius: var(--ds-radius-xs);
-  background-color: var(--ds-color-text-secondary);
-  opacity: 0.45;
-}
-.ww-docs .ww-menu-bar-clock {
-  font-size: 0.75rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-color-text-primary);
-}
-.ww-docs .ww-menu-panel {
-  padding: 0.3125rem;
-  border: 1px solid var(--ds-color-surface-hairline);
-  border-radius: 0 0 var(--ds-radius-lg2) var(--ds-radius-lg2);
-  background-color: var(--ds-color-surface-base);
-  box-shadow: var(--ds-shadow-md);
-}
-.ww-docs .ww-menu-now {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.3125rem;
-  padding: 0.5rem 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--ds-color-surface-hairline);
-}
-.ww-docs .ww-menu-art {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--ds-radius-md);
-  background:
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, #fff 35%, transparent) 0 0.25rem, transparent 0.3rem),
-    linear-gradient(135deg, var(--ds-color-partner-wolfwave-gradient-start), var(--ds-color-brand-500));
-}
-.ww-docs .ww-menu-track {
-  display: grid;
-  min-width: 0;
-  line-height: 1.3;
-}
-.ww-docs .ww-menu-track strong {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--ds-color-text-primary);
-}
-.ww-docs .ww-menu-track span {
-  font-size: 0.8125rem;
-  color: var(--ds-color-text-secondary);
-}
-.ww-docs .ww-menu-items {
-  display: grid;
-}
-.ww-docs .ww-menu-item {
+/* Search: a button drawn as a field. It opens the top bar's dialog. On a
+   wide page it ends where the left column of links does. */
+.ww-docs .ww-home-search {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 0.3125rem 0.5rem;
-  border-radius: var(--ds-radius-sm);
-  font-size: 0.875rem;
-  color: var(--ds-color-text-primary);
-}
-.ww-docs .ww-menu-item[data-separator] {
-  position: relative;
-  margin-top: 0.6875rem;
-}
-.ww-docs .ww-menu-item[data-separator]::before {
-  content: "";
-  position: absolute;
-  inset: -0.375rem 0.5rem auto;
-  border-top: 1px solid var(--ds-color-surface-hairline);
-}
-.ww-docs .ww-menu-label {
-  flex: 1;
-  min-width: 0;
-}
-.ww-docs .ww-menu-item kbd,
-.ww-docs .ww-menu-chevron {
-  font-family: inherit;
-  font-size: 0.8125rem;
-  color: var(--ds-color-text-secondary);
-}
-.ww-docs .ww-menu-chevron {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-/* Hover and focus highlight a row the way a real menu does. */
-.ww-docs .ww-menu-item:is(:hover, :focus-visible) {
-  background-color: var(--brand-fill);
-  color: #fff;
-  outline: none;
-}
-.ww-docs .ww-menu-item:is(:hover, :focus-visible) :is(kbd, .ww-menu-chevron) {
-  color: #fff;
-}
-.ww-docs .ww-menu figcaption {
-  margin-top: 0.625rem;
-  font-size: 0.8125rem;
-  color: var(--ds-color-text-secondary);
-}
-
-/* Setup path: four numbered steps that really are done in order. */
-.ww-docs .ww-setup {
-  counter-reset: setup;
-  display: grid;
-  gap: 0.75rem;
-  margin: 1rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-.ww-docs .ww-setup-step {
-  display: grid;
-  gap: 0.375rem;
-  height: 100%;
-  padding: 1rem 1.125rem 1.125rem;
+  width: 100%;
+  max-width: max(min(100%, 24rem), (100% - var(--ww-home-gap)) / 2);
+  height: 2.75rem;
+  margin-top: 1.5rem;
+  padding-inline: 0.875rem 0.625rem;
   border: 1px solid var(--ds-color-surface-hairline);
-  border-radius: var(--ds-radius-lg2);
+  border-radius: var(--ds-radius-lg);
+  background-color: var(--ds-color-surface-surface);
+  font-size: 0.9375rem;
+  color: var(--ds-color-text-secondary);
   transition: border-color var(--ww-fast) var(--ww-ease);
 }
-.ww-docs .ww-setup-step::before {
-  counter-increment: setup;
-  content: counter(setup);
-  display: grid;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-bottom: 0.375rem;
-  border-radius: var(--ds-radius-pill);
-  background-color: var(--ww-selection);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ds-color-brand-600);
-}
-.ww-docs .ww-setup-step:hover {
+.ww-docs .ww-home-search:hover {
   border-color: color-mix(in srgb, var(--ds-color-brand-500) 50%, var(--ds-color-surface-hairline));
 }
-.ww-docs .ww-setup-step strong {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--ds-color-text-primary);
+.ww-docs .ww-home-search > svg {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
 }
-.ww-docs .ww-setup-step span {
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: var(--ds-color-text-secondary);
+.ww-docs .ww-home-search-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-@media (min-width: 640px) {
-  .ww-docs .ww-setup {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.ww-docs .ww-home-search-keys {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-inline-start: auto;
 }
-@media (min-width: 1024px) {
-  .ww-docs .ww-setup {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+.ww-docs .ww-home-search kbd {
+  min-width: 1.5rem;
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-sm);
+  background-color: var(--ds-color-surface-base);
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-align: center;
+}
+/* A touch screen has no ⌘K. */
+@media (hover: none) and (pointer: coarse) {
+  .ww-docs .ww-home-search-keys {
+    display: none;
   }
 }
 
-/* Link list: an inset grouped list, hairlines inset to the label. */
-.ww-docs .ww-link-list {
-  margin: 1rem 0 0;
+/* Two columns once each can be 18rem wide, never more than two. Sized by
+   the page column, so it works with or without the sidebar. */
+.ww-docs .ww-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(18rem, (100% - var(--ww-home-gap)) / 2)), 1fr));
+  gap: 2.25rem var(--ww-home-gap);
+  margin-bottom: 2.75rem;
+}
+.ww-docs .ww-link-group h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ds-color-text-primary);
+}
+
+/* The list: an inset grouped list, hairlines inset to the label. */
+.ww-docs .ww-link-group :is(ul, ol) {
+  margin: 0;
   padding: 0;
   list-style: none;
   border: 1px solid var(--ds-color-surface-hairline);
   border-radius: var(--ds-radius-lg2);
   overflow: hidden;
 }
-.ww-docs .ww-link-list li {
+.ww-docs .ww-link-group li {
   position: relative;
+  margin: 0;
 }
-.ww-docs .ww-link-list li + li::before {
+.ww-docs .ww-link-group li + li::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto 3.25rem;
+  inset: 0 0 auto 1rem;
   border-top: 1px solid var(--ds-color-surface-hairline);
 }
-.ww-docs .ww-link-list a {
+.ww-docs .ww-link-group li a {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-height: 3rem;
+  min-height: 2.75rem;
   padding: 0.5rem 1rem;
   font-size: 0.9375rem;
+  line-height: 1.4;
   color: var(--ds-color-text-primary);
+  text-decoration: none;
   transition: background-color var(--ww-fast) var(--ww-ease);
 }
-.ww-docs .ww-link-list a:hover {
+/* Lucide's chevron-right, as a mask so it takes the text color. */
+.ww-docs .ww-link-group li a::after {
+  --ww-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+  content: "";
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-inline-start: auto;
+  background-color: var(--ds-color-text-secondary);
+  -webkit-mask: var(--ww-chevron) center / contain no-repeat;
+  mask: var(--ww-chevron) center / contain no-repeat;
+}
+.ww-docs .ww-link-group li a:hover {
   background-color: var(--ww-fill);
 }
-.ww-docs .ww-link-list a:focus-visible {
+.ww-docs .ww-link-group li a:focus-visible {
   outline-offset: -2px;
   background-color: var(--ww-fill);
 }
-.ww-docs .ww-link-list .ww-link-label {
-  flex: 1;
-}
-.ww-docs .ww-link-list a > svg {
-  width: 1rem;
-  height: 1rem;
-  color: var(--ds-color-text-secondary);
-}
 
-/* Cards that carry an icon tile drop Fumadocs' boxed icon frame. */
-.ww-docs a[data-card] > div:has(> .ww-tile) {
-  margin-bottom: 0.75rem;
-  padding: 0;
-  border: 0;
-  background: none;
+/* A numbered list is a real sequence: each row leads with its step number,
+   in the same brand wash as Steps (section 10). The <ol> already tells
+   screen readers the position, so the drawn number is hidden from them. */
+.ww-docs .ww-link-group ol {
+  counter-reset: ww-step;
 }
-
-.ww-docs .ww-sponsors {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  margin-top: 0.5rem;
+.ww-docs .ww-link-group ol > li {
+  counter-increment: ww-step;
 }
-.ww-docs .ww-sponsors img {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: 5.5rem;
-  margin: 0;
+.ww-docs .ww-link-group ol > li + li::before {
+  inset: 0 0 auto 3.25rem;
+}
+.ww-docs .ww-link-group ol > li > a::before {
+  content: counter(ww-step);
+  content: counter(ww-step) / "";
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--ds-radius-pill);
+  background-color: var(--ww-selection);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ds-color-brand-600);
 }

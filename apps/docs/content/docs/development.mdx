@@ -272,7 +272,7 @@ The native app opens `/docs/troubleshooting#<id>` from its error banners, and th
 
 ### Components
 
-Fumadocs' components (`Callout`, `Cards` and `Card`, `Steps`, `Tabs`, `Accordions`, `Files`) work in any page. The docs home uses `HomeHero`, `MenuMap`, `SetupPath`, and `LinkList` from `components/docs/home.tsx`. Styles live in `app/docs/docs.css`, which only docs pages load, so the landing page never sees them.
+Fumadocs' components (`Callout`, `Cards` and `Card`, `Steps`, `Tabs`, `Accordions`, `Files`) work in any page. The docs home uses `HomeHeader`, `HomeGrid`, and `LinkGroup` from `components/docs/home.tsx`. Each `LinkGroup` wraps a plain Markdown list of links. Styles live in `app/docs/docs.css`, which only docs pages load, so the landing page never sees them.
 
 ## Open a pull request
 

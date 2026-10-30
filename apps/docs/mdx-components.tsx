@@ -7,16 +7,7 @@ import { Card, Cards } from 'fumadocs-ui/components/card';
 import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import type { MDXComponents } from 'mdx/types';
 import { Mermaid } from '@/components/docs/mermaid';
-import {
-  HomeHero,
-  LinkList,
-  LinkListItem,
-  MenuMap,
-  MenuMapItem,
-  SetupPath,
-  SetupStep,
-  Tile,
-} from '@/components/docs/home';
+import { HomeGrid, HomeHeader, LinkGroup } from '@/components/docs/home';
 
 /**
  * Component map for MDX pages: Fumadocs defaults plus the extra components
@@ -41,14 +32,9 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Files,
     Folder,
     Mermaid,
-    HomeHero,
-    LinkList,
-    LinkListItem,
-    MenuMap,
-    MenuMapItem,
-    SetupPath,
-    SetupStep,
-    Tile,
+    HomeGrid,
+    HomeHeader,
+    LinkGroup,
     ...components,
   };
 }

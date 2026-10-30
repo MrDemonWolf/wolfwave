@@ -20,56 +20,43 @@ keywords:
   - macos menu bar music streamer
 ---
 
-<HomeHero
-  title="WolfWave docs"
-  primary={{ href: "/docs/installation", label: "Install WolfWave" }}
-  secondary={{ href: "/docs/bot-commands", label: "Chat commands" }}
-  aside={
-    <MenuMap caption="Illustration of the WolfWave menu. The song is made up.">
-      <MenuMapItem href="/docs/features#twitch-chat-bot" icon="chat" tint="twitch">Twitch chat bot</MenuMapItem>
-      <MenuMapItem href="/docs/features#song-requests" icon="requests" tint="apple-music">Song requests</MenuMapItem>
-      <MenuMapItem href="/docs/features#discord-status" icon="headphones" tint="discord">Discord status</MenuMapItem>
-      <MenuMapItem href="/docs/features#now-playing-widget" icon="monitor" tint="graphite">OBS overlay</MenuMapItem>
-      <MenuMapItem href="/docs/streamdeck" icon="grid" tint="graphite">Stream Deck</MenuMapItem>
-      <MenuMapItem href="/docs/settings" icon="settings" tint="gray" shortcut="⌘," separator>Settings…</MenuMapItem>
-      <MenuMapItem href="/docs/troubleshooting" icon="lifebuoy" tint="red">Fix a problem</MenuMapItem>
-    </MenuMap>
-  }
->
-  Put Apple Music on Twitch, Discord, and OBS from your menu bar. Set it up in a few minutes, or jump straight to a fix.
-</HomeHero>
+<HomeHeader title="WolfWave docs" lede="Set up WolfWave, use it on stream, fix a problem, or build on it." />
 
-## Set up in four steps
+<HomeGrid>
+<LinkGroup title="Get started">
 
-<SetupPath>
-  <SetupStep href="/docs/installation" title="Install WolfWave">Download the app. A short setup wizard opens on first launch.</SetupStep>
-  <SetupStep href="/docs/installation#apple-music" title="Allow Apple Music">One click, so WolfWave can see what's playing.</SetupStep>
-  <SetupStep href="/docs/features#twitch-chat-bot" title="Connect Twitch">Sign in and join your channel. On a new install, `!song` and `!last` answer right away.</SetupStep>
-  <SetupStep href="/docs/features#now-playing-widget" title="Add the overlay">Copy one link into OBS as a Browser Source.</SetupStep>
-</SetupPath>
+1. [Install WolfWave](/docs/installation)
+2. [Allow Apple Music](/docs/installation#apple-music)
+3. [Connect Twitch](/docs/features#twitch-chat-bot)
+4. [Add the overlay to OBS](/docs/features#now-playing-widget)
 
-## Something not working?
+</LinkGroup>
+<LinkGroup title="Fix a problem">
 
-<LinkList>
-  <LinkListItem href="/docs/troubleshooting#commands-not-replying" icon="chat" tint="twitch">Chat commands don't reply</LinkListItem>
-  <LinkListItem href="/docs/troubleshooting#discord-not-connecting" icon="headphones" tint="discord">Discord doesn't show your song</LinkListItem>
-  <LinkListItem href="/docs/troubleshooting#overlay-not-updating" icon="monitor" tint="graphite">The overlay stopped updating</LinkListItem>
-  <LinkListItem href="/docs/troubleshooting#music-permission" icon="music" tint="apple-music">WolfWave can't see Apple Music</LinkListItem>
-  <LinkListItem href="/docs/troubleshooting" icon="lifebuoy" tint="red">Every fix, by message</LinkListItem>
-</LinkList>
+- [Chat commands don't reply](/docs/troubleshooting#commands-not-replying)
+- [Discord doesn't show your song](/docs/troubleshooting#discord-not-connecting)
+- [The overlay stopped updating](/docs/troubleshooting#overlay-not-updating)
+- [WolfWave can't see Apple Music](/docs/troubleshooting#music-permission)
+- [See all fixes](/docs/troubleshooting)
 
-## Build with WolfWave
+</LinkGroup>
+<LinkGroup title="On stream">
 
-<Cards className="lg:grid-cols-3">
-  <Card icon={<Tile icon="hammer" tint="indigo" />} title="Build from source" href="/docs/development" description="Xcode, make targets, tests, and how a pull request ships." />
-  <Card icon={<Tile icon="monitor" tint="graphite" />} title="Overlay message API" href="/docs/widget#message-contract" description="The WebSocket frames behind the OBS widget." />
-  <Card icon={<Tile icon="cable" tint="graphite" />} title="Stream Deck protocol" href="/docs/stream-deck" description="Send commands and read live state from a local client." />
-</Cards>
+- [Chat commands](/docs/bot-commands)
+- [Song requests](/docs/features#song-requests)
+- [Discord status](/docs/features#discord-status)
+- [Stream Deck](/docs/streamdeck)
+- [Streamer Mode](/docs/streamer-mode)
 
-## Backed by sponsors
+</LinkGroup>
+<LinkGroup title="For developers">
 
-WolfWave is free and open source. These folks keep it that way. [Become a sponsor](https://github.com/sponsors/nathanialhenniges).
+- [Build from source](/docs/development)
+- [Architecture](/docs/architecture)
+- [Overlay message API](/docs/widget#message-contract)
+- [Stream Deck control API](/docs/stream-deck)
 
-<a className="ww-sponsors" href="https://github.com/sponsors/nathanialhenniges" target="_blank" rel="noopener">
-  <img src="/sponsors.svg" alt="WolfWave sponsors" />
-</a>
+</LinkGroup>
+</HomeGrid>
+
+**Still stuck?** Read the [FAQ](/docs/faq), ask in the [community Discord](https://mrdwolf.net/discord), or [report a bug](/docs/support#report-a-bug).
