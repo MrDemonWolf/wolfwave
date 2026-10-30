@@ -8,18 +8,20 @@
  *   Tailwind CLI at build time over `src/widget.html` + `src/widget.ts`, then
  *   inline the minified CSS into the final output HTML (see `build.ts`).
  *
- * Themes are NOT compiled into utility variants. They stay as runtime CSS
- * custom properties (`--ww-*`) so the OBS user can flip themes via URL
- * params without rebuilding the bundle. Tailwind utilities resolve to those
- * CSS variables via `theme.extend` below.
+ * Themes are NOT compiled into utility variants. The active theme and layout
+ * arrive at runtime in `widget_config` WebSocket frames (the app's Stream
+ * Widgets settings; there is no URL param for them). `resolveTheme()` in
+ * `src/widget.ts` merges the matching `WW_TOKENS.themes` preset with the
+ * user's color overrides and applies it as inline styles, so a theme change
+ * needs no rebuild.
  */
 import type { Config } from "tailwindcss";
 
 export default {
   content: ["./src/widget.html", "./src/widget.ts"],
-  // We hand-pick CSS variable names that mirror the WW_TOKENS.themes payload
-  // emitted from design-system/scripts/generate.ts. When applyTheme() sets
-  // these on the root, every utility re-resolves automatically.
+  // These names point at `--ww-*` CSS variables. Nothing in `src/` sets those
+  // variables or uses a `ww-*` utility class today (themes are applied inline
+  // by `resolveTheme()`), so this extension currently generates no CSS.
   theme: {
     extend: {
       colors: {

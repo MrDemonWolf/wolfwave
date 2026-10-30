@@ -50,6 +50,8 @@ existing fields requires a coordinated change.
 | `progress` | `{ elapsed, duration, isPlaying }` | ~1 Hz |
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | State change |
 | `widget_config` | `{ theme, layout, textColor, backgroundColor, fontFamily }` | Settings change |
+| `overlay_visibility` | `{ visible }` | On connect, and when the overlay is hidden or shown (the Stream Deck `overlay_toggle` key) |
+| `queue_upcoming` | `{ items: [{ title, requesterUsername }] }`, at most 3 | On connect, and when the request queue changes. Drawn only with `?queueTicker=1` |
 
 ## Themes + layouts
 
@@ -74,8 +76,8 @@ These are the only URL params the widget reads:
 | `duration` | number, defaults `0` | Autohide seconds. `0` disables autohide. |
 | `hideAlbumArt` | presence | Drops the album art from every layout. Bare `?hideAlbumArt` is enough. |
 | `queueTicker` | exact `1` | Opt-in queue ticker panel. See below. |
-| `token` | string | Auth token, `file://` fallback only. Over loopback the app substitutes the live token server-side. |
-| `preview` | presence | Renders sample data without a live connection. |
+| `token` | string | Overlay token for the WebSocket handshake. WolfWave injects it only when the page is fetched from this Mac through a literal local address (`localhost`, `127.x.x.x`, `[::1]`). A `file://` copy or a page served to the LAN (second-PC OBS, a phone) gets none, so it needs `?token=`. A `?token=` also wins over an injected token. |
+| `preview` | presence | Settings-preview mode: no WebSocket, and nothing draws until the host calls `window.WWPreview.track(sample)`. `window.WWPreview.config(draft)` applies appearance drafts. The native preview sets `window.__WW_PREVIEW__` instead of using this param. |
 
 `queueTicker` is the one param that requires a literal `1`. That is deliberate:
 `?queueTicker=0`, `?queueTicker=false`, and a bare `?queueTicker` all stay off, so

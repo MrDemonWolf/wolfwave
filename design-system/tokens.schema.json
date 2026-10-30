@@ -115,7 +115,7 @@
           }
         },
         "partner": {
-          "description": "Third-party brand colors (Twitch, Discord, Apple Music, OBS). Not WolfWave brand.",
+          "description": "Third-party brand colors (Twitch, Discord, Apple Music, OBS), plus WolfWave's own brand gradient pair (wolfwaveGradientStart, wolfwaveGradientEnd).",
           "$ref": "#/definitions/hexMap"
         }
       }

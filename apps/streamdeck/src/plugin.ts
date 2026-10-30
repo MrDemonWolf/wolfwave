@@ -63,7 +63,9 @@ function applySettings(settings: Record<string, unknown>): void {
 
   if (!token) {
     // Nothing to connect with yet — first run, before the streamer has pasted
-    // their token. Keys render "Token?" rather than looking merely offline.
+    // their token, or they cleared it. `stop()` disconnects, so keys render
+    // "Offline". "Token?" is for a non-empty token that is not 64 hex
+    // characters; `WolfWaveClient.connect` raises that.
     client.stop();
     return;
   }

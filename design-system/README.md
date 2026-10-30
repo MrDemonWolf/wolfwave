@@ -8,7 +8,7 @@ Single source of truth for WolfWave's visual language across the native app, the
 design-system/
   tokens.json          # canonical token source; edit this
   tokens.schema.json   # JSON schema for editor validation; keep in sync with generate.ts
-  lint-allowlist.txt   # grandfathered literal spacing/font sites, ratchet-only
+  lint-allowlist.txt   # intentionally empty; fix the source instead of adding an entry
   scripts/generate.ts  # bun script that emits per-platform outputs
   scripts/lint.ts      # design-system lint (bun run ds:lint)
   scripts/lint.test.ts # tests for the lint rules themselves (bun run ds:test)
@@ -37,11 +37,11 @@ design-system/
 | `color.glyph.light` | Darker light-appearance variants of the status colors, for a dot or glyph that must hold 3:1 on its own wash. Dark appearance reuses `color.semantic` | `success`, `warning`, `error`, `info`, `neutral` |
 | `color.surface.{light,dark}` | Backgrounds, elevation, dividers | `base`, `surface`, `elev`, `hairline` |
 | `color.text.{light,dark}` | Text hierarchy | `primary`, `secondary`, `muted` |
-| `color.partner` | Third-party brand colors | `twitch`, `discord`, `appleMusic*`, `obs*` |
+| `color.partner` | Third-party brand colors, plus WolfWave's own brand gradient pair | `twitch`, `discord`, `appleMusic*`, `obs*`, `wolfwaveGradientStart` / `wolfwaveGradientEnd` |
 | `font.family` | Typeface stacks | `display`, `sans`, `serif`, `mono`, `systemAppleDisplay` |
 | `font.size` | Type scale (px, mapped to CGFloat for Swift) | `xs=10`, `sm=11`, `body=12`, `base=13`, `md=14`, `lg=17`, `xl=20`, `2xl=22`, `3xl=26`, `display=52` |
 | `font.weight` | Numeric weights | `regular=400` … `bold=700` |
-| `space` | Spacing scale (4pt base, half-step `1h=6`) | `0=2 … 11=44` |
+| `space` | Spacing scale (2pt up to 44pt, half-step `1h=6`) | `0=2 … 11=44` |
 | `radius` | Corner radii | `xs=4 … 2xl=16`, `pill=9999` |
 | `motion.duration` | Animation durations (ms) | `fast=150`, `base=220`, `slow=320` |
 | `motion.easing` | Cubic-beziers | `standard`, `emphasized` |
@@ -67,7 +67,7 @@ reach the Swift app, the docs CSS, and the OBS widget at once.
 
 ## Brand primary
 
-WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS native accent). The docs site already uses this color; v1 of the design system promotes it system-wide. Partner colors (Twitch purple, Discord blurple, Apple Music gradient, OBS dark) live under `color.partner.*`. These are partner identities, not WolfWave brand.
+WolfWave's primary brand color is **Apple System Blue `#0A84FF`** (matches macOS native accent). The docs site already uses this color; v1 of the design system promotes it system-wide. Partner colors (Twitch purple, Discord blurple, Apple Music gradient, OBS dark) live under `color.partner.*`. Those are partner identities, not WolfWave's primary brand. The one exception is `wolfwaveGradientStart` / `wolfwaveGradientEnd` (navy `#0A2540` to royal blue `#2563EB`): WolfWave's own gradient, used by the Monthly Wrap card and `WolfHeroMark`. It sits in the same namespace and keeps the `partner` prefix in its generated names.
 
 ## Component catalog
 

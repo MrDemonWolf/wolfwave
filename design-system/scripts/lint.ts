@@ -5,11 +5,15 @@
  * Greps Swift sources for raw literals that bypass the design-token system.
  * Exits non-zero with a file:line:col report on violation.
  *
- * Scope: apps/native/WolfWave/Views/ (excluding Onboarding/ (separate design
- * language) and *.generated.swift). Tests are also skipped.
+ * Scope: apps/native/WolfWave/Views/ (excluding *.generated.swift). Tests are
+ * also skipped. Onboarding/ keeps its own visual language, so it is exempt from
+ * only four of the six rules (font size, spacing, padding, radius); the
+ * animation-duration and status-color rules still apply there. Each rule's
+ * `appliesToOnboarding` flag in RULES is the source of truth.
  *
  * Allowlist: design-system/lint-allowlist.txt; one `path:line` per line,
- * `#` starts a comment. Use sparingly; prefer fixing the source.
+ * `#` starts a comment. Intentionally empty: fix the source instead of
+ * adding an entry.
  *
  * Known blind spots (the scan is line-based, pinned in lint.test.ts):
  *  - A call split across lines, e.g. `.system(` then `size: 13` on the next

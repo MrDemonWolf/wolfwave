@@ -87,7 +87,7 @@ Settings → Debug → Log Viewer.
 - [ ] **5.2 Rotated logs are included.** Force a rotation (or rename a copy to `wolfwave.log.1` in the Logs folder), export again, and confirm the backup appears **before** the live log.
 - [ ] **5.3 Second export does not overwrite.** Export twice in the same folder. Two files, distinct names.
 - [ ] **5.4 Clipboard copy has the header.** Advanced → Copy to Clipboard. The paste must begin with the environment block.
-- [ ] **5.5 Bug report is prefilled.** Advanced → Report a Bug. The GitHub issue body should contain app version, macOS, architecture, install method, log size, and diagnostics opt-in.
+- [ ] **5.5 Bug report is prefilled.** Menu bar icon → Help → Report a Bug, or Settings → About → Send Feedback. (Advanced shows Report a Bug only in the crash-recovery callout, see 6.4.) The GitHub issue body should contain app version, macOS, architecture, install method, log size, and diagnostics opt-in.
 
 ## 6. Crash path
 

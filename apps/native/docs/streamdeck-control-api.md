@@ -72,13 +72,16 @@ Errors that can come back for any action:
 | `skip` | Skip to next track | `unavailable` / `music` |
 | `hold_queue` / `resume_queue` | Song-request queue hold on/off | — |
 | `approve_next` | Approve the first pending request | `empty` / `full` |
-| `clear_queue` | Clear the request queue | — |
+| `clear_queue` | Clear the request queue, Music.app's queue, and the WolfWave Requests playlist | `unavailable` / `playlist-clear-failed` |
 | `block_current` | Add current song title to the blocklist | `empty` |
-| `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | — |
+| `overlay_toggle` | Hide/show playback cards while keeping the control connection alive | `unavailable` |
 | `announce_song` | Post the current track to Twitch chat | `twitch` / `empty` |
 | `reject_current` | Drop the playing request and announce it | `unavailable` / `empty` |
-| `block_requester` | Blocklist whoever requested the playing song | `unavailable` / `empty` |
+| `block_requester` | Blocklist whoever requested the playing song | `empty` |
 | `cycle_audience` | Advance the request audience, wrapping | `unavailable` |
+
+`playlist-clear-failed` means the request queue was cleared but the WolfWave
+Requests playlist was not.
 
 `clear_queue` and `block_requester` are the actions the plugin gates behind a hold. The wire
 protocol is unchanged — the app runs whatever it receives — but the plugin
@@ -133,8 +136,12 @@ The version gates the *inbound* command envelope only.
 - `Services/WebSocket/StreamDeckCommand.swift` — `StreamDeckAction`,
   `StreamDeckCommand`, `CommandAck`, `StreamDeckControl.parse` (pure, tested).
 - `Services/WebSocket/WebSocketServerService.swift` — `onCommand` handler +
-  `setCommandHandler`, inbound decode/ack in `receiveMessage`,
-  `broadcastQueueState` / `broadcastHealth`.
+  `setCommandHandler`, `broadcastQueueState` / `broadcastHealth`.
+- `Services/WebSocket/WebSocketServerService+Connections.swift` — inbound
+  decode/ack in `receiveMessage`, and the per-frame role + loopback gate
+  (`allowsCommands`).
+- `Services/WebSocket/WebSocketServerService+Lifecycle.swift` — `executeCommand`,
+  which runs a command through the installed handler (`unavailable` when none).
 - `Core/AppDelegate+StreamDeck.swift` — `handleStreamDeckCommand` (action →
   service), `broadcastStreamDeckState`.
 - `Core/AppDelegate+Services.swift` — installs the handler, wires broadcast
