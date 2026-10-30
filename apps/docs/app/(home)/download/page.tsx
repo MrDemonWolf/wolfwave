@@ -200,7 +200,7 @@ export default async function DownloadPage() {
                 Command line
               </h2>
               <p className="ww-text-2 text-base leading-relaxed mb-4">
-                Auto-updates via <code className="ww-mono ww-text-1 whitespace-nowrap">brew upgrade --cask</code>.
+                Update with <code className="ww-mono ww-text-1 whitespace-nowrap">brew upgrade wolfwave</code>.
               </p>
               <pre
                 className="ww-code flex-1"

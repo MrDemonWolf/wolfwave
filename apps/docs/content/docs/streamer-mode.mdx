@@ -26,21 +26,24 @@ keywords:
 
 Click it again to turn it off. WolfWave remembers your choice, even after a restart.
 
+- **No menu bar icon?** **Dock Only** hides it, and the Dock menu has no Streamer Mode item. Pick **Dock and Menu Bar** or **Menu Bar Only** in **Settings → General → App Visibility** first.
+- **Using iCloud?** With **Sync with iCloud**, this switch follows you to your other synced Macs. Turn it off on one and it turns off on the rest, so check it before you go live.
+
 ## What it hides
 
 With Streamer Mode on, these show as **hidden** or **hidden (streamer mode)** instead of the real value:
 
-- **Your Twitch channel name and signed-in username**, in Settings and the menu bar.
-- **Overlay and widget links.**
+- **Your Twitch channel name and signed-in username**, in Settings, the menu bar, and Twitch error messages.
+- **Overlay and widget links**, in Stream Widgets, the setup wizard, and **Integrations** on **Settings → General**.
 - **WebSocket addresses.**
-- **Your Mac's local network address** on the Stream Widgets server card.
-- **The channel-point reward ID** in Song Requests.
+- **Your Mac's local network address**, in the **Network Address** links and the Stream Widgets status line.
+- **The channel-point reward ID** (**Managed reward ID**) in Song Requests.
 
-A **Streamer Mode** badge sits next to hidden values, so nobody mistakes them for a bug.
+A **Streamer Mode** badge sits next to hidden links, tokens, and your channel, so nobody mistakes them for a bug.
 
 ### Tokens are locked too
 
-The overlay token and the Stream Deck control token stay hidden. While Streamer Mode is on you can't:
+The **Overlay Token** (**Settings → Stream Widgets**) and the **Stream Deck Control Token** (**Settings → Stream Deck**) stay hidden. While Streamer Mode is on you can't:
 
 - reveal them,
 - copy them,
@@ -50,6 +53,8 @@ The overlay token and the Stream Deck control token stay hidden. While Streamer 
 ### Copy and Open are off
 
 In Settings, the **Copy** and **Open** buttons next to a hidden link stop working. A stray click can't paste it into chat or open it in a browser.
+
+The menu bar's **Copy Widget Link** and **Open Widget in Browser** still work, so a stray click there can still paste the link or open it. They only use the plain `localhost` link, never your token or network address.
 
 ## What it does NOT change
 
@@ -67,9 +72,9 @@ Leave it on for your whole stream. There's no downside.
 - Showing Settings on camera.
 - Recording a tutorial or a bug-report screenshot.
 
-Need to copy a token or link? Turn Streamer Mode off for a moment, copy it off-camera, then turn it back on.
+Need to copy a token or link, or type your Twitch channel (its field is hidden while you're signed out)? Turn Streamer Mode off for a moment, do it off-camera, then turn it back on.
 
 ## Related
 
 - [Stream Deck](/docs/streamdeck): copying the control token.
-- [Back Up & Restore](/docs/backup): the Streamer Mode setting is part of a backup.
+- [Back Up & Restore](/docs/backup): the Streamer Mode setting is part of a backup and of iCloud sync.

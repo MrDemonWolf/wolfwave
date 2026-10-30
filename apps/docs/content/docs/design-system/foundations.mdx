@@ -22,9 +22,36 @@ Use the token name in code, never the number.
 
 | In Swift | In CSS |
 |---|---|
-| `DSColor`, `DSFont.Size`, `DSSpace`, `DSRadius`, `DSMotion`, `DSOpacity`, `DSDimension` | `--ds-*` custom properties |
+| `DSColor`, `DSFont.Size`, `DSFont.Weight`, `DSSpace`, `DSRadius`, `DSMotion`, `DSOpacity`, `DSDimension` | `--ds-*` custom properties |
 
 All values come from [`design-system/tokens.json`](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/tokens.json). Edit there and run `bun run tokens` to regenerate every platform output.
+
+## Token names
+
+The color tables below list full CSS custom properties, except the Partner list, which leaves off the `--ds-color-` prefix. The other tables use short names: the bare `tokens.json` key (`2xl`) or a shortened CSS name (`space-0`, `duration-fast`). Use this table to find the name to type in CSS and in Swift.
+
+| Token | `tokens.json` key | CSS | Swift |
+|---|---|---|---|
+| Spacing | `space.2` | `--ds-space-2` | `DSSpace.s2` |
+| Font size | `font.size.2xl` | `--ds-font-size-2xl` | `DSFont.Size.x2xl` |
+| Font size | `font.size.webBody` | `--ds-font-size-web-body` | `DSFont.Size.webBody` |
+| Font weight | `font.weight.semibold` | `--ds-font-weight-semibold` | `DSFont.Weight.semibold` |
+| Radius | `radius.2xl` | `--ds-radius-2xl` | `DSRadius.x2xl` |
+| Duration | `motion.duration.pulseSlow` | `--ds-motion-duration-pulseSlow` | `DSMotion.Duration.pulseSlow` |
+| Spring | `motion.spring.snappy` | None | `DSMotion.Spring.snappy` |
+| Opacity | `opacity.washStrong` | `--ds-opacity-wash-strong` | `DSOpacity.washStrong` |
+| Brand color | `color.brand.500` | `--ds-color-brand-500` | `DSColor.brand500` |
+| Surface color | `color.surface.light.base` | `--ds-color-surface-base` | `DSColor.surfaceBaseLight` |
+| Partner color | `color.partner.appleMusicStart` | `--ds-color-partner-apple-music-start` | `DSColor.partnerAppleMusicStart` |
+| Dimension | `dimension.settings.sidebarWidth` | None | `DSDimension.Settings.sidebarWidth` |
+
+How the generator builds them:
+
+- A Swift name can't start with a digit, so the generator adds a prefix: `s` for spacing (`s2`) and `x` for font sizes and radii (`x2xl`).
+- CSS names are kebab-case (`web-body`). Motion durations are the exception: they keep the key as written (`pulseSlow`).
+- A color that changes with the theme is one CSS name whose value flips under `.dark` (`--ds-color-surface-base`). In Swift it is two constants, `DSColor.surfaceBaseLight` and `DSColor.surfaceBaseDark`.
+- Swift durations are in seconds. CSS durations are in milliseconds.
+- Springs and dimensions have no CSS name.
 
 ## Color
 
@@ -40,6 +67,12 @@ WolfWave's primary brand color is Apple System Blue (**`#0A84FF`**). The full sc
     </div>
   ))}
 </div>
+
+In dark mode (the `.dark` class or `data-theme="dark"`), the CSS variable `--ds-color-brand-600` shifts to `#409CFF`, so brand-colored text stays readable on dark surfaces. The other steps stay the same, so the 600 swatch above changes with the theme. The shift is CSS only. Swift has one value per step, and `DSColor.brand600` is the light one.
+
+### Brand gradient
+
+`partner-wolfwave-gradient-start` `#0A2540` → `partner-wolfwave-gradient-end` `#2563EB` is WolfWave's own brand gradient, not a partner's. It is filed under the `partner` token group, which is why the names say `partner`. Use it on WolfWave brand surfaces such as the logo mark and the Monthly Wrap share card, never on a partner logo. In Swift, read it as `AppConstants.Brand.wolfwaveGradientStart` and `AppConstants.Brand.wolfwaveGradientEnd`. [Brand](/docs/design-system/brand) shows the light and dark pairings.
 
 ### Semantic
 
@@ -71,20 +104,20 @@ semantic tint above.
 
 ### Opacity
 
-Tinted washes (status chips, callouts, the selected nav-rail row) use one of two fill
-opacities instead of a literal: `--ds-opacity-wash` `0.10` and
-`--ds-opacity-wash-strong` `0.14`.
+Tinted washes take their fill opacity from a token instead of a literal. Status chips and
+callouts use `--ds-opacity-wash` `0.10`. `--ds-opacity-wash-strong` `0.14` is the heavier
+fill for a selected row on a tint, as in `SettingsNavRail`.
 
 ### Surface & text
 
-Surfaces and text colors swap on their own based on `prefers-color-scheme` / `.dark` class. Reference the abstract token, not the underlying hex.
+Surface and text colors have light values on `:root` and dark values under `.dark` (or `data-theme="dark"`). Reference the abstract token, not the underlying hex.
 
-| Surface | Light | Dark |
+| Token | Light | Dark |
 |---|---|---|
-| `surface-base`     | `#FFFFFF` | `#000000` |
-| `surface-surface`  | `#F5F5F7` | `#1C1C1E` |
-| `surface-elev`     | `#FBFBFD` | `#0A0A0C` |
-| `surface-hairline` | `#D2D2D7` | `#2C2C2E` |
+| `--ds-color-surface-base`     | `#FFFFFF` | `#000000` |
+| `--ds-color-surface-surface`  | `#F5F5F7` | `#1C1C1E` |
+| `--ds-color-surface-elev`     | `#FBFBFD` | `#0A0A0C` |
+| `--ds-color-surface-hairline` | `#D2D2D7` | `#2C2C2E` |
 
 ### Text
 
@@ -100,7 +133,9 @@ All three text roles meet AAA text contrast (at least 7:1) on the solid `base`, 
 
 Reserved for third-party brand identity (do not use as WolfWave brand):
 
-`partner-twitch` `#9146FF` · `partner-discord` `#5865F2` · `partner-apple-music-start` `#FF5D8B` → `partner-apple-music-end` `#FA233B` · `partner-obs-start` `#2C2C2E` → `partner-obs-end` `#1A1A1C` · `partner-discord-surface` `#2B2D31` · `partner-discord-control` `#4E5058` · `partner-apple-music-surface-start` `#FA5C75` → `partner-apple-music-surface-end` `#FA243B` · `partner-apple-music-pulse-start` `#FC4773` → `partner-apple-music-pulse-end` `#FA1A52` · `partner-wolfwave-gradient-start` `#0A2540` → `partner-wolfwave-gradient-end` `#2563EB`
+`partner-twitch` `#9146FF` · `partner-discord` `#5865F2` · `partner-apple-music-start` `#FF5D8B` → `partner-apple-music-end` `#FA233B` · `partner-obs-start` `#2C2C2E` → `partner-obs-end` `#1A1A1C` · `partner-discord-surface` `#2B2D31` · `partner-discord-control` `#4E5058` · `partner-apple-music-surface-start` `#FA5C75` → `partner-apple-music-surface-end` `#FA243B` · `partner-apple-music-pulse-start` `#FC4773` → `partner-apple-music-pulse-end` `#FA1A52`
+
+The `partner` group also holds `partner-wolfwave-gradient-start` and `-end`. Those two are WolfWave's own colors. See [Brand gradient](#brand-gradient).
 
 ## Type scale
 
@@ -113,8 +148,8 @@ Reserved for third-party brand identity (do not use as WolfWave brand):
 | `md`   | 14 | Row titles |
 | `lg`   | 17 | Section headers |
 | `xl`   | 20 | Subtle hero |
-| `2xl`  | 22 | Hero |
-| `3xl`  | 26 | Reserved for hero and the Monthly Wrap share card |
+| `2xl`  | 22 | Titles and key figures |
+| `3xl`  | 26 | Onboarding welcome and completion titles, large glyphs (now-playing card, brand tile) |
 | `display` | 52 | Monthly Wrap headline figure |
 | `webSmall` | 14 | Web labels and supporting text |
 | `webBody` | 16 | Web body baseline |
@@ -127,15 +162,19 @@ In SwiftUI, use the heading ramp instead of picking sizes:
 
 | Modifier | Size | Role |
 |---|---|---|
-| `.paneTitle()` | 22, bold | Pane title (H1) |
-| `.sectionHeader()` | 17, semibold | Section (H2) |
-| `.sectionEyebrow()` | 11, semibold, secondary | Eyebrow (H3) |
+| `.paneTitle()` | 22, bold | Title for standalone content, such as the add/edit command sheet. Settings panes don't use it. |
+| `.sectionHeader()` | 17, semibold | Section heading. The top heading in a Settings pane. |
+| `.sectionEyebrow()` | 11, semibold, secondary | Label inside a card |
 | `.fieldSubtitle()` | 13, secondary | Body under a heading |
 | `.captionText()` | 10, secondary | Caption, footnote |
 
+In Settings, the window toolbar names the pane, so the content doesn't repeat that title. Start at `.sectionHeader()`, and use `.sectionEyebrow()` for labels inside cards.
+
 All five scale with the user's text size setting.
 
-Families: `--ds-font-family-display` (Montserrat), `--ds-font-family-sans` (Roboto), `--ds-font-family-serif` (Instrument Serif fallback), `--ds-font-family-mono` (JetBrains Mono). The three web faces are self-hosted by Next.js at build time. Typography follows the [MrDemonWolf website](https://github.com/mrdemonwolf/website/blob/main/apps/website/src/styles/site.css): 16px body, 1.6 or greater body line height, medium display headings, and responsive heading sizes. Native UI sizes remain the platform scale above.
+Families: `--ds-font-family-display` (Montserrat), `--ds-font-family-sans` (Roboto), `--ds-font-family-mono` (JetBrains Mono). This site loads those three, self-hosted by Next.js at build time. Two more stacks are defined but this site doesn't load or use them: `--ds-font-family-serif` (Instrument Serif, then the system serif) and `--ds-font-family-system-apple-display` (the SF Pro Display system stack). Swift has no family tokens, only sizes and weights.
+
+Typography follows the [MrDemonWolf website](https://github.com/mrdemonwolf/website/blob/main/apps/website/src/styles/site.css): 16px body, 1.6 or greater body line height, semibold (600) Montserrat display headings, and responsive heading sizes. Native UI sizes remain the platform scale above.
 
 ## Spacing
 
@@ -164,10 +203,10 @@ Thirteen steps. Indices align to common SwiftUI paddings, so they are not a stri
 | `xs`   | 4    | Small chips |
 | `sm`   | 6    | Hover backgrounds |
 | `md`   | 8    | Primary buttons |
-| `lg`   | 10   | Update banner |
+| `lg`   | 10   | Preview frames, artwork placeholders |
 | `lg2`  | 12   | Between `lg` and `xl` |
 | `xl`   | 14   | Cards, brand tiles |
-| `2xl`  | 16   | Onboarding hero |
+| `2xl`  | 16   | Monthly Wrap share card |
 | `pill` | 9999 | Capsules |
 
 ## Motion
@@ -199,7 +238,17 @@ Respect `prefers-reduced-motion`. Drop to instant transitions.
 
 `DSDimension` holds fixed sizes, like window sizes, the settings sidebar width, and chart heights.
 Use it for `.frame(width:height:)`. `DSSpace` is only for gaps and padding.
-The full list is in `tokens.json` under `dimension`.
+Dimensions are Swift only. The full list is in `tokens.json` under `dimension`, in these groups:
+
+| Swift group | Sizes |
+|---|---|
+| `DSDimension.Settings` | Window minimum and ideal size, sidebar and content widths, content padding, section spacing, card padding and radius, nav rail width |
+| `DSDimension.Onboarding` | Window size, button sizes and radius, content width, brand tile and icon tile sizes and radii |
+| `DSDimension.About` | Window size and minimum size |
+| `DSDimension.WhatsNew` | Window size |
+| `DSDimension.IconButton` | `DSIconButton` minimum width and height |
+| `DSDimension.HistoryStats` | Card, chart, and list heights, the two-column width floor, the chart axis gutter |
+| `DSDimension.StatusChip` | `StatusChip` dot size and minimum width |
 
 ## Shadows
 
@@ -210,3 +259,7 @@ The full list is in `tokens.json` under `dimension`.
 | `shadow-md` | `0 4px 12px rgba(0,0,0,0.10)` |
 | `shadow-lg` | `0 8px 32px rgba(0,0,0,0.20)` |
 | `shadow-glow` | `0 0 20px rgba(10,132,255,0.30)` |
+
+## Widget themes and layouts
+
+The OBS widget's themes and layouts live in the `widget` namespace of `tokens.json`, not in the tables above. The [OBS Widget](/docs/widget#themes-and-layouts) page lists them.

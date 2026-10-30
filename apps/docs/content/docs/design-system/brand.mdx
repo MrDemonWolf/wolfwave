@@ -25,12 +25,12 @@ WolfWave's canonical mark combines the wolf head with a padded side equalizer in
 
 - Minimum size: 16×16 px for digital.
 - In app chrome, use template rendering so the mark inherits the current foreground color.
-- On standalone brand surfaces, use WolfWave blue (`#0A84FF`), white over a WolfWave blue background, or the approved theme-adaptive gradient: `AppConstants.Brand.wolfwaveGradientStart` → `AppConstants.Brand.wolfwaveGradientEnd` in Light and `AppConstants.Brand.wolfwaveGradientEnd` → `DSColor.brand300` in Dark. Never use a partner color.
+- On standalone brand surfaces, use WolfWave blue (`#0A84FF`), white over a WolfWave blue background, or the approved theme-adaptive gradient: `AppConstants.Brand.wolfwaveGradientStart` → `AppConstants.Brand.wolfwaveGradientEnd` in Light and `AppConstants.Brand.wolfwaveGradientEnd` → `DSColor.brand300` in Dark. That gradient's tokens are filed under `color.partner` as `partner-wolfwave-gradient-*`, but it is WolfWave's own. Never use a partner's color.
 - App-icon treatments keep about 10% padding around the mark on the brand-blue background. Debug and Release ship the same blue icon; the only thing Debug adds is a bottom-centre `DEV` badge, generated from `AppIcon.icon` by `scripts/generate-app-icons.ts` so the two can never drift.
 
 ## Partner colors
 
-When showing third-party integrations (Twitch, Discord, Apple Music, OBS), use each partner's official color from `color.partner.*`. Never substitute or tint them.
+When showing third-party integrations (Twitch, Discord, Apple Music, OBS), use each partner's official color from `color.partner.*`. Never substitute or tint them. The one exception in that group is the `partner-wolfwave-gradient-*` pair, which is WolfWave's own gradient (see [Foundations](/docs/design-system/foundations#brand-gradient)).
 
 | Partner | Token | Hex |
 |---|---|---|
@@ -51,7 +51,7 @@ Prefer:
 
 - "Connect Twitch" over "Set up Twitch integration".
 - "Couldn't reach Discord" over "An error occurred while attempting to connect".
-- Sentence case in UI; title case in section headers and docs page titles.
+- Title case for buttons, menu items, section headers, and docs page titles ("Open System Settings", "Bot Commands"). Sentence case for banner titles, in-card labels, and captions ("Couldn't reach Discord", "Top artists"). Docs section headings are sentence case too.
 
 ## Don't
 

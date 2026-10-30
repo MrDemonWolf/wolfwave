@@ -50,7 +50,7 @@ See [Features](/docs/features) for everything it does.
 
 - A Mac with Apple Silicon (M1 or later). Intel Macs aren't supported.
 - macOS 26 (Tahoe) or newer.
-- The Apple Music app. Song requests also need an Apple Music subscription.
+- The Apple Music app. Song requests also need an Apple Music subscription, with **Sync Library** on in Music → Settings → General.
 
 Start with [Installation](/docs/installation).
 
@@ -100,7 +100,7 @@ The full list, with example replies, is on [What can I type in chat?](/docs/bot-
 
 <Accordion title="Why don't my chat commands reply?">
 
-Most commands start **off**, and `!sr` also needs Song Requests turned on. Other common causes are cooldowns and the "Only reply while live" switch. Go through the checklist in [Troubleshooting](/docs/troubleshooting#commands-not-replying).
+Check the command's switch first. `!song` and `!last` are on for new installs, but if you set up WolfWave earlier they may be off. `!wolfwave`, `!stats`, and `!playlist` start **off**. `!sr` also needs Song Requests turned on, and `!voteskip` needs vote-skip turned on. Other common causes are cooldowns and the "Only reply while live" switch. Go through the checklist in [Troubleshooting](/docs/troubleshooting#commands-not-replying).
 
 </Accordion>
 
@@ -122,9 +122,12 @@ Basic chat requests and chat vote-to-skip don't need these Twitch tools. Twitch 
 
 <Accordion title="My !playlist link stopped working">
 
-The playlist was deleted, or its sharing was turned off in Apple Music. WolfWave notices, turns `!playlist` off so chat never gets a broken link, and shows a fix-it banner in Settings → Song Requests. Requests keep working the whole time.
+WolfWave checks your **WolfWave Requests** playlist when it starts and when you open Settings → Song Requests, then reacts to what it finds:
 
-Open [playlist troubleshooting](/docs/troubleshooting#playlist-not-synced) for the next steps.
+- **Sharing turned off.** WolfWave turns `!playlist` off so chat never gets a broken link, and a banner offers **Re-share Playlist**. Song requests keep working.
+- **Playlist deleted.** WolfWave makes a new one. A new playlist starts private, so share it again to bring `!playlist` back. If WolfWave can't make one, it turns Song Requests off and the banner offers **Set Up Again**.
+
+If the banner says Music can't see the playlist instead, follow [playlist troubleshooting](/docs/troubleshooting#playlist-not-synced).
 
 </Accordion>
 
@@ -156,9 +159,9 @@ Stream Deck control is different: it only works from the same Mac. See [Security
 
 <Accordion title="How do I add the overlay to OBS?">
 
-Turn on Stream Widgets in WolfWave, copy the ready-made browser-source address from Settings → Stream Widgets, and add it as an OBS **Browser Source**. Choose the theme and layout in WolfWave; the app's preview uses the same widget as OBS.
+Open **Settings → Stream Widgets**. Turn on **Enable Stream Widgets**, then **Enable Widget Webpage**. Click **Copy Link** and add it in OBS as a **Browser Source**. Pick the theme and layout in **Widget Appearance** and click **Apply**. The app's preview uses the same widget as OBS.
 
-Use the same-Mac address for OBS on your Mac, or the network address for a second computer. See [overlay setup](/docs/features#now-playing-widget). If a source stops updating, follow [overlay troubleshooting](/docs/troubleshooting#overlay-not-updating).
+Use that link for OBS on your Mac, or the **Network Address** link for a second computer. See [overlay setup](/docs/features#now-playing-widget). If a source stops updating, follow [overlay troubleshooting](/docs/troubleshooting#overlay-not-updating).
 
 </Accordion>
 
@@ -206,7 +209,7 @@ There is no WolfWave server, and no analytics. WolfWave only talks to:
 - iCloud, only if you turn on **Sync with iCloud**.
 - GitHub, to check for updates.
 
-**Diagnostics** (Settings → Advanced) is off by default. When on, it keeps Apple's crash and hang reports on your Mac. Nothing is uploaded. See the [Privacy Policy](/docs/privacy-policy).
+**Share Diagnostics** (Settings → Advanced) is off by default. When on, WolfWave keeps Apple's crash and performance reports on your Mac. Nothing is uploaded. See the [Privacy Policy](/docs/privacy-policy).
 
 </Accordion>
 
