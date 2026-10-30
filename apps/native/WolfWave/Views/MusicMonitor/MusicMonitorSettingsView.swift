@@ -152,8 +152,7 @@ struct MusicMonitorSettingsView: View {
                 twitchViewerCount: nil,
                 discordConnected: discordActive,
                 widgetRunning: widgetRunning,
-                widgetURL: widgetRunning ? "http://localhost:\(widgetPort)" : nil,
-                remoteSendingEnabled: false,
+                widgetURL: widgetRunning ? WidgetLink.loopback : nil,
                 permissionPaused: permissionState == .denied,
                 configure: configure
             )
@@ -390,9 +389,6 @@ struct MusicMonitorSettingsView: View {
     }
 
     // MARK: - Helpers
-
-    /// Widget HTTP port (validated and clamped) used for the dashboard's overlay URL.
-    private var widgetPort: UInt16 { Preferences.resolvedWidgetPort }
 
     /// Convenience wrapper around `NotificationCenter.default.publisher(for:)`
     /// that builds the `NSNotification.Name` from a string constant.

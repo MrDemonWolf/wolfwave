@@ -332,7 +332,7 @@ extension TwitchChatService {
         var attempts: Int
     }
 
-    /// Lock-protected registry for the three async track-info providers.
+    /// Lock-protected registry for the async track-info providers.
     ///
     /// Lives outside actor isolation so MainActor code can set and read
     /// providers without awaiting the actor. Tiny surface, single lock.
@@ -342,9 +342,11 @@ extension TwitchChatService {
         private var _current: (@Sendable () async -> String)?
         private var _last: (@Sendable () async -> String)?
         private var _stats: (@Sendable () async -> String)?
+        private var _customVariables: (@Sendable () async -> CustomCommandVariables)?
 
-        // Setters and getters for the `!song`, `!last`, and `!stats` providers.
-        // `nil` means "not wired"; the dispatcher then replies with a default.
+        // Setters and getters for the `!song`, `!last`, and `!stats` providers
+        // and the custom-command `$song` / `$lastsong` values. `nil` means
+        // "not wired"; the dispatcher then falls back to a default.
 
         func setCurrent(_ provider: (@Sendable () async -> String)?) {
             lock.withLock { _current = provider }
@@ -355,9 +357,15 @@ extension TwitchChatService {
         func setStats(_ provider: (@Sendable () async -> String)?) {
             lock.withLock { _stats = provider }
         }
+        func setCustomVariables(_ provider: (@Sendable () async -> CustomCommandVariables)?) {
+            lock.withLock { _customVariables = provider }
+        }
         func current() -> (@Sendable () async -> String)? { lock.withLock { _current } }
         func last() -> (@Sendable () async -> String)? { lock.withLock { _last } }
         func stats() -> (@Sendable () async -> String)? { lock.withLock { _stats } }
+        func customVariables() -> (@Sendable () async -> CustomCommandVariables)? {
+            lock.withLock { _customVariables }
+        }
     }
 
     /// Lock-protected fan-out registry for connection-state subscribers.

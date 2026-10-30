@@ -9,7 +9,9 @@
 import Foundation
 
 /// Handles `!myqueue` / `!mysongs`: shows the requester's songs in the queue.
-final class MyQueueCommand: AsyncBotCommand {
+///
+/// Silent while Song Requests is off (``SongRequestGatedCommand``).
+final class MyQueueCommand: AsyncBotCommand, SongRequestGatedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.

@@ -56,8 +56,7 @@ extension DebugComponentGalleryCard {
                     twitchViewerCount: 12,
                     discordConnected: true,
                     widgetRunning: true,
-                    widgetURL: "http://localhost:8766",
-                    remoteSendingEnabled: false
+                    widgetURL: "http://localhost:8766"
                 )
                 IntegrationDashboardView(
                     twitchConnected: false,
@@ -66,7 +65,6 @@ extension DebugComponentGalleryCard {
                     discordConnected: false,
                     widgetRunning: false,
                     widgetURL: nil,
-                    remoteSendingEnabled: false,
                     permissionPaused: true
                 )
             }

@@ -100,15 +100,12 @@ extension TwitchChatService {
             }
             return streamLiveSnapshot.value
         }
-        // Live values for custom-command variables (`$song`, `$lastsong`). Reuses
-        // the same now-playing providers the built-in `!song` / `!last` commands
-        // read, so a custom command like "!np → Now playing: $song" stays in sync.
+        // Live values for custom-command variables (`$song`, `$lastsong`): the
+        // bare "Title by Artist", not the decorated `!song` / `!last` reply, so
+        // a custom command like "!np → Now playing: $song" reads naturally.
         let customCommandVariables: @Sendable () async -> CustomCommandVariables = {
-            let song: String
-            if let provider = providers.current() { song = await provider() } else { song = "" }
-            let last: String
-            if let provider = providers.last() { last = await provider() } else { last = "" }
-            return CustomCommandVariables(currentSong: song, lastSong: last)
+            guard let provider = providers.customVariables() else { return .empty }
+            return await provider()
         }
         await MainActor.run {
             commandDispatcher.setCurrentSongInfoAsync {

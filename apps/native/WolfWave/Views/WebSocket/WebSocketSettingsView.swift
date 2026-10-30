@@ -153,6 +153,11 @@ fileprivate struct WebSocketBrowserSourceCard: View {
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
+    /// Persisted WebSocket server port. Read here so the widget links carry a
+    /// custom port; the overlay card owns editing it.
+    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
+    private var storedWebSocketPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
+
     /// Port field text; may hold an uncommitted entry until `applyWidgetPort()`.
     @State private var widgetPortText: String = ""
 
@@ -182,20 +187,27 @@ fileprivate struct WebSocketBrowserSourceCard: View {
         Preferences.resolvePort(storedWidgetPort, default: AppConstants.WebSocketServer.widgetDefaultPort)
     }
 
+    /// The WebSocket port the server binds, resolved like ``resolvedWidgetPort``.
+    private var resolvedWebSocketPort: UInt16 {
+        Preferences.resolvePort(storedWebSocketPort, default: AppConstants.WebSocketServer.defaultPort)
+    }
+
     /// Loopback widget URL. Carries no token: `WidgetHTTPService` injects the
-    /// overlay token itself for literal-loopback requests. A stored port of
-    /// zero or less falls back to the default.
+    /// overlay token itself for literal-loopback requests. Names the WebSocket
+    /// port when it isn't the default (see `WidgetLink`).
     private var widgetURL: String {
-        let port = resolvedWidgetPort
-        return "http://localhost:\(port)"
+        WidgetLink.url(host: "localhost", widgetPort: resolvedWidgetPort, webSocketPort: resolvedWebSocketPort)
     }
 
     /// LAN widget URL. Unlike the loopback link it must carry the token in the
     /// query, so it stays hidden until the token has loaded.
     private var networkWidgetURL: String? {
         guard let ip = localNetworkIP, !currentToken.isEmpty else { return nil }
-        let port = resolvedWidgetPort
-        return "http://\(ip):\(port)/?token=\(currentToken)"
+        return WidgetLink.url(
+            host: ip,
+            widgetPort: resolvedWidgetPort,
+            webSocketPort: resolvedWebSocketPort,
+            token: currentToken)
     }
 
     /// Why the Widget Webpage toggle is greyed out. One string so the visible

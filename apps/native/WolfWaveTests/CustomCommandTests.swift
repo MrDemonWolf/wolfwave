@@ -154,6 +154,22 @@ struct CustomCommandRendererTests {
         #expect(out == "\u{2063}/ban viewer")
     }
 
+    /// Viewers pick requested songs, so a title is chat-influenced text too.
+    @Test("a leading song title that looks like a command is neutralized", arguments: ["$song", "$lastsong"])
+    func leadingSongTitleIsNeutralised(token: String) {
+        let commandLike = CustomCommandVariables(currentSong: "!Howl by Gray Wolf", lastSong: "!Howl by Gray Wolf")
+        let out = CustomCommandRenderer.render(
+            template: token, sender: "x", args: [], vars: commandLike)
+        #expect(out == "\u{2063}!Howl by Gray Wolf")
+    }
+
+    @Test("the streamer's own leading text is left alone")
+    func leadingTemplateTextIsUntouched() {
+        let out = CustomCommandRenderer.render(
+            template: "!np $song", sender: "x", args: [], vars: vars)
+        #expect(out == "!np Howl")
+    }
+
     @Test("arguments(from:) drops the trigger token")
     func arguments() {
         #expect(CustomCommandRenderer.arguments(from: "!hug @bob tightly") == ["@bob", "tightly"])
@@ -166,6 +182,66 @@ struct CustomCommandRendererTests {
         let out = CustomCommandRenderer.render(
             template: long, sender: "x", args: [], vars: .empty)
         #expect(out.count <= AppConstants.Twitch.maxMessageLength)
+    }
+}
+
+// MARK: - Variables
+
+/// `$song` / `$lastsong` values: the bare "Title by Artist" from the
+/// now-playing snapshot, never the decorated `!song` / `!last` reply, and
+/// empty while Music is closed.
+@Suite("CustomCommandVariables")
+struct CustomCommandVariablesTests {
+
+    @Test("track text is the title and artist, or the title alone", arguments: [
+        (title: "Howl", artist: "Gray Wolf", expected: "Howl by Gray Wolf"),
+        (title: "  Howl ", artist: " Gray Wolf\n", expected: "Howl by Gray Wolf"),
+        (title: "Howl", artist: nil, expected: "Howl"),
+        (title: "Howl", artist: "  ", expected: "Howl")
+    ] as [(title: String?, artist: String?, expected: String)])
+    func trackText(title: String?, artist: String?, expected: String) {
+        #expect(CustomCommandVariables.trackText(title: title, artist: artist) == expected)
+    }
+
+    @Test("track text is empty without a title", arguments: [nil, "", "   "] as [String?])
+    func trackTextWithoutTitle(title: String?) {
+        #expect(CustomCommandVariables.trackText(title: title, artist: "Gray Wolf").isEmpty)
+    }
+
+    @Test("a now-playing snapshot gives bare track names")
+    func nowPlaying() {
+        let vars = CustomCommandVariables.nowPlaying(
+            musicOpen: true,
+            currentTitle: "Howl",
+            currentArtist: "Gray Wolf",
+            lastTitle: "Moonrise",
+            lastArtist: "Pack Lights")
+        #expect(vars.currentSong == "Howl by Gray Wolf")
+        #expect(vars.lastSong == "Moonrise by Pack Lights")
+    }
+
+    @Test("both values are empty while Music is closed")
+    func musicClosed() {
+        let vars = CustomCommandVariables.nowPlaying(
+            musicOpen: false,
+            currentTitle: "Howl",
+            currentArtist: "Gray Wolf",
+            lastTitle: "Moonrise",
+            lastArtist: "Pack Lights")
+        #expect(vars.currentSong.isEmpty)
+        #expect(vars.lastSong.isEmpty)
+    }
+
+    @Test("with nothing loaded, $song is empty and $lastsong remains")
+    func nothingLoaded() {
+        let vars = CustomCommandVariables.nowPlaying(
+            musicOpen: true,
+            currentTitle: nil,
+            currentArtist: nil,
+            lastTitle: "Moonrise",
+            lastArtist: "Pack Lights")
+        #expect(vars.currentSong.isEmpty)
+        #expect(vars.lastSong == "Moonrise by Pack Lights")
     }
 }
 

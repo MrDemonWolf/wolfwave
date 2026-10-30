@@ -137,7 +137,7 @@ Text and Background color pickers; the other themes ship fixed palettes.
 | Parameter | What it does |
 |---|---|
 | `?token=<hex>` | LAN bootstrap token; the widget forwards it when opening the WebSocket. Loopback pages receive the token in the served HTML instead. |
-| `?port=8765` | WebSocket port the widget connects to (1-65535, default `8765`). **Copy Link** doesn't add it, so if you changed the WebSocket port, add `?port=<your port>` yourself. `?wsPort=` works as an alias, but only when `port` is missing. |
+| `?port=8765` | WebSocket port the widget connects to (1-65535, default `8765`). WolfWave's copied links add it for you when you change the WebSocket port. `?wsPort=` works as an alias, but only when `port` is missing. |
 | `?duration=8` | Hide the card N seconds after each new track starts. It comes back with the next track. `0` or missing = never |
 | `?hideAlbumArt` | Render without the artwork tile. Presence is enough: any value turns it on |
 | `?queueTicker=1` | Show the upcoming-queue ticker panel (off by default). The value must be exactly `1` |

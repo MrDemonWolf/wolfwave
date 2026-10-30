@@ -14,9 +14,10 @@ import Foundation
 /// but nothing plays automatically. On resume, the next queued request starts
 /// right away if Music.app is running and nothing is already playing.
 ///
-/// No `enabledKey` or `aliasesKey`, so it is always on (for mods) and has no
-/// custom aliases.
-final class HoldCommand: ServiceBoundCommand {
+/// No `enabledKey` or `aliasesKey`, so it is on for mods whenever Song Requests
+/// is on, and has no custom aliases. Silent while Song Requests is off
+/// (``SongRequestGatedCommand``), so `!resume` can't start playback then.
+final class HoldCommand: ServiceBoundCommand, SongRequestGatedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command. `!hold` pauses; `!resume`/`!unhold` resume.

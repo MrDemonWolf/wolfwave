@@ -12,7 +12,9 @@ import Foundation
 ///
 /// Restricted to moderators and the broadcaster. Replies with the next track,
 /// a queue-empty notice, or a "try again" when nothing could be skipped.
-final class SkipCommand: ServiceBoundCommand {
+/// Silent while Song Requests is off (``SongRequestGatedCommand``), so it
+/// can't start the fallback playlist for a feature that is turned off.
+final class SkipCommand: ServiceBoundCommand, SongRequestGatedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.

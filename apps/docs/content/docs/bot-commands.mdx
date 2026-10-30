@@ -68,6 +68,7 @@ The bot replies with one of these:
 - **Link not found.** `Couldn't find that on Apple Music. Try a song name instead!` WolfWave couldn't match the link to a song, so type the song name.
 - **No song given.** A bare `!sr` gets `Usage: !sr <song name or Apple Music, Spotify, or YouTube link>`
 - **Not ready.** `Song requests aren't available right now.` The streamer's setup needs a fix.
+- **Search down.** `Song search isn't working right now. Try again soon!` Apple Music or the link lookup didn't answer. The details go to the log, not to chat.
 - **Blocked.** `Sorry, that song/artist is on the blocklist.`
 - **Too many.** `You already have 2 songs queued. Wait for one to play!` (the number is set by the streamer)
 - **Full.** `Queue is full (10/10). Try again later!`
@@ -129,6 +130,7 @@ Channel points and Bits need those tools enabled on the channel and the API acce
 
 - **Cooldown.** Each command has a short wait between uses, for the whole chat and for each person. The bot stays quiet until it's over. Mods and the streamer skip cooldowns.
 - **The command is off.** The streamer chose not to use it.
+- **Song Requests is off.** `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` all go quiet while it is.
 - **The stream is offline.** Some streamers set every command to work only while live.
 - **It wasn't the first word.** `hey !song` won't work. `!song` will.
 
@@ -147,10 +149,10 @@ Everything below is set up in WolfWave's **Settings** window. Commands only work
 | `!song`, `!last` | On for new installs, and the setup wizard lets you switch them off. If you were already set up when you updated, they stay as you had them. | **Settings → Twitch → Bot Commands** |
 | `!wolfwave` | Off | **Settings → Twitch → Bot Commands** |
 | `!stats` | Off | **Settings → History & Stats → !stats command** (needs Listening History and **Show Stats & Charts** on) |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On. `!sr` stays quiet until Song Requests is on. | **Settings → Song Requests → Song Request Commands** |
+| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On, but they stay quiet until Song Requests is on. | **Settings → Song Requests → Song Request Commands** |
 | `!playlist` | Off. The guided setup turns it on when you fetch your link. With no link set, it stays quiet. | **Settings → Song Requests → Song Request Commands → !playlist Command**. Use **Manage** next to **Song list link** to set the link. |
 | `!voteskip` | On, but it stays quiet until vote-skip is on | **Settings → Song Requests → Chat Vote-Skip** |
-| `!hold`, `!resume`, `!unhold` | Always on | No switch. Mods and you only. |
+| `!hold`, `!resume`, `!unhold` | On whenever Song Requests is on | No switch. Mods and you only. |
 
 Song requests have a master switch: **Enable Song Requests** in **Settings → Song Requests**. It's off until you turn it on. The first time, **Set up Song Requests** walks you through it. The **Song Request Commands** card shows up once Song Requests is set up and on. Details are in [Song requests](/docs/features#song-requests).
 
@@ -176,7 +178,7 @@ Set this in **Settings → Song Requests → Who Can Request**. Pick a preset:
 - Mods and you can always request.
 - The audience only limits `!sr`. Channel points and Bits accept anyone who pays.
 - A viewer who isn't allowed gets a short "not allowed" reply. That reply is rate-limited, and it never starts the `!sr` cooldown for everyone else.
-- **Reply When Off** makes `!sr` say "Song requests are off right now." while requests are off. Off by default, so `!sr` stays silent.
+- **Reply When Off** makes `!sr` say "Song requests are off right now." while requests are off. Off by default, so `!sr` stays silent. The other request commands stay silent either way.
 - **Require My Approval** holds every request until you approve or decline it.
 
 ### Channel points and Bits
@@ -286,10 +288,10 @@ You can make commands before you connect Twitch. They start replying once you co
 | `$touser` | The first word they typed after the command (a leading `@` is removed). If they typed nothing, their own name. |
 | `$args` | Everything they typed after the command |
 | `$1` to `$9` | One word, by position. A word they didn't type is left blank. |
-| `$song` | The same line `!song` replies with, like `🐺 ▶️ Playing: Howl at the Moon by Gray Wolf` |
-| `$lastsong` | The same line `!last` replies with |
+| `$song` | The song that's on now, like `Howl at the Moon by Gray Wolf`. A paused song counts. Blank when nothing is on or Apple Music is closed. |
+| `$lastsong` | The song before it, in the same form. Blank until there is one, or while Apple Music is closed. |
 
-If a reply starts with something the viewer typed (`$user`, `$sender`, `$touser`, `$args`, or `$1` to `$9`) and that text begins with `!`, `/`, or `.`, WolfWave adds an invisible character in front. That keeps viewers from making your bot run another command.
+If a reply starts with a variable whose text begins with `!`, `/`, or `.`, WolfWave adds an invisible character in front. Viewers pick their names, what they type, and the songs they request, so this keeps them from making your bot run another command.
 
 **Example.** Trigger `!hug`, reply `$user gives $touser a big hug!`. A viewer named Luna types `!hug @Fang`. Chat sees `Luna gives Fang a big hug!`
 

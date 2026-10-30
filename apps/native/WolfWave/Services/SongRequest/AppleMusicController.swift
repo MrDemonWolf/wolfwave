@@ -236,7 +236,8 @@ final class AppleMusicController: AppleMusicControlling {
         case found(Song)
         /// The catalog returned no songs.
         case notFound
-        /// Authorization missing or MusicKit request failed; message is user-facing.
+        /// Authorization missing or MusicKit request failed. The message is for
+        /// the log; chat replies are worded by the request callers.
         case error(String)
     }
 

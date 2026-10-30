@@ -65,6 +65,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`$song` and `$lastsong` read naturally.** In custom commands they fill in just the song and artist, like `Howl at the Moon by Gray Wolf`, instead of the whole `!song` reply with its emoji and link. A song title that starts with `!` can't set off other bots.
+- **Request commands follow the Song Requests switch.** While Song Requests is off, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` stay quiet, so a mod's `!skip` can't start your fallback playlist.
+- **No raw errors in chat.** When a song search or link lookup fails, `!sr`, channel points, and Bits say "song search isn't working right now" instead of the technical error. The details go to the log.
+- **Copied widget links keep your WebSocket port.** Changed the port? Copy Link, the menu bar, General, and setup now add `?port=` for you, so the OBS widget connects on the first try.
+- **No more dead "Send to a remote site" row.** General's Integrations card listed a setting WolfWave doesn't have.
+
 - **Now Playing keeps the right artwork.** The previous cover stays visible while the next one loads, then crossfades without flashing the default artwork. Reduce Motion disables the fade, and delayed responses cannot replace a newer cover.
 
 - **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
@@ -133,6 +139,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **Request results say who reads the text.** `SongRequestService.RequestResult` splits `.denied` (the chat-ready audience refusal) from `.error` (a lookup failure, logged and never sent to chat). `SongRequestGatedCommand` gives the queue commands a silent preflight refusal while Song Requests is off, and `WidgetLink` is the one builder for widget Browser Source links.
 - **One home for Twitch and Discord defaults.** Every `@AppStorage` seed and `Preferences.bool(_:default:)` read for those keys now references `AppConstants.UserDefaults.Defaults`. New `FreshInstallDefaults` writes day-one values once per install at launch (fresh installs get them, existing installs get their old values pinned), so a new default never flips an upgrade. The onboarding UI tests gained Escape and progress-header coverage plus a light/dark screenshot capture (`testCapturesEveryStep`), backed by new `WOLFWAVE_UI_TEST_APPEARANCE` and `WOLFWAVE_UI_TEST_HOLD_COMPLETION` switches. The `stepContentMinHeight` token is replaced by `contentMaxWidth`.
 - **Debug shows one tool at a time.** A native list becomes a menu picker in narrow windows, inactive tools stop polling, and Copy Diagnostics shows progress and completion.
 

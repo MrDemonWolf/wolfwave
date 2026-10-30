@@ -513,6 +513,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return appendSongLink(to: "🐺 Previous: \(song) by \(artist)", track: song, artist: artist)
     }
 
+    /// The bare track names custom commands substitute for `$song` and
+    /// `$lastsong`, read from the same snapshot as `!song` and `!last`.
+    func customCommandVariables() -> CustomCommandVariables {
+        .nowPlaying(
+            musicOpen: isMusicAppOpen(),
+            currentTitle: currentSong,
+            currentArtist: currentArtist,
+            lastTitle: lastSong,
+            lastArtist: lastArtist)
+    }
+
     /// Appends a song.link URL to `reply` when the toggle is on and ArtworkService has a cached URL.
     /// Shared by `getCurrentSongInfo` and `getLastSongInfo` to avoid duplicate logic.
     ///

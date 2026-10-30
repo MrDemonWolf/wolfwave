@@ -466,8 +466,11 @@ extension TwitchChatService {
             return ("@\(username) song requests aren't available right now. Refunding your points.", .canceled)
         case .featureDisabled:
             return ("@\(username) song requests are off right now. Refunding your points.", .canceled)
-        case let .error(message):
+        case let .denied(message):
             return ("@\(username) \(message) Refunding your points.", .canceled)
+        // The raw lookup text is logged by the service, never sent to chat.
+        case .error:
+            return ("@\(username) song search isn't working right now. Refunding your points.", .canceled)
         }
     }
 
@@ -503,8 +506,11 @@ extension TwitchChatService {
             return "@\(username) song requests aren't available right now."
         case .featureDisabled:
             return "@\(username) song requests are off right now."
-        case let .error(message):
+        case let .denied(message):
             return "@\(username) \(message)"
+        // The raw lookup text is logged by the service, never sent to chat.
+        case .error:
+            return "@\(username) song search isn't working right now."
         }
     }
 

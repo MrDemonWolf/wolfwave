@@ -54,8 +54,12 @@ final class SongRequestService {
         /// The song-request feature's master toggle is off. No request of any
         /// kind (chat, channel points, bits) is accepted.
         case featureDisabled
-        /// User-facing failure text: the chat audience denial message, or a
-        /// search / MusicKit error.
+        /// The chat audience refused the requester. The text is the chat-ready
+        /// `RequestAudience.denialMessage`.
+        case denied(String)
+        /// A search, link lookup, or MusicKit failure. The text is for the log
+        /// only (it can be raw, like `oEmbed error (HTTP 503)`), so each caller
+        /// words its own chat reply.
         case error(String)
     }
 
@@ -361,7 +365,7 @@ final class SongRequestService {
         if case .chatCommand(let context) = source {
             let audience = chatAudience
             if !audience.permits(context) {
-                return .error(audience.denialMessage)
+                return .denied(audience.denialMessage)
             }
         }
 
@@ -474,7 +478,14 @@ final class SongRequestService {
         case .linkNotFound:
             return .linkNotFound
         case .error(let message):
-            return .error(message)
+            return lookupFailed(message)
         }
+    }
+
+    /// Logs a search, link lookup, or MusicKit failure and returns it as a
+    /// log-only ``RequestResult/error(_:)``, so callers word their own reply.
+    private func lookupFailed(_ message: String) -> RequestResult {
+        Log.warn("SongRequestService: Request lookup failed: \(message)", category: .songRequest)
+        return .error(message)
     }
 }

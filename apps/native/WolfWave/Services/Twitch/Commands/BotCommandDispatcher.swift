@@ -41,6 +41,23 @@ protocol PreflightCheckedCommand: BotCommand {
     func preflightDenial(context: BotCommandContext) -> PreflightDenial?
 }
 
+/// A song-request chat command that stays silent while the Song Requests
+/// master switch is off.
+///
+/// The default ``preflightDenial(context:)`` refuses before the dispatcher
+/// claims a cooldown, so a moderator's `!skip` can't start the fallback
+/// playlist, `!resume` can't start playback, and `!queue` can't answer for a
+/// feature the streamer turned off. `!sr` keeps its own check, because it also
+/// gates the audience and can reply.
+protocol SongRequestGatedCommand: PreflightCheckedCommand {}
+
+extension SongRequestGatedCommand {
+    /// A silent refusal while song requests are off, else `nil`.
+    func preflightDenial(context: BotCommandContext) -> PreflightDenial? {
+        FeatureFlags.songRequestEnabled ? nil : .silent
+    }
+}
+
 /// Routes chat messages to appropriate bot command handlers.
 ///
 /// The full built-in command suite is registered automatically at init (see
