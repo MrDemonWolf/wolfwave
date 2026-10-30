@@ -348,7 +348,6 @@ struct SettingsView: View {
             case .twitch: selectedSection = .twitchIntegration
             case .discord: selectedSection = .discord
             case .obs: selectedSection = .websocket
-            case .advanced: selectedSection = .advanced
             }
         })
     }

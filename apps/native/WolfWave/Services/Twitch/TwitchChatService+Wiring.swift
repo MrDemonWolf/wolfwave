@@ -56,6 +56,14 @@ extension TwitchChatService {
         providers.setStats(provider)
     }
 
+    /// Provide the custom-command `$song` / `$lastsong` values: bare track
+    /// names, not the `!song` / `!last` replies.
+    nonisolated func setCustomCommandVariablesProvider(
+        _ provider: (@Sendable () async -> CustomCommandVariables)?
+    ) {
+        providers.setCustomVariables(provider)
+    }
+
     /// Toggle whether the connection confirmation message is sent on subscribe.
     /// `TwitchViewModel` turns it on for a user-initiated join; the launch
     /// auto-reconnect in `AppDelegate` turns it off. Set before connecting.

@@ -30,16 +30,24 @@ struct OnboardingOBSWidgetStepView: View {
     @AppStorage(AppConstants.UserDefaults.widgetPort)
     private var storedWidgetPort: Int = Int(AppConstants.WebSocketServer.widgetDefaultPort)
 
+    /// WebSocket port as stored, so a custom port reaches the URL as `port=`.
+    @AppStorage(AppConstants.UserDefaults.websocketServerPort)
+    private var storedWebSocketPort: Int = Int(AppConstants.WebSocketServer.defaultPort)
+
     /// Loopback Browser Source URL for the widget. Carries no token: the widget
-    /// server injects the overlay token itself for loopback requests. The port
-    /// goes through `Preferences.resolvePort`, the same fallback and clamping
-    /// the server binds with, so the URL always names the port it listens on.
+    /// server injects the overlay token itself for loopback requests. Both
+    /// ports go through `Preferences.resolvePort`, the same fallback and
+    /// clamping the servers bind with, so the URL always names the ports they
+    /// listen on.
     private var overlayURL: String {
-        let port = Preferences.resolvePort(
-            storedWidgetPort,
-            default: AppConstants.WebSocketServer.widgetDefaultPort
-        )
-        return "http://localhost:\(String(port))/"
+        WidgetLink.url(
+            host: "localhost",
+            widgetPort: Preferences.resolvePort(
+                storedWidgetPort,
+                default: AppConstants.WebSocketServer.widgetDefaultPort),
+            webSocketPort: Preferences.resolvePort(
+                storedWebSocketPort,
+                default: AppConstants.WebSocketServer.defaultPort))
     }
 
     /// Combined state. The step treats the two servers as one user-facing feature,

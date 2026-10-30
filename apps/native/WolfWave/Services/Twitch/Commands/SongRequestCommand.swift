@@ -63,6 +63,10 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
     /// Chat reply when the feature is off and the streamer opted into replying.
     static let disabledReply = "Song requests are off right now."
 
+    /// Chat reply when the search or link lookup failed. The raw failure text
+    /// goes to the log instead.
+    static let lookupFailedReply = "Song search isn't working right now. Try again soon!"
+
     /// Refuses `!sr` before the dispatcher claims its cooldown when song
     /// requests are off or the sender is outside the chat audience, so a refused
     /// viewer never starts the cooldown allowed viewers share.
@@ -84,8 +88,8 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
 
     // MARK: - AsyncBotCommand
 
-    /// Parses the search query, dispatches to the resolver, and formats the
-    /// chat reply for every `RequestResult` case.
+    /// Parses the search query, dispatches to the resolver, and returns the
+    /// chat reply from ``reply(for:)``.
     ///
     /// - Parameters:
     ///   - message: Raw chat message; trigger prefix is stripped to recover the query.
@@ -124,50 +128,62 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
             source: .chatCommand(context)
         )
         guard !Task.isCancelled else { return nil }
+        return Self.reply(for: result)
+    }
 
-        let response: String
+    // MARK: - Reply Formatting
+
+    /// Chat reply for a request result. Static and pure so tests can pin every
+    /// reply without a live search.
+    ///
+    /// - Parameter result: What `SongRequestService.processRequest` did.
+    /// - Returns: The reply, or `nil` to stay silent.
+    static func reply(for result: SongRequestService.RequestResult) -> String? {
         switch result {
         // The task was torn down mid-request; say nothing rather than reply
         // into a session that is going away.
         case .cancelled:
             return nil
+
         case .added(let item, let position):
-            response = "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
+            return "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
 
         case .pendingApproval(let item):
-            response = "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
+            return "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
 
         case .queueFull(let max):
-            response = "Queue is full (\(max)/\(max)). Try again later!"
+            return "Queue is full (\(max)/\(max)). Try again later!"
 
         case .userLimitReached(let max):
-            response = "You already have \(max) songs queued. Wait for one to play!"
+            return "You already have \(max) songs queued. Wait for one to play!"
 
         case .alreadyInQueue:
-            response = "That song is already in your queue."
+            return "That song is already in your queue."
 
         case .blocked:
-            response = "Sorry, that song/artist is on the blocklist."
+            return "Sorry, that song/artist is on the blocklist."
 
         case .notFound(let query):
             let truncated = StringFormatting.truncatedWithEllipsis(query)
-            response = "No results for \"\(truncated)\". Try a different search!"
+            return "No results for \"\(truncated)\". Try a different search!"
 
         case .linkNotFound:
-            response = "Couldn't find that on Apple Music. Try a song name instead!"
+            return "Couldn't find that on Apple Music. Try a song name instead!"
 
         case .notAuthorized:
-            response = "Song requests aren't available right now."
+            return "Song requests aren't available right now."
 
         case .featureDisabled:
-            response = Self.disabledReply
+            return disabledReply
 
-        // Already chat-ready text from the service (e.g. the audience denial).
-        case .error(let message):
-            response = message
+        // The audience denial is already chat-ready.
+        case .denied(let message):
+            return message
+
+        // Raw lookup text stays in the log, where the service writes it.
+        case .error:
+            return lookupFailedReply
         }
-
-        return response
     }
 
     // MARK: - Query Parsing

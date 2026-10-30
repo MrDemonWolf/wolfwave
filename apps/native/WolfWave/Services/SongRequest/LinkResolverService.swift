@@ -47,7 +47,7 @@ nonisolated final class LinkResolverService {
         case notFound
 
         /// The oEmbed request failed (non-404 HTTP status, undecodable body, or
-        /// transport error). The message is short and shown in chat.
+        /// transport error). The message is for the log, never for chat.
         case error(String)
     }
 

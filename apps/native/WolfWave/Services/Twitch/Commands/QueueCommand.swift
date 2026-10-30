@@ -13,8 +13,9 @@ import Foundation
 /// Displays the now-playing request (if any) and up to the next 5 queued songs
 /// with position, title, artist, and requester. Read-only, so any viewer may run it.
 ///
-/// Synchronous: it only reads the in-memory queue.
-final class QueueCommand: BotCommand {
+/// Synchronous: it only reads the in-memory queue. Silent while Song Requests
+/// is off (``SongRequestGatedCommand``).
+final class QueueCommand: BotCommand, SongRequestGatedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.

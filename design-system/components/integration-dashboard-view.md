@@ -3,7 +3,7 @@
 **File:** [`apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift`](../../apps/native/WolfWave/Views/Shared/IntegrationDashboardView.swift)
 
 ## Purpose
-Compact "where is WolfWave broadcasting right now" dashboard. One row per integration (Twitch chat, Discord profile, Stream Widgets, Remote send) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane. Below the row-width token, the status and action move beneath the description so compact windows retain readable labels.
+Compact "where is WolfWave broadcasting right now" dashboard. One row per integration (Twitch chat, Discord profile, Stream Widgets) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane. Below the row-width token, the status and action move beneath the description so compact windows retain readable labels.
 
 ## API
 ```swift
@@ -14,7 +14,6 @@ IntegrationDashboardView(
     discordConnected: true,
     widgetRunning: true,
     widgetURL: "http://localhost:8766",
-    remoteSendingEnabled: false,
     configure: { section in /* route */ }
 )
 ```
@@ -26,10 +25,9 @@ IntegrationDashboardView(
 | `twitchViewerCount` | `Int?` | Appended when > 0. |
 | `discordConnected` | `Bool` | "Showing now" / "Off". |
 | `widgetRunning` | `Bool` | OBS widget HTTP server status. |
-| `widgetURL` | `String?` | Shown inline in the subtitle for copy/paste. |
-| `remoteSendingEnabled` | `Bool` | Optional remote forwarding (Advanced). |
+| `widgetURL` | `String?` | Shown inline in the subtitle for copy/paste. Pass `WidgetLink.loopback` so a custom WebSocket port is included. |
 | `permissionPaused` | `Bool` | Overrides every chip with `"Paused"` (orange) when Music permission missing. |
-| `configure` | `(Section) -> Void` | Routes to `.twitch / .discord / .obs / .advanced`. |
+| `configure` | `(Section) -> Void` | Routes to `.twitch / .discord / .obs`. |
 
 ## Tokens used
 - `DSColor.partnerTwitch` (`#9146FF`) / `DSColor.partnerDiscord` (`#5865F2`): brand glyph tints (via `AppConstants.Brand`)
@@ -55,8 +53,6 @@ graph TB
   Card --> Row2[Discord row]
   Card --> Div2[Divider]
   Card --> Row3[Stream Widgets row]
-  Card --> Div3[Divider]
-  Card --> Row4[Remote send row]
 ```
 
 Each row:
@@ -78,7 +74,7 @@ graph LR
 - ✅ Place once on the General tab below `NowPlayingHeroCard`.
 - ✅ Always pass `permissionPaused`; without it, chips show "Live" while audio tracking is actually frozen.
 - ❌ Don't reuse the dashboard as an integration settings pane; put its status beside that pane's relevant controls.
-- ❌ Don't duplicate rows; the four broadcast surfaces are fixed. New integrations need their own row + chip wiring.
+- ❌ Don't duplicate rows; the three broadcast surfaces are fixed. New integrations need their own row + chip wiring.
 
 ## Example
 ```swift
@@ -88,8 +84,7 @@ IntegrationDashboardView(
     twitchViewerCount: twitchVM.viewerCount,
     discordConnected: discordEnabled && discordService.isConnected,
     widgetRunning: webSocketRunning,
-    widgetURL: widgetHTTPURL,
-    remoteSendingEnabled: remoteForwardingEnabled,
+    widgetURL: WidgetLink.loopback,
     permissionPaused: !musicPermissionGranted,
     configure: { section in router.show(section) }
 )

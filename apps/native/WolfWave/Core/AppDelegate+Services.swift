@@ -89,6 +89,9 @@ extension AppDelegate {
         twitchService?.setStatsInfoProvider { [weak self] in
             await MainActor.run { self?.getStatsInfo() ?? "No listening stats yet" }
         }
+        twitchService?.setCustomCommandVariablesProvider { [weak self] in
+            await MainActor.run { self?.customCommandVariables() ?? .empty }
+        }
     }
 
     /// Creates the Discord RPC service, consumes its state / artwork streams, and enables if configured.

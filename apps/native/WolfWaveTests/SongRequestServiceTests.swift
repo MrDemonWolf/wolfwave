@@ -372,8 +372,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         let result = await service.processRequest(
             query: "any song", username: "viewer",
             source: chatSource(username: "viewer", isSubscriber: false))
-        guard case .error = result else {
-            XCTFail("Expected .error for subscriber-only block, got \(result)")
+        guard case .denied = result else {
+            XCTFail("Expected .denied for subscriber-only block, got \(result)")
             return
         }
     }
@@ -386,9 +386,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         let result = await service.processRequest(
             query: "any song", username: "subscriber",
             source: chatSource(username: "subscriber", isSubscriber: true))
-        if case .error(let msg) = result {
-            XCTAssertFalse(
-                msg.contains("subscriber-only"), "Should not be blocked by subscriber-only gate")
+        if case .denied(let message) = result {
+            XCTFail("A subscriber should pass the subscriber-only gate, got \(message)")
         }
     }
 
@@ -400,9 +399,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         let result = await service.processRequest(
             query: "any song", username: "mod",
             source: chatSource(username: "mod", isModerator: true))
-        if case .error(let msg) = result {
-            XCTAssertFalse(
-                msg.contains("subscriber-only"), "Moderator should bypass subscriber-only gate")
+        if case .denied(let message) = result {
+            XCTFail("A moderator should bypass the subscriber-only gate, got \(message)")
         }
     }
 
@@ -413,8 +411,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
 
         let result = await service.processRequest(
             query: "any song", username: "viewer", source: chatSource(username: "viewer"))
-        guard case .error = result else {
-            XCTFail("Expected .error blocking a non-VIP/non-sub, got \(result)")
+        guard case .denied = result else {
+            XCTFail("Expected .denied blocking a non-VIP/non-sub, got \(result)")
             return
         }
     }
@@ -427,8 +425,8 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         let result = await service.processRequest(
             query: "any song", username: "vip",
             source: chatSource(username: "vip", isVIP: true))
-        if case .error(let msg) = result {
-            XCTAssertFalse(msg.contains("VIPs"), "VIP should pass the VIPs & Subscribers gate")
+        if case .denied(let message) = result {
+            XCTFail("A VIP should pass the VIPs & Subscribers gate, got \(message)")
         }
     }
 
@@ -466,7 +464,7 @@ final class SongRequestServiceTests: WolfWaveTestCase {
         // above are a bypass and not an audience setting that never applied.
         let chatResult = await service.processRequest(
             query: "chat song", username: "viewer", source: chatSource(username: "viewer"))
-        if case .error = chatResult {
+        if case .denied = chatResult {
             // expected: a plain viewer is blocked on a mods-only channel
         } else {
             XCTFail("mods-only audience should block a plain chat viewer, got \(chatResult)")

@@ -35,17 +35,15 @@ struct IntegrationDashboardView: View {
     /// Browser-source URL for OBS. Falls back to a bare localhost string when
     /// `nil`; masked under Streamer Mode.
     var widgetURL: String?
-    /// Whether the remote-site row reads On.
-    var remoteSendingEnabled: Bool
-    /// Music Automation permission is denied. Twitch, Discord, and the widget
-    /// rows switch to a Paused chip and explain why; the remote row does not.
+    /// Music Automation permission is denied. Every row switches to a Paused
+    /// chip and explains why.
     var permissionPaused: Bool = false
 
     /// Routes to a specific Settings section when "Configure ›" is tapped.
     var configure: (Section) -> Void = { _ in }
 
     /// The settings destination behind each row's "Configure ›" button.
-    enum Section { case twitch, discord, obs, advanced }
+    enum Section { case twitch, discord, obs }
 
     // MARK: - Body
 
@@ -86,21 +84,6 @@ struct IntegrationDashboardView: View {
                     chip: widgetChip,
                     subtitle: widgetSubtitle,
                     action: { configure(.obs) }
-                )
-                Divider().padding(.leading, DSSpace.s11)
-                row(
-                    icon: Image(systemName: "wifi")
-                        .font(.system(size: DSFont.Size.md, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22),
-                    name: "Send to a remote site (optional)",
-                    chip: remoteSendingEnabled
-                        ? StatusChip(text: "On", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
-                        : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off),
-                    subtitle: remoteSendingEnabled
-                        ? "Sending now-playing to your remote URL."
-                        : "Only turn this on if your overlay lives somewhere else.",
-                    action: { configure(.advanced) }
                 )
             }
             .cardStyleUnpadded()
@@ -297,8 +280,7 @@ struct IntegrationDashboardView: View {
         twitchViewerCount: 12,
         discordConnected: true,
         widgetRunning: true,
-        widgetURL: "http://localhost:8766",
-        remoteSendingEnabled: false
+        widgetURL: "http://localhost:8766"
     )
     .padding()
     .frame(width: 720)

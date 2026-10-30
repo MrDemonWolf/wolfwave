@@ -9,7 +9,9 @@
 import Foundation
 
 /// Handles `!clearqueue` / `!cq`. Clears all song requests (mod/broadcaster only).
-final class ClearQueueCommand: ServiceBoundCommand {
+///
+/// Silent while Song Requests is off (``SongRequestGatedCommand``).
+final class ClearQueueCommand: ServiceBoundCommand, SongRequestGatedCommand {
     // MARK: - BotCommand
 
     /// Chat triggers that invoke this command.

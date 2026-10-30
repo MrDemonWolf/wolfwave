@@ -685,10 +685,10 @@ extension AppDelegate {
     /// Copies the local widget URL (e.g. `http://localhost:8766`) to the
     /// pasteboard for OBS browser-source configuration.
     ///
-    /// Uses the resolved (clamped) widget port, so an out-of-range stored
-    /// port still yields a usable URL.
+    /// Uses the resolved (clamped) ports, so an out-of-range stored port still
+    /// yields a usable URL, and a custom WebSocket port rides along as `port=`.
     @objc func copyWidgetURL() {
-        let url = "http://localhost:\(Preferences.resolvedWidgetPort)"
+        let url = WidgetLink.loopback
         Pasteboard.copy(url)
         Log.debug("AppDelegate: Widget URL copied to clipboard: \(url)", category: .app)
     }
@@ -775,7 +775,7 @@ extension AppDelegate {
 
     /// Opens the local widget page in the user's default browser.
     @objc func openWidgetInBrowser() {
-        ExternalLink.open("http://localhost:\(Preferences.resolvedWidgetPort)")
+        ExternalLink.open(WidgetLink.loopback)
     }
 
     /// Force-cycles Twitch, Discord, and the websocket overlays so a streamer

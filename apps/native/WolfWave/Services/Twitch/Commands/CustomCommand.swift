@@ -389,13 +389,51 @@ nonisolated struct CustomCommand: Codable, Identifiable, Sendable, Equatable {
 /// Live values the renderer can substitute that come from app state rather than
 /// the chat message. Fetched fresh per invocation.
 nonisolated struct CustomCommandVariables: Sendable {
-    /// Substituted for `$song`. Empty when nothing is playing.
+    /// Substituted for `$song`: "Title by Artist". Empty when no track is
+    /// loaded or Music is closed.
     var currentSong: String
-    /// Substituted for `$lastsong`. Empty when there is no previous track.
+    /// Substituted for `$lastsong`, in the same form. Empty when there is no
+    /// previous track or Music is closed.
     var lastSong: String
 
     /// Both values empty. The dispatcher's default before a provider is wired.
     static let empty = CustomCommandVariables(currentSong: "", lastSong: "")
+
+    /// The variables for a now-playing snapshot.
+    ///
+    /// Plain track names, never the `!song` / `!last` replies: those carry an
+    /// emoji, a verb, and a song.link URL, which doubled up inside a reply such
+    /// as "Now playing: $song". A paused track is still the current song, as it
+    /// is for `!song`. Both are empty while Music is closed, when `!song` and
+    /// `!last` refuse too.
+    ///
+    /// - Parameters:
+    ///   - musicOpen: Whether Music.app is running.
+    ///   - currentTitle: The loaded track's title, if any.
+    ///   - currentArtist: The loaded track's artist, if any.
+    ///   - lastTitle: The previous track's title, if any.
+    ///   - lastArtist: The previous track's artist, if any.
+    static func nowPlaying(
+        musicOpen: Bool,
+        currentTitle: String?,
+        currentArtist: String?,
+        lastTitle: String?,
+        lastArtist: String?
+    ) -> CustomCommandVariables {
+        guard musicOpen else { return .empty }
+        return CustomCommandVariables(
+            currentSong: trackText(title: currentTitle, artist: currentArtist),
+            lastSong: trackText(title: lastTitle, artist: lastArtist))
+    }
+
+    /// "Title by Artist", the title alone when the artist is blank, or empty
+    /// when the title is blank.
+    static func trackText(title: String?, artist: String?) -> String {
+        let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !title.isEmpty else { return "" }
+        let artist = artist?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return artist.isEmpty ? title : "\(title) by \(artist)"
+    }
 }
 
 // MARK: - CustomCommandRenderer
@@ -408,7 +446,7 @@ nonisolated struct CustomCommandVariables: Sendable {
 /// - `$touser`: the first argument with a leading `@` stripped, else the sender
 /// - `$args`: every argument after the trigger, space-joined
 /// - `$1` … `$9`: individual arguments (empty when absent)
-/// - `$song` / `$lastsong`: current / previously played track
+/// - `$song` / `$lastsong`: current / previous track, as "Title by Artist"
 nonisolated enum CustomCommandRenderer {
 
     /// The whitespace-separated arguments following the trigger token.
@@ -423,8 +461,9 @@ nonisolated enum CustomCommandRenderer {
     /// a chatter typing `$song` as an argument gets the literal text back.
     /// Unknown `$` sequences pass through unchanged.
     ///
-    /// Chat-injection guard: if the output starts with a value the chatter
-    /// controls (name or argument) and that value begins with `!`, `/`, or
+    /// Chat-injection guard: if the output starts with a substituted value
+    /// (every one can come from chat: names, arguments, and song titles, since
+    /// viewers pick requested songs) and that value begins with `!`, `/`, or
     /// `.`, an invisible separator (U+2063) is prepended so Twitch and other
     /// bots don't treat the bot's reply as a command.
     ///
@@ -444,27 +483,29 @@ nonisolated enum CustomCommandRenderer {
             return first.hasPrefix("@") ? String(first.dropFirst()) : first
         }()
 
-        // (token, value, isChatterControlled). Sorted longest-first below so a
-        // future token that extends another (say `$user` vs a longer `$username`)
-        // matches the longer one. No current token is a prefix of another.
-        let named: [(String, String, Bool)] = [
-            ("$lastsong", vars.lastSong, false),
-            ("$sender", sender, true),
-            ("$touser", touser, true),
-            ("$args", args.joined(separator: " "), true),
-            ("$song", vars.currentSong, false),
-            ("$user", sender, true)
+        // Sorted longest-first below so a future token that extends another
+        // (say `$user` vs a longer `$username`) matches the longer one. No
+        // current token is a prefix of another.
+        let named: [(String, String)] = [
+            ("$lastsong", vars.lastSong),
+            ("$sender", sender),
+            ("$touser", touser),
+            ("$args", args.joined(separator: " ")),
+            ("$song", vars.currentSong),
+            ("$user", sender)
         ]
         let orderedTokens = named.sorted { $0.0.count > $1.0.count }
         var output = ""
         var index = template.startIndex
-        var startsWithUserValue = false
+        // Every substituted value can come from chat: names and arguments
+        // directly, song titles because viewers pick requested songs.
+        var startsWithSubstitution = false
         while index < template.endIndex {
             if template[index] == "$",
-               let (token, value, isUserValue) = orderedTokens.first(where: {
+               let (token, value) = orderedTokens.first(where: {
                    template[index...].hasPrefix($0.0)
                }) {
-                if output.isEmpty { startsWithUserValue = isUserValue }
+                if output.isEmpty { startsWithSubstitution = true }
                 output += value
                 index = template.index(index, offsetBy: token.count)
                 continue
@@ -475,7 +516,7 @@ nonisolated enum CustomCommandRenderer {
                (1...9).contains(position) {
                 let next = template.index(after: index)
                 let value = position <= args.count ? args[position - 1] : ""
-                if output.isEmpty { startsWithUserValue = true }
+                if output.isEmpty { startsWithSubstitution = true }
                 output += value
                 index = template.index(after: next)
                 continue
@@ -486,7 +527,7 @@ nonisolated enum CustomCommandRenderer {
         // Only the first non-empty emitted piece decides: a command prefix
         // later in the line is harmless, and literal template text is the
         // streamer's own choice.
-        if startsWithUserValue, let first = output.first, "!/.".contains(first) {
+        if startsWithSubstitution, let first = output.first, "!/.".contains(first) {
             output.insert("\u{2063}", at: output.startIndex)
         }
         return output.truncatedForChat()

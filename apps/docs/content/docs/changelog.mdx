@@ -83,6 +83,12 @@ The next release. These changes ship on the [Nightly channel](/docs/nightly) off
 
 ### Fixed
 
+- **`$song` and `$lastsong` read naturally.** In custom commands they fill in just the song and artist, like `Howl at the Moon by Gray Wolf`, instead of the whole `!song` reply with its emoji and link. A song title that starts with `!` can't set off other bots.
+- **Request commands follow the Song Requests switch.** While Song Requests is off, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` stay quiet, so a mod's `!skip` can't start your fallback playlist.
+- **No raw errors in chat.** When a song search or link lookup fails, `!sr`, channel points, and Bits say "song search isn't working right now" instead of the technical error. The details go to the log.
+- **Copied widget links keep your WebSocket port.** Changed the port? Copy Link, the menu bar, General, and setup now add `?port=` for you, so the OBS widget connects on the first try.
+- **No more dead "Send to a remote site" row.** General's Integrations card listed a setting WolfWave doesn't have.
+
 - **Now Playing keeps the right artwork.** The previous cover stays visible while the next one loads, then crossfades without flashing the default artwork. Reduce Motion disables the fade, and delayed responses cannot replace a newer cover.
 
 - **Settings opens without a hidden helper window.** Menu, Dock, and keyboard entry points use the SwiftUI scene directly; existing Settings windows are restored and brought forward by their exact identity.
