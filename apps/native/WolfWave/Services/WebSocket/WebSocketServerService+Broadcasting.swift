@@ -138,26 +138,30 @@ extension WebSocketServerService {
         ])
     }
 
-    /// Sends a `progress` tick (elapsed/duration) to every connected client
-    /// while playback is active. Driven by the periodic progress task.
+    /// Sends progress to control clients and to overlay clients while visible.
     private func broadcastProgress() {
-        // No clients = nothing to do. Skipping the serialization when no overlay
-        // is connected (the common idle case) avoids per-tick work.
+        // Skip serialization when no client can use the progress frame.
         guard Self.shouldRunProgressTimer(
             isEnabled: isEnabled,
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: overlayConnectionCount()
+            connectionCount: overlayConnectionCount(),
+            controlCount: controlConnections().count
         ) else { return }
-        broadcastJSON([
+        let message: [String: Any] = [
             "type": "progress",
             "data": [
                 "elapsed": estimatedElapsed(),
                 "duration": currentDuration,
                 "isPlaying": isPlaying
             ]
-        ])
+        ]
+        if isOverlayVisible {
+            broadcastJSON(message)
+        } else {
+            broadcastJSON(message, to: controlConnections())
+        }
     }
 
     /// Interpolates elapsed time using the wall clock: `currentElapsed` plus
@@ -172,36 +176,31 @@ extension WebSocketServerService {
 
     /// Pure policy shared by every progress-loop entry point and regression tests.
     ///
-    /// The timer runs only while enabled, visible, playing a track with a
-    /// finite positive duration, and serving at least one client.
-    /// `connectionCount` should count overlay clients only.
+    /// The timer runs while playing for control clients, or visible overlays.
     nonisolated static func shouldRunProgressTimer(
         isEnabled: Bool,
         isOverlayVisible: Bool,
         isPlaying: Bool,
         duration: TimeInterval,
-        connectionCount: Int
+        connectionCount: Int,
+        controlCount: Int
     ) -> Bool {
         isEnabled
-            && isOverlayVisible
             && isPlaying
             && duration.isFinite
             && duration > 0
-            && connectionCount > 0
+            && (controlCount > 0 || (isOverlayVisible && connectionCount > 0))
     }
 
-    /// Starts or stops the periodic task so disabled, hidden, paused, and
-    /// client-free states have no timer wakeups at all.
+    /// Starts or stops the periodic task when there are interested clients.
     func reconcileProgressTimer() {
-        // Intentional: only overlay clients consume `progress`. The Stream Deck
-        // plugin parses it as `unknown` and drops it (apps/streamdeck
-        // protocol.ts), so a lone Stream Deck must not keep the timer awake.
         let shouldRun = Self.shouldRunProgressTimer(
             isEnabled: isEnabled,
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: overlayConnectionCount())
+            connectionCount: overlayConnectionCount(),
+            controlCount: controlConnections().count)
         if shouldRun {
             if progressTask == nil { startProgressTimer() }
         } else {
@@ -218,7 +217,8 @@ extension WebSocketServerService {
             isOverlayVisible: isOverlayVisible,
             isPlaying: isPlaying,
             duration: currentDuration,
-            connectionCount: overlayConnectionCount()
+            connectionCount: overlayConnectionCount(),
+            controlCount: controlConnections().count
         ) else { return }
 
         let interval = currentProgressInterval

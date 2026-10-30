@@ -23,6 +23,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         struct DataPayload: Decodable, Sendable {
             let track: String?
             let isPlaying: Bool?
+            let elapsed: Double?
             let items: [QueueItem]?
         }
 
@@ -363,6 +364,99 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Hidden-Overlay Playback Tests
 
+    func testControlClientReceivesPausedSeekWhileOverlayHidden() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, task) = try makeControlClient(port: port)
+        await service.setOverlayVisibility(false)
+        await service.updateNowPlaying(
+            track: "Paused Track", artist: "Artist", album: "Album",
+            duration: 200, elapsed: 12, isPaused: true
+        )
+
+        let replay = expectation(description: "control receives paused replay")
+        task.resume()
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: replay) { frame in
+            XCTAssertEqual(frame.data?.elapsed, 12)
+            XCTAssertEqual(frame.data?.isPlaying, false)
+        }
+        await fulfillment(of: [replay], timeout: 5)
+
+        let seek = expectation(description: "control receives seek while paused")
+        Self.receiveFrame(type: "now_playing", from: task, fulfilling: seek) { frame in
+            XCTAssertEqual(frame.data?.elapsed, 100)
+            XCTAssertEqual(frame.data?.isPlaying, false)
+        }
+        await service.updateNowPlaying(
+            track: "Paused Track", artist: "Artist", album: "Album",
+            duration: 200, elapsed: 100, isPaused: true
+        )
+        await fulfillment(of: [seek], timeout: 5)
+        let active = await service.isProgressTimerActive
+        XCTAssertFalse(active)
+
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
+
+    func testControlClientReceivesProgressAndSeekWhileOverlayHidden() async throws {
+        let (service, port) = try await startListeningService()
+        let (session, task) = try makeControlClient(port: port)
+        await service.setOverlayVisibility(false)
+        await service.updateNowPlaying(
+            track: "Track", artist: "Artist", album: "Album", duration: 200, elapsed: 12
+        )
+        let received = expectation(description: "control receives progress after seek")
+        task.resume()
+        let connected = expectation(description: "control connected")
+        let observer = observe(service, fulfilling: connected) { _, count in count == 1 }
+        await fulfillment(of: [connected], timeout: 5)
+        observer.cancel()
+        await service.updateNowPlaying(
+            track: "Track", artist: "Artist", album: "Album", duration: 200, elapsed: 100
+        )
+        Self.receiveFrame(type: "progress", from: task, fulfilling: received) { frame in
+            XCTAssertGreaterThanOrEqual(frame.data?.elapsed ?? -1, 100)
+        }
+        await fulfillment(of: [received], timeout: 5)
+        close(session: session, task: task)
+        await service.setEnabled(false)
+    }
+
+    func testControlConnectionStartsAndStopsProgressWithHiddenOverlayClient() async throws {
+        let (service, port) = try await startListeningService()
+        let (overlaySession, overlay) = try makeClient(port: port)
+        let (controlSession, control) = try makeControlClient(port: port)
+        await service.setOverlayVisibility(false)
+        await service.updateNowPlaying(
+            track: "Track", artist: "Artist", album: "Album", duration: 200, elapsed: 12
+        )
+
+        let overlayConnected = expectation(description: "overlay connected")
+        let overlayObserver = observe(service, fulfilling: overlayConnected) { _, count in count == 1 }
+        overlay.resume()
+        await fulfillment(of: [overlayConnected], timeout: 5)
+        overlayObserver.cancel()
+        let initiallyActive = await service.isProgressTimerActive
+        XCTAssertFalse(initiallyActive)
+
+        let progress = expectation(description: "control receives progress")
+        control.resume()
+        Self.receiveFrame(type: "progress", from: control, fulfilling: progress) { _ in }
+        await fulfillment(of: [progress], timeout: 5)
+        let active = await service.isProgressTimerActive
+        XCTAssertTrue(active)
+
+        let controlDisconnected = expectation(description: "control disconnected")
+        let observer = observe(service, fulfilling: controlDisconnected) { _, count in count == 1 }
+        close(session: controlSession, task: control)
+        await fulfillment(of: [controlDisconnected], timeout: 5)
+        observer.cancel()
+        let stopped = await service.isProgressTimerActive
+        XCTAssertFalse(stopped)
+        close(session: overlaySession, task: overlay)
+        await service.setEnabled(false)
+    }
+
     /// Hiding the overlay hides the browser-source card. It must not blind the
     /// Stream Deck: a control client connecting while the cards are off still
     /// needs the replay, or its Play/Pause key sits there with no track.
@@ -432,6 +526,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
     func testOverlayClientReceivesNoPlaybackWhileHidden() async throws {
         let (service, port) = try await startListeningService()
         let (session, task) = try makeClient(port: port)
+        let (controlSession, controlTask) = try makeControlClient(port: port)
 
         let connected = expectation(description: "overlay client connected")
         let connectionObserver = observe(service, fulfilling: connected) { _, count in
@@ -459,6 +554,12 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         await service.setOverlayVisibility(false)
         await fulfillment(of: [hidden], timeout: 5)
 
+        let controlConnected = expectation(description: "control client connected")
+        let controlObserver = observe(service, fulfilling: controlConnected) { _, count in count == 2 }
+        controlTask.resume()
+        await fulfillment(of: [controlConnected], timeout: 5)
+        controlObserver.cancel()
+
         let sentinel = expectation(description: "overlay client received the sentinel frame")
         Self.receiveNextFrame(from: task, fulfilling: sentinel) { frame in
             XCTAssertEqual(
@@ -476,6 +577,9 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
             elapsed: 0,
             artworkURL: nil
         )
+        let progress = expectation(description: "control client receives progress")
+        Self.receiveFrame(type: "progress", from: controlTask, fulfilling: progress) { _ in }
+        await fulfillment(of: [progress], timeout: 5)
         await service.broadcastQueueUpcoming(items: [
             WebSocketServerService.QueueUpcomingItem(
                 title: "Sentinel",
@@ -485,6 +589,7 @@ final class WebSocketServerIntegrationTests: XCTestCase, @unchecked Sendable {
         await fulfillment(of: [sentinel], timeout: 5)
 
         close(session: session, task: task)
+        close(session: controlSession, task: controlTask)
         await service.setEnabled(false)
     }
 

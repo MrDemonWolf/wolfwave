@@ -8,17 +8,19 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Stream Deck track time.** Add a Track Time key to see playback progress; press it to switch between elapsed and remaining time. Seeking while paused updates the time too.
 - **Public release notes and design system.** The website now has dedicated Changelog and Design System pages. Unreleased notes stay in the repository until release.
 - **Sync settings with iCloud.** Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and your preferences follow you to every Mac with the switch on. Sign-ins, tokens, and permissions never sync, so you still connect Twitch once per Mac. Off by default, and the newest change wins. Server switches, ports, the update channel, and diagnostics stay per Mac.
 - **Custom commands choose how they answer.** Each custom command has a "How it's sent" setting: reply to the chatter (the default), a plain chat message, or a Twitch announcement. Announcements need a mod account and a one-time Twitch reconnect. If Twitch refuses, WolfWave sends a reply instead and tells you why.
 - **Links that open Settings in the right place.** `wolfwave://settings/<pane>` and `wolfwave://settings/<pane>/<section>` open a pane, scroll to the section, and highlight it, even if Settings is already open. An unknown link opens General. The full list is on the [Settings](https://wolfwave.mrdemonwolf.dev/docs/settings#deep-links) page.
-- **Five new Stream Deck keys.** Announce Song posts what's playing to chat (same wording as `!song`). Reject Request drops the current request and tells chat. Block Requester bars whoever requested the current song (hold it to use it). Request Access cycles who can request and shows the current choice. Now Playing shows the track over its album art.
+- **Five new Stream Deck keys.** Announce Song posts what's playing to chat (same wording as `!song`). Reject Request drops the current request and tells chat. Block Requester bars whoever requested the current song (hold it to use it). Request Audience cycles who can request and shows the current choice. Now Playing shows the track over its album art.
 - **Stream Deck has its own settings page.** Find it under On Stream. It holds the control token, the setup steps, and a new "Allow Stream Deck commands" switch. Turn it off to refuse every key press while your overlay keeps running. It's on by default, so nothing changes unless you change it.
 - **Block people, not just songs.** Settings → Song Requests → Blocklist now takes Twitch usernames too. A blocked person's requests are turned away before WolfWave looks the song up.
 - **An optional Sponsor link.** Sponsor now appears in the menu bar's Help submenu, the Help menu, and the About pane. Turn off "Show sponsor links" in Settings → About to hide it. WolfWave is free and complete either way.
 
 ### Changed
 
+- **Clearer Stream Deck actions.** Next Track, Hold / Resume Queue, Show / Hide Overlay, and Request Audience use names that describe what they do. Tooltips explain playback effects, required connections, and hold-to-confirm actions.
 - **A shorter, clearer setup wizard.** Seven steps instead of eight, with Apple Music access right after Welcome because everything builds on it. The top says where you are ("Step 3 of 7 · Discord"), every step keeps its title in the same spot, and there is one button to move on: it reads Skip until you finish a sign-in, Next otherwise. Escape goes back. Shorter, plainer copy throughout.
 - **Setup shows what's on and lets you change it in one tap.** The Discord step tells you whether Discord is open and has a Listen-buttons switch. The Twitch step shows `!song` and `!last` with a switch each. Notifications are a button, not a switch you can't turn off. The last screen points at the wolf in your menu bar, even if you skip setup.
 - **`!song` and `!last` are on for new installs.** Connect Twitch and chat can ask what's playing right away. If you already use WolfWave, nothing changes: your commands stay exactly as you had them.

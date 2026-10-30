@@ -3,10 +3,10 @@ title: Stream Deck
 metaTitle: "Stream Deck Plugin for Apple Music"
 description: Control WolfWave from an Elgato Stream Deck. Play, pause, skip, clear the song-request queue and shared playlist, announce the song, and toggle your overlay.
 ogTitle: WolfWave on Stream Deck
-ogDescription: Twelve physical keys for playback, the song-request queue and shared playlist, and your overlay. Local only, token gated.
+ogDescription: Thirteen physical keys for playback, the song-request queue and shared playlist, and your overlay. Local only, token gated.
 ogEyebrow: Guide
 ogChips:
-  - Twelve keys
+  - Thirteen keys
   - Live state
   - Local only
   - Token gated
@@ -21,7 +21,7 @@ keywords:
 **TL;DR:** The WolfWave Stream Deck plugin puts playback, your song-request queue, and your overlay on physical keys. Keys show live state, like what's playing and how many requests are waiting. This page is for streamers. Building your own controller? See the [Stream Deck Control API](/docs/stream-deck).
 
 <Callout type="info">
-  This page covers WolfWave 2.2.0 and the plugin built from the same repo. 2.2.0 is on the [Nightly channel](/docs/nightly) until it ships. On 2.1.x, update first: the Stream Deck settings pane, five of the keys, and protocol v3 are new in 2.2.0.
+  This page covers WolfWave 2.2.0 and the plugin built from the same repo. 2.2.0 is on the [Nightly channel](/docs/nightly) until it ships. On 2.1.x, update first: the Stream Deck settings pane, six of the keys, and protocol v3 are new in 2.2.0.
 </Callout>
 
 <Callout type="warn">
@@ -33,23 +33,24 @@ keywords:
 | Key | What it does |
 |---|---|
 | **Play / Pause** | Plays or pauses Apple Music. |
-| **Skip** | Skips to the next track. |
-| **Hold Queue** | Holds or resumes the request queue. Shows the queue size as a big number (`99+` when it's bigger). Stays solid blue while the queue is held, even if you held it from the menu bar or with `!hold`. |
+| **Next Track** | Skips to the next track. |
+| **Hold / Resume Queue** | Holds or resumes the request queue. Shows the queue size as a big number (`99+` when it's bigger). Stays solid blue while the queue is held, even if you held it from the menu bar or with `!hold`. |
 | **Approve Next** | Approves the first request waiting for review. Turns amber with the count when requests are waiting. |
 | **Clear Queue** | Clears queued, pending, and playing requests plus the WolfWave Requests playlist. Stops Music when requests exist. Shows the queue size. **Hold to fire.** Songs stay in your library. |
 | **Block Song** | Adds the current song to your blocklist. |
-| **Overlay** | Shows or hides your stream overlay. |
+| **Show / Hide Overlay** | Shows or hides your stream overlay. |
 | **Announce Song** | Posts what's playing to Twitch chat, same wording as `!song`. |
-| **Reject Request** | Drops the request that's playing and tells chat, so the requester isn't left guessing. (Skip says nothing.) |
+| **Reject Request** | Drops the request that's playing and tells chat, so the requester isn't left guessing. (Next Track says nothing.) |
 | **Block Requester** | Stops the person who requested the current song from requesting again. **Hold to fire.** |
-| **Request Access** | Cycles who can use `!sr`: Everyone, Subscribers, VIPs & Subscribers, Mods Only, then back to Everyone. Shows ALL, SUB, VIP, or MOD, and turns blue when it's narrower than Everyone. |
-| **Now Playing** | Shows the track and artist over the album art. Long titles scroll. Display only: pressing it does nothing. |
+| **Request Audience** | Cycles who can use `!sr`: Everyone, Subscribers, VIPs & Subscribers, Mods Only, then back to Everyone. Shows ALL, SUB, VIP, or MOD, and turns blue when it's narrower than Everyone. |
+| **Now Playing** | Shows the track and artist over the album art. Long titles scroll, and a pause badge shows while Music is paused. Display only: pressing it does nothing. |
+| **Track Time** | Shows the elapsed or remaining time and playback progress. Press to switch; the choice is saved per key. Update both WolfWave and the plugin for timing while the overlay is hidden. |
 
 How to read them:
 
 - **Solid blue** means on: playing, queue held, overlay showing, requests limited.
 - **Red** keys remove something: Clear Queue, Block Song, Reject Request, and Block Requester.
-- **Counting keys draw their own number.** Hold Queue, Approve Next, and Clear Queue draw a big number (blank at zero) and leave the key title free, so your own label stays.
+- **Counting keys draw their own number.** Hold / Resume Queue, Approve Next, and Clear Queue draw a big number (a word like HOLD or CLEAR at zero) and leave the key title free, so your own label stays.
 
 ### Hold-to-fire keys
 
