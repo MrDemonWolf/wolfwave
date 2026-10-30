@@ -1,13 +1,29 @@
 import { getPageImage, source } from '@/lib/source';
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  MarkdownCopyButton,
+} from 'fumadocs-ui/layouts/notebook/page';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/mdx-components';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { pageUrl } from '@/lib/site';
+import { ChevronRight, SquarePen } from 'lucide-react';
+import { docsCrumbs } from '@/lib/docs-tree';
+import { pageUrl, repoUrl } from '@/lib/site';
 import { docsPageLd, docsTitle, jsonLdScript, lastCommitDate } from '@/lib/seo';
 
-/** Renders one MDX docs page with TechArticle + BreadcrumbList JSON-LD (see `lib/seo.ts`). */
+const updatedFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' });
+
+/**
+ * One MDX docs page: breadcrumb (tab › group) and page actions, the title and
+ * lede, the body, then "last updated" and an edit link above Fumadocs'
+ * previous/next cards. TechArticle + BreadcrumbList JSON-LD (see `lib/seo.ts`).
+ * The docs home renders its own hero and `<h1>` from MDX, so it skips the header.
+ */
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
   const page = source.getPage(params.slug);
@@ -16,32 +32,57 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const MDX = page.data.body;
   const url = pageUrl(params.slug?.join('/') === 'changelog' ? '/changelog' : page.url);
   const isDocsRoot = !params.slug?.length;
-  // Route-level eyebrow above the title. Skips the docs root (index.mdx renders
-  // its own eyebrow inside .docs-hero).
-  const eyebrow = isDocsRoot ? undefined : page.data.ogEyebrow;
+  const absolutePath = (page as { absolutePath?: string }).absolutePath;
+  const updated = lastCommitDate(absolutePath);
+  const editUrl = `${repoUrl}/blob/main/apps/docs/content/docs/${page.path}`;
+  const crumbs = docsCrumbs(source.getPageTree(), page.url);
 
   const jsonLd = docsPageLd({
     url,
     title: page.data.title,
     description: page.data.description,
-    dateModified: lastCommitDate((page as { absolutePath?: string }).absolutePath),
+    dateModified: updated,
     isDocsRoot,
   });
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+      breadcrumb={{ enabled: false }}
+      tableOfContent={{ style: 'clerk' }}
+      // Full-width pages (the docs home) have no TOC, so no "On this page" bar either.
+      tableOfContentPopover={{ style: 'clerk', ...(page.data.full ? { enabled: false } : {}) }}
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
-      {eyebrow ? <span className="docs-eyebrow">{eyebrow}</span> : null}
       {/* The docs root's MDX hero carries the page's one <h1>, so the
           frontmatter title and description are not rendered there. */}
       {isDocsRoot ? null : (
-        <>
+        <header className="ww-page-head">
+          <div className="ww-page-meta">
+            {crumbs ? (
+              <nav aria-label="Breadcrumb" className="ww-crumbs">
+                <Link href={crumbs.tab.url}>{crumbs.tab.title}</Link>
+                {crumbs.group ? (
+                  <>
+                    <ChevronRight aria-hidden="true" />
+                    <span>{crumbs.group}</span>
+                  </>
+                ) : null}
+              </nav>
+            ) : (
+              <span />
+            )}
+            <div className="ww-page-actions">
+              <MarkdownCopyButton markdownUrl={`/llms.mdx${page.url}.md`} />
+            </div>
+          </div>
           <DocsTitle>{page.data.title}</DocsTitle>
           <DocsDescription>{page.data.description}</DocsDescription>
-        </>
+        </header>
       )}
       <DocsBody>
         <MDX
@@ -51,6 +92,19 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           })}
         />
       </DocsBody>
+      <div className="ww-page-end">
+        {updated ? (
+          <p>
+            Last updated <time dateTime={updated.toISOString()}>{updatedFormat.format(updated)}</time>
+          </p>
+        ) : (
+          <span />
+        )}
+        <a href={editUrl} target="_blank" rel="noopener noreferrer">
+          <SquarePen aria-hidden="true" />
+          Edit this page
+        </a>
+      </div>
     </DocsPage>
   );
 }

@@ -2,6 +2,7 @@
 title: Documentation
 metaTitle: "WolfWave Docs: Apple Music for Twitch, Discord & OBS"
 description: WolfWave docs for streamers, viewers, and developers. Set up Apple Music for Twitch chat, Discord, and OBS on macOS, or learn the chat commands.
+full: true
 ogTitle: WolfWave Docs. Howl quietly. Stream loud.
 ogDescription: Apple Music for Twitch, Discord, and OBS. Guides for streamers, a chat command list for viewers, and a protocol reference for developers.
 ogEyebrow: Documentation
@@ -19,152 +20,56 @@ keywords:
   - macos menu bar music streamer
 ---
 
-<div className="docs-hero">
+<HomeHero
+  title="WolfWave docs"
+  primary={{ href: "/docs/installation", label: "Install WolfWave" }}
+  secondary={{ href: "/docs/bot-commands", label: "Chat commands" }}
+  aside={
+    <MenuMap caption="Illustration of the WolfWave menu. The song is made up.">
+      <MenuMapItem href="/docs/features#twitch-chat-bot" icon="chat" tint="twitch">Twitch chat bot</MenuMapItem>
+      <MenuMapItem href="/docs/features#song-requests" icon="requests" tint="apple-music">Song requests</MenuMapItem>
+      <MenuMapItem href="/docs/features#discord-status" icon="headphones" tint="discord">Discord status</MenuMapItem>
+      <MenuMapItem href="/docs/features#now-playing-widget" icon="monitor" tint="graphite">OBS overlay</MenuMapItem>
+      <MenuMapItem href="/docs/streamdeck" icon="grid" tint="graphite">Stream Deck</MenuMapItem>
+      <MenuMapItem href="/docs/settings" icon="settings" tint="gray" shortcut="⌘," separator>Settings…</MenuMapItem>
+      <MenuMapItem href="/docs/troubleshooting" icon="lifebuoy" tint="red">Fix a problem</MenuMapItem>
+    </MenuMap>
+  }
+>
+  Put Apple Music on Twitch, Discord, and OBS from your menu bar. Set it up in a few minutes, or jump straight to a fix.
+</HomeHero>
 
-<h1 className="docs-hero-title">WolfWave documentation</h1>
+## Set up in four steps
 
-<p className="docs-hero-sub">Install the Mac app, connect your stream, and find help when you need it.</p>
+<SetupPath>
+  <SetupStep href="/docs/installation" title="Install WolfWave">Download the app. A short setup wizard opens on first launch.</SetupStep>
+  <SetupStep href="/docs/installation#apple-music" title="Allow Apple Music">One click, so WolfWave can see what's playing.</SetupStep>
+  <SetupStep href="/docs/features#twitch-chat-bot" title="Connect Twitch">Sign in and join your channel. On a new install, `!song` and `!last` answer right away.</SetupStep>
+  <SetupStep href="/docs/features#now-playing-widget" title="Add the overlay">Copy one link into OBS as a Browser Source.</SetupStep>
+</SetupPath>
 
-</div>
+## Something not working?
 
-## Start here
+<LinkList>
+  <LinkListItem href="/docs/troubleshooting#commands-not-replying" icon="chat" tint="twitch">Chat commands don't reply</LinkListItem>
+  <LinkListItem href="/docs/troubleshooting#discord-not-connecting" icon="headphones" tint="discord">Discord doesn't show your song</LinkListItem>
+  <LinkListItem href="/docs/troubleshooting#overlay-not-updating" icon="monitor" tint="graphite">The overlay stopped updating</LinkListItem>
+  <LinkListItem href="/docs/troubleshooting#music-permission" icon="music" tint="apple-music">WolfWave can't see Apple Music</LinkListItem>
+  <LinkListItem href="/docs/troubleshooting" icon="lifebuoy" tint="red">Every fix, by message</LinkListItem>
+</LinkList>
+
+## Build with WolfWave
 
 <Cards className="lg:grid-cols-3">
-  <Card title="Install WolfWave" href="/docs/installation" description="Requirements, download options, and your first setup." />
-  <Card title="Chat commands" href="/docs/bot-commands" description="Song requests, the queue, vote-to-skip, and moderator controls." />
-  <Card title="Build an integration" href="/docs/development" description="Build from source or explore the overlay and Stream Deck APIs." />
+  <Card icon={<Tile icon="hammer" tint="indigo" />} title="Build from source" href="/docs/development" description="Xcode, make targets, tests, and how a pull request ships." />
+  <Card icon={<Tile icon="monitor" tint="graphite" />} title="Overlay message API" href="/docs/widget#message-contract" description="The WebSocket frames behind the OBS widget." />
+  <Card icon={<Tile icon="cable" tint="graphite" />} title="Stream Deck protocol" href="/docs/stream-deck" description="Send commands and read live state from a local client." />
 </Cards>
-
-## Quick setup
-
-The [setup wizard](/docs/installation#step-2-the-setup-wizard) already covers Twitch, Discord, and the OBS overlay. Use these tabs to turn one on later, fix it, or set up song requests.
-
-<Tabs items={["Connect Twitch", "OBS overlay", "Song requests", "Discord status"]}>
-
-<Tab value="Connect Twitch">
-
-<Steps>
-
-<Step>
-
-**Open Settings → Twitch.** Click **Connect with Twitch**.
-
-</Step>
-
-<Step>
-
-**Approve on twitch.tv/activate.** Enter the code WolfWave shows you. You never type your Twitch password into WolfWave.
-
-</Step>
-
-<Step>
-
-**Join your channel, then pick commands.** Type your channel name and click **Join Channel**. Then switch on the commands you want under **Bot Commands**. New installs start with `!song` and `!last` already on.
-
-</Step>
-
-</Steps>
-
-More: [Twitch chat bot](/docs/features#twitch-chat-bot) · [Every command](/docs/bot-commands)
-
-</Tab>
-
-<Tab value="OBS overlay">
-
-<Steps>
-
-<Step>
-
-**Open Settings → Stream Widgets.** Turn on **Enable Stream Widgets**, then **Enable Widget Webpage**.
-
-</Step>
-
-<Step>
-
-**Click Copy Link.** This is the localhost link for OBS.
-
-</Step>
-
-<Step>
-
-**Add it to OBS as a Browser Source.** Paste the link, use the width and height the pane shows for your layout, and turn on **Shutdown source when not visible** so the widget reconnects.
-
-</Step>
-
-</Steps>
-
-More: [OBS overlay](/docs/features#now-playing-widget) · [Themes & layouts](/docs/widget)
-
-</Tab>
-
-<Tab value="Song requests">
-
-<Steps>
-
-<Step>
-
-**Open Settings → Song Requests.** Connect Twitch first, then click **Set Up Song Requests**. It asks for Apple Music access and makes your **WolfWave Requests** playlist. Finish it and song requests turn on.
-
-</Step>
-
-<Step>
-
-**Pick who can request.** Choose a preset: Open, Sub Only, Channel Point Only, or Custom.
-
-</Step>
-
-<Step>
-
-**Chat types `!sr <song>`.** WolfWave finds it on Apple Music and adds it to the queue.
-
-</Step>
-
-</Steps>
-
-More: [Song requests](/docs/features#song-requests) · [Vote-to-skip](/docs/bot-commands#vote-skip)
-
-</Tab>
-
-<Tab value="Discord status">
-
-<Steps>
-
-<Step>
-
-**Open the Discord app** on this Mac.
-
-</Step>
-
-<Step>
-
-**Open Settings → Discord.** Turn on **Show on Discord**.
-
-</Step>
-
-<Step>
-
-**Check your profile.** It shows "Listening to WolfWave" with the album art and a progress bar. No bot or token needed.
-
-</Step>
-
-</Steps>
-
-More: [Discord status](/docs/features#discord-status)
-
-</Tab>
-
-</Tabs>
 
 ## Backed by sponsors
 
-<Callout type="info">
+WolfWave is free and open source. These folks keep it that way. [Become a sponsor](https://github.com/sponsors/nathanialhenniges).
 
-WolfWave is free and open source. These folks keep it that way.
-
-<a href="https://github.com/sponsors/nathanialhenniges" target="_blank" rel="noopener">
+<a className="ww-sponsors" href="https://github.com/sponsors/nathanialhenniges" target="_blank" rel="noopener">
   <img src="/sponsors.svg" alt="WolfWave sponsors" />
 </a>
-
-[**Become a sponsor →**](https://github.com/sponsors/nathanialhenniges)
-
-</Callout>

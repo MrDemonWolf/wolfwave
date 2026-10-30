@@ -25,7 +25,7 @@ Something broke? Find the message WolfWave showed you, or the symptom, below. Ea
 
 Most error banners in WolfWave already have the fix button on them. Some also have a **Learn More** link that lands on the matching section here.
 
-**Still stuck?** Go to Settings → Advanced and click **Export Logs**. It saves one file with your app version, macOS version, the last crash (if any), and every log WolfWave still has. Logs never contain tokens. Attach it to a [GitHub issue](https://github.com/MrDemonWolf/wolfwave/issues/new).
+**Still stuck?** Go to **Settings → Advanced** and click **Export Logs**. It saves one file with your app version, macOS version, the last crash (if any), and every log WolfWave still has. Logs never contain tokens. Attach it to a [GitHub issue](https://github.com/MrDemonWolf/wolfwave/issues/new).
 
 ## Twitch
 
@@ -35,10 +35,10 @@ If your network drops, WolfWave reconnects on its own. It retries fast at first,
 
 Check these in order:
 
-1. **Is Twitch connected?** Settings → Twitch should show your channel.
+1. **Is Twitch connected?** **Settings → Twitch** should show your channel.
 2. **Is the command on?** `!song` and `!last` are on for new installs. `!wolfwave`, `!stats`, and `!playlist` start off. See [Turn commands on](/docs/bot-commands#turn-commands-on).
-3. **For `!sr`: is Song Requests on?** Settings → Song Requests → **Enable Song Requests**.
-4. **Is "Only reply while live" on?** Settings → Twitch → Chat commands. If it is, commands stay quiet until you go live.
+3. **For `!sr`: is Song Requests on?** **Settings → Song Requests → Enable Song Requests**.
+4. **Is "Only reply while live" on?** **Settings → Twitch → Chat commands**. If it is, commands stay quiet until you go live.
 5. **Cooldown?** A command waits a few seconds between uses. Mods and you skip cooldowns, so test from a viewer account to see what viewers see.
 6. **First word?** The command must start the message. `hey !song` won't work.
 
@@ -54,7 +54,7 @@ Check these in order:
 
 **Message:** "That code expired"
 
-**Why:** Twitch sign-in codes only last a few minutes. The code on screen shows how long it has left.
+**Why:** Each Twitch sign-in code expires. Twitch sets how long it lasts, and the code on screen shows the time left.
 
 **Fix:** Click **Get a new code** and approve it on Twitch.
 
@@ -237,7 +237,7 @@ WolfWave notices song changes within a second, and checks again every 5 seconds 
 **Fix:**
 
 1. Click **Open System Settings**.
-2. Go to Privacy & Security → Automation → WolfWave.
+2. Go to **Privacy & Security → Automation → WolfWave**.
 3. Turn on **Music**.
 
 Still says off? Quit and reopen WolfWave. macOS sometimes doesn't pass a new permission to an app that's already running.
@@ -252,17 +252,17 @@ You see an old song, or no song, while Music is open and playing.
 
 1. Check the permission first. See [Let WolfWave read what's playing](#music-permission).
 2. Quit and reopen Music, then play a song. WolfWave picks it up on its own.
-3. Still wrong? Click **Export Logs** in Settings → Advanced and [open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new).
+3. Still wrong? Click **Export Logs** in **Settings → Advanced** and [open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new).
 
 ### Music can't see your requests playlist [#playlist-not-synced]
 
-**Message:** "Music can't see WolfWave Requests yet" (setup) or "Music on this Mac can't see your WolfWave Requests playlist" (Settings → Song Requests).
+**Message:** "Music can't see WolfWave Requests yet" (setup) or "Music on this Mac can't see your WolfWave Requests playlist" (**Settings → Song Requests**).
 
 **Why:** Requests are added to your Apple Music library online, then played from the Music app on this Mac. If **Sync Library** is off, the Music app never sees them. WolfWave waits about 40 seconds for iCloud to sync before it shows this, so a brand-new playlist doesn't trip it.
 
 **Fix:**
 
-1. In Music, open Settings → General.
+1. In Music, open **Settings → General**.
 2. Turn on **Sync Library**.
 3. In WolfWave, click **Check Again**. It waits for sync again before it answers.
 
@@ -316,7 +316,7 @@ You need the Discord **desktop app**. Discord in a web browser can't show WolfWa
 
 **Fix:**
 
-1. Open Settings → Stream Widgets.
+1. Open **Settings → Stream Widgets**.
 2. Copy the address again.
 3. Paste it into your OBS browser source.
 
@@ -362,14 +362,14 @@ The plugin shows what's wrong right on the keys.
 **Fix:**
 
 1. Open WolfWave.
-2. Turn on the server in Settings → Stream Widgets. Stream Deck uses the same server, even if you don't use the overlay.
-3. If the plugin's panel says "WolfWave rejected this token", copy **Stream Deck Control Token** again from Settings → Stream Deck and paste it into the plugin. The token changes when you make a new one, and the overlay token won't work here.
+2. Turn on the server in **Settings → Stream Widgets**. Stream Deck uses the same server, even if you don't use the overlay.
+3. If the plugin's panel says "WolfWave rejected this token", copy **Stream Deck Control Token** again from **Settings → Stream Deck** and paste it into the plugin. The token changes when you make a new one, and the overlay token won't work here.
 
 ### Every key says Token? [#streamdeck-token]
 
 **Why:** The token in the plugin isn't a full control token. It must be 64 characters. (A blank token shows **Offline** instead.)
 
-**Fix:** Copy **Stream Deck Control Token** from Settings → Stream Deck. Paste it into any one key's settings in the Stream Deck app. Every key shares it.
+**Fix:** Copy **Stream Deck Control Token** from **Settings → Stream Deck**. Paste it into any one key's settings in the Stream Deck app. Every key shares it.
 
 The panel says **Token format is valid** when the shape is right, and **Connected** once WolfWave accepts it.
 
@@ -385,7 +385,7 @@ The panel says **Token format is valid** when the shape is right, and **Connecte
 
 **Message:** "Reset Stopped Partway"
 
-**Erase All Data & Reset** (Settings → Advanced → Danger Zone) first disconnects Twitch, then removes your saved sign-ins, then clears everything else. The alert tells you how far it got:
+**Erase All Data & Reset** (**Settings → Advanced → Danger Zone**) first disconnects Twitch, then removes your saved sign-ins, then clears everything else. The alert tells you how far it got:
 
 - **"…so nothing was erased."** Twitch couldn't disconnect, or your saved sign-ins couldn't be removed. Click **OK**, then try again. If it keeps failing, restart WolfWave and retry. Still failing? Restart your Mac.
 - **"…your history and logs couldn't be erased."** Your settings and sign-ins are already gone. Click **Relaunch** to finish. If it keeps happening, restart your Mac.
@@ -398,11 +398,11 @@ The panel says **Token format is valid** when the shape is right, and **Connecte
 |---|---|---|
 | "That file couldn't be read. It may be damaged or not a WolfWave backup." | The file is damaged, or it isn't a backup | Pick the file you saved with **Export Settings**, or export a fresh one |
 | "That's not a WolfWave settings file." | It's a valid file, but WolfWave didn't make it | Pick the file you saved with **Export Settings** |
-| "This backup was made by a newer version of WolfWave. Update WolfWave, then try again." | The backup came from a newer WolfWave than yours | Update WolfWave in Settings → Software Update, then import again |
+| "This backup was made by a newer version of WolfWave. Update WolfWave, then try again." | The backup came from a newer WolfWave than yours | Update WolfWave in **Settings → Software Update**, then import again |
 | "This backup uses an unsupported settings format." | The file says it uses a settings format WolfWave doesn't accept. That usually means it was edited or damaged | Export a fresh backup from the Mac that made it |
 | "That backup is too large to import. Choose a file under 1 MB." | The file is over 1 MB. A WolfWave backup is a small text file, so this is probably the wrong file | Pick the right file |
 
-Backups come from Settings → Advanced → **Export Settings**. See [Backup](/docs/backup).
+Backups come from **Settings → Advanced → Export Settings**. See [Backup](/docs/backup).
 
 ### Couldn't save your Twitch sign-in [#keychain-write-failed]
 
@@ -432,7 +432,7 @@ Backups come from Settings → Advanced → **Export Settings**. See [Backup](/d
 
 **Why:** WolfWave couldn't reach the update server. Usually a short network problem.
 
-**Fix:** Try again from the menu bar: Help → **Check for Updates…**, or Settings → Software Update.
+**Fix:** Try again from the menu bar: **Help → Check for Updates…**, or **Settings → Software Update**.
 
 **Installed with Homebrew?** WolfWave doesn't update itself. Run:
 
@@ -442,7 +442,7 @@ brew upgrade wolfwave
 
 ## Still stuck
 
-1. Settings → Advanced → **Export Logs**.
+1. **Settings → Advanced → Export Logs**.
 2. [Open an issue](https://github.com/MrDemonWolf/wolfwave/issues/new) and attach the file.
 3. Say what you were doing and the exact message WolfWave showed.
 

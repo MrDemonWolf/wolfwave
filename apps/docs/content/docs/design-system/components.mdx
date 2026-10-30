@@ -49,7 +49,7 @@ A few representative entries:
 2. Reference `DSColor` / `DSFont` / `DSSpace` / `DSRadius` / `DSMotion` tokens. No hardcoded numbers, and no raw system colors as a status tint (`DSColor.success` / `.warning` / `.error` / `.info` / `.neutral` only). `bun run ds:lint` enforces both.
 3. Add a markdown entry in `design-system/components/<name>.md` following the [template](https://github.com/MrDemonWolf/wolfwave/blob/main/design-system/components/README.md).
 4. Add the entry to the catalog README index.
-5. Add a `#Preview` for each state. A `Views/Shared/` view also goes in the component gallery, which exists in Debug builds only: Settings → Debug → Components (`Views/Debug/DesignSystem/`). Mirror each preview state in the matching `ComponentGallery+<Group>.swift`. Settings → Debug → Tokens, next to it, shows every token family.
+5. Add a `#Preview` for each state. A `Views/Shared/` view also goes in the component gallery, which exists in Debug builds only: **Settings → Debug → Components** (`Views/Debug/DesignSystem/`). Mirror each preview state in the matching `ComponentGallery+<Group>.swift`. **Settings → Debug → Tokens**, next to it, shows every token family.
 6. Run `make lint-sync`; it blocks missing source/catalog pairs and incomplete templates.
 
 Changing an existing component? Update its catalog entry in the same PR.

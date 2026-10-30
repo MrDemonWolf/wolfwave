@@ -1,0 +1,1195 @@
+/* ──────────────────────────────────────────────────────────
+   WolfWave docs: the "Mac manual" look.
+
+   Imported by app/docs/layout.tsx only, and every rule is scoped to
+   .ww-docs (the Notebook layout root), so the landing, download,
+   changelog and design-system pages never see it. Colors, radii,
+   shadows and durations are --ds-* design tokens
+   (design-system/tokens.json); the few docs-only measures are below.
+
+   1. Foundations       6. Page header      11. Code & diagrams
+   2. Top bar           7. Reading text     12. Docs patterns
+   3. Sidebar           8. Tables           13. Table of contents
+   4. Section switcher  9. Callouts         14. Page end
+   5. Icon tiles       10. Components       15. Docs home
+   ────────────────────────────────────────────────────────── */
+
+/* ── 1. Foundations ──────────────────────────────────────── */
+.ww-docs {
+  /* Fumadocs' palette, re-derived from the design tokens so every
+     built-in component follows them in light and dark. */
+  --color-fd-background: var(--ds-color-surface-base);
+  --color-fd-foreground: var(--ds-color-text-primary);
+  --color-fd-card: var(--ds-color-surface-base);
+  --color-fd-card-foreground: var(--ds-color-text-primary);
+  --color-fd-popover: var(--ds-color-surface-base);
+  --color-fd-popover-foreground: var(--ds-color-text-primary);
+  --color-fd-muted: var(--ds-color-surface-surface);
+  --color-fd-muted-foreground: var(--ds-color-text-secondary);
+  --color-fd-secondary: var(--ds-color-surface-surface);
+  --color-fd-secondary-foreground: var(--ds-color-text-primary);
+  --color-fd-accent: var(--ww-fill);
+  --color-fd-accent-foreground: var(--ds-color-text-primary);
+  --color-fd-border: var(--ds-color-surface-hairline);
+  --color-fd-primary: var(--ds-color-brand-600);
+  --color-fd-primary-foreground: var(--ds-color-surface-base);
+  --color-fd-ring: var(--ds-color-brand-500);
+  /* Callout glyphs: the darker "glyph" inks, which keep 3:1 on their own
+     wash in light mode and flip to the bright tints in dark (same rule as
+     the app's CalloutBanner). */
+  --color-fd-info: var(--ds-color-glyph-info);
+  --color-fd-warning: var(--ds-color-glyph-warning);
+  --color-fd-error: var(--ds-color-glyph-error);
+  --color-fd-success: var(--ds-color-glyph-success);
+  --color-fd-idea: var(--ds-color-glyph-info);
+
+  /* Docs-only measures. */
+  --ww-measure: 46rem; /* reading column, about 75 characters of body text */
+  --ww-fill: color-mix(in srgb, var(--ds-color-text-primary) 6%, transparent);
+  --ww-fill-strong: color-mix(in srgb, var(--ds-color-text-primary) 9%, transparent);
+  --ww-fill-selected: color-mix(in srgb, var(--ds-color-text-primary) 20%, transparent);
+  --ww-selection: color-mix(in srgb, var(--ds-color-brand-500) calc(var(--ds-opacity-wash-strong) * 100%), transparent);
+  --ww-sidebar-bg: var(--ds-color-surface-surface);
+  --ww-ease: var(--ds-motion-easing-standard);
+  --ww-fast: var(--ds-motion-duration-fast);
+  --fd-header-height: 3.5rem;
+
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-surface-base);
+}
+
+/* ocean.css paints a blue glow on the dark body; the docs stay flat. */
+.dark body:has(.ww-docs) {
+  background-image: none;
+}
+
+/* ── 2. Top bar ──────────────────────────────────────────── */
+/* Same pieces and look as the landing navbar (#nd-nav in global.css). */
+.ww-docs .ww-docs-header {
+  grid-area: header;
+  position: sticky;
+  top: var(--fd-docs-row-1);
+  z-index: 30;
+  height: var(--fd-header-height);
+  isolation: isolate;
+}
+/* The bar's frosted backing runs edge to edge, past the layout's max width.
+   The layout clips horizontal overflow, so this stops at the viewport. */
+.ww-docs .ww-docs-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 -100vw;
+  z-index: -1;
+  background-color: color-mix(in srgb, var(--ds-color-surface-base) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs .ww-docs-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  height: 100%;
+  padding-inline: 1rem;
+}
+.ww-docs .ww-docs-brand {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.ww-docs .ww-docs-header-links {
+  display: none;
+  align-items: center;
+  gap: 0.125rem;
+}
+.ww-docs .ww-docs-header-links a {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--ds-radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ds-color-text-secondary);
+  transition: background-color var(--ww-fast) var(--ww-ease), color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-docs-header-links a:hover {
+  background-color: var(--ww-fill);
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-docs-header-links a[data-active="true"] {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-docs-header-tools {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ww-docs .ww-docs-search {
+  display: none;
+  width: 14rem;
+  height: 2.25rem;
+  border-radius: var(--ds-radius-md);
+  border-color: var(--ds-color-surface-hairline);
+  background-color: var(--ds-color-surface-surface);
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-docs-theme {
+  display: none;
+}
+.ww-docs .ww-docs-download {
+  display: none;
+  align-items: center;
+  height: 2.25rem;
+  padding-inline: 1rem;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--brand-fill);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.ww-docs .ww-docs-download:hover {
+  background-color: color-mix(in srgb, var(--brand-fill) 88%, #000);
+}
+.ww-docs .ww-docs-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-docs-icon-button:hover {
+  background-color: var(--ww-fill);
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-docs-icon-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+@media (min-width: 768px) {
+  .ww-docs .ww-docs-header-row {
+    padding-inline: 1.5rem;
+  }
+  .ww-docs .ww-docs-icon-button {
+    display: none;
+  }
+  .ww-docs .ww-docs-search {
+    display: flex;
+  }
+  .ww-docs .ww-docs-theme,
+  .ww-docs .ww-docs-download {
+    display: inline-flex;
+  }
+}
+@media (min-width: 1024px) {
+  .ww-docs .ww-docs-header-links {
+    display: flex;
+  }
+}
+
+/* ── 3. Sidebar ──────────────────────────────────────────── */
+/* A gray source list beside a white page, like System Settings. The
+   placeholder spans the outer margin plus the sidebar column, so the gray
+   reaches the left edge of the window. */
+.ww-docs [data-sidebar-placeholder] {
+  background-color: var(--ww-sidebar-bg);
+}
+.ww-docs #nd-sidebar {
+  border-inline-end: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs #nd-sidebar-mobile {
+  background-color: var(--ww-sidebar-bg);
+}
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] {
+  padding: 0.25rem 0.75rem 1.5rem;
+}
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a {
+  gap: 0.625rem;
+  min-height: 2rem;
+  padding-block: 0.25rem;
+  padding-inline-end: 0.5rem;
+  border-radius: var(--ds-radius-md);
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: var(--ds-color-text-primary);
+  transition: background-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a:hover {
+  background-color: var(--ww-fill);
+  color: var(--ds-color-text-primary);
+}
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a[data-active="true"] {
+  background-color: var(--ww-selection);
+  color: var(--ds-color-text-primary);
+  font-weight: 600;
+}
+/* Group labels ("Start here", "Help"): small, quiet, sentence case. */
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] p {
+  margin-top: 1.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── 4. Section switcher ─────────────────────────────────── */
+/* A macOS segmented control: Guides / Developers / Design. */
+.ww-docs .ww-tabs {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ww-fill-strong);
+}
+.ww-docs .ww-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.875rem;
+  padding-inline: 0.5rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+  transition: background-color var(--ww-fast) var(--ww-ease), color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-tab:hover {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-tab[data-active="true"] {
+  background-color: var(--ds-color-surface-base);
+  color: var(--ds-color-text-primary);
+  font-weight: 600;
+  box-shadow: var(--ds-shadow-xs), 0 0 0 0.5px var(--ww-fill-strong);
+}
+.dark .ww-docs .ww-tab[data-active="true"] {
+  background-color: var(--ww-fill-selected);
+}
+
+/* ── 5. Icon tiles ───────────────────────────────────────── */
+/* Small colored tiles with a white glyph, as in the System Settings
+   sidebar. The color says what a page is about (lib/docs-nav.ts). */
+.ww-docs .ww-tile {
+  --ww-tile-size: 1.375rem;
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--ww-tile-size);
+  height: var(--ww-tile-size);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ww-tile-bg, var(--ds-color-neutral));
+  color: #fff;
+}
+.ww-docs .ww-tile svg {
+  width: 62%;
+  height: 62%;
+}
+.ww-docs .ww-tile[data-size="md"] {
+  --ww-tile-size: 2rem;
+  border-radius: var(--ds-radius-md);
+}
+.ww-docs .ww-tile[data-size="lg"] {
+  --ww-tile-size: 2.5rem;
+  border-radius: var(--ds-radius-lg);
+}
+.ww-docs .ww-tile[data-tint="brand"] { --ww-tile-bg: var(--ds-color-brand-500); }
+.ww-docs .ww-tile[data-tint="indigo"] { --ww-tile-bg: var(--ds-color-brand-700); }
+.ww-docs .ww-tile[data-tint="gray"] { --ww-tile-bg: var(--ds-color-neutral); }
+.ww-docs .ww-tile[data-tint="red"] { --ww-tile-bg: var(--ds-color-error); }
+.ww-docs .ww-tile[data-tint="twitch"] { --ww-tile-bg: var(--ds-color-partner-twitch); }
+.ww-docs .ww-tile[data-tint="discord"] { --ww-tile-bg: var(--ds-color-partner-discord); }
+.ww-docs .ww-tile[data-tint="apple-music"] {
+  --ww-tile-bg: linear-gradient(180deg, var(--ds-color-partner-apple-music-start), var(--ds-color-partner-apple-music-end));
+}
+.ww-docs .ww-tile[data-tint="graphite"] {
+  --ww-tile-bg: linear-gradient(180deg, var(--ds-color-partner-obs-start), var(--ds-color-partner-obs-end));
+}
+.ww-docs .ww-tile[data-tint="wolfwave"] {
+  --ww-tile-bg: linear-gradient(135deg, var(--ds-color-partner-wolfwave-gradient-start), var(--ds-color-partner-wolfwave-gradient-end));
+}
+/* Graphite sits close to the dark sidebar; a faint rim keeps its edge. */
+.dark .ww-docs .ww-tile[data-tint="graphite"] {
+  box-shadow: inset 0 0 0 1px var(--ww-fill-strong);
+}
+
+/* ── 6. Page header ──────────────────────────────────────── */
+.ww-docs #nd-page {
+  row-gap: 0;
+  padding-bottom: 4rem;
+}
+/* One centered reading column; full pages (and the docs home) get more. */
+.ww-docs #nd-page > * {
+  width: 100%;
+  max-width: var(--ww-measure);
+  margin-inline: auto;
+}
+.ww-docs #nd-page[data-full="true"] > * {
+  max-width: 64rem;
+}
+.ww-docs .ww-page-head {
+  margin-bottom: 2.25rem;
+}
+.ww-docs .ww-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2rem;
+  margin-bottom: 1rem;
+}
+.ww-docs .ww-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-crumbs a {
+  color: var(--ds-color-text-secondary);
+  transition: color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-crumbs a:hover {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-crumbs svg {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.6;
+}
+.ww-docs .ww-page-actions button {
+  gap: 0.375rem;
+  height: 2rem;
+  padding-inline: 0.625rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-md);
+  background-color: transparent;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-page-actions button:hover {
+  background-color: var(--ww-fill);
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-page-actions svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.ww-docs .ww-page-head h1 {
+  margin: 0;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-size: clamp(2rem, 1.5rem + 1.6vw, 2.625rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  color: var(--ds-color-text-primary);
+  text-wrap: balance;
+}
+/* The lede (frontmatter description). */
+.ww-docs .ww-page-head h1 + p {
+  margin: 0.875rem 0 0;
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--ds-color-text-secondary);
+  text-wrap: pretty;
+}
+
+/* ── 7. Reading text ─────────────────────────────────────── */
+.ww-docs .prose {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose p:not(:where(.not-prose, .not-prose *)) {
+  margin-block: 0 1.125rem;
+  text-wrap: pretty;
+}
+.ww-docs .prose > :first-child {
+  margin-top: 0;
+}
+.ww-docs .prose > h2 {
+  margin: 3rem 0 0.875rem;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.016em;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose h3:not(:where(.not-prose, .not-prose *)) {
+  margin: 2.25rem 0 0.625rem;
+  font-family: var(--font-roboto), var(--ds-font-family-sans);
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.006em;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose h4:not(:where(.not-prose, .not-prose *)) {
+  margin: 1.75rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose :is(h2, h3, h4) {
+  scroll-margin-top: calc(var(--fd-docs-row-3) + 1.5rem);
+}
+.ww-docs .prose strong {
+  font-weight: 600;
+  color: inherit;
+}
+.ww-docs .prose a:not([data-card]):not(:where(.not-prose, .not-prose *)) {
+  font-weight: inherit;
+  color: var(--ds-color-brand-600);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--ds-color-brand-600) 35%, transparent);
+  transition: text-decoration-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .prose a:not([data-card]):not(:where(.not-prose, .not-prose *)):hover {
+  text-decoration-color: currentColor;
+}
+/* Inline code: a quiet gray chip in the text color. Blue stays for links. */
+.ww-docs :not(pre) > code {
+  padding: 0.125em 0.375em;
+  border: 0;
+  border-radius: var(--ds-radius-xs);
+  background-color: var(--ww-fill);
+  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
+  font-size: 0.875em;
+  font-weight: 450;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose a code {
+  color: inherit;
+}
+.ww-docs .prose :is(ul, ol):not(:where(.not-prose, .not-prose *)) {
+  margin-block: 0 1.25rem;
+  padding-inline-start: 1.375rem;
+}
+.ww-docs .prose li:not(:where(.not-prose, .not-prose *)) {
+  margin-block: 0.375rem;
+  padding-inline-start: 0.25rem;
+}
+.ww-docs .prose li:not(:where(.not-prose, .not-prose *)) > :is(ul, ol) {
+  margin-block: 0.375rem 0;
+}
+.ww-docs .prose ul:not(:where(.not-prose, .not-prose *)) > li::marker {
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .prose ol:not(:where(.not-prose, .not-prose *)) > li::marker {
+  font-weight: 600;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .prose blockquote {
+  margin: 1.5rem 0;
+  padding: 0.125rem 0 0.125rem 1rem;
+  border-inline-start: 3px solid var(--ds-color-surface-hairline);
+  font-style: normal;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .prose blockquote p::before,
+.ww-docs .prose blockquote p::after {
+  content: none;
+}
+.ww-docs .prose hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--ds-color-surface-hairline);
+}
+
+/* ── 8. Tables ───────────────────────────────────────────── */
+/* A Finder list: hairline frame, quiet header, alternating rows. The
+   wrapper is Fumadocs' (it scrolls sideways when a table is too wide). */
+.ww-docs .prose div:has(> table) {
+  margin-block: 1.5rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg);
+}
+.ww-docs .prose table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.ww-docs .prose th {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--ds-color-surface-hairline);
+  background-color: var(--ds-color-surface-surface);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: start;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .prose td {
+  padding: 0.625rem 0.875rem;
+  border: 0;
+  vertical-align: top;
+  text-align: start;
+}
+.ww-docs .prose tbody tr:nth-child(even) td {
+  background-color: color-mix(in srgb, var(--ds-color-surface-surface) 70%, transparent);
+}
+.ww-docs .prose td:first-child {
+  font-weight: 500;
+}
+.ww-docs .prose td code {
+  overflow-wrap: anywhere;
+}
+
+/* ── 9. Callouts ─────────────────────────────────────────── */
+/* Same recipe as the app's CalloutBanner: a 10% wash of the bright
+   semantic tint, with the glyph drawn in the darker glyph ink. */
+.ww-docs [style*="--callout-color"] {
+  --ww-callout-tint: var(--ds-color-info);
+  gap: 0.75rem;
+  margin-block: 1.5rem;
+  padding: 0.875rem 1rem;
+  border: 0;
+  border-radius: var(--ds-radius-lg2);
+  background-color: color-mix(in srgb, var(--ww-callout-tint) calc(var(--ds-opacity-wash) * 100%), var(--ds-color-surface-base));
+  box-shadow: none;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.ww-docs [style*="fd-warning"] { --ww-callout-tint: var(--ds-color-warning); }
+.ww-docs [style*="fd-error"] { --ww-callout-tint: var(--ds-color-error); }
+.ww-docs [style*="fd-success"] { --ww-callout-tint: var(--ds-color-success); }
+.ww-docs [style*="--callout-color"] > [role="none"] {
+  display: none;
+}
+.ww-docs [style*="--callout-color"] > svg {
+  margin-top: 0.125rem;
+}
+.ww-docs [style*="--callout-color"] p {
+  margin-bottom: 0.5rem;
+}
+.ww-docs [style*="--callout-color"] p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── 10. Components ──────────────────────────────────────── */
+/* Cards. Heading permalinks also carry data-card, hence the href check. */
+.ww-docs a[data-card]:not([href^="#"]),
+.ww-docs div[data-card] {
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  background-color: var(--ds-color-surface-base);
+  box-shadow: none;
+  transition: border-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs a[data-card]:not([href^="#"]):hover {
+  border-color: color-mix(in srgb, var(--ds-color-brand-500) 50%, var(--ds-color-surface-hairline));
+  background-color: var(--ds-color-surface-base);
+}
+@supports (corner-shape: squircle) {
+  .ww-docs :is(a[data-card]:not([href^="#"]), div[data-card], .ww-tile) {
+    corner-shape: squircle;
+  }
+}
+
+/* Steps: numbered circles in the brand wash on a hairline rail. */
+.ww-docs .fd-steps {
+  border-color: var(--ds-color-surface-hairline);
+}
+.ww-docs .fd-step::before {
+  background-color: var(--ww-selection);
+  color: var(--ds-color-brand-600);
+  font-weight: 600;
+}
+
+/* Tabs: a segmented control over a framed panel. */
+.ww-docs .prose div:has(> [role="tablist"]) {
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  background-color: var(--ds-color-surface-base);
+}
+.ww-docs .prose [role="tablist"] {
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  max-width: calc(100% - 1.5rem);
+  margin: 0.75rem 0.75rem 0;
+  padding: 2px;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ww-fill-strong);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ww-docs .prose [role="tab"] {
+  min-height: 2.75rem;
+  padding: 0.3125rem 0.875rem;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .prose [role="tab"]:hover {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .prose [role="tab"][data-state="active"] {
+  background-color: var(--ds-color-surface-base);
+  color: var(--ds-color-text-primary);
+  font-weight: 600;
+  box-shadow: var(--ds-shadow-xs), 0 0 0 0.5px var(--ww-fill-strong);
+}
+.dark .ww-docs .prose [role="tab"][data-state="active"] {
+  background-color: var(--ww-fill-selected);
+}
+/* Drawn inside: the tab strip scrolls and the panel frame clips, so a
+   ring outside the element would be cut off. */
+.ww-docs .prose :is([role="tab"], [role="tabpanel"]):focus-visible {
+  outline: 2px solid var(--ds-color-brand-600);
+  outline-offset: -2px;
+}
+.ww-docs .prose [role="tabpanel"] {
+  padding: 1rem 1.25rem 1.25rem;
+  background-color: transparent;
+  font-size: 1rem;
+}
+
+/* Accordions (the FAQ): an inset grouped list, one hairline between rows.
+   Fumadocs puts data-accordion-value on each row's <h3> header. */
+.ww-docs div:has(> div > h3[data-accordion-value]) {
+  margin-block: 1.25rem 1.75rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  background-color: var(--ds-color-surface-base);
+}
+.ww-docs h3[data-accordion-value] {
+  margin: 0;
+}
+.ww-docs h3[data-accordion-value] button {
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  transition: background-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs h3[data-accordion-value] button:hover {
+  background-color: var(--ww-fill);
+}
+.ww-docs h3[data-accordion-value] button svg {
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs h3[data-accordion-value] + [role="region"] > div {
+  padding: 0 1rem 1rem 2.625rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ds-color-text-secondary);
+}
+
+/* ── 11. Code & diagrams ─────────────────────────────────── */
+.ww-docs figure.shiki {
+  margin-block: 1.5rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg);
+  background-color: var(--ds-color-surface-surface);
+  box-shadow: none;
+}
+.ww-docs figure.shiki pre {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+/* Diagrams scale to fit, but never below 72% of their natural size
+   (components/docs/mermaid.tsx sets that floor as a min-width); past it
+   the frame scrolls. Auto margins center a narrow diagram without
+   clipping the left edge of a wide one, which flex centering would. */
+.ww-docs .ww-mermaid {
+  min-height: 12rem;
+  margin: 1.75rem 0;
+  padding: 1.5rem 1rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  background-color: var(--ds-color-surface-surface);
+  overflow-x: auto;
+}
+.ww-docs .ww-mermaid-svg svg {
+  display: block;
+  height: auto;
+  margin-inline: auto;
+}
+.ww-docs .ww-mermaid-source {
+  margin: 0;
+  background: none;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+  white-space: pre;
+}
+
+/* ── 12. Docs patterns (lib/rehype-docs.ts) ──────────────── */
+/* UI paths: **Settings → Twitch → Bot Commands** reads as one chip. */
+.ww-docs .ww-path {
+  padding: 0.125em 0.45em;
+  border-radius: var(--ds-radius-sm);
+  background-color: var(--ww-fill);
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.ww-docs .ww-path-sep {
+  font-weight: 400;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-path[data-settings]::before {
+  content: "";
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-inline-end: 0.3em;
+  vertical-align: -0.12em;
+  background-color: var(--ds-color-text-secondary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Troubleshooting: Message / Why / Fix as one framed definition list. */
+.ww-docs .ww-issue {
+  margin: 1rem 0 1.75rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  overflow: hidden;
+}
+.ww-docs .ww-issue-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.875rem 1.125rem;
+}
+.ww-docs .ww-issue-row + .ww-issue-row {
+  border-top: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs .ww-issue dt {
+  margin: 0;
+  padding-top: 0.1875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-issue dd {
+  margin: 0;
+  padding: 0;
+}
+.ww-docs .ww-issue dd > :last-child {
+  margin-bottom: 0;
+}
+.ww-docs .ww-issue-row[data-label="fix"] {
+  background-color: color-mix(in srgb, var(--ds-color-success) calc(var(--ds-opacity-wash) * 100%), transparent);
+}
+.ww-docs .ww-issue-row[data-label="fix"] dt {
+  color: var(--ds-color-glyph-success);
+}
+
+/* ── 13. Table of contents ───────────────────────────────── */
+/* A slimmer TOC column on wide screens leaves the reading column room
+   for its full measure (and a diagram at its 72% floor) beside it.
+   Fumadocs sets this variable only when the page has a TOC; so do we. */
+@media (min-width: 80rem) {
+  #nd-notebook-layout.ww-docs:has(#nd-toc) {
+    --fd-toc-width: 15rem;
+  }
+  .ww-docs #nd-page {
+    padding-inline: 1.5rem;
+  }
+}
+.ww-docs #nd-toc {
+  padding-top: 2.75rem;
+}
+.ww-docs #nd-toc a {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ds-color-text-secondary);
+  transition: color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs #nd-toc a:hover,
+.ww-docs #nd-toc a[data-active="true"] {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs [data-toc-popover] > header {
+  background-color: color-mix(in srgb, var(--ds-color-surface-base) 90%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-color: var(--ds-color-surface-hairline);
+}
+
+/* ── 14. Page end ────────────────────────────────────────── */
+.ww-docs .ww-page-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 3.5rem;
+  margin-bottom: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ds-color-surface-hairline);
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-page-end p {
+  margin: 0;
+}
+.ww-docs .ww-page-end a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--ds-color-text-secondary);
+  transition: color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-page-end a:hover {
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-page-end svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+/* Fumadocs' previous / next cards follow the page end. */
+.ww-docs .ww-page-end + div a {
+  border-color: var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  padding: 1rem 1.125rem;
+  transition: border-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-page-end + div a:hover {
+  border-color: color-mix(in srgb, var(--ds-color-brand-500) 50%, var(--ds-color-surface-hairline));
+  background-color: var(--ds-color-surface-base);
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-page-end + div a > div > p {
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+
+/* ── 15. Docs home ───────────────────────────────────────── */
+/* components/docs/home.tsx. The home is a full-width page (no TOC). */
+.ww-docs .ww-docs-hero {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+  margin-block: 0 1rem;
+}
+.ww-docs .ww-docs-hero h1 {
+  margin: 0;
+  font-family: var(--font-montserrat), var(--ds-font-family-display);
+  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-docs-lede {
+  max-width: 32rem;
+  margin-top: 1.125rem;
+  font-size: 1.25rem;
+  line-height: 1.55;
+  color: var(--ds-color-text-secondary);
+  text-wrap: pretty;
+}
+.ww-docs .ww-docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+.ww-docs .ww-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 1.125rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-md);
+  background-color: var(--ds-color-surface-base);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  transition: background-color var(--ww-fast) var(--ww-ease), border-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-button:hover {
+  background-color: var(--ww-fill);
+}
+.ww-docs .ww-button[data-variant="primary"] {
+  border-color: transparent;
+  background-color: var(--brand-fill);
+  color: #fff;
+}
+.ww-docs .ww-button[data-variant="primary"]:hover {
+  background-color: color-mix(in srgb, var(--brand-fill) 88%, #000);
+}
+@media (min-width: 1024px) {
+  .ww-docs .ww-docs-hero {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 3.5rem;
+    margin-block: 0 1.5rem;
+  }
+}
+
+/* The home carries its own hero, so it starts closer to the top bar. */
+.ww-docs #nd-page:has(.ww-docs-hero) {
+  padding-top: 1.5rem;
+}
+
+/* The menu map: WolfWave's menu bar menu, with real links for rows. */
+.ww-docs .ww-menu {
+  margin: 0;
+}
+.ww-docs .ww-menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.875rem;
+  height: 1.875rem;
+  padding-inline: 0.875rem;
+  border-radius: var(--ds-radius-md) var(--ds-radius-md) 0 0;
+  background-color: var(--ds-color-surface-surface);
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-bottom: 0;
+}
+.ww-docs .ww-menu-bar-wolf {
+  width: 1.75rem;
+  height: 1.375rem;
+  border-radius: var(--ds-radius-xs);
+  background-color: var(--ww-fill-strong);
+  position: relative;
+}
+.ww-docs .ww-menu-bar-wolf::after {
+  content: "";
+  position: absolute;
+  inset: 0.1875rem 0.3125rem;
+  background-color: var(--ds-color-text-primary);
+  -webkit-mask: var(--ww-logo) center / contain no-repeat;
+  mask: var(--ww-logo) center / contain no-repeat;
+}
+.ww-docs .ww-menu-bar-dot {
+  width: 0.875rem;
+  height: 0.5rem;
+  border-radius: var(--ds-radius-xs);
+  background-color: var(--ds-color-text-secondary);
+  opacity: 0.45;
+}
+.ww-docs .ww-menu-bar-clock {
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-menu-panel {
+  padding: 0.3125rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: 0 0 var(--ds-radius-lg2) var(--ds-radius-lg2);
+  background-color: var(--ds-color-surface-base);
+  box-shadow: var(--ds-shadow-md);
+}
+.ww-docs .ww-menu-now {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.3125rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs .ww-menu-art {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--ds-radius-md);
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, #fff 35%, transparent) 0 0.25rem, transparent 0.3rem),
+    linear-gradient(135deg, var(--ds-color-partner-wolfwave-gradient-start), var(--ds-color-brand-500));
+}
+.ww-docs .ww-menu-track {
+  display: grid;
+  min-width: 0;
+  line-height: 1.3;
+}
+.ww-docs .ww-menu-track strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-menu-track span {
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-menu-items {
+  display: grid;
+}
+.ww-docs .ww-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.875rem;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-menu-item[data-separator] {
+  position: relative;
+  margin-top: 0.6875rem;
+}
+.ww-docs .ww-menu-item[data-separator]::before {
+  content: "";
+  position: absolute;
+  inset: -0.375rem 0.5rem auto;
+  border-top: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs .ww-menu-label {
+  flex: 1;
+  min-width: 0;
+}
+.ww-docs .ww-menu-item kbd,
+.ww-docs .ww-menu-chevron {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+}
+.ww-docs .ww-menu-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+/* Hover and focus highlight a row the way a real menu does. */
+.ww-docs .ww-menu-item:is(:hover, :focus-visible) {
+  background-color: var(--brand-fill);
+  color: #fff;
+  outline: none;
+}
+.ww-docs .ww-menu-item:is(:hover, :focus-visible) :is(kbd, .ww-menu-chevron) {
+  color: #fff;
+}
+.ww-docs .ww-menu figcaption {
+  margin-top: 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+}
+
+/* Setup path: four numbered steps that really are done in order. */
+.ww-docs .ww-setup {
+  counter-reset: setup;
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-docs .ww-setup-step {
+  display: grid;
+  gap: 0.375rem;
+  height: 100%;
+  padding: 1rem 1.125rem 1.125rem;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  transition: border-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-setup-step::before {
+  counter-increment: setup;
+  content: counter(setup);
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: 0.375rem;
+  border-radius: var(--ds-radius-pill);
+  background-color: var(--ww-selection);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ds-color-brand-600);
+}
+.ww-docs .ww-setup-step:hover {
+  border-color: color-mix(in srgb, var(--ds-color-brand-500) 50%, var(--ds-color-surface-hairline));
+}
+.ww-docs .ww-setup-step strong {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs .ww-setup-step span {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ds-color-text-secondary);
+}
+@media (min-width: 640px) {
+  .ww-docs .ww-setup {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .ww-docs .ww-setup {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Link list: an inset grouped list, hairlines inset to the label. */
+.ww-docs .ww-link-list {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ds-color-surface-hairline);
+  border-radius: var(--ds-radius-lg2);
+  overflow: hidden;
+}
+.ww-docs .ww-link-list li {
+  position: relative;
+}
+.ww-docs .ww-link-list li + li::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 3.25rem;
+  border-top: 1px solid var(--ds-color-surface-hairline);
+}
+.ww-docs .ww-link-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  color: var(--ds-color-text-primary);
+  transition: background-color var(--ww-fast) var(--ww-ease);
+}
+.ww-docs .ww-link-list a:hover {
+  background-color: var(--ww-fill);
+}
+.ww-docs .ww-link-list a:focus-visible {
+  outline-offset: -2px;
+  background-color: var(--ww-fill);
+}
+.ww-docs .ww-link-list .ww-link-label {
+  flex: 1;
+}
+.ww-docs .ww-link-list a > svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--ds-color-text-secondary);
+}
+
+/* Cards that carry an icon tile drop Fumadocs' boxed icon frame. */
+.ww-docs a[data-card] > div:has(> .ww-tile) {
+  margin-bottom: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.ww-docs .ww-sponsors {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 0.5rem;
+}
+.ww-docs .ww-sponsors img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 5.5rem;
+  margin: 0;
+}

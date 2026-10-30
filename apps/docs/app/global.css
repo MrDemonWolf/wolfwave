@@ -142,23 +142,10 @@ h2.ww-display {
   font-size: clamp(1.875rem, 4vw, var(--ds-font-size-web-section, 48px));
 }
 
-#nd-page > h1 {
-  font-family: var(--font-montserrat), var(--ds-font-family-display);
-  font-size: clamp(2rem, 4vw, 2.6rem);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.015em;
-}
-
 @media (max-width: 767px) {
   #nd-nav button,
   #nd-subnav button { min-width: 44px; min-height: 44px; }
   #nd-nav a { display: flex; align-items: center; min-height: 44px; }
-}
-
-.fd-prose :is(h1, h2, h3, h4),
-[class*="prose"] :is(h1, h2, h3, h4) {
-  font-family: var(--font-montserrat), var(--ds-font-family-display);
 }
 
 .ww-mono {
@@ -877,10 +864,7 @@ a.ww-proof-chip:hover {
   .ww-faq,
   .ww-glass,
   .ww-code,
-  .ww-dev-window,
-  .fd-card,
-  a[data-card]:not(.peer):not([href^="#"]),
-  div[data-card] {
+  .ww-dev-window {
     corner-shape: squircle;
   }
 }
@@ -1025,17 +1009,6 @@ a.ww-proof-chip:hover {
   border-color: var(--hairline) !important;
 }
 
-/* Mobile docs TOC bar (the sticky "Page title ⌄" popover on small screens).
-   Fumadocs ships it with a transparent background + only an 8px blur, so page
-   content ghosts through as you scroll. Give it an opaque backing + real blur,
-   matching the top nav, so it stays legible. */
-[data-toc-popover] {
-  background-color: color-mix(in srgb, var(--bg-base) 90%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
-  border-color: var(--hairline) !important;
-}
-
 /* ── Skip to content ─────────────────────────────────────── */
 .skip-nav {
   position: fixed;
@@ -1062,7 +1035,6 @@ a.ww-proof-chip:hover {
 :focus-visible {
   outline: 2px solid var(--brand-600);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 .dark :focus-visible {
   outline-color: var(--brand-500);
@@ -1078,139 +1050,6 @@ html {
   }
 }
 
-/* ── Docs prose readability ──────────────────────────────── */
-.fd-prose,
-[class*="prose"] {
-  line-height: 1.75;
-}
-.fd-prose p,
-[class*="prose"] p {
-  margin-bottom: 1.25rem;
-}
-/* DocsPage already spaces its children. Avoid compounding that gap with the
-   default DocsDescription mb-8 before the first MDX paragraph or heading. */
-#nd-page > p.text-lg.text-fd-muted-foreground {
-  margin-bottom: 0.5rem;
-}
-.fd-prose h2,
-[class*="prose"] h2 {
-  margin-top: 1.75rem;
-  margin-bottom: 0.85rem;
-  scroll-margin-top: 5rem;
-}
-.fd-prose h3,
-[class*="prose"] h3 {
-  margin-top: 1.35rem;
-  margin-bottom: 0.7rem;
-  scroll-margin-top: 5rem;
-}
-.fd-prose :not(pre) > code,
-[class*="prose"] :not(pre) > code {
-  color: var(--brand-600);
-  background-color: var(--bg-surface);
-  padding: 0.15em 0.4em;
-  border-radius: 6px;
-  font-size: 0.9em;
-  font-weight: 500;
-}
-.dark .fd-prose :not(pre) > code,
-.dark [class*="prose"] :not(pre) > code {
-  color: var(--brand-500);
-}
-
-/* ── Docs redesign. Carry the landing aesthetic into MDX ──────
-   Display-font page title, refined heading rhythm, real link
-   styling, editorial blockquotes, branded list markers. ───── */
-
-/* Page title: the Montserrat display face, same as the landing hero. */
-[class*="prose"] h1:not(.docs-hero-title),
-.fd-prose h1:not(.docs-hero-title) {
-  font-family: var(--font-montserrat), var(--ds-font-family-display);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.08;
-  font-size: clamp(2rem, 4vw, 2.6rem);
-  color: var(--txt-1);
-}
-
-/* Section headings: system font, tight but readable, brand-led h3. */
-[class*="prose"] h2,
-.fd-prose h2 {
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  font-size: 1.55rem;
-  color: var(--txt-1);
-}
-[class*="prose"] h3,
-.fd-prose h3 {
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  font-size: 1.15rem;
-  color: var(--txt-1);
-}
-[class*="prose"] strong,
-.fd-prose strong {
-  font-weight: 650;
-  color: var(--txt-1);
-}
-
-/* Content links: brand, underlined, offset. Skip heading-anchor
-   permalinks (.peer) and Card links ([data-card]). */
-[class*="prose"] a:not(.peer):not([data-card]),
-.fd-prose a:not(.peer):not([data-card]) {
-  color: var(--brand-600) !important;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-  transition: text-decoration-color 0.15s ease, color 0.15s ease;
-}
-[class*="prose"] a:not(.peer):not([data-card]):hover,
-.fd-prose a:not(.peer):not([data-card]):hover {
-  color: var(--brand-600) !important;
-  text-decoration-color: var(--brand-500);
-}
-
-/* Lists: branded markers, comfortable spacing. */
-[class*="prose"] ul > li::marker {
-  color: color-mix(in srgb, var(--brand-600) 70%, var(--txt-2));
-}
-[class*="prose"] ol > li::marker {
-  color: var(--txt-2);
-  font-weight: 600;
-}
-[class*="prose"] li {
-  margin-block: 0.3rem;
-}
-
-/* Blockquotes: editorial brand rule on a flat surface. */
-[class*="prose"] blockquote,
-.fd-prose blockquote {
-  border-left: 2px solid var(--brand-500);
-  background-color: color-mix(in srgb, var(--bg-surface) 55%, transparent);
-  border-radius: 0 10px 10px 0;
-  padding: 0.75rem 1rem;
-  margin: 1.25rem 0;
-  color: var(--txt-2);
-  font-style: normal;
-}
-[class*="prose"] blockquote p:last-child {
-  margin-bottom: 0;
-}
-
-/* Horizontal rules: a calm hairline with breathing room. */
-[class*="prose"] hr,
-.fd-prose hr {
-  border: 0;
-  border-top: 1px solid var(--hairline);
-  margin: 2rem 0;
-}
-
-/* Active sidebar item: a touch more weight so the brand tint reads. */
-#nd-sidebar a[data-active="true"] {
-  font-weight: 600;
-}
-
 /* ── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .ww-reveal {
@@ -1218,60 +1057,6 @@ html {
     opacity: 1 !important;
     transform: none !important;
   }
-}
-
-/* ── Docs sidebar spacing ────────────────────────────────── */
-/* Breathing room between nav items so adjacent active highlights
-   don't butt against each other. (#nd-sidebar is Fumadocs' id.) */
-#nd-sidebar a {
-  margin-block: 5px;
-}
-
-/* ──────────────────────────────────────────────────────────
-   Docs page polish. Extends marketing aesthetic into MDX
-   ────────────────────────────────────────────────────────── */
-
-/* When the docs-hero block is used, suppress the auto-rendered frontmatter
-   title + description so the hero acts as the page header. The docs root no
-   longer renders them at all (one <h1> per page, see the docs page route);
-   this stays as a fallback for any other page that adopts the hero. */
-article:has(.docs-hero) > h1:first-of-type,
-article:has(.docs-hero) > p:first-of-type,
-[data-page]:has(.docs-hero) > h1:first-of-type,
-[data-page]:has(.docs-hero) > p:first-of-type {
-  display: none;
-}
-
-/* Docs hero. Only on /docs landing where `.docs-hero` wraps the intro */
-.docs-hero {
-  position: relative;
-  padding: 0.5rem 0 1.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--hairline);
-}
-.docs-hero::before {
-  content: "";
-  position: absolute;
-  inset: -2rem -10% auto -10%;
-  height: 60%;
-  background: radial-gradient(
-    ellipse 50% 60% at 50% 20%,
-    rgba(10, 132, 255, 0.08) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-.dark .docs-hero::before {
-  background: radial-gradient(
-    ellipse 50% 60% at 50% 20%,
-    rgba(10, 132, 255, 0.14) 0%,
-    transparent 70%
-  );
-}
-.docs-hero > * {
-  position: relative;
-  z-index: 1;
 }
 
 /* Developers section dot-grid: rgba fallback for browsers without color-mix() */
@@ -1283,256 +1068,6 @@ article:has(.docs-hero) > p:first-of-type,
   background-image: radial-gradient(rgba(44, 44, 46, 0.7) 1px, transparent 1px);
   background-image: radial-gradient(color-mix(in srgb, var(--hairline) 70%, transparent) 1px, transparent 1px);
 }
-
-.docs-eyebrow {
-  display: inline-block;
-  font-family: var(--font-jetbrains), var(--ds-font-family-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--brand-600);
-  margin-bottom: 1rem;
-}
-
-.docs-hero-title {
-  font-family: var(--font-montserrat), var(--ds-font-family-display);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.02;
-  font-size: clamp(2rem, 4vw, 3rem);
-  color: var(--txt-1);
-  margin: 0 0 1.25rem !important;
-}
-.docs-hero-title .accent {
-  color: var(--brand-500);
-}
-
-.docs-hero-sub {
-  color: var(--txt-2);
-  font-size: 1.15rem;
-  line-height: 1.6;
-  max-width: 42rem;
-  margin: 0 0 1.5rem !important;
-}
-
-.docs-hero-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-}
-
-/* Tighter prose H1 on landing. Fumadocs auto-injects the frontmatter title */
-.fd-prose > h1:first-child,
-[class*="prose"] > h1:first-child {
-  margin-top: 0;
-}
-
-/* Refined Fumadocs Card. Match marketing landing ww-card aesthetic */
-.fd-card,
-a[data-card]:not(.peer):not([href^="#"]),
-div[data-card] {
-  border: 1px solid var(--hairline) !important;
-  border-radius: 0.75rem !important;
-  background-color: var(--bg-elev) !important;
-  transition: transform 0.2s ease, border-color 0.2s ease,
-    box-shadow 0.2s ease !important;
-}
-.fd-card:hover,
-a[data-card]:not(.peer):not([href^="#"]):hover,
-div[data-card]:hover {
-  border-color: color-mix(in srgb, var(--brand-500) 45%, var(--hairline));
-  background-color: color-mix(in srgb, var(--brand-50) 50%, var(--bg-elev)) !important;
-}
-
-/* Steps. Brand-tinted index circles */
-.fd-steps [data-step],
-.fd-steps li::before,
-[class*="step"][class*="circle"] {
-  background-color: var(--brand-50) !important;
-  color: var(--brand-500) !important;
-  border-color: color-mix(in srgb, var(--brand-500) 30%, transparent) !important;
-  font-weight: 600;
-}
-
-/* Docs Tabs. Flat tab row mirroring the home DeveloperTabs window:
-   a hairline divider under the tabs (no pill, no gray strip) and a
-   subtle rounded highlight on the active tab. Scoped to docs prose so
-   it never reaches the home DeveloperTabs, which carries its own CSS. */
-[class*="prose"] *:has(> [role="tablist"]) {
-  background-color: var(--bg-base) !important;
-  border-color: var(--hairline) !important;
-}
-[class*="prose"] [role="tablist"] {
-  background-color: transparent !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--hairline) !important;
-  border-radius: 0 !important;
-  padding: 0 1rem !important;
-  gap: 1rem !important;
-  margin: 0 !important;
-  /* Wrap rather than scroll: on phones the last tab sat off-screen behind
-     a hidden scrollbar. */
-  flex-wrap: wrap;
-}
-[class*="prose"] [role="tab"] {
-  border-radius: 0 !important;
-  min-height: 44px;
-  padding: 0.65rem 0 !important;
-  font-size: 0.875rem !important;
-  font-weight: 500;
-  color: var(--txt-2) !important;
-  background-color: transparent !important;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-[class*="prose"] [role="tab"]:hover {
-  color: var(--txt-1) !important;
-  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent) !important;
-}
-[class*="prose"] [role="tab"][data-state="active"],
-[class*="prose"] [role="tab"][aria-selected="true"] {
-  background-color: transparent !important;
-  border-bottom-color: var(--brand-600) !important;
-  color: var(--brand-600) !important;
-}
-[class*="prose"] [role="tabpanel"] {
-  padding: 1.25rem !important;
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-  line-height: 1.75;
-}
-[class*="prose"] [role="tab"]:focus-visible,
-[class*="prose"] [role="tabpanel"]:focus-visible {
-  outline: 2px solid var(--brand-600) !important;
-  outline-offset: -2px;
-}
-[class*="prose"] [role="tabpanel"] > :first-child {
-  margin-top: 0;
-}
-[class*="prose"] [role="tabpanel"] > :last-child {
-  margin-bottom: 0;
-}
-
-/* Docs tables. Flat hairline grid, centered status cells, and a sticky
-   first column so wide comparison tables stay readable while scrolling.
-   border-collapse:separate keeps the sticky column working; single
-   hairlines come from per-cell right/bottom borders. */
-[class*="prose"] table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 0.875rem;
-  border-top: 1px solid var(--hairline);
-  border-left: 1px solid var(--hairline);
-}
-[class*="prose"] table th,
-[class*="prose"] table td {
-  border-right: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
-  padding: 0.5rem 0.7rem;
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-[class*="prose"] table thead th {
-  background-color: var(--bg-surface);
-  color: var(--txt-1);
-  font-weight: 600;
-  white-space: normal;
-}
-[class*="prose"] table tbody tr:nth-child(even) td {
-  background-color: color-mix(in srgb, var(--bg-surface) 35%, transparent);
-}
-/* First column: labels. Left-aligned, emphasized, and sticky so wide tables
-   keep their row labels when scrolled horizontally on phones. The cell needs
-   an opaque background to cover the scrolled body cells beneath it. */
-[class*="prose"] table th:first-child,
-[class*="prose"] table td:first-child {
-  text-align: left;
-  white-space: normal;
-  font-weight: 600;
-  color: var(--txt-1);
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background-color: var(--bg-base);
-}
-[class*="prose"] table thead th:first-child {
-  z-index: 2;
-  background-color: var(--bg-surface);
-}
-
-/* Accordion (the Fumadocs MDX <Accordions> used on /docs/faq). Matches the
-   marketing landing .ww-faq rows below, so both FAQ surfaces read as one thing.
-
-   Fumadocs markup, which drives every selector here:
-     root  div[data-orientation]                      (no data-state)
-       item  div[data-state][data-orientation]
-         h3 > button > svg (ChevronRight) + title
-         content div[role="region"][data-state][data-orientation] > div
-
-   The content region carries data-state and data-orientation too, so the item
-   selector must exclude [role="region"] or the body renders as a second card
-   nested inside the first. */
-
-/* Root ships its own border, radius and card background. We want one card per
-   item, so flatten the frame and space the items instead. */
-div[data-orientation="vertical"]:not([data-state]):has(
-    > div[data-state][data-orientation="vertical"]
-  ) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border: 0;
-  border-radius: 0;
-  background-color: transparent;
-  overflow: visible;
-}
-
-div[data-orientation="vertical"][data-state]:not([role="region"]) {
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  background-color: var(--bg-elev);
-  overflow: hidden;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-div[data-orientation="vertical"][data-state="open"]:not([role="region"]) {
-  border-color: color-mix(in srgb, var(--brand-500) 30%, var(--hairline));
-  background-color: color-mix(in srgb, var(--brand-50) 35%, var(--bg-elev));
-}
-div[data-orientation="vertical"][data-state]:not([role="region"]) > h3 {
-  margin: 0;
-}
-div[data-orientation="vertical"][data-state]:not([role="region"]) > h3 > button {
-  width: 100%;
-  padding: 0.9rem 1.1rem;
-  font-weight: 600;
-  color: var(--txt-1);
-  font-size: 0.95rem;
-}
-div[data-orientation="vertical"][data-state]:not([role="region"])
-  > h3
-  > button:hover {
-  background-color: color-mix(in srgb, var(--brand-50) 60%, transparent);
-}
-/* Chevron rotation is Fumadocs' own (rotate-90 when open). Only recolor it.
-   Adding a second rotation here stacks to 180deg and points it backwards. */
-div[data-orientation="vertical"][data-state]:not([role="region"])
-  > h3
-  > button
-  > svg {
-  color: var(--brand-500);
-}
-/* Pad the inner wrapper, never the animated region: padding on the collapsing
-   element makes the open/close height animation jump. */
-div[data-orientation="vertical"][data-state] > div[role="region"] {
-  color: var(--txt-2);
-}
-div[data-orientation="vertical"][data-state] > div[role="region"] > div {
-  padding: 0 1.1rem 1rem;
-}
-
 /* Landing-page FAQ rows (native <details>/<summary> in app/(home)/page.tsx).
    Deliberately the same card treatment as the docs accordion above. */
 .ww-faq {

@@ -69,7 +69,7 @@ cp apps/native/WolfWave/Config.xcconfig.example apps/native/WolfWave/Config.xcco
 
 Then fill in the two required keys:
 
-```
+```ini
 TWITCH_CLIENT_ID = your_twitch_client_id_here
 DISCORD_CLIENT_ID = your_discord_application_id_here
 ```
@@ -181,7 +181,7 @@ UI tests run as their own CI job and never gate a release.
 
 Before the first run:
 
-- Allow **Xcode Helper** to control your Mac under System Settings → Privacy & Security → Accessibility. macOS may label that pane **Device Control and Data Access**.
+- Allow **Xcode Helper** to control your Mac under **System Settings → Privacy & Security → Accessibility**. macOS may label that pane **Device Control and Data Access**.
 - Have an Apple Development or Developer ID Application signing identity. With neither, the run falls back to ad hoc signing, and macOS may refuse to launch the test build.
 - Quit any running WolfWave Dev. `make test-ui` checks first (`scripts/check-ui-test-preflight.sh`) and stops if a copy is paused in a debugger. A copy that is only running gets a warning. `WOLFWAVE_SKIP_UI_PREFLIGHT=1` skips the check.
 
@@ -239,6 +239,40 @@ Some committed files are generated. Never edit them by hand.
 Commit the regenerated output with your source change. `make check-drift` runs CI's drift check locally for the first four rows.
 CI checks the Stream Deck icons in its own job. No drift check covers the About icons, so regenerate them whenever either app icon changes.
 The widget pipeline is covered on the [OBS Widget](/docs/widget#dev-loop) page.
+
+## Edit the docs site
+
+The site lives in `apps/docs`: Next.js as a static export, with [Fumadocs](https://fumadocs.dev) for the docs. Pages are MDX files in `apps/docs/content/docs/`.
+
+### Add a page
+
+1. Create `content/docs/<slug>.mdx`. Its URL is `/docs/<slug>`. Fill in `title`, a `description` of 50 to 160 characters, and the social card fields (`ogTitle`, `ogDescription`, `ogEyebrow`, `ogChips`, `keywords`). `metaTitle` changes only the browser title.
+2. List it in `content/docs/meta.json` under its group. Groups are the `---Name---` separators.
+3. Give it a sidebar tile in `lib/docs-nav.ts` (`DOCS_NAV_ENTRIES`): an icon, a tint, and an optional shorter label.
+
+`bun run --filter docs test` fails if a page in `meta.json` has no tile, or a group belongs to no tab.
+
+### Tabs and tiles
+
+The sidebar has three tabs: **Guides**, **Developers**, and **Design**. `DOCS_TABS` in `lib/docs-nav.ts` lists which `meta.json` groups each tab holds, and `lib/docs-tree.ts` builds the tabbed sidebar from them. Files never move into folders, so URLs, anchors, and every hard-coded `content/docs/*.mdx` path stay put.
+
+A tile's color says what the page is about: `brand` for WolfWave itself, a partner color for a service (`twitch`, `discord`, `apple-music`, and `graphite` for OBS and Stream Deck), `gray` for general and legal pages, `red` for fixes, `indigo` for contributor docs, and `wolfwave` for the design system.
+
+### Formatting that renders specially
+
+- **UI paths.** Write a path as one bold run, with spaces around each arrow: `**Settings → Twitch → Bot Commands**`. It renders as a path chip, with a gear in front of Settings. Keep links, code, and other bold out of it.
+- **Troubleshooting entries.** Paragraphs that start with `**Message:**`, `**Why:**`, and `**Fix:**` render as one framed list. A list or table right after a label joins it.
+- **Diagrams.** A `` ```mermaid `` fence renders as a diagram in the browser.
+
+All three come from `lib/rehype-docs.ts`. They run after the markdown is captured, so `llms.txt`, the per-page markdown, and search keep the plain source.
+
+### Anchors are a contract
+
+The native app opens `/docs/troubleshooting#<id>` from its error banners, and the README, the app, and other pages link to headings across the site. Don't rename a linked heading. To change its words, keep the old anchor with an explicit id: `## New title [#old-id]`. Give new troubleshooting sections an explicit `[#id]` too.
+
+### Components
+
+Fumadocs' components (`Callout`, `Cards` and `Card`, `Steps`, `Tabs`, `Accordions`, `Files`) work in any page. The docs home uses `HomeHero`, `MenuMap`, `SetupPath`, and `LinkList` from `components/docs/home.tsx`. Styles live in `app/docs/docs.css`, which only docs pages load, so the landing page never sees them.
 
 ## Open a pull request
 

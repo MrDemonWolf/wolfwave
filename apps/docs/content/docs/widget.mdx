@@ -143,8 +143,9 @@ Text and Background color pickers; the other themes ship fixed palettes.
 | `?queueTicker=1` | Show the upcoming-queue ticker panel (off by default). The value must be exactly `1` |
 | `?preview` | Developer preview with no WebSocket. See below |
 
-Theme and layout aren't URL parameters. Set them in **Settings → Stream
-Widgets → Widget Appearance** and click **Apply**. The overlay follows along live.
+Theme and layout aren't URL parameters. Set them in
+**Settings → Stream Widgets → Widget Appearance** and click **Apply**. The
+overlay follows along live.
 
 **Preview mode.** With `?preview` (or `window.__WW_PREVIEW__ = true` set before
 the script runs), the widget opens no socket, runs no progress timer, draws a
@@ -209,7 +210,7 @@ Pause does **not** trigger the exit animation. Per the native
 
 ## File map
 
-```
+```text
 apps/widget/
 ├── src/
 │   ├── widget.html       # HTML shell with %%TAILWIND_CSS%% / %%TOKENS_JS%% / %%WIDGET_JS%% placeholders
