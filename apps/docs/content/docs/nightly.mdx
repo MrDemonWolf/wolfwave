@@ -32,14 +32,14 @@ keywords:
 
 1. Open **Settings → Software Update**.
 2. Under **Update Channel**, pick **Nightly (dev)**.
-3. Read the warning and click **Switch to Nightly**.
+3. Read the warning and click **Switch to Nightly**. **Cancel** keeps you on Stable.
 
-WolfWave checks the nightly feed right away. After that, update checks pull nightly builds.
+WolfWave checks the nightly feed right away. After that, update checks pull nightly builds. A **Nightly channel** notice shows on that pane while you're on Nightly.
 
 ## Go back to Stable
 
 1. Open **Settings → Software Update**.
-2. Under **Update Channel**, pick **Stable**.
+2. Under **Update Channel**, pick **Stable**. It applies right away, with no pop-up.
 
 WolfWave never offers a version *lower* than the one you have. So switching alone doesn't move you back. It puts you in line for the next stable release.
 
@@ -48,7 +48,7 @@ To get back right now, download and install the latest [Stable build](/docs/inst
 ## What to know
 
 - **Same signing.** Nightly builds carry the same Developer ID signature and Apple notarization as Stable.
-- **Built around midnight Chicago time**, but only on days the app changed. Docs-only days skip the build.
+- **Built around midnight Chicago time**, but only on days the app itself changed. If only the docs, website, or Stream Deck plugin changed, there's no build.
 - **Named for what's coming.** A nightly reads like `2.2.0-nightly+a1b2c3d`. That's the release the changes are heading into, not one that already shipped.
 - **Your choice sticks.** You stay on Nightly across updates until you switch back.
 - **Homebrew installs can't use it.** Homebrew manages updates, so the picker is hidden. Run `brew upgrade wolfwave` for the stable cask.

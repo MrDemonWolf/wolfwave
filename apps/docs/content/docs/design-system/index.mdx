@@ -44,25 +44,40 @@ design-system/tokens.json   ← edit this
 ## Change a token
 
 1. Edit `design-system/tokens.json`.
-2. Run `bun run tokens` to regenerate all four outputs.
-3. Touched widget themes or layouts? Run `make widget` too.
-4. Run `bun run ds:schema`, `bun run ds:lint`, and `bun run ds:test` (including text contrast checks).
-5. Commit the source and every regenerated file together. CI fails on drift.
+2. Run `bun run ds:schema`. It checks `tokens.json` against `design-system/tokens.schema.json`. Run it before the generator, which doesn't check the shape on its own.
+3. Run `bun run tokens` to regenerate all four outputs.
+4. Changed a color, font, spacing, radius, motion, or shadow token, or a widget theme or layout? Run `make widget` too. The widget inlines those token groups into `widget.html`. Use the Bun version pinned in `package.json`, because another version minifies differently and fails the drift check.
+5. Run `bun run ds:lint` and `bun run ds:test`. The tests pin each lint rule, check that the rules cover every spacing and radius token, and check text-token contrast.
+6. Breaking change (a rename, a removed key, or value drift)? Bump `meta.version` in `tokens.json` and call it out in the PR description.
+7. Stage the source and every regenerated file together, then run `make check-drift`. It regenerates everything again and fails if any generated file differs from what you staged, which is the check CI runs. Commit once it passes.
+
+Adding a new top-level namespace? Update `design-system/tokens.schema.json` in the same change. The schema rejects unknown top-level keys, so `ds:schema` fails until you do.
 
 Never hand-edit a `*.generated.*` file.
 
 ## Rules the linter enforces
 
-`bun run ds:lint` blocks these in SwiftUI views:
+`bun run ds:lint` blocks these in SwiftUI views. Each failure prints its rule in brackets, such as `[raw-font-size]`.
 
-- Literal font sizes. Use `DSFont.Size.*`.
-- Literal `spacing:` or `.padding(N)`. Use `DSSpace.*`.
-- Literal corner radii. Use `DSRadius.*`.
-- Literal animation durations or spring responses. Use `DSMotion.*`.
-- Raw system colors as a status tint. Use `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`.
+- `raw-font-size`: literal font sizes. Use `DSFont.Size.*`.
+- `raw-spacing` and `raw-padding`: literal `spacing:` or `.padding(N)`. Use `DSSpace.*`.
+- `raw-radius`: literal corner radii. Use `DSRadius.*`.
+- `raw-animation-duration`: literal animation durations or spring responses. Use `DSMotion.*`.
+- `raw-status-color`: raw system colors as a status tint. Use `DSColor.success` / `.warning` / `.error` / `.info` / `.neutral`.
+
+What the linter sees:
+
+- It scans only `apps/native/WolfWave/Views/`, one line at a time. Tests and `*.generated.swift` files are not scanned. Comments are scanned, so a literal in a comment is flagged too.
+- `Views/Onboarding/` is exempt from the font, spacing, padding, and radius rules. The motion and status-color rules still apply there.
+- The spacing, padding, and radius rules only flag values that already have a token. An off-scale literal such as `spacing: 7` passes, so add the token first.
+- A call split across lines passes, and `.frame(width:height:)` literals are not checked yet.
+
+The allowlist, `design-system/lint-allowlist.txt`, is empty on purpose. Fix the source instead of adding a line.
+
+Adding a rule? Add it to the `Rules` comment in `design-system/scripts/lint.ts` and pin it in `lint.test.ts`. `make lint-sync` fails when the comment and the rule table disagree.
 
 ## In this section
 
 - [Foundations](./foundations). Colors, type, spacing, radius, motion, shadows.
-- [Components](./components). Catalog of reusable SwiftUI views and their Tailwind/CSS equivalents.
+- [Components](./components). Catalog of the reusable SwiftUI views, with API, tokens, and accessibility notes.
 - [Brand](./brand). Logo usage, partner colors, voice.

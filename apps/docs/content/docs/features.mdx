@@ -28,12 +28,24 @@ Haven't installed yet? Start with [Install](/docs/installation).
 
 ## Menu bar and Music Sync
 
-WolfWave lives in your menu bar. Click the wolf icon to see:
+WolfWave lives in your menu bar. Click the wolf icon to open the menu. It rebuilds each time you open it, so it always matches what's happening now.
 
-- **What's playing**, with album art.
-- **Quick switches** for Apple Music, Twitch, Discord, the OBS overlay, and Streamer Mode.
-- **Song request controls**: hold or resume, skip, and clear the queue and shared playlist.
-- **Clear Requests** empties the queue and **WolfWave Requests** together. Music keeps playing when the queue is already empty. The songs stay in your Apple Music library; the `!playlist` link shows an empty playlist until new requests arrive.
+**What's in the menu**, top to bottom:
+
+- **Now playing.** The song, artist, and album art. Hidden when Music has no song loaded. Under it:
+  - **Copy Song Info** copies the title and artist.
+  - **Copy Song Link** copies a link that opens on any music service. It's greyed out and says "Resolving…" while it looks one up, or "No link found" if there is none.
+  - **Share to Twitch Chat** posts what `!song` would say. Only while Twitch is connected.
+  - **Recently Played** is a submenu. Click a song to copy it.
+- **Music controls.** **Play** or **Pause**, **Next Track**, and **Previous Track**. They show only while Music is open, so the menu never launches it.
+- **Song requests.** Only when song requests are on. **Hold Song Requests** (or **Resume Song Requests**) is always on top. When there's something to act on, you also get the request playing now, the queue count, **Skip Song Request**, and **Clear Queue…**. A busy queue folds those into a **Song Requests (N)** submenu.
+- **Quick switches.** Apple Music, Twitch, Discord, and OBS Overlay, each with a short status. A check mark means on. Twitch shows once you've signed in. Click it to leave your channel. If you're not connected, it opens **Settings → Twitch** instead.
+- **Streamer tools.** **Streamer Mode**, **Copy Widget Link** and **Open Widget in Browser** (only while the overlay is on), and **Restart Integrations…**, which reconnects Twitch, Discord, and the overlay (whichever are on) after you confirm. Viewers may see a short gap.
+- **App.** **Settings…**, **Help**, **About WolfWave**, and **Quit WolfWave**. **Help** holds **What's New**, **Check for Updates…**, **Documentation**, **Community Discord**, **Report a Bug**, **Star on GitHub**, and **Sponsor WolfWave**. Turn off **Show sponsor links** in [Settings → About](/docs/settings#about) to hide Sponsor.
+
+**Clear Queue…** empties the queue and **WolfWave Requests** together after you confirm. If any requests are queued, waiting, or playing, it stops Music too. If there are none, Music keeps playing. The songs stay in your Apple Music library; the `!playlist` link shows an empty playlist until new requests arrive. If Music can't clear the playlist, an alert says **WolfWave Requests couldn't be cleared**. The queue is already clear by then.
+
+**Dock menu.** Right-click the WolfWave icon in the Dock for a shorter menu: the song playing, **Play** or **Pause**, **Next Track**, and **Previous Track** (only while Music is open), **Hold Song Requests** or **Resume Song Requests** (only when requests are on), check-mark switches for Apple Music, Twitch (after you sign in), Discord, and OBS Overlay, and **Settings…**. It's there whenever **Display mode** shows the Dock (**Dock and Menu Bar** or **Dock Only**). Dock Only hides the menu bar icon, so this menu is your shortcut. Set Display mode in [Settings → General](/docs/settings#general).
 
 How it works:
 
@@ -55,9 +67,9 @@ Let chat ask what's playing.
 
 **What you get:**
 
-- **`!song`** posts the current song. **`!last`** posts the one before. Both start off.
-- **`!wolfwave`** tells chat what WolfWave is.
-- **Include song.link** adds a link that works on any music service.
+- **`!song`** posts the current song. **`!last`** posts the one before. Both are on for new installs, so they answer as soon as you join your channel. If you were already set up when you updated, they stay as you had them. Switch either off any time under **Bot Commands**.
+- **`!wolfwave`** tells chat what WolfWave is. Off by default.
+- **Add a song.link** puts a link on `!song` and `!last` replies that opens the song on any music service. Off by default, because some chats delete messages with links. It shows up once `!song` or `!last` is on.
 - **Aliases.** Add your own extra names for a command.
 - **Cooldowns** stop spam. They don't apply to you or your mods.
 - **Only reply while live.** Turn this on and every command stays quiet until you go live. Off by default.
@@ -75,7 +87,7 @@ Let chat add songs to a queue that plays in Apple Music.
 2. Open **Settings → Song Requests** and click **Set Up Song Requests**.
 3. The setup checks Twitch, asks for Apple Music access, and makes a playlist called **WolfWave Requests**.
 4. Optional: share that playlist so `!playlist` can post a link in chat.
-5. Turn on requests when setup asks.
+5. On the last step, click **Turn On Song Requests**.
 
 Requests can't turn on until setup is done. Nothing half-set-up goes live.
 
@@ -109,7 +121,7 @@ Mods and you can always request.
 
 - **Auto-Advance Queue** plays the next request when a song ends.
 - **Hold Queue** pauses the queue. Requests still come in, but nothing plays until you resume. Also in the menu bar and the `!hold` / `!resume` commands.
-- **Fallback playlist** plays an Apple Music playlist you pick when the queue is empty.
+- **Fallback playlist** plays an Apple Music playlist when the queue is empty. Type its name exactly as it appears in Music. Leave it blank for silence.
 - **Resume Apple Music AutoPlay** hands playback back to Music when the queue empties. Turn on AutoPlay in Music's Playing Next panel first. A fallback playlist takes priority.
 
 **Blocklist:**
@@ -123,7 +135,7 @@ Mods and you can always request.
 **Vote-to-skip:**
 
 - Turn on **Enable Vote-Skip**. Chat types `!voteskip` (or `!vs`).
-- Set the **Minimum votes to skip** (3 by default) and the vote window (60 seconds by default).
+- Set the **Minimum votes to skip** (3 by default) and, for chat votes, the vote window (60 seconds by default).
 - Optional: **Subscriber-Only Voting**, or **Use Twitch Polls** for a native poll (Affiliate/Partner only).
 
 **Sync Library check:**
@@ -138,7 +150,7 @@ More: chat commands in [Bot Commands](/docs/bot-commands), every switch in [Sett
 
 These live in the **Channel Points & Bits** card. Enable the tools on Twitch, sign in with your broadcaster account, and grant the permissions WolfWave requests. Twitch must allow the API access needed for each feature; see the [FAQ](/docs/faq#requests-and-chat) for eligibility details.
 
-- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). If a request fails (not found, blocked, queue full), the points go back automatically.
+- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). If a request fails (not found, blocked, queue full), the points go back automatically. **Repair Reward** checks the reward with Twitch and makes a fresh one if you deleted it.
 - **Bit Requests.** Viewers cheer with a song name to request it. Set the **Minimum bits** (100 by default).
 - **Boost With Bits.** A cheer moves the viewer's oldest queued song to the front instead of adding a new one.
 - **Same rules as `!sr`.** Points and Bits follow your audience, limits, blocklist, approval, and hold settings.
@@ -169,7 +181,7 @@ Show the current song on stream. It runs on your Mac. No overlay website needed.
 - **Theme:** Default, Dark, Light, Glass, or Neon.
 - **Layout:** Horizontal, Vertical, Compact, Vinyl, or Classic.
 - **Text** and **Background** colors (Default and Glass themes), and a **Font**.
-- Click **Apply** to send changes to the overlay.
+- A live preview shows your edits. Click **Apply** to send them to the overlay, or **Revert** to undo them.
 
 **Extras:**
 
@@ -200,18 +212,19 @@ No bot, no token, no server. Off by default.
 
 **Options:**
 
-- **Profile Buttons.** Up to two buttons: an **Apple Music link** and an **Any-app link (song.link)**. Both on by default.
-- **Show playlist.** Shows the playlist you're playing from. **Show playlist name** off keeps the name private.
+- **Profile Buttons.** Up to two buttons under your song: an **Apple Music link** and an **Any-app link (song.link)**. On by default. **Show buttons** turns them all off at once.
+- **Show playlist.** Off by default. Shows the playlist you're playing from, either next to the artist or as a tooltip on the app icon (**Display style**). **Show playlist name** off keeps the name private.
 - **When you pause.** **Keep the song** (default) leaves it up with a paused badge. **Hide the song** shows your "When music stops" choice instead.
 - **When music stops.** **Listening to WolfWave** (default) shows that line with no song. **Nothing** clears your status.
 
 ## Listening history and stats
 
-- **Off by default.** Turn it on in **Settings → History & Stats**.
+- **Off by default.** Turn on **Listening History** in **Settings → History & Stats** to start recording plays.
 - **Stays on your Mac.** It's never uploaded.
 - **Counts real plays.** A song counts after half its length or 4 minutes, so skips don't count.
-- **Charts and Monthly Wrap.** Top artists, listening time, and a monthly summary you can share as an image.
-- **`!stats` for chat.** Pick what it shows.
+- **Charts are a second switch.** Turn on **Show Stats & Charts** for top artists, listening by hour, and the Monthly Wrap, a monthly summary you can share as an image. It needs Listening History on first.
+- **`!stats` for chat** has its own switch, off by default. Chat can use it once Twitch is connected. Pick the time window and what it shows.
+- **Keep for** clears old plays on a schedule, from 7 days up to a year. **Forever** keeps them all.
 
 More: [Listening History](/docs/listening-history).
 
@@ -224,9 +237,17 @@ Mac banners for:
 
 All off by default. Turn them on in [Settings → General](/docs/settings#general). A new banner replaces the old one of the same kind.
 
+One more banner has no switch: **Twitch Authentication Expired** shows up if your Twitch sign-in lapses, as long as macOS already lets WolfWave post notifications.
+
+## App basics
+
+- **Display mode.** Show WolfWave in the menu bar, the Dock, or both. **Launch at Login** starts it with your Mac. Both are in [Settings → General](/docs/settings#general).
+- **Appearance.** **System**, **Light**, or **Dark**. Same place.
+- **Updates.** WolfWave checks for new versions in the background (on by default). Pick **Stable** or **Nightly (dev)** in [Settings → Software Update](/docs/settings#software-update). Installed with Homebrew? Updates come from Homebrew instead.
+
 ## Streamer Mode
 
-One click in the menu bar hides private info on screen. Your channel name, overlay links, and tokens show as `••••••`. Everything keeps working. More: [Streamer Mode](/docs/streamer-mode).
+One click in the menu bar hides private info on screen. Your channel name shows as **hidden**. Overlay links and tokens show as **hidden (streamer mode)**. Everything keeps working. More: [Streamer Mode](/docs/streamer-mode).
 
 ## Back up, restore, and iCloud sync
 
@@ -240,7 +261,7 @@ More: [Back Up & Restore](/docs/backup).
 
 - **Report a Bug** (menu bar → Help) opens a GitHub issue with your app version filled in.
 - **Export Logs** (Settings → Advanced) saves one file with your setup, the last crash, and your logs.
-- **Share Diagnostics** is off by default. It keeps crash and performance data on your Mac until you share it. WolfWave keeps the newest 50 reports from the last 30 days, and deletes them when you turn it off.
+- **Share Diagnostics** (Settings → Advanced) is off by default. Turn on **Collect on-device diagnostics** and WolfWave keeps crash and performance reports on your Mac. Nothing is uploaded. **Reveal Diagnostics Folder** opens them in Finder. WolfWave keeps the newest 50 reports from the last 30 days, and deletes them when you turn it off.
 - Error messages name the problem, offer a fix, and often link to [Troubleshooting](/docs/troubleshooting).
 
 More: [Report a bug](/docs/support#report-a-bug).

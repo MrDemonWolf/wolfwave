@@ -21,7 +21,7 @@ keywords:
 
 **TL;DR:** For streamers looking for a switch. Each section below is one Settings pane: what's in it and where to read more.
 
-**Open Settings:** click the wolf icon in your menu bar, then **Settings**. The panes are listed in the sidebar.
+**Open Settings:** click the wolf icon in your menu bar, then **Settings…**. The sidebar groups the panes: **General**; **Integrations** (Twitch, Discord); **On Stream** (Stream Widgets, Stream Deck, Song Requests); **Insights** (History & Stats); and **App** (Software Update, Advanced, About).
 
 Settings use native macOS switches with attached labels and wrapping descriptions. Disabled options follow the system appearance.
 
@@ -35,12 +35,15 @@ Each pane also has a `wolfwave://` link that opens WolfWave right to it. See [De
 
 How WolfWave tracks your music and where it shows up.
 
-- **Sync Music.** The main switch. On by default. Shows what's playing and which services are connected.
-  - Apple Music access denied? Click **Open System Settings**, allow it, then click **Recheck**.
+- **Sync Music.** The main switch. On by default. A row under it shows your Music access: **Music access on** (with **Recheck**), or **Allow** the first time macOS asks.
+  - Access off? A banner appears. Click **Open System Settings**, turn on Music under WolfWave in Automation, then click **Try again**. **Show me how** walks you through it.
+- **Live from Apple Music.** The song, artist, album, and art WolfWave sees right now.
+- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. A chip shows the state: **Live**, **Showing now**, **Ready for OBS**, or **Off** (**Paused** while Music access is missing). **Configure** jumps to that pane.
 - **App Visibility.**
-  - **Display Mode:** Menu Bar Only, Dock Only, or Dock and Menu Bar.
+  - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**. If macOS wants your OK, use **Approve in Login Items…**.
+  - **Display mode:** **Dock and Menu Bar** (default), **Menu Bar Only**, or **Dock Only**. **Dock Only** is greyed out while Launch at Login is on, so the menu bar icon is always there. Turning Launch at Login on while in Dock Only switches you to Dock and Menu Bar.
   - Menu Bar Only temporarily shows the Dock icon while Settings is open.
-  - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**.
+  - The Dock icon has its own menu. See [the Dock menu](/docs/features#menu-bar-and-music-sync).
 - **Appearance.** Applies to the whole app, menu included.
 
   | Option | What it does |
@@ -51,7 +54,9 @@ How WolfWave tracks your music and where it shows up.
 
 - **Notifications.** Mac banners, all off by default:
   - **Song change notifications**
-  - **Skip vote started** and **Skip vote passed** (turn on vote-to-skip in Song Requests first)
+  - **Skip vote started** and **Skip vote passed** (greyed out until you turn on vote-to-skip in Song Requests)
+  - macOS asks for permission the first time you turn one on. If macOS blocks banners, a warning offers **Open System Settings**.
+  - One banner has no switch: **Twitch Authentication Expired** appears if your Twitch sign-in lapses, as long as macOS already lets WolfWave post notifications.
 
 These preferences are included in [Back Up & Restore](/docs/backup).
 
@@ -67,27 +72,25 @@ Let chat request songs. How it all works: [Song requests](/docs/features#song-re
 2. **Apple Music access.** Click **Grant Apple Music Access**. If you denied it before, turn on WolfWave in **System Settings → Privacy & Security → Media & Apple Music**. (This is separate from the Automation access that Sync Music uses.)
 3. **Requests playlist.** Makes the **WolfWave Requests** playlist, then waits up to about 40 seconds for Music on this Mac to pick it up. Still not there? Turn on **Music → Settings → General → Sync Library** and click **Check Again**. You can finish setup either way.
 4. **Share link** (optional). Lets `!playlist` post a link in chat.
-5. **All set.**
+5. **All set.** Click **Turn On Song Requests**.
 
 Want to change something later? Click **Run Setup Again** under **Enable Song Requests**.
 
-**After setup**, the pane groups its cards by task. The live queue stays near the top; request setup, playback behavior, and moderation follow below:
+**After setup**, the pane lists the live queue first, then the switch and vote-skip, then the rest grouped by task:
 
-- **Vote-Skip.** **Enable Vote-Skip**, minimum votes, vote window, **Subscriber-Only Voting**, **Use Twitch Polls**. Works even with requests off.
-- **Song Request Queue.** The live queue. Approve, remove, or **Clear Requests** to empty the queue and shared playlist together. If the queue is already empty, Music keeps playing. Songs stay in your library.
-- **Request Setup:** **Who Can Request** sets a preset and approval; **Song Request Commands** manages `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, and `!playlist`; **Channel Points & Bits** configures paid requests.
-- **Queue Behavior:** **Queue Settings** controls ordering, priority, capacity, and per-user limits. **Playback** controls Hold, Auto-Advance, Apple Music AutoPlay, and a fallback playlist. Enable AutoPlay in Music's Playing Next panel; a fallback playlist takes priority.
-
-Queue controls sit above the song list. Use **Hold** before requests arrive or while the queue is active, then **Resume** when ready. **Skip** appears while a request is playing; **Clear Requests** asks before clearing the queue and shared playlist.
+- **Song Request Queue.** The live queue, with its controls above the song list. **Hold** (or **Resume**) keeps requests coming in but stops them playing. You can hold before the first request arrives. **Skip** shows while a request is playing. **Clear Requests** asks first, then empties the queue and **WolfWave Requests** together. If any requests are queued, waiting, or playing, it stops Music too. If there are none, Music keeps playing. Songs stay in your library. With **Require My Approval** on, waiting requests show here with **Approve** and a decline button.
+- **Enable Song Requests.** The master switch, **Run Setup Again**, and **Reply When Off**, which makes `!sr` answer "Song requests are off right now." while requests are off.
+- **Chat Vote-Skip.** **Enable Vote-Skip**, **Minimum votes to skip**, **Subscriber-Only Voting**, and **Use Twitch Polls** (then pick a **Poll duration**). With a chat tally you also set the vote window and a **Cooldown between votes**. The `!voteskip` command has its own switch and aliases. Works even with requests off.
+- **Request setup:** **Who Can Request** sets a preset and approval; **Song Request Commands** manages `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, and `!playlist`; **Channel Points & Bits** configures paid requests.
+- **Queue behavior:** **Queue Settings** controls ordering, priority, capacity, and per-user limits. **Playback** controls **Hold Queue**, **Auto-Advance Queue**, **Resume Apple Music AutoPlay**, and a **Fallback playlist**. Enable AutoPlay in Music's Playing Next panel; a fallback playlist takes priority.
 - **Moderation:** **Blocklist** blocks a **Song**, **Artist**, or **Person**. Press Return to add.
 
 **Per-user limits, explained:**
 
-- Each role (Everyone, subscribers, VIPs, and so on) can have its own limit.
+- Each role (Everyone, Subscribers, VIPs, Moderators) can have its own limit: 1, 2, 3, 5, 10, 15, or 20. **Max queue size** is 5, 10, 15, 20, 25, or 50.
 - When a viewer has more than one role, choose:
-  - **Highest tier:** they get their best role's limit.
-  - **Stacked:** start from Everyone and add each role's extra slots.
-- A role you haven't set shows **None** and adds nothing.
+  - **Highest tier:** they get their best role's limit. A role you haven't set counts as 2.
+  - **Stacked:** start from Everyone and add each role's extra slots. A role you haven't set shows **None** and adds nothing.
 
 Chat commands: [Bot Commands](/docs/bot-commands).
 
@@ -98,11 +101,11 @@ Chat commands: [Bot Commands](/docs/bot-commands).
 Your OBS overlay. Cards are in the order you need them:
 
 1. **Enable Stream Widgets.** Starts the connection the overlay uses.
-2. **Widget Setup.** Turn on **Enable Widget Webpage**, then **Copy Link** and paste it into OBS as a Browser Source. **Network Address** is for two-PC setups on a network you trust.
-3. **Widget Appearance.** Theme, layout, colors, and font. Click **Apply** to update the overlay.
-4. **Build your own overlay.** The raw feed: port, read-only overlay token, and addresses. Only needed for a hand-made overlay.
+2. **Widget Setup.** Turn on **Enable Widget Webpage**, then **Copy Link** and paste it into OBS as a Browser Source. In OBS, use the Width and Height the pane shows for your layout, and turn on **Shutdown source when not visible**. **Widget Port (Advanced)** is here too. **Network Address** is for two-PC setups on a network you trust.
+3. **Widget Appearance.** Theme, layout, colors, and font, with a live preview. Your edits wait until you click **Apply**. The pane says "Unsaved changes" until then, and **Revert** drops them.
+4. **Build your own overlay.** The raw feed: port, read-only **Overlay Token**, and the local and network addresses. Only needed for a hand-made overlay. Edit the token by hand and click **Save**, or **Regenerate** it. Regenerate asks first, and active overlays disconnect until you copy the new link back into OBS.
 
-**The header chip shows the server state:**
+**The status chip on the first card shows the server state:**
 
 - **Listening** (or **N connected** once an overlay joins)
 - **Starting**
@@ -111,7 +114,7 @@ Your OBS overlay. Cards are in the order you need them:
 
 Other tips:
 
-- To change the widget port, turn off the widget webpage first. A bad port is put back, and the field says **Saved** or **Not saved**.
+- To change the widget port, turn off **Enable Widget Webpage** first. To change the raw-feed **Port** in Build your own overlay, turn off **Enable Stream Widgets** first. A bad port is put back, and the field says **Saved** or **Not saved**.
 - A greyed-out button tells you what to turn on first.
 
 Sizes, themes, and messages: [OBS Widget](/docs/widget).
@@ -128,7 +131,7 @@ Control WolfWave from a Stream Deck.
 
 Why it's separate from Stream Widgets: the overlay token is read-only and can reach across your network. The control token runs commands, so it only works on this Mac.
 
-**The header chip names the first thing in your way:**
+**The status chip at the top names the first thing in your way:**
 
 1. **Server off.** Turn on Stream Widgets.
 2. **Server error.** The server couldn't start (often a busy port). Use **Open Stream Widgets**.
@@ -144,10 +147,10 @@ Full walkthrough: [Stream Deck](/docs/streamdeck).
 
 Your listening history, kept on this Mac.
 
-- **Listening History.** Off by default. Turn it on to start recording plays.
-- **Show Stats & Charts.** Weekly view, top artists, listening by hour, and the Monthly Wrap.
-- **!stats command.** Pick the time window and what chat sees. Keep at least one item selected.
-- **Keep for.** How long to keep plays. Choose **Forever** to keep them all.
+- **Listening History.** Off by default. Turn it on to start recording plays. Your latest plays show under **Recently played**.
+- **Show Stats & Charts.** Needs Listening History on. Weekly view, top artists, listening by hour, and the Monthly Wrap.
+- **!stats command.** Off by default. Chat can use it once Twitch is connected. Pick the time window and what chat sees. Keep at least one item selected.
+- **Keep for.** How long to keep plays: **Forever**, or 7 to 365 days. A shorter window asks first if it would remove plays.
 - **Danger Zone → Clear History.** Deletes every play. Can't be undone.
 
 What counts as a play: [Listening History](/docs/listening-history).
@@ -166,12 +169,16 @@ Connect your Twitch account and set up the chat bot.
 
 You never type your Twitch password into WolfWave.
 
-**Once you're in:**
+**Once you're signed in:**
 
 - **Bot account** shows who posts the replies.
-- **Log Out** asks "Sign out of Twitch?" first.
-- **Only reply while live.** Every command stays quiet until you go live. Off by default.
-- **Bot Commands.** `!song` and `!last` are on for new installs. Turn on `!wolfwave` and **Add a song.link** here. Add aliases and set cooldowns.
+- **Leave Channel** disconnects the bot from your channel but keeps you signed in. It asks "Disconnect from channel?" first. To switch channels, leave, type the new name, then click **Join Channel**.
+- **Log Out** asks "Sign out of Twitch?" first. Chat commands stop until you sign in again.
+
+**Below the sign-in card:**
+
+- **Chat commands.** **Only reply while live** keeps every command quiet until you go live. Off by default. This one works even before you sign in.
+- **Bot Commands.** Greyed out until Twitch is connected. `!song` and `!last` are on for new installs. **Add a song.link** shows up once `!song` or `!last` is on. Turn on `!wolfwave`, add aliases, and set cooldowns.
 - **Custom Commands.** Make your own commands. Each one can reply, post a plain message, or post an announcement. You can set these up before you connect; they reply once Twitch is connected.
 
 Every command: [Bot Commands](/docs/bot-commands).
@@ -182,13 +189,13 @@ Every command: [Bot Commands](/docs/bot-commands).
 
 Show what you're listening to on your Discord profile.
 
-- **Show on Discord.** The main switch. Off by default.
-- **Profile Buttons.** Up to two: **Apple Music link** and **Any-app link (song.link)**. Both on by default.
-- **Playlist.** **Show playlist** and **Show playlist name**.
+- **Show on Discord.** The main switch. Off by default. The cards below it show up once it's on.
+- **Profile Buttons.** **Show buttons** is on by default. While it's on, pick up to two: **Apple Music link** and **Any-app link (song.link)**. Both are on by default, and each row shows the link it will send.
+- **Playlist.** **Show playlist** is off by default. When it's on, pick a **Display style**: **Artist + playlist line** (next to the artist) or **Playlist tooltip** (shown when someone hovers the app icon on Discord). Turn **Show playlist name** off and friends see a generic label. The name stays private.
 - **When the music isn't playing.** Two choices, one per case:
   - **When you pause:** **Keep the song** (default) or **Hide the song**. A hidden song shows your "When music stops" choice.
   - **When music stops:** **Listening to WolfWave** (default) or **Nothing**.
-- **Preview.** How your profile will look.
+- **Preview.** How your profile will look. Its chip reads **Live**, **Paused**, **Idle**, or **Offline**.
 
 **If it won't connect, the pane tells you why:**
 
@@ -198,6 +205,8 @@ Show what you're listening to on your Discord profile.
 | **Discord refused the connection** | Discord is running but said no. Restart Discord. |
 | **WolfWave can't reach Discord** | macOS blocked the connection. Restart WolfWave. If it keeps happening, send a bug report. |
 | **Not configured** | This build has no Discord app ID. Install the official release. |
+
+The chip at the top gives the short version: **Connected**, **Connecting**, or one of **Discord not running**, **Refused**, and **Blocked**, which match the first three messages above.
 
 More fixes: [Troubleshooting → Discord](/docs/troubleshooting#discord-not-connecting).
 
@@ -217,12 +226,12 @@ More fixes: [Troubleshooting → Discord](/docs/troubleshooting#discord-not-conn
 <small>Open in WolfWave: [`wolfwave://settings/advanced`](wolfwave://settings/advanced)</small>
 
 - **Setup Wizard.** **Rerun Setup Wizard** opens the wizard again. Your settings don't change.
-- **Share Diagnostics.** Off by default. Keeps crash and performance reports on your Mac (the newest 50 from the last 30 days). Turning it off deletes them.
-- **Diagnostics (logs).**
+- **Diagnostics** (your logs).
   - **Export Logs** saves one file: your setup (version, macOS, install method), the last crash, and every log.
   - **Copy to Clipboard** and **Reveal in Finder**.
   - **Clear Logs** erases the logs and starts fresh.
 - **Artwork Cache.** **Clear Artwork Cache** forgets saved album art links. They're fetched again as songs play.
+- **Share Diagnostics.** Turn on **Collect on-device diagnostics** (off by default). Crash and performance reports stay on your Mac, and nothing is uploaded. WolfWave keeps the newest 50 from the last 30 days, and turning it off deletes them. The card also shows an **App launches** count (launches while it's on). **Reveal Diagnostics Folder** opens the reports in Finder.
 - **Back Up Settings.** **Sync with iCloud**, **Export Settings**, and **Import Settings**. See [Back Up & Restore](/docs/backup).
 - **Danger Zone.** **Erase All Data & Reset** wipes every setting, sign-in, log, and cache, then restarts. Can't be undone.
 
@@ -265,7 +274,7 @@ The names below are fixed IDs, not the titles on screen, so links keep working w
 | Advanced | `advanced` | `diagnostics`, `artwork-cache`, `backup`, `danger-zone` |
 | About | `about` | |
 
-Some cards only show once a feature is on. Song Requests cards (except `vote-skip`) need setup done and requests on. History cards (except `tracking`) need Listening History on, and `stats-command` also needs Show Stats & Charts. A link to a hidden card opens the pane and stops there.
+Some cards only show once a feature is on. Song Requests cards (except `vote-skip`) need setup done and requests on. History cards (except `tracking`) need Listening History on, and `stats-command` also needs Show Stats & Charts. Discord cards (except `presence`) need Show on Discord on. A link to a hidden card opens the pane and stops there.
 
 Try one from Terminal:
 

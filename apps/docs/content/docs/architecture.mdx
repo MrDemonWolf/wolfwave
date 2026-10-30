@@ -42,7 +42,7 @@ flowchart LR
     R -->|AppleScript| M
 ```
 
-1. `AppleMusicSource` notices a track change.
+1. `AppleMusicSource` reads the playing track on every Music notification, every fallback poll, and every forced refresh.
 2. It tells `AppDelegate` through `PlaybackSourceDelegate`.
 3. `AppDelegate` hands the song to each enabled service.
 4. Chat commands and paid events flow back in through `TwitchChatService` and `SongRequestService`.
@@ -52,13 +52,21 @@ flowchart LR
 - App code: [`apps/native/WolfWave/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWave)
 - Unit and integration tests: [`apps/native/WolfWaveTests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveTests)
 - UI tests: [`apps/native/WolfWaveUITests/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/WolfWaveUITests)
+- Internal design notes (control API, logging format, end-to-end testing): [`apps/native/docs/`](https://github.com/MrDemonWolf/wolfwave/tree/main/apps/native/docs)
 
 ```
 WolfWave/
 ├── WolfWaveApp.swift      # @main app + the AppDelegate class
-├── Core/                  # Constants, Keychain, logging, preferences, fresh-install defaults, crash reporter,
-│   │                      # AppDelegate+* extensions (MenuBar, MenuSections, DockMenu,
-│   │                      # Services, Notifications, TwitchTokenValidation, Windows, StreamDeck)
+├── Core/                  # App-wide plumbing, by job:
+│   │                      #   constants       AppConstants + per-topic extensions
+│   │                      #   storage         KeychainService, DefaultsStore, Preferences, FeatureFlags,
+│   │                      #                   FreshInstallDefaults, AppContainer
+│   │                      #   logs, crashes   Logger, LogRecord, CrashReporter, Diagnostic*, MetricsService
+│   │                      #   shared helpers  HTTPClient, RetryAfter, ThreadSafeStorage, formatters
+│   │                      #   UI support      UserFacingError, StreamerMode, SettingsDeepLink,
+│   │                      #                   SettingsNavigation, TwitchMenuState, UITestMode
+│   │                      #   AppDelegate+*   MenuBar, MenuSections, DockMenu, Services, Notifications,
+│   │                      #                   TwitchTokenValidation, Windows, StreamDeck
 │   ├── DesignSystem/      # Tokens.generated.swift (DSColor, DSFont, DSSpace, …)
 │   └── ListeningHistory/  # Play log store, records, lifetime tally
 ├── Monitors/              # AppleMusicSource + PlaybackSourceDelegate
@@ -73,10 +81,14 @@ WolfWave/
 │   ├── UpdateChecker/     # SparkleUpdaterService, UpdateChannel
 │   ├── WebSocket/         # WebSocketServerService, WidgetHTTPService, StreamDeckCommand, auth tokens
 │   └── *.swift            # ArtworkService, ArtworkImageLoader, ArtworkTint, LaunchAtLoginService
-├── Views/                 # SwiftUI settings shell, one folder per pane, Onboarding/, Shared/, Debug/
+├── Views/                 # SwiftUI settings shell (SettingsView, SettingsSidebarView), one folder per pane,
+│                          # Onboarding/ (wizard + Components/), Shared/ (reusable views),
+│                          # Debug/ (DEBUG-only tools + a DesignSystem/ gallery)
 └── Resources/             # widget.html, widget-tokens.generated.js, Assets.xcassets,
                            # AppIcon.icon, AppIcon-Dev.icon, dev-appcast.xml
 ```
+
+Beside `WolfWaveApp.swift` sit the non-Swift files: `Info.plist`, `PrivacyInfo.xcprivacy`, the Release and Debug entitlements (`WolfWave.entitlements`, `WolfWave.dev.entitlements`; every Apple Events entry in them is load-bearing), `Config.xcconfig.example` (copy it to `Config.xcconfig`), and `Config.Debug.xcconfig` (the WolfWave Dev name and bundle ID).
 
 The file-by-file list lives in the [Source layout section of `CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#source-layout-appsnativewolfwave).
 It's kept there so this page doesn't rot on every PR.
@@ -85,7 +97,10 @@ It's kept there so this page doesn't rot on every PR.
 
 ### Delegation
 
-`PlaybackSourceDelegate` carries track updates: name, artist, album, duration, and elapsed time.
+`PlaybackSourceDelegate` has two calls:
+
+- `playbackSource(didUpdateTrack:…)` carries a loaded track: name, artist, album, playlist, duration, elapsed time, and a paused flag. It fires on every successful read, not only when the track changes, so `AppDelegate` runs per-track work (history, recents, the song-change banner, artwork) only when the title, artist, or album changes. The overlay and Discord update on every read, so elapsed time stays current.
+- `playbackSource(didUpdateStatus:)` carries a status message when there's no track to show: Music not running, nothing playing, no track info, a script error, or access denied. A paused track never comes through here. It arrives with the paused flag set.
 
 ### MVVM with `@Observable`
 
@@ -103,13 +118,22 @@ It's kept there so this page doesn't rot on every PR.
 Settings changes (for example `TrackingSettingChanged`, `DockVisibilityChanged`) travel over `NotificationCenter`.
 Names live in `AppConstants.Notifications`.
 
+### User-facing errors
+
+Every user-visible failure resolves to a `UserFacingError` (`Core/UserFacingError.swift`): an `id`, a plain title, an optional cause and fix, a severity, `ErrorAction` intents, and an optional anchor on the [Troubleshooting](/docs/troubleshooting) page.
+
+- Services map their own error types into it, so the structure reaches the UI instead of being flattened into a string.
+- It is `Sendable` and SwiftUI-free. Actions are intents, not closures, so a test can assert which fix was offered without rendering anything.
+- Where it shows depends on the failure. `ErrorCallout` renders ambient state (a dropped connection, a missing permission). `FieldValidationRow` sits under a field for bad input. An alert is only for something the user just asked for that failed.
+
 ### Thread safety
 
 | Component | How it stays safe |
 |---|---|
 | `TwitchChatService` | Actor isolation. Small lock-backed snapshots for synchronous readers |
-| `DiscordRPCService` | Serial `ipcQueue` + `enabledLock` |
+| `DiscordRPCService` | Actor isolation. Blocking socket reads and writes run on a serial `ipcQueue`. Lock-backed snapshots of the connection state and last failure serve synchronous readers |
 | `WebSocketServerService` | Actor-confined listener and state. An `NSLock` guards only UI snapshots |
+| `Atomic<Value>` (`Core/ThreadSafeStorage.swift`) | The lock-guarded box behind `DiscordRPCService`'s snapshots and the Twitch dispatcher's connection and live-stream flags. Use it only where an actor hop isn't possible. Otherwise use an actor |
 | `Logger` | Serial `DispatchQueue` for file writes |
 | Tray and Dock menus | Read the in-memory `TwitchMenuState`, refreshed off the main thread. They never read the Keychain |
 
@@ -153,7 +177,8 @@ Channel points and Bits go through `TwitchRedemptionResolutionOutbox`, a disk-ba
 3. A qualifying Bits cheer saves its full boost or request action before touching the queue.
 4. After a crash or relaunch, unknown point redemptions are refunded and known outcomes replay.
 
-If the outbox can't save, WolfWave pauses the managed reward rather than take points it can't track.
+If the outbox can't save a channel-point redemption, WolfWave pauses the managed reward rather than take points it can't track.
+A Bits cheer is already paid, so if it can't be saved, WolfWave shows a storage warning and still runs it once from memory. It just won't survive a crash.
 
 ### SongRequestService
 
@@ -219,7 +244,7 @@ Protocol details: [Stream Deck Control API](/docs/stream-deck). Auth details: [S
 
 ### WidgetHTTPService
 
-A tiny HTTP server that hands the widget to OBS. It starts and stops with the WebSocket server.
+A tiny HTTP server that hands the widget to OBS. It has its own **Enable Widget Webpage** switch (off by default) and only runs while the WebSocket server is listening. The tray's overlay toggle flips both switches together.
 
 - Listens on all interfaces, port `8766` by default.
 - `GET /` returns the bundled `widget.html`.
@@ -242,7 +267,10 @@ The Elgato plugin that uses the control role. It's a separate bun workspace.
 | `src/wolfwave/state.ts` | Pure reducer from frames to key state. Unchanged state returns the same object, so keys don't repaint every second |
 | `src/wolfwave/client.ts` | One shared socket, capped reconnect back-off, ack matching. Tells "refused" apart from "not running" |
 | `src/connection-status.ts` | Pure mapping from client state to the Property Inspector message |
-| `src/actions/` | One class per key over a shared base that paints offline / unauthorized / outdated states |
+| `src/plugin.ts` | Entry point. Creates the one shared client and registers every key. It connects as soon as it's imported |
+| `src/actions/` | `base.ts` is the shared key base: it sends the press command and paints the offline / unauthorized / outdated states. `index.ts` holds one class per key |
+| `src/keyart.ts` | Every pixel the plugin draws. `scripts/generate-icons.ts` shares it, so live key art and the committed icons can't drift |
+| `com.mrdemonwolf.wolfwave.sdPlugin/manifest.json` | Every key's UUID must be listed here, or the SDK silently ignores that class |
 
 Change `StreamDeckCommand.swift`? Change `protocol.ts` in the same PR. CI fails if they drift.
 Setup for streamers is on the [Stream Deck](/docs/streamdeck) page.

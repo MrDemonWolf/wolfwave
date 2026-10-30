@@ -45,9 +45,9 @@ brew tap mrdemonwolf/den
 brew install --cask wolfwave
 ```
 
-WolfWave is signed and notarized by Apple, so macOS opens it without
-Gatekeeper warnings. DMG installs update themselves. Homebrew installs
-update with `brew upgrade --cask`.
+WolfWave is signed and notarized by Apple, so macOS trusts it (it may ask
+you to confirm the first launch). DMG installs update themselves. Homebrew
+installs update with `brew upgrade wolfwave`.
 
 ## Features
 

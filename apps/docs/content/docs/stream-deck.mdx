@@ -23,21 +23,26 @@ This page is the wire protocol, for people building their own client.
 
 Just want Stream Deck keys? Install the [Stream Deck plugin](/docs/streamdeck) instead. You don't need this page.
 
+<Callout type="info">
+  This page documents protocol v3, new in WolfWave 2.2.0. 2.2.0 is on the [Nightly channel](/docs/nightly) until it ships. WolfWave 2.1.x speaks v2, so it answers a v3 client with `error: "protocol"`.
+</Callout>
+
 ## Connect
 
 Commands share the overlay's WebSocket listener but use their own role and secret.
 
 | Setting | Value |
 |---|---|
-| URL | `ws://127.0.0.1:8765` (port is set in **Settings → Stream Widgets**) |
-| Subprotocol | `wolfwave.control.<hex>` |
+| URL | `ws://127.0.0.1:8765`. The port is the **Port** field in **Settings → Stream Widgets → Build your own overlay**. It's locked while Stream Widgets is on |
+| Subprotocol | `wolfwave.control.<hex>`, where `<hex>` is the 64-character control token |
 | Where the token lives | **Settings → Stream Deck → Stream Deck Control Token** |
-| Who may connect | Literal loopback only (`127.0.0.0/8` or `::1`) |
+| Who may connect with it | Literal loopback only (`127.0.0.0/8` or `::1`) |
 
 - The server rechecks the selected subprotocol after the handshake.
+- A wrong or missing token fails the handshake. A control token used from another machine is closed as soon as it connects. Neither gets an ack.
 - An overlay client (`wolfwave.overlay.<hex>`) can read state, even over the LAN, but **cannot** run commands.
 - There is no per-command token. The connection's role decides.
-- Regenerating the control token disconnects current clients.
+- Regenerating either token restarts the listener and disconnects every client, overlay and control. A client needs the new token only if its own token changed.
 
 Full auth model: [Security](/docs/security#websocket-server-security).
 
@@ -45,10 +50,10 @@ Full auth model: [Security](/docs/security#websocket-server-security).
 
 Two switches must be on:
 
-1. **Stream Widgets** server is running (**Settings → Stream Widgets**).
+1. **Enable Stream Widgets** is on, so the server is running (**Settings → Stream Widgets**).
 2. **Allow Stream Deck commands** is on (**Settings → Stream Deck**). It's on by default.
 
-If the second switch is off, every command gets `error: "disabled"`. The overlay keeps working.
+If the second switch is off, WolfWave answers every authorized command with `error: "disabled"`. The overlay keeps working.
 
 ## Send a command
 
@@ -63,9 +68,9 @@ Send one JSON text frame:
 | `type` | Must be `"command"`. Anything else is ignored, with no ack |
 | `protocol` | Must be `3`. A mismatch gets `error: "protocol"` |
 | `action` | One of the [actions](#actions). Unknown gets `error: "unknown_action"` |
-| `args` | Optional. Unused in v3. Reserved for later |
+| `args` | Optional. No v3 action uses it, and only string values are kept. Reserved for later |
 
-WolfWave checks in that order, so an out-of-date client always learns about the version first.
+WolfWave checks in that order, so an out-of-date client always learns about the version first. Two more checks follow: the connection's role (`unauthorized`), then the **Allow Stream Deck commands** switch (`disabled`). Inbound frames are capped at 16 KiB.
 
 ## Acks
 
@@ -78,6 +83,7 @@ Every command frame gets one ack, on the same connection:
 
 - `action` echoes the token you sent, even an unknown one.
 - `error` appears only when `ok` is `false`.
+- Acks carry no id. Match an ack to its command by `action`.
 
 ## Actions
 
@@ -88,7 +94,7 @@ Every command frame gets one ack, on the same connection:
 | `hold_queue` | Hold the song-request queue | none |
 | `resume_queue` | Resume the song-request queue | none |
 | `approve_next` | Approve the oldest pending request | `empty`, `full` |
-| `clear_queue` | Clear the request queue (and Music.app's queue) | `unavailable` |
+| `clear_queue` | Clear the request queue, Music.app's queue, and the WolfWave Requests playlist | `unavailable`, `playlist-clear-failed` |
 | `block_current` | Add the current song title to the blocklist | `empty` |
 | `overlay_toggle` | Hide or show the overlay cards. The connection stays open | `unavailable` |
 | `announce_song` | Post the current track to Twitch chat | `twitch`, `empty` |
@@ -96,7 +102,7 @@ Every command frame gets one ack, on the same connection:
 | `block_requester` | Block whoever requested the playing song | `empty` |
 | `cycle_audience` | Move to the next request audience, wrapping around | `unavailable` |
 
-`cycle_audience` steps through `everyone` → `subscribers` → `vipsAndSubs` → `modsOnly`.
+`cycle_audience` steps through `everyone` → `subscribers` → `vipsAndSubs` → `modsOnly`, then wraps back to `everyone`.
 
 ## Error codes
 
@@ -104,13 +110,16 @@ Every command frame gets one ack, on the same connection:
 |---|---|
 | `protocol` | Your `protocol` number doesn't match WolfWave's |
 | `unknown_action` | WolfWave doesn't know that action token |
-| `unauthorized` | Sent with the overlay token, or not from loopback |
+| `unauthorized` | The connection holds the overlay token. A control token used from another machine never gets this far, because that connection is closed first |
 | `disabled` | **Allow Stream Deck commands** is off |
 | `unavailable` | The service behind that action isn't ready |
 | `music` | Music.app refused the AppleScript call |
-| `empty` | Nothing to act on (no song, no pending request, no requester) |
+| `empty` | Nothing to act on (no song, no pending request, no playing request) |
 | `full` | The live request queue is at its cap; the request stays pending |
 | `twitch` | Not connected to Twitch chat |
+| `playlist-clear-failed` | `clear_queue` emptied the queue, but WolfWave couldn't empty the WolfWave Requests playlist. The queue is already clear |
+
+The official plugin treats any code it doesn't recognize as a plain failure. A custom client should do the same.
 
 ### Removed in v3
 
@@ -130,7 +139,7 @@ WolfWave pushes two frames to every connected client, so keys render without pol
 
 **`queue_state` fields:**
 
-- `count`: requests in the queue.
+- `count`: requests queued to play. It doesn't count the one playing now or any waiting for approval.
 - `pending`: requests waiting for approval.
 - `held`: whether the queue is on hold.
 - `audience`: who may use `!sr`.
@@ -145,14 +154,19 @@ WolfWave pushes two frames to every connected client, so keys render without pol
 
 **They're sent when:**
 
-- the request queue changes;
-- Twitch or Discord connects or disconnects;
+- the request queue or its hold state changes;
+- Twitch or Discord connects, disconnects, or is switched on or off;
 - a client connects;
 - a command succeeds.
 
-Control clients also receive the overlay frames (`now_playing`, `progress`, and so on).
+**On connect,** a client first gets `welcome` (`{ "type": "welcome", "server": "WolfWave", "version": "<app version>" }`, no `data`). Then come `widget_config`, `overlay_visibility`, `queue_upcoming`, and the current track (an empty `playback_state` when nothing is loaded). `queue_state` and `health` follow right after, because a new client triggers a fresh broadcast. The official plugin treats `welcome` as "connected".
+
+Control clients also receive the overlay frames (`now_playing`, `playback_state`, `widget_config`, `overlay_visibility`, `queue_upcoming`).
 While the overlay is hidden, they still get `now_playing` on every track change, so keys never go stale.
+`progress` frames go to everyone too, but only while a visible overlay is connected and a track is playing.
 The overlay frames are documented on the [OBS Widget](/docs/widget#message-contract) page.
+
+Not every key sends commands. **Now Playing** only listens: it paints from `now_playing` and `playback_state` and never sends anything.
 
 ## Try it from a terminal
 
@@ -175,7 +189,42 @@ You should see an ack and hear the track skip. Leave it open to watch `queue_sta
 - The Swift side lives in `Services/WebSocket/StreamDeckCommand.swift` (`StreamDeckControl.protocolVersion`).
 - The plugin mirror lives in `apps/streamdeck/src/wolfwave/protocol.ts` (`PROTOCOL_VERSION`, `ACTIONS`).
 - Change one, change the other in the same PR. Bump the version on any breaking change.
+- `apps/streamdeck/tests/protocol.test.ts` reads `StreamDeckCommand.swift` (actions, in order, and the version), `AppConstants.swift` (default port), and `WebSocketAuthToken.swift` (subprotocol prefix) as text and compares them with the plugin. A drift fails the test.
+- The `streamdeck` CI job runs `typecheck`, `bun test`, `pack`, and an icon-drift check. It runs on any change under `apps/streamdeck/`, on changes to those three Swift files, and on `assets/logo-mono.svg`, the wolf mark in the plugin icons.
 - The plugin's hold-to-confirm on **Clear Queue** and **Block Requester** is plugin behavior. The app runs those commands whenever they arrive.
+
+### Plugin source map
+
+The plugin is a separate bun workspace at `apps/streamdeck/`.
+
+| Path | Job |
+|---|---|
+| `src/plugin.ts` | Entry point. Connects at import time, registers the keys, applies the global settings (token and port), and relays the connection state to the Property Inspector |
+| `src/wolfwave/protocol.ts` | Wire layer: action tokens, command envelope, frame decoding, token subprotocol. Mirrors `StreamDeckCommand.swift` |
+| `src/wolfwave/state.ts` | Pure reducer from frames to key state. An unchanged state returns the same object, so keys don't repaint every second |
+| `src/wolfwave/client.ts` | The one shared socket: capped reconnect back-off, ack matching, and telling a refused token from a missing WolfWave |
+| `src/connection-status.ts` | Pure mapping from client state to the message the Property Inspector shows |
+| `src/actions/base.ts` | Shared key behavior: subscribe on appear, send on press, hold-to-confirm, and the Offline, Token?, and Update states |
+| `src/actions/index.ts` | One class per key, in manifest order |
+| `src/keyart.ts` | Every pixel the plugin draws: glyphs and key composers. The runtime and the icon generator share it |
+| `src/artwork.ts` | Fetches album art over HTTPS and inlines it as a data URI. Bounded size and time, cached by URL |
+| `src/marquee.ts` | Scrolling text for the Now Playing key |
+| `src/clock.ts` | The one place the plugin reads the time, so hold-to-confirm tests don't have to sleep |
+| `build.ts` | Bundles `src/plugin.ts` for Node (Stream Deck doesn't run plugins under Bun) into `bin/plugin.js` |
+| `com.mrdemonwolf.wolfwave.sdPlugin/` | The bundle Stream Deck loads: `manifest.json`, the `ui/` Property Inspector, and committed `imgs/`. `bin/` is build output and isn't committed |
+| `scripts/generate-icons.ts` | Bakes the manifest images and `marketing/app-icon.png` from `keyart.ts`. CI fails on drift |
+| `tests/` | `bun test`: protocol contract, reducer, client, key rendering, manifest, Property Inspector, key art, artwork, and marquee |
+
+Commands, run from the repo root:
+
+```bash
+bun run --filter streamdeck build      # bundle into sdPlugin/bin/plugin.js
+bun run --filter streamdeck dev        # same, rebuilding on every change
+bun run --filter streamdeck test       # bun test
+bun run --filter streamdeck typecheck  # tsc --noEmit
+bun run --filter streamdeck icons      # regenerate imgs/ from keyart.ts
+bun run --filter streamdeck pack       # build, then package dist/*.streamDeckPlugin
+```
 
 ## See also
 

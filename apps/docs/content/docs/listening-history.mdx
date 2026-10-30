@@ -23,10 +23,10 @@ Everything here lives in **Settings → History & Stats**.
 ## Turn it on
 
 1. Open **Settings → History & Stats**.
-2. Turn on **Listening History**. WolfWave starts saving plays.
+2. Turn on **Listening History**, or click **Turn on history** in the **What you'll get** card. WolfWave starts saving plays.
 3. Turn on **Show Stats & Charts** to see the dashboard, Monthly Wrap, and the `!stats` command.
 
-You can also turn on Listening History on the Mac settings step of the setup wizard.
+You can also turn on **Remember my listening history** on the last step of the setup wizard. Stats & Charts stay off until you turn them on here.
 
 Good to know:
 
@@ -41,28 +41,33 @@ Good to know:
 - **half its length**, or
 - **4 minutes**,
 
-whichever comes first. Each real listen is saved once.
+whichever comes first. Each real listen is saved once. If Music doesn't report a song's length, it counts after 4 minutes.
 
 ## Stats and charts
 
-With **Show Stats & Charts** on, the pane shows:
+With **Show Stats & Charts** on, the pane shows these once WolfWave has saved a play:
 
-- **Top list**: switch between **Artists**, **Tracks**, and **Albums**.
-- **Summary tiles**: plays and listening time for **This week**, **Today**, and **All time**.
-- **7-day trend**: plays per day for the last week.
-- **Listening by hour**: when in the day you listen most.
+- **Summary tiles**: plays and listening time for **This week**, **Today**, and **All time**. **This week** means the last 7 days, including today.
+- **Today's top track**: your most-played song today.
+- **Last 7 days**: plays per day.
+- **When you listen**: plays by hour of the day.
+- **Top**: switch between **Artists**, **Tracks**, and **Albums**.
+
+**Recently played** needs only Listening History. It lists your latest plays, newest first. Click **Load 5 more** for older ones. With History off it says **Nothing is being recorded**, and before your first play it says **Nothing recorded yet**.
 
 Everything is worked out on your Mac.
 
 ## Monthly Wrap
 
-**A Wrapped-style summary of any month.**
+**A Wrapped-style summary of a month.**
 
 1. In **Settings → History & Stats**, click **Monthly Wrap**.
-2. Pick a month.
-3. Click **Export as Image** to save a PNG, or use the share button to send it to Messages, Mail, AirDrop, and more.
+2. Use the arrows to step to a month you have plays for.
+3. Click **Export as Image** to save a PNG, or **Share** to send it to Messages, Mail, AirDrop, and more.
 
-A month with no plays shows an empty card.
+The card shows tracks played, time listened, artists and tracks heard, your top artist, and your top track. With two or more months recorded, a badge appears when a month beats every other: **Best month yet** for plays, **Most listening yet** for time.
+
+A month with no plays shows an empty card, with nothing to export or share. The card's color comes from your top track's cover art, which WolfWave looks up through Apple's iTunes Search, like it does for now-playing art.
 
 ## How long plays are kept
 
@@ -70,19 +75,23 @@ Pick a window under **Keep for**:
 
 | Keep for | What happens |
 |---|---|
-| **Forever** | Nothing is cleared automatically. This is the default. |
+| **Forever** | Nothing is cleared on a timer. WolfWave keeps your latest 10,000 plays in detail and folds older ones into running totals. This is the default. |
 | **7 / 30 / 90 / 180 / 365 days** | Older plays clear on their own. |
 
-- **A change applies right away.** Shortening the window asks you to confirm how many plays will be removed.
-- **Removed plays leave your stats too.** On **Forever**, older plays that WolfWave compacts still count toward all-time totals and top lists.
+- **A change applies right away.** If it would remove saved plays, WolfWave asks you to confirm how many first.
+- **Forever keeps your totals.** Folded plays still count toward **All time** and **Top**, so those numbers stay right.
+- **A time window drops those totals.** Picking 7 to 365 days removes older plays and the saved running totals. **All time** and **Top** then restart from the plays that are left, and going back to **Forever** won't bring them back.
+- **Monthly Wrap only sees detailed plays.** Months older than your latest 10,000 plays can't be shown.
 
 ## Clear your history
 
 1. Open **Settings → History & Stats**.
 2. In **Danger Zone**, click **Clear History**.
-3. Confirm. Every saved play is deleted. This can't be undone.
+3. Click **Clear** to confirm. Every saved play and the running totals are deleted. This can't be undone.
 
-Turning **Listening History** off stops new saves but keeps what's already there until you clear it.
+**Danger Zone** only shows while **Listening History** is on, and **Clear History** is greyed out when there's nothing to clear. If WolfWave can't finish clearing, it says **Couldn't finish clearing history** and retries before it saves another play.
+
+Turning **Listening History** off stops new saves but keeps what's already saved. It also turns off Stats and `!stats`, and hides **Keep for**, **Monthly Wrap**, and **Danger Zone**. To delete your plays, turn History back on, clear it, then turn it off again. **Erase All Data & Reset** in **Settings → Advanced** also deletes them, along with everything else WolfWave stores.
 
 ## The !stats chat command
 
@@ -90,13 +99,13 @@ Turning **Listening History** off stops new saves but keeps what's already there
 
 Set it up in **Settings → History & Stats**:
 
-1. Turn on **!stats command**. It needs Show Stats & Charts on and Twitch connected.
+1. Turn on **!stats command**. It needs Show Stats & Charts on and Twitch connected. If Twitch isn't connected, the card says so and offers **Open Twitch settings**.
 2. Pick a **Window**:
    - **Today**
    - **This stream**: since you went live. When you're offline, it answers with Today.
    - **Last 7 days**
    - **All time**
-3. Pick what to **Include**: plays, listening time, top track, top artist. At least one stays on.
+3. Pick what to **Include**: **Plays**, **Listening time**, **Top track**, **Top artist**. Plays and Top track start on, and at least one stays on.
 4. Check the **Example reply** to see the exact message.
 5. Set the cooldowns: **Everyone** (whole chat) and **Per person**. Both default to 15 seconds.
 
@@ -107,5 +116,5 @@ See [Bot Commands](/docs/bot-commands) for every command viewers can use.
 ## Where your data lives
 
 - **On this Mac only**, in WolfWave's Application Support folder.
-- **Not in settings backups or iCloud sync.** See [Back Up & Restore](/docs/backup).
+- **Your plays aren't in settings backups or iCloud sync.** Only the history settings are, so with **Sync with iCloud** the switches follow you to your other Macs. Each Mac keeps its own plays. See [Back Up & Restore](/docs/backup).
 - **Never uploaded.** See the [Privacy Policy](/docs/privacy-policy).

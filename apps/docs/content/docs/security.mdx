@@ -30,7 +30,7 @@ Found a vulnerability? Don't open a public issue. Follow the repo's [security po
 ## Credential Storage
 
 All credentials live in the macOS Keychain, accessed through the app's `KeychainService` wrapper.
-The Twitch fields are saved together as one record, so a sign-in or channel change can't half-finish.
+The Twitch fields are saved together as one record, so a sign-in or channel change can't half-finish. Settings backups and iCloud sync never include the tokens or your Twitch user ID. They carry only your public channel name.
 
 - **Twitch OAuth access token**. Used for Helix API + EventSub
 - **Twitch refresh token**. For silent token refresh
@@ -67,13 +67,14 @@ On every launch, stored tokens are validated. An expired access token refreshes 
 
 The built-in WebSocket server (port `8765` by default) binds to all interfaces so a second-PC OBS or a phone browser on the same LAN can connect. Authentication assigns one of two roles:
 
-- **Both tokens** are independent 64-character hex strings (32 random bytes), minted at first launch and stored separately in the macOS Keychain.
+- **Both tokens** are independent 64-character hex strings (32 random bytes), minted at first launch and stored separately in the macOS Keychain. If the Keychain can't be read, WolfWave uses a temporary token for that session and never overwrites the saved one.
 - **Overlay role**: a client presents `Sec-WebSocket-Protocol: wolfwave.overlay.<hex>`. Loopback and LAN peers may connect and receive state, but inbound commands are rejected.
 - **Control role**: a client presents `Sec-WebSocket-Protocol: wolfwave.control.<hex>`. The server accepts it only from a literal loopback IP (`127/8` or `::1`), and only this role may execute commands. Reusing the overlay secret with a control prefix does not authenticate.
 - **Selected subprotocols are revalidated** after the handshake before a connection enters the broadcast set.
 - **The static HTTP shell** (port `8766` by default) is unauthenticated. It injects only the overlay token into served HTML when the TCP peer is loopback **and** the `Host` header is a literal local name or address (`localhost`, `127/8`, `[::1]`), which blocks DNS-rebinding bootstrap. Token-bearing responses are marked `Cache-Control: no-store`.
 - **LAN URLs carry `?token=…` solely as an overlay bootstrap.** The widget script forwards it into the overlay subprotocol; the query never authenticates the HTTP request itself. Widget HTML enforces `no-referrer`, so cross-origin artwork requests cannot leak the URL token.
-- **Either token can be regenerated.** The overlay token is in **Settings → Stream Widgets**; the control token is in **Settings → Stream Deck**. Regenerating either one restarts the server and drops every connected client, so update your browser-source URL or Stream Deck plugin afterward.
+- **Either token can be replaced.** The **Overlay Token** is in **Settings → Stream Widgets**; the **Stream Deck Control Token** is in **Settings → Stream Deck**. Click **Regenerate** for a fresh one (it asks first), or paste your own: 64 hex characters, and different from the other token. Either change restarts the server and drops every connected client, so update your browser-source URL or Stream Deck plugin afterward.
+- **Streamer Mode locks both tokens.** [Streamer Mode](/docs/streamer-mode) keeps them hidden and turns off reveal, copy, edit, and regenerate, so they can't leak on stream.
 - **Logs redact both tokens** to their first 4 characters, never the full values.
 
 The [Stream Deck control channel](/docs/stream-deck) uses this listener but a separate credential and loopback-only authorization policy. Discord Rich Presence uses a separate local Unix socket (`$TMPDIR/discord-ipc-{0..9}`) that is never LAN-reachable.
@@ -88,7 +89,7 @@ External traffic uses encrypted transport. Local browser-source traffic is plain
 | `id.twitch.tv/oauth2` | HTTPS | Twitch OAuth |
 | `eventsub.wss.twitch.tv/ws` | WSS | Twitch EventSub WebSocket |
 | `itunes.apple.com/search` | HTTPS | Album artwork and Apple Music / song.link track URLs (Discord, widget, chat). song.link URLs are built locally and never fetched |
-| `api.music.apple.com` | HTTPS | Song-request search and Apple Music link lookup (MusicKit) |
+| `api.music.apple.com` | HTTPS | Song-request search, Apple Music link lookup, and the WolfWave Requests playlist in your library (MusicKit) |
 | `open.spotify.com/oembed`, `www.youtube.com/oembed` | HTTPS | Resolve Spotify and YouTube links pasted in chat for song requests |
 | iCloud Key-Value Storage | Apple-managed | Opt-in "Sync with iCloud" settings mirror. Off by default; only in builds signed with the iCloud entitlement |
 | `github.com/MrDemonWolf/wolfwave/releases/...` | HTTPS | Sparkle appcast + signed updates |
@@ -125,7 +126,7 @@ Stable vs. Nightly update channels are covered in [Nightly Builds](/docs/nightly
 
 ## Listening History
 
-Listening History, Stats, and Monthly Wrap are **off by default**. When enabled, the play log is an append-only file inside the app's sandbox; nothing is uploaded and no server is contacted. Recording rules and reset options live in [Listening History](/docs/listening-history), and the privacy commitments are in the [Privacy Policy](/docs/privacy-policy).
+Listening History, Stats, and Monthly Wrap are **off by default**. When enabled, the play log is an append-only file inside the app's sandbox, and the log is never uploaded. The `!stats` command posts only a one-line summary to your Twitch chat when a viewer asks. Recording contacts no server; the one lookup is Monthly Wrap asking Apple's iTunes Search for your top track's cover art. Recording rules and reset options live in [Listening History](/docs/listening-history), and the privacy commitments are in the [Privacy Policy](/docs/privacy-policy).
 
 ## Code Signing & Notarization
 
@@ -137,7 +138,7 @@ WolfWave ships as a signed and notarized DMG:
 - **Apple notarization** ensures the app is free of known malware
 - **Stapled ticket** allows offline Gatekeeper verification
 
-No Gatekeeper warnings on first launch.
+Gatekeeper trusts it, so there's no "unidentified developer" warning. macOS may still ask you to confirm the first launch.
 
 ## For Contributors
 
@@ -151,27 +152,31 @@ API identifiers live in `Config.xcconfig`, which is gitignored so each developer
 |-----|---------|------------|
 | `TWITCH_CLIENT_ID` | Identifies the app to Twitch | Public (not a secret) |
 | `DISCORD_CLIENT_ID` | Identifies the app to Discord | Public (not a secret) |
-| `GITHUB_REPO_OWNER` | GitHub owner used for Sparkle updates + issue links | Public (branding) |
-| `GITHUB_REPO_NAME` | GitHub repo name used for Sparkle updates + issue links | Public (branding) |
+| `GITHUB_REPO_OWNER` | GitHub owner behind the repo, Releases, and bug-report links | Public (branding) |
+| `GITHUB_REPO_NAME` | GitHub repo name behind the repo, Releases, and bug-report links | Public (branding) |
 | `DOCS_URL` | Documentation site root; privacy/terms/changelog derive from it | Public (branding) |
 | `COMMUNITY_DISCORD_URL` | Community Discord invite in tray menu | Public (branding) |
-| `COPYRIGHT_HOLDER` | Legal entity in About + Monthly Wrap footers | Public (branding) |
+| `COPYRIGHT_HOLDER` | Legal entity in the About pane and the setup completion screen | Public (branding) |
 
 All values are public: OAuth client identifiers and branding strings, not secrets. The branding keys are optional fork overrides that fall back to the upstream MrDemonWolf defaults when blank.
 
 ### Entitlements
 
-WolfWave runs inside the macOS App Sandbox with the minimum required entitlements:
+WolfWave runs inside the macOS App Sandbox with the minimum required entitlements. Xcode build settings turn on the sandbox, Hardened Runtime, and network access. The other keys below come from `WolfWave.entitlements`, except the iCloud key, which is added when a release is signed. Keys drop the `com.apple.security.` prefix, except the iCloud one.
 
 | Entitlement | Purpose |
 |-------------|---------|
 | `app-sandbox` | Required for Mac App Store and adopted here for defense-in-depth; notarization requires Hardened Runtime, not App Sandbox. |
+| `network.client` | Outgoing connections to Twitch, Apple, Spotify, YouTube, and GitHub |
+| `network.server` | Lets the local overlay and widget servers accept connections |
 | `keychain-access-groups` | Secure credential storage |
 | `files.user-selected.read-write` | Settings export/import and log-export file pickers (NSSavePanel / NSOpenPanel). |
-| `automation.apple-events` | ScriptingBridge to Apple Music (Music is driven by Apple Events, not MusicKit) |
+| `automation.apple-events` | Music.app is controlled with Apple Events: ScriptingBridge reads now playing, AppleScript plays and skips. MusicKit is used only by Song Requests. |
+| `scripting-targets` | Declares `com.apple.Music` as the scripting target, alongside the Apple Events entries |
 | `temporary-exception.apple-events` | Belt-and-suspenders grant scoped to `com.apple.Music` for pre-existing TCC entries |
 | `temporary-exception.sbpl` | Discord IPC socket access, narrowed to the `discord-ipc-N` socket path pattern |
 | `temporary-exception.files.absolute-path.read-write` | Read-write access to `/private/var/folders/` where Discord exposes its IPC sockets |
+| `com.apple.developer.ubiquity-kvstore-identifier` | Opt-in iCloud sync. Added when a release is signed with an iCloud profile, so it isn't in the committed entitlements files. |
 
 <Callout type="warn">
   These entitlements are load-bearing. Removing any of the Apple Events entries silently breaks Music.app control under the sandbox.
