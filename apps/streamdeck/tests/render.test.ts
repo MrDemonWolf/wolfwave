@@ -10,7 +10,8 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { ACTION_CLASSES } from "../src/actions/index.js";
+import { ACTION_CLASSES, TrackTimeAction } from "../src/actions/index.js";
+import { trackTimeImage, nowPlayingImage } from "../src/keyart.js";
 import { WolfWaveClient } from "../src/wolfwave/client.js";
 import {
   initialState,
@@ -42,6 +43,7 @@ function fakeKey(id = "key-1") {
     },
     showOk: async () => {},
     showAlert: async () => {},
+    setSettings: async (_settings: Record<string, unknown>) => {},
   };
   return key;
 }
@@ -57,6 +59,157 @@ const timers: Array<ReturnType<typeof setInterval>> = [];
 afterEach(() => {
   for (const t of timers) clearInterval(t);
   timers.length = 0;
+});
+
+describe("connection artwork", () => {
+  test("static keys restore manifest art after a disconnect and reconnect", async () => {
+    const client = new WolfWaveClient();
+    const key = fakeKey();
+    const action = new ACTION_CLASSES[1](client); // Next Track has no live image.
+    action.onWillAppear({ action: key } as never);
+    await Bun.sleep(0);
+    expect(key.painted.images.at(-1)).toContain("Offline");
+
+    (client as unknown as { setState(state: WolfWaveState): void }).setState({ ...initialState, phase: "connected" });
+    await Bun.sleep(0);
+    expect(key.painted.images.at(-1)).toBe("<cleared>");
+    const images = key.painted.images.length;
+    (client as unknown as { setState(state: WolfWaveState): void }).setState({ ...initialState, phase: "connected", queueCount: 1 });
+    await Bun.sleep(0);
+    expect(key.painted.images.length).toBe(images);
+    action.onWillDisappear({ action: key } as never);
+  });
+
+  test("a stale reconnect does not render live state after going offline again", async () => {
+    const client = new WolfWaveClient();
+    const key = fakeKey();
+    const action = new ACTION_CLASSES[0](client); // Play / Pause sets live state.
+    const push = (state: WolfWaveState) => (client as unknown as { setState(state: WolfWaveState): void }).setState(state);
+    action.onWillAppear({ action: key } as never);
+    await Bun.sleep(0);
+    let release: () => void = () => {};
+    let started: () => void = () => {};
+    const restored = new Promise<void>((resolve) => { started = resolve; });
+    const paint = key.setImage;
+    key.setImage = async (image?: string) => {
+      await paint(image);
+      if (image === undefined) {
+        started();
+        await new Promise<void>((resolve) => { release = resolve; });
+      }
+    };
+    push({ ...initialState, phase: "connected", isPlaying: true });
+    await restored;
+    client.stop();
+    await Bun.sleep(0);
+    release();
+    await Bun.sleep(0);
+    expect(key.painted.images.at(-1)).toContain("Offline");
+    expect(key.painted.states.at(-1)).toBe(0);
+    action.onWillDisappear({ action: key } as never);
+  });
+});
+
+describe("track time", () => {
+  test("formats elapsed, remaining, unknown and clamped progress", () => {
+    expect(trackTimeImage(65, 180, false)).toContain("1:05");
+    expect(trackTimeImage(65, 180, true)).toContain("−1:55");
+    expect(trackTimeImage(1, 0, false)).toContain("--:--");
+    expect(trackTimeImage(300, 180, true)).toContain("−0:00");
+    expect(trackTimeImage(65, 180, true, true)).toContain("PAUSED");
+    expect(trackTimeImage(0, 0, true, true)).not.toContain("PAUSED");
+  });
+
+  test("updates only time keys and retains each key's chosen mode", async () => {
+    const client = new WolfWaveClient();
+    const push = (frame: object) => (client as unknown as { handleMessage(text: string): void }).handleMessage(JSON.stringify(frame));
+    push({ type: "welcome", version: "2.2" });
+    push({ type: "now_playing", data: { track: "Howl", elapsed: 65, duration: 180, isPlaying: true } });
+    const action = new TrackTimeAction(client);
+    const elapsed = fakeKey("elapsed");
+    const remaining = fakeKey("remaining");
+    let saved: Record<string, unknown> = {};
+    elapsed.setSettings = async (settings) => { saved = settings; };
+    const appear = (key: typeof elapsed, mode: boolean) => action.onWillAppear({ action: key, payload: { settings: { remaining: mode } } } as never);
+    appear(elapsed, false);
+    appear(remaining, true);
+    const now = new ACTION_CLASSES[ACTION_CLASSES.length - 1](client);
+    const other = fakeKey("now");
+    (now as unknown as { onWillAppear(ev: unknown): void }).onWillAppear({ action: other });
+    await Bun.sleep(10);
+    const before = other.painted.images.length;
+    push({ type: "progress", data: { elapsed: 66, duration: 180, isPlaying: true } });
+    await Bun.sleep(10);
+    expect(elapsed.painted.images.at(-1)).toContain("1:06");
+    expect(remaining.painted.images.at(-1)).toContain("−1:54");
+    expect(other.painted.images.length).toBe(before);
+    await action.onKeyDown({ action: elapsed, payload: { settings: {} } });
+    expect(elapsed.painted.images.at(-1)).toContain("−1:54");
+    expect(saved.remaining).toBe(true);
+    action.onWillDisappear({ action: elapsed } as never);
+    appear(elapsed, saved.remaining === true);
+    await Bun.sleep(10);
+    expect(elapsed.painted.images.at(-1)).toContain("−1:54");
+    push({ type: "now_playing", data: { track: "Howl", elapsed: 68, duration: 180, isPlaying: false } });
+    await Bun.sleep(10);
+    expect(remaining.painted.images.at(-1)).toContain("−1:52");
+    push({ type: "playback_state", data: { track: "", isPlaying: false } });
+    await Bun.sleep(10);
+    expect(remaining.painted.images.at(-1)).toContain("--:--");
+    action.onWillDisappear({ action: elapsed } as never);
+    const count = elapsed.painted.images.length;
+    push({ type: "progress", data: { elapsed: 67, duration: 180, isPlaying: true } });
+    await Bun.sleep(10);
+    expect(elapsed.painted.images.length).toBe(count);
+    action.onWillDisappear({ action: remaining } as never);
+    (now as unknown as { onWillDisappear(ev: unknown): void }).onWillDisappear({ action: other });
+  });
+
+  test("shows a pause badge over artwork only when paused", () => {
+    expect(nowPlayingImage({ label: "Song", paused: true })).toContain('M56 8h2.5');
+    expect(nowPlayingImage({ label: "Song" })).not.toContain('M56 8h2.5');
+  });
+
+  test("a delayed time paint cannot overwrite the offline reset", async () => {
+    const client = new WolfWaveClient();
+    const push = (frame: object) => (client as unknown as { handleMessage(text: string): void }).handleMessage(JSON.stringify(frame));
+    push({ type: "welcome", version: "2.2" });
+    push({ type: "now_playing", data: { track: "Howl", elapsed: 65, duration: 180, isPlaying: true } });
+    const action = new TrackTimeAction(client);
+    const key = fakeKey();
+    let release: () => void = () => {};
+    let started: () => void = () => {};
+    const startedPromise = new Promise<void>((resolve) => { started = resolve; });
+    let delayNextImage = true;
+    key.setImage = async (image?: string) => {
+      if (delayNextImage) {
+        delayNextImage = false;
+        started();
+        await new Promise<void>((resolve) => { release = resolve; });
+      }
+      key.painted.images.push(image ?? "<cleared>");
+    };
+    action.onWillAppear({ action: key, payload: { settings: {} } } as never);
+    await startedPromise;
+    client.stop();
+    release();
+    await Bun.sleep(10);
+    expect(key.painted.images.at(-1)).toContain("Offline");
+    expect(key.painted.titles.at(-1)).toBe("");
+    action.onWillDisappear({ action: key } as never);
+  });
+
+  test("reconfiguration clears the old track time immediately", () => {
+    const client = new WolfWaveClient();
+    const push = (frame: object) => (client as unknown as { handleMessage(text: string): void }).handleMessage(JSON.stringify(frame));
+    push({ type: "welcome", version: "2.2" });
+    push({ type: "now_playing", data: { track: "Howl", elapsed: 65, duration: 180 } });
+    expect(client.currentProgress?.elapsed).toBe(65);
+    client.configure({ port: 8765, token: "bad" });
+    expect(client.currentProgress).toBeNull();
+    expect(client.currentState.phase).toBe("disconnected");
+    client.stop();
+  });
 });
 
 /** A live connection with a long track, i.e. the marquee case. */
@@ -191,7 +344,7 @@ describe("NowPlayingAction marquee lifecycle", () => {
     push(client, withPhase(playing, "disconnected"));
     await Bun.sleep(20);
     expect(scrollerCount(action)).toBe(0);
-    expect(key.painted.titles.at(-1)).toBe("Offline");
+    expect(key.painted.images.at(-1)).toContain("Offline");
 
     // No further frames once the marquee is stopped.
     const frames = key.painted.images.length;

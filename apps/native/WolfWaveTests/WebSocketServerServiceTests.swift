@@ -43,14 +43,31 @@ final class WebSocketServerServiceTests: XCTestCase {
             isOverlayVisible: true,
             isPlaying: true,
             duration: 0,
-            connectionCount: 1
+            connectionCount: 1,
+            controlCount: 0
         ))
         XCTAssertTrue(WebSocketServerService.shouldRunProgressTimer(
             isEnabled: true,
             isOverlayVisible: true,
             isPlaying: true,
             duration: 180,
-            connectionCount: 1
+            connectionCount: 1,
+            controlCount: 0
+        ))
+    }
+
+    func testProgressTimerPolicyKeepsControlClientsLiveWhenOverlayHidden() {
+        XCTAssertTrue(WebSocketServerService.shouldRunProgressTimer(
+            isEnabled: true, isOverlayVisible: false, isPlaying: true,
+            duration: 180, connectionCount: 1, controlCount: 1
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldRunProgressTimer(
+            isEnabled: true, isOverlayVisible: false, isPlaying: true,
+            duration: 180, connectionCount: 1, controlCount: 0
+        ))
+        XCTAssertFalse(WebSocketServerService.shouldRunProgressTimer(
+            isEnabled: true, isOverlayVisible: false, isPlaying: false,
+            duration: 180, connectionCount: 0, controlCount: 1
         ))
     }
 

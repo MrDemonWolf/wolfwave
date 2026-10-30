@@ -131,6 +131,12 @@ export interface PlaybackStateData {
   album: string;
 }
 
+export interface ProgressData {
+  elapsed: number;
+  duration: number;
+  isPlaying: boolean;
+}
+
 export interface QueueStateData {
   count: number;
   pending: number;
@@ -216,6 +222,7 @@ export type InboundFrame =
   | { kind: "welcome"; server: string; version: string }
   | { kind: "now_playing"; data: NowPlayingData }
   | { kind: "playback_state"; data: PlaybackStateData }
+  | { kind: "progress"; data: ProgressData }
   | { kind: "queue_state"; data: QueueStateData }
   | { kind: "health"; data: HealthData }
   | AckFrame
@@ -225,7 +232,7 @@ export type InboundFrame =
  * Decodes one inbound text frame.
  *
  * Returns `null` only for frames that aren't usable JSON objects with a `type`.
- * Recognized-but-unmodelled types (`progress`, `widget_config`) come back as
+ * Recognized-but-unmodelled types (such as `widget_config`) come back as
  * `unknown` rather than `null` so callers can distinguish "not for us" from
  * "malformed", and so a future app-side frame type doesn't look like corruption.
  */
@@ -264,6 +271,12 @@ export function parseFrame(text: string): InboundFrame | null {
           isPlaying: bool(data.isPlaying),
           artworkURL: str(data.artworkURL),
         },
+      };
+
+    case "progress":
+      return {
+        kind: "progress",
+        data: { elapsed: num(data.elapsed), duration: num(data.duration), isPlaying: bool(data.isPlaying) },
       };
 
     case "playback_state":

@@ -99,4 +99,10 @@ describe("manifest / action registration", () => {
       expect(entry.States.length).toBeLessThanOrEqual(2);
     }
   });
+
+  test("multi-state keys follow WolfWave instead of toggling before a command succeeds", () => {
+    for (const entry of manifest.Actions) {
+      if (entry.States.length === 2) expect(entry.DisableAutomaticStates).toBe(true);
+    }
+  });
 });

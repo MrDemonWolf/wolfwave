@@ -20,6 +20,7 @@ import {
   tokenSubprotocol,
   type AckFrame,
   type WolfWaveAction,
+  type ProgressData,
 } from "./protocol.js";
 import {
   initialState,
@@ -73,6 +74,8 @@ export class WolfWaveClient {
   private stopped = true;
 
   private readonly stateListeners = new Set<(s: WolfWaveState) => void>();
+  private progress: ProgressData | null = null;
+  private readonly progressListeners = new Set<(progress: ProgressData | null) => void>();
   private readonly ackListeners = new Set<(a: AckFrame) => void>();
   /**
    * Keys awaiting an ack, bucketed by action token and resolved FIFO.
@@ -108,6 +111,15 @@ export class WolfWaveClient {
 
   get currentState(): WolfWaveState {
     return this.state;
+  }
+
+  get currentProgress(): ProgressData | null {
+    return this.progress;
+  }
+
+  onProgress(listener: (progress: ProgressData | null) => void): () => void {
+    this.progressListeners.add(listener);
+    return () => this.progressListeners.delete(listener);
   }
 
   onState(listener: (state: WolfWaveState) => void): () => void {
@@ -159,6 +171,8 @@ export class WolfWaveClient {
     this.clearTimer();
     this.closeSocket();
     this.flushPending();
+    this.setProgress(null);
+    this.setState(withPhase(this.state, "disconnected"));
     this.settings = settings;
     this.rejected = false;
     this.attempt = 0;
@@ -172,6 +186,7 @@ export class WolfWaveClient {
     this.clearTimer();
     this.closeSocket();
     this.flushPending();
+    this.setProgress(null);
     this.setState(withPhase(this.state, "disconnected"));
   }
 
@@ -274,7 +289,14 @@ export class WolfWaveClient {
       for (const listener of this.ackListeners) listener(frame);
     }
 
-    this.setState(reduce(this.state, frame));
+    const previous = this.state;
+    this.setState(reduce(previous, frame));
+    if (frame.kind === "now_playing" || frame.kind === "progress") {
+      this.setProgress(frame.data);
+    } else if (frame.kind === "playback_state" &&
+      (!frame.data.track || frame.data.track !== previous.track || frame.data.artist !== previous.artist || frame.data.album !== previous.album)) {
+      this.setProgress(null);
+    }
   }
 
   /** Records that a press timed out and its ack may still arrive. */
@@ -381,6 +403,12 @@ export class WolfWaveClient {
   private setState(next: WolfWaveState): void {
     if (next === this.state) return;
     this.state = next;
+    if (next.phase !== "connected") this.setProgress(null);
     for (const listener of this.stateListeners) listener(next);
+  }
+
+  private setProgress(progress: ProgressData | null): void {
+    this.progress = progress;
+    for (const listener of this.progressListeners) listener(progress);
   }
 }

@@ -132,7 +132,7 @@ describe("reduce", () => {
 /** An unchanged fold must return the same object so subscribers can skip repaints. */
 describe("reference stability", () => {
   test("an unchanged fold returns the same object", () => {
-    // This is what stops a per-second `progress`/`now_playing` re-emit from
+    // This is what stops an unchanged `now_playing` re-emit from
     // repainting every visible key.
     const state = reduce(connected, {
       kind: "queue_state",
@@ -149,6 +149,10 @@ describe("reference stability", () => {
     expect(reduce(connected, { kind: "unknown", type: "progress" })).toBe(
       connected,
     );
+  });
+
+  test("progress does not repaint ordinary keys", () => {
+    expect(reduce(connected, { kind: "progress", data: { elapsed: 12, duration: 180, isPlaying: true } })).toBe(connected);
   });
 
   test("an unchanged health payload does not allocate", () => {
