@@ -204,6 +204,8 @@ struct TwitchSettingsView: View {
             Task { @MainActor in await viewModel.clearCredentials() }
         case .joinChannel:
             viewModel.joinChannel()
+        case .reloadCredentials:
+            Task { @MainActor in await viewModel.loadSavedCredentials() }
         }
     }
 

@@ -190,31 +190,6 @@ final class TwitchViewModel {
         return "Expires in about \(minutes) min"
     }
 
-    /// What the error banner's Try Again button should re-run.
-    ///
-    /// `.retry` means a different thing per failure: a failed sign-in retries
-    /// the sign-in, a failed sign-out retries the sign-out. Routing every one
-    /// of them to Join (the old behavior) made Try Again on an expired code try
-    /// to join a channel with no account.
-    nonisolated enum RetryTarget: Equatable, Sendable {
-        case signIn
-        case signOut
-        case joinChannel
-    }
-
-    /// Maps a surfaced failure to the work its Try Again button repeats.
-    nonisolated static func retryTarget(for error: UserFacingError) -> RetryTarget {
-        switch error.id {
-        case "twitch.oauthFailed", "twitch.deviceCodeExpired",
-             "twitch.accountSwitchDisconnectFailed":
-            return .signIn
-        case "twitch.credentialClearFailed", "twitch.signOutDisconnectFailed":
-            return .signOut
-        default:
-            return .joinChannel
-        }
-    }
-
     /// Cached reference to the Twitch chat service
     @ObservationIgnored private var cachedTwitchService: TwitchChatService?
 

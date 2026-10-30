@@ -8,18 +8,38 @@
 
 import Foundation
 
-/// Builds a GitHub new-issue URL with a prefilled body containing system
-/// information so users can file bug reports with minimal friction.
+/// Builds a GitHub new-issue URL that opens the `bug_report.yml` issue form
+/// with this install's details already filled in, so users can file bug
+/// reports with minimal friction.
 ///
-/// The generated URL targets the `bug_report.yml` issue form template at
-/// the project repository and embeds:
+/// GitHub issue forms ignore `body=`. A form prefills only the fields a query
+/// parameter names by their `id`, so each value goes to its own field (see
+/// ``FormField``):
 /// - App version + build
 /// - macOS version
-/// - CPU architecture
-/// - Install method (Homebrew vs DMG)
+/// - The full environment block (architecture, install method, log size,
+///   diagnostics opt-in, and the last crash when there was one)
 ///
 /// Kept as a pure value type to allow unit testing without UI dependencies.
 enum BugReportURL {
+
+    // MARK: - Form Fields
+
+    /// The issue form field ids this URL prefills.
+    ///
+    /// Each must match the `id:` of a text field (`input` or `textarea`) in
+    /// `.github/ISSUE_TEMPLATE/bug_report.yml`; `make lint-sync` fails when one
+    /// doesn't. GitHub only prefills text fields from a URL, so the required
+    /// Install method dropdown is left for the reporter (the environment block
+    /// names it anyway).
+    enum FormField {
+        /// The "App version" input.
+        static let appVersion = "app-version"
+        /// The "macOS version" input.
+        static let osVersion = "os-version"
+        /// The "Environment" textarea, which takes ``DiagnosticSnapshot/markdownBullets``.
+        static let environment = "environment"
+    }
 
     // MARK: - Building
 
@@ -32,53 +52,24 @@ enum BugReportURL {
     ///
     /// - Parameters:
     ///   - base: Base new-issue URL (e.g. `AppConstants.URLs.githubIssuesNew`).
-    ///   - snapshot: The environment to embed in the issue body.
-    /// - Returns: A URL pointing to the GitHub issue form with prefilled body,
-    ///   or `nil` if the base URL is malformed.
+    ///   - snapshot: The environment to fill into the form.
+    /// - Returns: A URL pointing to the GitHub issue form with its fields
+    ///   prefilled, or `nil` if the base URL is malformed.
     static func make(base: String, snapshot: DiagnosticSnapshot) -> URL? {
-        make(base: base, environment: snapshot.markdownBullets)
-    }
-
-    /// Assembles the issue-form query (`template`, `labels`, `title`, `body`)
-    /// around a pre-rendered Markdown environment block. `URLComponents`
-    /// percent-encodes the body.
-    private static func make(base: String, environment: String) -> URL? {
         guard var components = URLComponents(string: base) else { return nil }
-
-        let body = """
-        ## Description
-
-        <!-- What went wrong? -->
-
-        ## Steps to Reproduce
-
-        1.
-        2.
-        3.
-
-        ## Expected Behavior
-
-        ## Actual Behavior
-
-        ## Environment
-
-        \(environment)
-
-        ## Logs
-
-        <!--
-        Attach the exported diagnostics file, or paste the relevant part here.
-        Settings → Advanced → Export Logs writes one file containing your
-        environment, the last crash if there was one, and every rotated log.
-        -->
-        """
 
         components.queryItems = [
             URLQueryItem(name: "template", value: "bug_report.yml"),
             URLQueryItem(name: "labels", value: "bug"),
             URLQueryItem(name: "title", value: "[Bug] "),
-            URLQueryItem(name: "body", value: body)
+            URLQueryItem(name: FormField.appVersion, value: "\(snapshot.appVersion) (build \(snapshot.build))"),
+            URLQueryItem(name: FormField.osVersion, value: snapshot.osVersion),
+            URLQueryItem(name: FormField.environment, value: snapshot.markdownBullets)
         ]
+        // URLComponents leaves `+` as is, and GitHub decodes it as a space, so a
+        // crash note naming a class method (`+[NSObject foo]`) would lose it.
+        components.percentEncodedQuery = components.percentEncodedQuery?
+            .replacingOccurrences(of: "+", with: "%2B")
 
         return components.url
     }

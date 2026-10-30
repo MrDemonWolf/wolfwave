@@ -142,7 +142,7 @@ Press **⌘R** in Xcode. Or build from the terminal with `make build`.
 | `make lint-baseline` | Regenerate the baseline. It may only shrink (needs Docker) |
 | `make lint-crash-safety` | No new force unwrap, `try!`, or `as!` (needs Docker) |
 | `make lint-headers` | Swift file-header convention (needs Node) |
-| `make lint-sync` | Source-derived lists, component catalog, docs values (incl. ports), lint claims, release-notes and version script tests (needs Node) |
+| `make lint-sync` | Source-derived lists, component catalog, docs values (incl. ports), lint claims, bug-report form fields, release-notes and version script tests (needs Node) |
 | `make widget` | Rebuild the OBS widget into `Resources/widget.html` (needs bun) |
 | `make icons` | Regenerate the Debug app icon from `AppIcon.icon` (needs bun) |
 | `make sponsor-config` | Regenerate `SponsorConfig.generated.swift` from `FUNDING.yml` |
@@ -347,7 +347,7 @@ Most of these are called by the `Makefile` or a workflow, so you rarely run them
 | `scripts/check-test-results.sh` | Reads `xcodebuild` output and prints the test total, failures, and Swift Testing share. Fails on a real test failure or on no results, not on test-host noise | `make test`, `make test-verbose` |
 | `scripts/check-ui-test-preflight.sh` | Stops `make test-ui` when WolfWave Dev is paused in a debugger. Warns when a copy is running | `make test-ui` |
 | `scripts/check-generated-drift.sh` | Fails when a generated file differs from its source | `make check-drift`, CI |
-| `scripts/check-sync.mjs` | Fails on source and docs drift: token-derived Swift lists, component catalog entries, widget values in the docs, ports in the docs, and design-system lint claims | `make lint-sync`, CI |
+| `scripts/check-sync.mjs` | Fails on source and docs drift: token-derived Swift lists, component catalog entries, widget values in the docs, ports in the docs, design-system lint claims, and the bug-report form fields the app fills in | `make lint-sync`, CI |
 | `scripts/check-headers.mjs` | Checks the file header on every Swift file | `make lint-headers`, CI |
 | `scripts/clean-dev.sh` | Resets WolfWave Dev to a fresh first run | `make clean-dev` |
 | `scripts/generate-sponsor-config.sh` | Writes `SponsorConfig.generated.swift` from `FUNDING.yml` | `make sponsor-config` |

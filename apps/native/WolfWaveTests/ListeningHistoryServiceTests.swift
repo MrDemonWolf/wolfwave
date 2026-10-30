@@ -172,6 +172,30 @@ struct ListeningHistoryServiceTests {
         #expect(store.loadAll().count == 3 - count)
     }
 
+    @Test("Leaving Forever counts the All time totals a finite window deletes")
+    func retentionImpactCountsLifetimeTally() async {
+        DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays)
+        defer { DefaultsStore.store.removeObject(forKey: AppConstants.UserDefaults.historyRetentionDays) }
+        let dir = makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // One recent play in the log and one folded play in the lifetime tally:
+        // nothing is old enough to expire, yet a finite window deletes the tally.
+        let fixture = seedClearFixture(directory: dir)
+        let service = makeService(enabled: true, directory: dir, store: fixture.log)
+        await service.loadFromDisk()
+
+        #expect(service.expiredRecordCount(retentionDays: 30) == 0)
+        let impact = service.retentionImpact(retentionDays: 30)
+        #expect(impact == RetentionImpact(expiredPlays: 0, lifetimeTallyPlays: 1))
+        #expect(impact.deletesData)
+        #expect(service.retentionImpact(retentionDays: 0) == .empty)
+
+        // The count is real: applying the window deletes exactly that tally.
+        service.setRetentionDays(30)
+        #expect(fixture.tally.load().isEmpty)
+        #expect(service.retentionImpact(retentionDays: 7) == .empty)
+    }
+
     /// - Parameter store: Pass the same `PlayLogStore` the test asserts through
     ///   whenever it inspects the log without a preceding `shutdown()`.
     ///   `PlayLogStore.append` is async on the instance's own serial `ioQueue`,

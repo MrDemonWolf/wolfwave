@@ -333,6 +333,10 @@ struct TwitchViewModelSignInHelperTests {
             TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.accountSwitchDisconnectFailed()) == .signIn)
         #expect(
             TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.connectionFailed("boom")) == .joinChannel)
+        // A Keychain read that failed reads it again. Joining instead checks
+        // the channel field, which is still empty, and blames the channel name.
+        #expect(
+            TwitchViewModel.retryTarget(for: TwitchViewModel.Failure.keychainUnreadable()) == .reloadCredentials)
     }
 
     @Test("An expired code offers a fresh sign-in, not a generic failure")
@@ -412,5 +416,39 @@ struct TwitchViewModelOAuthStartTests {
 
         await viewModel.cancelOAuth()
         await flow?.value
+    }
+}
+
+/// Try Again on "Couldn't read your saved Twitch sign-in". Holds the shared-state
+/// lock because loading reads the re-auth flag from `DefaultsStore`, and binds its
+/// own Keychain backend so the injected read failure reaches only this test.
+@Suite("Twitch ViewModel Keychain read retry", .isolatedSharedTestState)
+@MainActor
+struct TwitchViewModelKeychainRetryTests {
+
+    @Test("Try Again after a failed Keychain read loads the saved sign-in")
+    func failedReadReloadsOnRetry() async throws {
+        let backend = InspectableKeychainBackend()
+        try await KeychainService.$backendBox.withValue(KeychainService.BackendBox(backend)) {
+            try KeychainService.saveTwitchCredentialGrant(.init(
+                accessToken: "access", refreshToken: "refresh",
+                username: "wolfbot", userID: "42", channelID: "mrdemonwolf"))
+            backend.failNextLoad(for: KeychainService.twitchCredentialGrantAccount)
+            let viewModel = TwitchViewModel()
+
+            await viewModel.loadSavedCredentials()
+            let failure = try #require(viewModel.connectionError)
+            #expect(failure.id == "twitch.keychainUnreadable")
+            #expect(TwitchViewModel.retryTarget(for: failure) == .reloadCredentials)
+            #expect(!viewModel.credentialsSaved)
+
+            // What Try Again runs for this failure (`TwitchSettingsView.retry`).
+            viewModel.connectionError = nil
+            await viewModel.loadSavedCredentials()
+            #expect(viewModel.connectionError == nil)
+            #expect(viewModel.credentialsSaved)
+            #expect(viewModel.botUsername == "wolfbot")
+            #expect(viewModel.channelID == "mrdemonwolf")
+        }
     }
 }

@@ -41,7 +41,8 @@ struct PermissionDeniedBanner: View {
                         .accessibilityHidden(true)
                 }
 
-                Text("Turn on Music access and WolfWave can show your current track on Twitch, Discord, and your overlay. We only read what's playing, never play, pause, skip, or change your library.")
+                Text("Turn on Music access so WolfWave can show your current track on Twitch, Discord, "
+                    + "and your overlay. It also powers your play controls and song requests.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

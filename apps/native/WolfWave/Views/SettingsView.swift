@@ -297,6 +297,8 @@ struct SettingsView: View {
                     .accessibilityIdentifier("resetSettingsErrorDismiss")
             }
         } message: {
+            // An alert shows its message as plain text, so reset errors carry
+            // no Markdown: `**bold**` would print its asterisks here.
             Text(resetError?.message ?? "")
         }
         // Clear on the source-of-truth lifecycle event so every dismissal path
@@ -560,6 +562,20 @@ struct SettingsView: View {
         )
     }
 
+    /// The alert error for a Keychain sweep that macOS refused. The reset
+    /// stops here, before any preference or file is removed.
+    static func keychainResetError() -> UserFacingError {
+        UserFacingError(
+            id: "settings.resetAborted",
+            title: "Reset stopped partway",
+            cause: "Your saved Twitch and Discord sign-ins couldn't be removed, "
+                + "so nothing was erased.",
+            fix: "Try again. If it keeps failing, restart your Mac and retry.",
+            severity: .error,
+            actions: [.retry, .reportBug]
+        )
+    }
+
     /// Performs factory-reset teardown in order; notably, Twitch must finish
     /// leaving before a later account or relaunch can reuse the service.
     private func performResetSettings() async {
@@ -590,15 +606,7 @@ struct SettingsView: View {
         do {
             try KeychainService.deleteAll()
         } catch {
-            resetError = UserFacingError(
-                id: "settings.resetAborted",
-                title: "Reset stopped partway",
-                cause: "Your saved Twitch and Discord sign-ins couldn't be removed, "
-                    + "so **nothing was erased**.",
-                fix: "Try again. If it keeps failing, restart your Mac and retry.",
-                severity: .error,
-                actions: [.retry, .reportBug]
-            )
+            resetError = Self.keychainResetError()
             Log.error(
                 "SettingsView: Factory reset Keychain deletion failed - \(error.localizedDescription)",
                 category: .app)

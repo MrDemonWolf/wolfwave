@@ -47,6 +47,9 @@ body:
     validations:
       required: false
 
+  # WolfWave's Report a Bug fills app-version, os-version, and environment by
+  # their ids (BugReportURL.FormField in apps/native). Rename one on both sides;
+  # `make lint-sync` fails when they don't match.
   - type: input
     id: app-version
     attributes:
@@ -75,6 +78,14 @@ body:
         - Other
     validations:
       required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Filled in when you use Report a Bug in WolfWave. Otherwise, add your Mac model and anything unusual about your setup.
+    validations:
+      required: false
 
   - type: textarea
     id: logs

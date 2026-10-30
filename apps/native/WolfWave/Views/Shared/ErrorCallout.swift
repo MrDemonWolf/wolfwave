@@ -248,7 +248,7 @@ struct ErrorCallout: View {
         ErrorCallout(error: UserFacingError(
             id: "music.automationDenied",
             title: "Let WolfWave read what's playing",
-            cause: "WolfWave only reads the current track. It never plays, pauses, or edits your library.",
+            cause: "WolfWave needs Apple Music automation access to show what's playing.",
             severity: .warning,
             actions: [.openAutomationSettings, .openDocs(anchor: "music-permission")]
         ))

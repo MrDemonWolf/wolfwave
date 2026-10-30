@@ -337,17 +337,33 @@ final class ListeningHistoryService {
 
     /// Counts plays a finite retention window would remove, without mutating it.
     ///
-    /// Drives the confirmation before shortening retention.
-    ///
     /// - Parameters:
     ///   - retentionDays: Candidate window in days; `0` or less (Forever) returns 0.
     ///   - now: Reference time for the cutoff.
     /// - Returns: In-memory plays older than the cutoff. The lifetime tally is
-    ///   also discarded under finite retention but is not counted here.
+    ///   also discarded under finite retention but is not counted here; see
+    ///   ``retentionImpact(retentionDays:now:)``.
     func expiredRecordCount(retentionDays: Int, now: Date = Date()) -> Int {
         guard retentionDays > 0 else { return 0 }
         let cutoff = now.addingTimeInterval(-Double(retentionDays) * 86_400)
         return records.lazy.filter { $0.timestamp < cutoff }.count
+    }
+
+    /// Everything a finite retention window would delete, without mutating it.
+    ///
+    /// Drives the confirmation before shortening retention. Unlike
+    /// ``expiredRecordCount(retentionDays:now:)`` it also counts the lifetime
+    /// tally, which ``prune(now:)`` deletes under any finite window, so leaving
+    /// Forever never drops the All time and Top totals unasked.
+    ///
+    /// - Parameters:
+    ///   - retentionDays: Candidate window in days; `0` or less (Forever) deletes nothing.
+    ///   - now: Reference time for the cutoff.
+    func retentionImpact(retentionDays: Int, now: Date = Date()) -> RetentionImpact {
+        guard retentionDays > 0 else { return .empty }
+        return RetentionImpact(
+            expiredPlays: expiredRecordCount(retentionDays: retentionDays, now: now),
+            lifetimeTallyPlays: lifetime.trimmedPlayCount)
     }
 
     /// Applies a new retention window immediately after user confirmation.

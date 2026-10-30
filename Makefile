@@ -65,7 +65,7 @@ help:
 	@echo "  lint-baseline  Regenerate the pinned SwiftLint baseline"
 	@echo "  lint-crash-safety  Run crash-safety SwiftLint (blocking CI gate)"
 	@echo "  lint-headers   Verify Swift file headers match the Xcode template"
-	@echo "  lint-sync      Verify source-derived lists, catalog entries, docs values, and lint claims"
+	@echo "  lint-sync      Verify source-derived lists, catalog entries, docs values, lint claims, and bug-report form fields"
 	@echo "  prod-build     Release build + DMG  (-> builds/$(DMG_NAME))"
 	@echo "  prod-install   Release build + install to /Applications"
 	@echo "  notarize       Notarize builds/$(DMG_NAME)"

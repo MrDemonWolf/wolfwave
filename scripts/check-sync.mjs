@@ -2,7 +2,8 @@
 //
 // Blocks known source/documentation drift that cannot be caught by a compiler:
 // token-derived Swift lists, component catalog coverage/template shape, widget
-// values repeated in contributor docs, and design-system lint rule claims.
+// values repeated in contributor docs, design-system lint rule claims, and the
+// bug-report form fields the app prefills.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -325,6 +326,34 @@ export function checkDocPorts(text, { webSocketPort, widgetPort }) {
   return failures;
 }
 
+/**
+ * Checks that every field id `BugReportURL.FormField` prefills names a text
+ * field (`input` or `textarea`) in the bug report issue form. GitHub ignores a
+ * query parameter that matches no field, so a rename on either side silently
+ * drops that value from every in-app bug report. A dropdown can't be prefilled
+ * from a URL, so naming one fails too.
+ */
+export function checkBugReportFields(swiftSource, formYaml) {
+  const block = /enum FormField\s*\{([\s\S]*?)\n\s*\}/.exec(swiftSource);
+  if (!block) return [{ line: 1, message: "BugReportURL.FormField not found" }];
+  const textFields = new Set();
+  for (const element of formYaml.split(/\n\s*-\s*type:\s*/).slice(1)) {
+    const type = /^(\w+)/.exec(element)?.[1];
+    const id = /\n\s*id:\s*([\w-]+)/.exec(element)?.[1];
+    if (id && (type === "input" || type === "textarea")) textFields.add(id);
+  }
+  const bodyStart = block.index + block[0].indexOf(block[1]);
+  const failures = [];
+  for (const match of block[1].matchAll(/static let \w+ = "([^"]+)"/g)) {
+    if (textFields.has(match[1])) continue;
+    failures.push({
+      line: lineAt(swiftSource, bodyStart + match.index),
+      message: `prefills "${match[1]}", but bug_report.yml has no input or textarea with that id`,
+    });
+  }
+  return failures;
+}
+
 /** Reads the source-of-truth values the checks compare against: visible theme names, layout names and sizes (tokens.json), and the viewport padding and default ports parsed out of AppConstants.swift. Throws if the padding can't be found. */
 function projectExpected(root) {
   const tokens = JSON.parse(readFileSync(resolve(root, "design-system/tokens.json"), "utf8"));
@@ -429,13 +458,20 @@ export function runChecks(root = ROOT) {
   const parity = checkLintRuleParity(readFileSync(resolve(root, lintFile), "utf8"));
   for (const name of parity.unimplementedClaims) failures.push({ file: lintFile, line: 1, message: `comment claims unimplemented rule ${name}` });
   for (const name of parity.undocumentedRules) failures.push({ file: lintFile, line: 1, message: `RULES entry ${name} is missing from the Rules comment` });
+
+  const bugReportURL = "apps/native/WolfWave/Core/BugReportURL.swift";
+  const bugReportFailures = checkBugReportFields(
+    readFileSync(resolve(root, bugReportURL), "utf8"),
+    readFileSync(resolve(root, ".github/ISSUE_TEMPLATE/bug_report.yml"), "utf8"),
+  );
+  for (const failure of bugReportFailures) failures.push({ file: bugReportURL, ...failure });
   return failures;
 }
 
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const failures = runChecks();
   if (failures.length === 0) {
-    console.log("✅ Source-derived lists, component catalog, docs values, and lint claims are in sync.");
+    console.log("✅ Source-derived lists, component catalog, docs values, lint claims, and bug-report form fields are in sync.");
     process.exit(0);
   }
   for (const failure of failures) {

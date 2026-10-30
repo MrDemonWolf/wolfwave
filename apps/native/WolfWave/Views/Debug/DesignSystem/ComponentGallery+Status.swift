@@ -71,7 +71,7 @@ extension DebugComponentGalleryCard {
         GalleryEntry(typeName: "ViewModifiers", width: GalleryWidth.wide) {
             VStack(alignment: .leading, spacing: DSSpace.s5) {
                 // The type ramp, top to bottom: 22 → 17 → 11 headings + body + caption.
-                Text("Pane Title (H1)")
+                Text("Standalone Title (H1)")
                     .paneTitle()
                 Text("Section Header (H2)")
                     .sectionHeader()

@@ -70,6 +70,13 @@ All notable changes to this project will be documented in this file.
 - **No raw errors in chat.** When a song search or link lookup fails, `!sr`, channel points, and Bits say "song search isn't working right now" instead of the technical error. The details go to the log.
 - **Copied widget links keep your WebSocket port.** Changed the port? Copy Link, the menu bar, General, and setup now add `?port=` for you, so the OBS widget connects on the first try.
 - **No more dead "Send to a remote site" row.** General's Integrations card listed a setting WolfWave doesn't have.
+- **The reset alert reads cleanly.** When Erase All Data & Reset stops early, the message no longer shows stray asterisks around "nothing was erased".
+- **Try Again rereads your Twitch sign-in.** When macOS blocks the Keychain read, Try Again reads it again instead of trying to join a channel and blaming the channel name.
+- **Shorter history asks before it drops your totals.** Moving Keep for off Forever now warns when it would clear the All time and Top totals, even when no play is old enough to remove.
+- **Bug reports arrive filled in.** Report a Bug and Send Feedback fill the GitHub form's App version, macOS version, and a new Environment field. GitHub had been ignoring the details WolfWave sent.
+- **Accurate Music access wording.** The permission screen no longer says WolfWave never plays or pauses. That access also runs your play controls and song requests.
+- **Up-to-date channel-points banner.** When Twitch refuses the Request a Song reward, the banner says to turn on Channel Points in your Creator Dashboard instead of saying you need Affiliate or Partner.
+- **The import sheet lists every sharing setting.** "Import local sharing and server settings" now mentions automatic update checks too.
 
 - **Now Playing keeps the right artwork.** The previous cover stays visible while the next one loads, then crossfades without flashing the default artwork. Reduce Motion disables the fade, and delayed responses cannot replace a newer cover.
 
@@ -140,6 +147,7 @@ All notable changes to this project will be documented in this file.
 ### Developer
 
 - **Request results say who reads the text.** `SongRequestService.RequestResult` splits `.denied` (the chat-ready audience refusal) from `.error` (a lookup failure, logged and never sent to chat). `SongRequestGatedCommand` gives the queue commands a silent preflight refusal while Song Requests is off, and `WidgetLink` is the one builder for widget Browser Source links.
+- **Bug-report fields are checked against the form.** `BugReportURL` fills issue-form fields by id (`BugReportURL.FormField`) and percent-encodes `+`; `make lint-sync` fails when an id names no text field in `bug_report.yml`. `RetentionImpact` drives the retention confirmation. `TwitchViewModel.RetryTarget` gains `.reloadCredentials` and moves with `retryTarget(for:)` into `TwitchFailure.swift`.
 - **One home for Twitch and Discord defaults.** Every `@AppStorage` seed and `Preferences.bool(_:default:)` read for those keys now references `AppConstants.UserDefaults.Defaults`. New `FreshInstallDefaults` writes day-one values once per install at launch (fresh installs get them, existing installs get their old values pinned), so a new default never flips an upgrade. The onboarding UI tests gained Escape and progress-header coverage plus a light/dark screenshot capture (`testCapturesEveryStep`), backed by new `WOLFWAVE_UI_TEST_APPEARANCE` and `WOLFWAVE_UI_TEST_HOLD_COMPLETION` switches. The `stepContentMinHeight` token is replaced by `contentMaxWidth`.
 - **Debug shows one tool at a time.** A native list becomes a menu picker in narrow windows, inactive tools stop polling, and Copy Diagnostics shows progress and completion.
 

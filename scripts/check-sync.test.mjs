@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  checkBugReportFields,
   checkDocPorts,
   checkDocsText,
   checkLandingProtocol,
@@ -88,4 +89,32 @@ test("checkDocPorts flags prose ports that drift from the native defaults", () =
   // Not a WolfWave server: the docs dev server is documented on port 3000.
   assert.deepEqual(checkDocPorts("Open http://localhost:3000 to preview the docs.", ports), []);
   assert.deepEqual(checkDocPorts("The preview runs on `localhost:3000`.", ports), []);
+});
+
+test("checkBugReportFields requires every prefilled id to be a text field in the form", () => {
+  const swift = [
+    "enum BugReportURL {",
+    "    enum FormField {",
+    "        /// The version input.",
+    '        static let appVersion = "app-version"',
+    '        static let install = "install-method"',
+    '        static let renamed = "env"',
+    "    }",
+    "}",
+  ].join("\n");
+  const form = [
+    "body:",
+    "  - type: input",
+    "    id: app-version",
+    "  - type: dropdown",
+    "    id: install-method",
+    "  - type: textarea",
+    "    id: environment",
+  ].join("\n");
+  const failures = checkBugReportFields(swift, form);
+  // A dropdown can't be prefilled from a URL, and "env" matches no field at all.
+  assert.deepEqual(failures.map((failure) => failure.line), [5, 6]);
+  assert.match(failures[0].message, /"install-method"/);
+  assert.deepEqual(checkBugReportFields(swift.replace('"env"', '"environment"').replace(/.*install.*\n/, ""), form), []);
+  assert.deepEqual(checkBugReportFields("enum BugReportURL {}", form), [{ line: 1, message: "BugReportURL.FormField not found" }]);
 });
