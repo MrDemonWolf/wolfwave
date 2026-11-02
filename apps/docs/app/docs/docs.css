@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────
-   WolfWave docs: the "Mac manual" look.
+   WolfWave docs: plain pages and one sidebar, like Ghostty's docs.
 
    Imported by app/docs/layout.tsx only, and every rule is scoped to
    .ww-docs (the Notebook layout root), so the landing, download,
@@ -7,11 +7,10 @@
    shadows and durations are --ds-* design tokens
    (design-system/tokens.json); the few docs-only measures are below.
 
-   1. Foundations       6. Page header      11. Code & diagrams
-   2. Top bar           7. Reading text     12. Docs patterns
-   3. Sidebar           8. Tables           13. Table of contents
-   4. Section switcher  9. Callouts         14. Page end
-   5. Icon tiles       10. Components
+   1. Foundations       5. Reading text      9. Code & diagrams
+   2. Top bar           6. Tables           10. Docs patterns
+   3. Sidebar           7. Callouts         11. Table of contents
+   4. Page header       8. Components       12. Page end
    ────────────────────────────────────────────────────────── */
 
 /* ── 1. Foundations ──────────────────────────────────────── */
@@ -49,7 +48,6 @@
   --ww-fill-strong: color-mix(in srgb, var(--ds-color-text-primary) 9%, transparent);
   --ww-fill-selected: color-mix(in srgb, var(--ds-color-text-primary) 20%, transparent);
   --ww-selection: color-mix(in srgb, var(--ds-color-brand-500) calc(var(--ds-opacity-wash-strong) * 100%), transparent);
-  --ww-sidebar-bg: var(--ds-color-surface-surface);
   --ww-ease: var(--ds-motion-easing-standard);
   --ww-fast: var(--ds-motion-duration-fast);
   --fd-header-height: 3.5rem;
@@ -189,124 +187,59 @@
 }
 
 /* ── 3. Sidebar ──────────────────────────────────────────── */
-/* A gray source list beside a white page, like System Settings. The
-   placeholder spans the outer margin plus the sidebar column, so the gray
-   reaches the left edge of the window. */
-.ww-docs [data-sidebar-placeholder] {
-  background-color: var(--ww-sidebar-bg);
-}
+/* Plain text on the page color: the home, Install and Features on top, then
+   one collapsible folder per meta.json group (lib/docs-tree.ts). Folder names
+   read in the text color, pages in the quieter one, and the current page is a
+   solid brand row. */
 .ww-docs #nd-sidebar {
   border-inline-end: 1px solid var(--ds-color-surface-hairline);
 }
-.ww-docs #nd-sidebar-mobile {
-  background-color: var(--ww-sidebar-bg);
-}
 .ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] {
-  padding: 0.25rem 0.75rem 1.5rem;
+  padding: 1.25rem 0.75rem 1.5rem;
 }
-.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a {
-  gap: 0.625rem;
-  min-height: 2rem;
-  padding-block: 0.25rem;
-  padding-inline-end: 0.5rem;
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] :is(a, button) {
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding-block: 0.375rem;
+  padding-inline-end: 0.625rem;
   border-radius: var(--ds-radius-md);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   line-height: 1.3;
-  color: var(--ds-color-text-primary);
-  transition: background-color var(--ww-fast) var(--ww-ease);
+  color: var(--ds-color-text-secondary);
+  transition: background-color var(--ww-fast) var(--ww-ease), color var(--ww-fast) var(--ww-ease);
 }
-.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a:hover {
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] button {
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] :is(a, button):hover {
   background-color: var(--ww-fill);
   color: var(--ds-color-text-primary);
 }
 .ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a[data-active="true"] {
-  background-color: var(--ww-selection);
-  color: var(--ds-color-text-primary);
-  font-weight: 600;
-}
-/* Group labels ("Start here", "Help"): small, quiet, sentence case. */
-.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] p {
-  margin-top: 1.25rem;
-  margin-bottom: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ds-color-text-secondary);
-}
-
-/* ── 4. Section switcher ─────────────────────────────────── */
-/* A macOS segmented control: Guides / Developers / Design. */
-.ww-docs .ww-tabs {
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--ds-radius-md);
-  background-color: var(--ww-fill-strong);
-}
-.ww-docs .ww-tab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.875rem;
-  padding-inline: 0.5rem;
-  border-radius: var(--ds-radius-sm);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--ds-color-text-secondary);
-  transition: background-color var(--ww-fast) var(--ww-ease), color var(--ww-fast) var(--ww-ease);
-}
-.ww-docs .ww-tab:hover {
-  color: var(--ds-color-text-primary);
-}
-.ww-docs .ww-tab[data-active="true"] {
-  background-color: var(--ds-color-surface-base);
-  color: var(--ds-color-text-primary);
-  font-weight: 600;
-  box-shadow: var(--ds-shadow-xs), 0 0 0 0.5px var(--ww-fill-strong);
-}
-.dark .ww-docs .ww-tab[data-active="true"] {
-  background-color: var(--ww-fill-selected);
-}
-
-/* ── 5. Icon tiles ───────────────────────────────────────── */
-/* Small colored tiles with a white glyph, as in the System Settings
-   sidebar. The color says what a page is about (lib/docs-nav.ts). */
-.ww-docs .ww-tile {
-  display: inline-grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: var(--ds-radius-sm);
-  background: var(--ww-tile-bg, var(--ds-color-neutral));
+  background-color: var(--brand-fill);
   color: #fff;
+  font-weight: 500;
 }
-.ww-docs .ww-tile svg {
-  width: 62%;
-  height: 62%;
+/* Below 1024px Fumadocs lists the site links (Features, Changelog, Docs,
+   Download) above the docs, marked with Tailwind's lg:hidden. The current
+   section reads bold, so only the current page gets the solid row. */
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a.lg\:hidden[data-active="true"] {
+  background-color: transparent;
+  color: var(--ds-color-text-primary);
+  font-weight: 600;
 }
-.ww-docs .ww-tile[data-tint="brand"] { --ww-tile-bg: var(--ds-color-brand-500); }
-.ww-docs .ww-tile[data-tint="indigo"] { --ww-tile-bg: var(--ds-color-brand-700); }
-.ww-docs .ww-tile[data-tint="gray"] { --ww-tile-bg: var(--ds-color-neutral); }
-.ww-docs .ww-tile[data-tint="red"] { --ww-tile-bg: var(--ds-color-error); }
-.ww-docs .ww-tile[data-tint="twitch"] { --ww-tile-bg: var(--ds-color-partner-twitch); }
-.ww-docs .ww-tile[data-tint="discord"] { --ww-tile-bg: var(--ds-color-partner-discord); }
-.ww-docs .ww-tile[data-tint="apple-music"] {
-  --ww-tile-bg: linear-gradient(180deg, var(--ds-color-partner-apple-music-start), var(--ds-color-partner-apple-music-end));
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a.lg\:hidden[data-active="true"]:hover {
+  background-color: var(--ww-fill);
 }
-.ww-docs .ww-tile[data-tint="graphite"] {
-  --ww-tile-bg: linear-gradient(180deg, var(--ds-color-partner-obs-start), var(--ds-color-partner-obs-end));
-}
-.ww-docs .ww-tile[data-tint="wolfwave"] {
-  --ww-tile-bg: linear-gradient(135deg, var(--ds-color-partner-wolfwave-gradient-start), var(--ds-color-partner-wolfwave-gradient-end));
-}
-/* Graphite sits close to the dark sidebar; a faint rim keeps its edge. */
-.dark .ww-docs .ww-tile[data-tint="graphite"] {
-  box-shadow: inset 0 0 0 1px var(--ww-fill-strong);
+/* No guide line beside a folder's pages, and no accent line on the current
+   one: indentation and the solid row already say where you are. */
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] div[data-state] > div[data-state]::before,
+.ww-docs :is(#nd-sidebar, #nd-sidebar-mobile) [data-radix-scroll-area-viewport] a[data-active="true"]::before {
+  display: none;
 }
 
-/* ── 6. Page header ──────────────────────────────────────── */
+/* ── 4. Page header ──────────────────────────────────────── */
 .ww-docs #nd-page {
   row-gap: 0;
   padding-bottom: 4rem;
@@ -320,8 +253,12 @@
 .ww-docs #nd-page[data-full="true"] > * {
   max-width: 64rem;
 }
+/* Breadcrumb, a hairline, the title and lede, another hairline, then the
+   body. The docs home has no breadcrumb row, so it opens on the title. */
 .ww-docs .ww-page-head {
-  margin-bottom: 2.25rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--ds-color-surface-hairline);
 }
 .ww-docs .ww-page-meta {
   display: flex;
@@ -330,7 +267,9 @@
   justify-content: space-between;
   gap: 1rem;
   min-height: 2rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--ds-color-surface-hairline);
 }
 .ww-docs .ww-crumbs {
   display: flex;
@@ -375,23 +314,23 @@
 .ww-docs .ww-page-head h1 {
   margin: 0;
   font-family: var(--font-montserrat), var(--ds-font-family-display);
-  font-size: clamp(2rem, 1.5rem + 1.6vw, 2.625rem);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.022em;
+  font-size: clamp(1.875rem, 1.6rem + 0.9vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--ds-color-text-primary);
   text-wrap: balance;
 }
 /* The lede (frontmatter description). */
 .ww-docs .ww-page-head h1 + p {
-  margin: 0.875rem 0 0;
-  font-size: 1.1875rem;
+  margin: 0.75rem 0 0;
+  font-size: 1.0625rem;
   line-height: 1.55;
   color: var(--ds-color-text-secondary);
   text-wrap: pretty;
 }
 
-/* ── 7. Reading text ─────────────────────────────────────── */
+/* ── 5. Reading text ─────────────────────────────────────── */
 .ww-docs .prose {
   font-size: 1rem;
   line-height: 1.7;
@@ -496,7 +435,7 @@
   border-top: 1px solid var(--ds-color-surface-hairline);
 }
 
-/* ── 8. Tables ───────────────────────────────────────────── */
+/* ── 6. Tables ───────────────────────────────────────────── */
 /* A Finder list: hairline frame, quiet header, alternating rows. The
    wrapper is Fumadocs' (it scrolls sideways when a table is too wide). */
 .ww-docs .prose div:has(> table) {
@@ -536,7 +475,7 @@
   overflow-wrap: anywhere;
 }
 
-/* ── 9. Callouts ─────────────────────────────────────────── */
+/* ── 7. Callouts ─────────────────────────────────────────── */
 /* Same recipe as the app's CalloutBanner: a 10% wash of the bright
    semantic tint, with the glyph drawn in the darker glyph ink. */
 .ww-docs [style*="--callout-color"] {
@@ -567,7 +506,7 @@
   margin-bottom: 0;
 }
 
-/* ── 10. Components ──────────────────────────────────────── */
+/* ── 8. Components ───────────────────────────────────────── */
 /* Cards. Heading permalinks also carry data-card, hence the href check. */
 .ww-docs a[data-card]:not([href^="#"]),
 .ww-docs div[data-card] {
@@ -582,9 +521,27 @@
   background-color: var(--ds-color-surface-base);
 }
 @supports (corner-shape: squircle) {
-  .ww-docs :is(a[data-card]:not([href^="#"]), div[data-card], .ww-tile) {
+  .ww-docs :is(a[data-card]:not([href^="#"]), div[data-card]) {
     corner-shape: squircle;
   }
+}
+
+/* Title-only cards drawn as quiet buttons, two across (the docs home's
+   Download and Build from source). The first carries the brand edge. */
+.ww-docs .ww-buttons a[data-card] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+}
+.ww-docs .ww-buttons a[data-card]:first-child {
+  border-color: color-mix(in srgb, var(--ds-color-brand-500) 60%, var(--ds-color-surface-hairline));
+}
+.ww-docs .ww-buttons a[data-card] h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 /* Steps: numbered circles in the brand wash on a hairline rail. */
@@ -680,7 +637,7 @@
   color: var(--ds-color-text-secondary);
 }
 
-/* ── 11. Code & diagrams ─────────────────────────────────── */
+/* ── 9. Code & diagrams ──────────────────────────────────── */
 .ww-docs figure.shiki {
   margin-block: 1.5rem;
   border: 1px solid var(--ds-color-surface-hairline);
@@ -718,7 +675,7 @@
   white-space: pre;
 }
 
-/* ── 12. Docs patterns (lib/rehype-docs.ts) ──────────────── */
+/* ── 10. Docs patterns (lib/rehype-docs.ts) ──────────────── */
 /* UI paths: **Settings → Twitch → Bot Commands** reads as one chip. */
 .ww-docs .ww-path {
   padding: 0.125em 0.45em;
@@ -782,7 +739,7 @@
   color: var(--ds-color-glyph-success);
 }
 
-/* ── 13. Table of contents ───────────────────────────────── */
+/* ── 11. Table of contents ───────────────────────────────── */
 /* A slimmer TOC column on wide screens leaves the reading column room
    for its full measure (and a diagram at its 72% floor) beside it.
    Fumadocs sets this variable only when the page has a TOC; so do we. */
@@ -814,7 +771,7 @@
   border-color: var(--ds-color-surface-hairline);
 }
 
-/* ── 14. Page end ────────────────────────────────────────── */
+/* ── 12. Page end ────────────────────────────────────────── */
 .ww-docs .ww-page-end {
   display: flex;
   flex-wrap: wrap;

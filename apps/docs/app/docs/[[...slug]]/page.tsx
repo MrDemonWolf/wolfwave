@@ -12,17 +12,18 @@ import { getMDXComponents } from '@/mdx-components';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { ChevronRight, SquarePen } from 'lucide-react';
-import { docsCrumbs } from '@/lib/docs-tree';
+import { groupForUrl } from '@/lib/docs-tree';
 import { pageUrl, repoUrl } from '@/lib/site';
 import { docsPageLd, docsTitle, jsonLdScript, lastCommitDate } from '@/lib/seo';
 
 const updatedFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' });
 
 /**
- * One MDX docs page: breadcrumb (tab › group) and page actions, the title and
- * lede, the body, then "last updated" and an edit link above Fumadocs'
- * previous/next cards. TechArticle + BreadcrumbList JSON-LD (see `lib/seo.ts`).
- * The docs home is a normal page too, minus the breadcrumb row and the TOC.
+ * One MDX docs page: breadcrumb (docs home › group) and page actions, the title
+ * and lede between two hairlines, the body, then "last updated" and an edit link
+ * above Fumadocs' previous/next cards. TechArticle + BreadcrumbList JSON-LD (see
+ * `lib/seo.ts`). The docs home is a normal page too, minus the breadcrumb row
+ * and the TOC.
  */
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -35,7 +36,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const absolutePath = (page as { absolutePath?: string }).absolutePath;
   const updated = lastCommitDate(absolutePath);
   const editUrl = `${repoUrl}/blob/main/apps/docs/content/docs/${page.path}`;
-  const crumbs = docsCrumbs(source.getPageTree(), page.url);
+  const group = groupForUrl(source.getPageTree(), page.url);
 
   const jsonLd = docsPageLd({
     url,
@@ -60,23 +61,19 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
       <header className="ww-page-head">
-        {/* The docs home has no tab › group trail and no Markdown export,
-            so it shows just the title and lede. */}
+        {/* The docs home has no trail and no Markdown export, so it shows
+            just the title and lede. */}
         {isDocsRoot ? null : (
           <div className="ww-page-meta">
-            {crumbs ? (
-              <nav aria-label="Breadcrumb" className="ww-crumbs">
-                <Link href={crumbs.tab.url}>{crumbs.tab.title}</Link>
-                {crumbs.group ? (
-                  <>
-                    <ChevronRight aria-hidden="true" />
-                    <span>{crumbs.group}</span>
-                  </>
-                ) : null}
-              </nav>
-            ) : (
-              <span />
-            )}
+            <nav aria-label="Breadcrumb" className="ww-crumbs">
+              <Link href="/docs">WolfWave docs</Link>
+              {group ? (
+                <>
+                  <ChevronRight aria-hidden="true" />
+                  <span>{group}</span>
+                </>
+              ) : null}
+            </nav>
             <div className="ww-page-actions">
               <MarkdownCopyButton markdownUrl={`/llms.mdx${page.url}.md`} />
             </div>
