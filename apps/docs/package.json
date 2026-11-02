@@ -12,10 +12,10 @@
     "test": "bun test"
   },
   "dependencies": {
-    "fumadocs-core": "16.17.8",
+    "fumadocs-core": "16.17.9",
     "fumadocs-mdx": "15.4.10",
-    "fumadocs-ui": "16.17.8",
-    "lucide-react": "^1.61.0",
+    "fumadocs-ui": "16.17.9",
+    "lucide-react": "^1.65.0",
     "mermaid": "^12.2.0",
     "next": "16.4.3",
     "react": "^19.3.1",
@@ -25,10 +25,10 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.32",
     "serve": "^14.2.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
