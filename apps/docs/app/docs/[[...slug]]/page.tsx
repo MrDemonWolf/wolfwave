@@ -22,7 +22,7 @@ const updatedFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', time
  * One MDX docs page: breadcrumb (tab › group) and page actions, the title and
  * lede, the body, then "last updated" and an edit link above Fumadocs'
  * previous/next cards. TechArticle + BreadcrumbList JSON-LD (see `lib/seo.ts`).
- * The docs home renders its own hero and `<h1>` from MDX, so it skips the header.
+ * The docs home is a normal page too, minus the breadcrumb row and the TOC.
  */
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -50,18 +50,19 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       toc={page.data.toc}
       full={page.data.full}
       breadcrumb={{ enabled: false }}
-      tableOfContent={{ style: 'clerk' }}
-      // Full-width pages (the docs home) have no TOC, so no "On this page" bar either.
-      tableOfContentPopover={{ style: 'clerk', ...(page.data.full ? { enabled: false } : {}) }}
+      // The docs home is one short screen, so it skips the TOC. Full-width
+      // pages have none either, so neither gets the "On this page" bar.
+      tableOfContent={{ style: 'clerk', ...(isDocsRoot ? { enabled: false } : {}) }}
+      tableOfContentPopover={{ style: 'clerk', ...(isDocsRoot || page.data.full ? { enabled: false } : {}) }}
     >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
-      {/* The docs root's MDX hero carries the page's one <h1>, so the
-          frontmatter title and description are not rendered there. */}
-      {isDocsRoot ? null : (
-        <header className="ww-page-head">
+      <header className="ww-page-head">
+        {/* The docs home has no tab › group trail and no Markdown export,
+            so it shows just the title and lede. */}
+        {isDocsRoot ? null : (
           <div className="ww-page-meta">
             {crumbs ? (
               <nav aria-label="Breadcrumb" className="ww-crumbs">
@@ -80,10 +81,10 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
               <MarkdownCopyButton markdownUrl={`/llms.mdx${page.url}.md`} />
             </div>
           </div>
-          <DocsTitle>{page.data.title}</DocsTitle>
-          <DocsDescription>{page.data.description}</DocsDescription>
-        </header>
-      )}
+        )}
+        <DocsTitle>{page.data.title}</DocsTitle>
+        <DocsDescription>{page.data.description}</DocsDescription>
+      </header>
       <DocsBody>
         <MDX
           components={getMDXComponents({
