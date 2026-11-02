@@ -9,6 +9,7 @@
 import {
   action,
   type WillDisappearEvent,
+  type WillAppearEvent,
 } from "@elgato/streamdeck";
 import { artworkDataURI } from "../artwork.js";
 import {
@@ -29,6 +30,7 @@ import {
   nowPlayingImage,
   resume,
   trash,
+  trackTimeImage,
 } from "../keyart.js";
 import { AUDIENCE_LABELS, type WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
@@ -91,6 +93,7 @@ export class QueueHoldAction extends WolfWaveKeyAction {
     await key.setImage(
       countKeyImage({
         glyph: state.queueHeld ? resume : hold,
+        label: state.queueHeld ? "RESUME" : "HOLD",
         count: state.queueCount,
         tile: state.queueHeld ? Palette.tile : undefined,
       }),
@@ -116,6 +119,7 @@ class ApproveNextAction extends WolfWaveKeyAction {
     await key.setImage(
       countKeyImage({
         glyph: check,
+        label: "APPROVE",
         count: state.queuePending,
         tile: pending ? Palette.warning : undefined,
         tint: Palette.dim,
@@ -149,6 +153,7 @@ export class ClearQueueAction extends WolfWaveKeyAction {
     await key.setImage(
       countKeyImage({
         glyph: trash,
+        label: "CLEAR",
         count: state.queueCount,
         tint: Palette.danger,
       }),
@@ -269,6 +274,75 @@ export class CycleAudienceAction extends WolfWaveKeyAction {
 
 // MARK: - Display
 
+/** A tap switches this key between elapsed and remaining time. */
+@action({ UUID: `${PLUGIN_UUID}.tracktime` })
+export class TrackTimeAction extends WolfWaveKeyAction {
+  private readonly modes = new Map<string, boolean>();
+  private readonly progressSubscriptions = new Map<string, () => void>();
+  private readonly paints = new Map<string, Promise<void>>();
+  private readonly revisions = new Map<string, number>();
+
+  protected commandFor(): null { return null; }
+
+  override onWillAppear(ev: WillAppearEvent): void {
+    if (!ev.action.isKey()) return;
+    const key = ev.action;
+    this.modes.set(key.id, ev.payload.settings.remaining === true);
+    this.progressSubscriptions.get(key.id)?.();
+    this.progressSubscriptions.set(key.id, this.client.onProgress(() => {
+      if (this.client.currentState.phase === "connected") void this.paint(key, this.client.currentState);
+    }));
+    super.onWillAppear(ev);
+  }
+
+  override onWillDisappear(ev: WillDisappearEvent): void {
+    this.progressSubscriptions.get(ev.action.id)?.();
+    this.progressSubscriptions.delete(ev.action.id);
+    this.modes.delete(ev.action.id);
+    this.revisions.set(ev.action.id, (this.revisions.get(ev.action.id) ?? 0) + 1);
+    super.onWillDisappear(ev);
+  }
+
+  override async onKeyDown(ev: { action: unknown; payload: { settings: Record<string, unknown> } }): Promise<void> {
+    const key = ev.action as WolfWaveKey;
+    if (!key.isKey()) return;
+    const remaining = !this.modes.get(key.id);
+    this.modes.set(key.id, remaining);
+    await key.setSettings({ ...ev.payload.settings, remaining });
+    if (this.client.currentState.phase === "connected") await this.paint(key, this.client.currentState);
+  }
+
+  protected override paint(key: WolfWaveKey, state: WolfWaveState): Promise<void> {
+    const revision = (this.revisions.get(key.id) ?? 0) + 1;
+    this.revisions.set(key.id, revision);
+    const previous = this.paints.get(key.id) ?? Promise.resolve();
+    const next = previous.then(async () => {
+      if (this.revisions.get(key.id) === revision) await super.paint(key, state);
+    }).catch(() => {});
+    this.paints.set(key.id, next);
+    void next.finally(() => {
+      if (this.paints.get(key.id) === next) {
+        this.paints.delete(key.id);
+        if (!this.modes.has(key.id)) this.revisions.delete(key.id);
+      }
+    }).catch(() => {});
+    return next;
+  }
+
+  protected async render(key: WolfWaveKey, state: WolfWaveState): Promise<void> {
+    const progress = this.client.currentProgress;
+    const generation = this.generationOf(key.id);
+    await key.setTitle("");
+    if (this.isStale(key.id, generation) || this.client.currentState.phase !== "connected") return;
+    await key.setImage(trackTimeImage(
+      state.track ? progress?.elapsed ?? 0 : 0,
+      state.track ? progress?.duration ?? 0 : 0,
+      this.modes.get(key.id) ?? false,
+      !state.isPlaying,
+    ));
+  }
+}
+
 /**
  * Display-only: what is playing, over its album art. Pressing it does nothing
  * rather than firing a command the streamer didn't intend mid-broadcast.
@@ -321,7 +395,7 @@ export class NowPlayingAction extends WolfWaveKeyAction {
     if (!overflows(label, MARQUEE_FONT_SIZE, KEY_SIZE)) {
       // Short enough to sit still. Scrolling "Home" back and forth forever
       // would be worse than not scrolling, and it would repaint for nothing.
-      await key.setImage(nowPlayingImage({ art, label }));
+      await key.setImage(nowPlayingImage({ art, label, paused: !!state.track && !state.isPlaying }));
       return;
     }
     // Two copies end to end, so scrolling past the tail runs into the head
@@ -345,7 +419,7 @@ export class NowPlayingAction extends WolfWaveKeyAction {
       step += 1;
       inFlight = true;
       key
-        .setImage(nowPlayingImage({ art, label: slice.text, offset: slice.x }))
+        .setImage(nowPlayingImage({ art, label: slice.text, offset: slice.x, paused: !!state.track && !state.isPlaying }))
         .catch(() => {
           // A dropped frame is nothing; an unhandled rejection takes the whole
           // plugin process down, and the key freezes on its last art.
@@ -395,5 +469,6 @@ export const ACTION_CLASSES = [
   RejectCurrentAction,
   BlockRequesterAction,
   CycleAudienceAction,
+  TrackTimeAction,
   NowPlayingAction,
 ] as const;

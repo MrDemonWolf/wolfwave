@@ -295,10 +295,10 @@ describe("parseFrame", () => {
   });
 
   test("reports unmodelled types as unknown rather than null", () => {
-    // `progress` and `widget_config` are real app frames the plugin ignores.
+    // `widget_config` is a real app frame the plugin ignores.
     expect(parseFrame('{"type":"progress","data":{"elapsed":1}}')).toEqual({
-      kind: "unknown",
-      type: "progress",
+      kind: "progress",
+      data: { elapsed: 1, duration: 0, isPlaying: false },
     });
   });
 });

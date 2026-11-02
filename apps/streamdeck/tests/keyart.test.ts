@@ -101,6 +101,12 @@ describe("countKeyImage", () => {
     expect(svg).toContain(`fill="${Palette.navy}"`);
     expect(svg).not.toContain(Palette.dim);
   });
+
+  test("destructive counts use white text on the red rail", () => {
+    const svg = countKeyImage({ glyph: trash, count: 99, tint: Palette.danger });
+    expect(svg).toContain(`height="30" fill="${Palette.danger}"`);
+    expect(svg).toMatch(new RegExp(`<text[^>]+fill="${Palette.white}"[^>]*>99</text>`));
+  });
 });
 
 describe("labelKeyImage", () => {

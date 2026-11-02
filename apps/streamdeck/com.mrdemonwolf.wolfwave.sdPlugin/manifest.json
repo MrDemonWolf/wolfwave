@@ -15,7 +15,7 @@
   "OS": [
     {
       "Platform": "mac",
-      "MinimumVersion": "13"
+      "MinimumVersion": "26"
     }
   ],
   "Nodejs": {
@@ -27,9 +27,10 @@
   "Actions": [
     {
       "Name": "Play / Pause",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.playpause",
       "Icon": "imgs/actions/playpause/icon",
-      "Tooltip": "Play or pause Apple Music.",
+      "Tooltip": "Play or pause Apple Music. The icon follows the real playback state.",
       "Controllers": [
         "Keypad"
       ],
@@ -45,10 +46,10 @@
       ]
     },
     {
-      "Name": "Skip",
+      "Name": "Next Track",
       "UUID": "com.mrdemonwolf.wolfwave.skip",
       "Icon": "imgs/actions/skip/icon",
-      "Tooltip": "Skip to the next track.",
+      "Tooltip": "Skip Apple Music to the next track. Does not send a Twitch chat message.",
       "Controllers": [
         "Keypad"
       ],
@@ -60,10 +61,11 @@
       ]
     },
     {
-      "Name": "Hold Queue",
+      "Name": "Hold / Resume Queue",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.queuehold",
       "Icon": "imgs/actions/queuehold/icon",
-      "Tooltip": "Hold or resume the song-request queue. Shows the queue size.",
+      "Tooltip": "Hold or resume the song-request queue without pausing the current song. Shows the queue size.",
       "Controllers": [
         "Keypad"
       ],
@@ -80,9 +82,10 @@
     },
     {
       "Name": "Approve Next",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.approvenext",
       "Icon": "imgs/actions/approvenext/icon",
-      "Tooltip": "Approve the first request waiting for review. Shows how many are pending.",
+      "Tooltip": "Approve the oldest request waiting for review. Shows the pending count; amber means requests need review.",
       "Controllers": [
         "Keypad"
       ],
@@ -101,7 +104,7 @@
       "Name": "Clear Queue",
       "UUID": "com.mrdemonwolf.wolfwave.clearqueue",
       "Icon": "imgs/actions/clearqueue/icon",
-      "Tooltip": "Clear the song-request queue. Hold to confirm.",
+      "Tooltip": "Hold for about a second to clear all requests and the WolfWave Requests playlist. Stops Music when requests exist; songs stay in your library.",
       "Controllers": [
         "Keypad"
       ],
@@ -116,7 +119,7 @@
       "Name": "Block Song",
       "UUID": "com.mrdemonwolf.wolfwave.blockcurrent",
       "Icon": "imgs/actions/blockcurrent/icon",
-      "Tooltip": "Add the current song to your blocklist.",
+      "Tooltip": "Block future requests for the current song. Does not skip the song that is playing.",
       "Controllers": [
         "Keypad"
       ],
@@ -128,10 +131,11 @@
       ]
     },
     {
-      "Name": "Overlay",
+      "Name": "Show / Hide Overlay",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.overlaytoggle",
       "Icon": "imgs/actions/overlaytoggle/icon",
-      "Tooltip": "Turn the stream overlay on or off.",
+      "Tooltip": "Show or hide the stream overlay while keeping WolfWave and Stream Deck connected.",
       "Controllers": [
         "Keypad"
       ],
@@ -150,7 +154,7 @@
       "Name": "Announce Song",
       "UUID": "com.mrdemonwolf.wolfwave.announcesong",
       "Icon": "imgs/actions/announcesong/icon",
-      "Tooltip": "Post the current track to your Twitch chat.",
+      "Tooltip": "Post the current song to Twitch chat, using the same message as !song. Requires Twitch connected.",
       "Controllers": [
         "Keypad"
       ],
@@ -165,7 +169,7 @@
       "Name": "Reject Request",
       "UUID": "com.mrdemonwolf.wolfwave.rejectcurrent",
       "Icon": "imgs/actions/rejectcurrent/icon",
-      "Tooltip": "Drop the request that is playing and tell chat.",
+      "Tooltip": "Remove the request that is playing and notify Twitch chat. Does not block the song or requester.",
       "Controllers": [
         "Keypad"
       ],
@@ -180,7 +184,7 @@
       "Name": "Block Requester",
       "UUID": "com.mrdemonwolf.wolfwave.blockrequester",
       "Icon": "imgs/actions/blockrequester/icon",
-      "Tooltip": "Bar the person who requested the current song. Hold to confirm.",
+      "Tooltip": "Hold for about a second to block future requests from the person who requested the song that is playing.",
       "Controllers": [
         "Keypad"
       ],
@@ -192,10 +196,11 @@
       ]
     },
     {
-      "Name": "Request Access",
+      "Name": "Request Audience",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.cycleaudience",
       "Icon": "imgs/actions/cycleaudience/icon",
-      "Tooltip": "Cycle who may request: everyone, subs, VIPs and subs, mods.",
+      "Tooltip": "Cycle who may request: everyone, subscribers, VIPs and subscribers, then moderators. Shows the current audience.",
       "Controllers": [
         "Keypad"
       ],
@@ -211,10 +216,26 @@
       ]
     },
     {
+      "Name": "Track Time",
+      "UUID": "com.mrdemonwolf.wolfwave.tracktime",
+      "Icon": "imgs/actions/tracktime/icon",
+      "Tooltip": "Show elapsed or remaining time and track progress. Press to switch; the choice is saved for this key.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/actions/tracktime/key",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    },
+    {
       "Name": "Now Playing",
+      "DisableAutomaticStates": true,
       "UUID": "com.mrdemonwolf.wolfwave.nowplaying",
       "Icon": "imgs/actions/nowplaying/icon",
-      "Tooltip": "Shows the current track over its album art. Display only.",
+      "Tooltip": "Show the current song and artist over album artwork, with a pause indicator. Display only; pressing does nothing.",
       "Controllers": [
         "Keypad"
       ],

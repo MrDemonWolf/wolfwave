@@ -161,9 +161,9 @@ WolfWave pushes two frames to every connected client, so keys render without pol
 
 **On connect,** a client first gets `welcome` (`{ "type": "welcome", "server": "WolfWave", "version": "<app version>" }`, no `data`). Then come `widget_config`, `overlay_visibility`, `queue_upcoming`, and the current track (an empty `playback_state` when nothing is loaded). `queue_state` and `health` follow right after, because a new client triggers a fresh broadcast. The official plugin treats `welcome` as "connected".
 
-Control clients also receive the overlay frames (`now_playing`, `playback_state`, `widget_config`, `overlay_visibility`, `queue_upcoming`).
-While the overlay is hidden, they still get `now_playing` on every track change, so keys never go stale.
-`progress` frames go to everyone too, but only while a visible overlay is connected and a track is playing.
+Control clients also receive the overlay frames (`now_playing`, `playback_state`, `widget_config`, `overlay_visibility`, `queue_upcoming`), plus `progress` while a track plays.
+They get `now_playing` and `progress` even while the overlay is hidden, so keys never go stale.
+Overlay clients get `progress` only while the overlay is visible and a track is playing.
 The overlay frames are documented on the [OBS Widget](/docs/widget#message-contract) page.
 
 Not every key sends commands. **Now Playing** only listens: it paints from `now_playing` and `playback_state` and never sends anything.

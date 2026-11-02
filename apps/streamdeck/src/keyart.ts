@@ -9,9 +9,9 @@
  * Design rules, all of them about reading a 72x72 key from across a room:
  *
  * - **On is a tile, not a colored glyph.** A brand-filled key with the glyph
- *   knocked out in white reads at a glance; a blue glyph on a black key does not.
+ *   drawn in navy reads at a glance; a blue glyph on a dark key does not.
  * - **Color is the second channel.** Destructive keys are red, "needs you" is
- *   amber, live is brand blue, everything else is white on black.
+ *   amber, live is brand cyan, everything else is white on navy.
  * - **Numbers are the hero on counting keys.** A queue depth rendered as a big
  *   numeral beats the same digit squeezed into the Elgato title strip.
  */
@@ -70,6 +70,9 @@ export const note: Glyph = (c, w = 1) =>
   stroke("M10 16.8V5.2l8.4-1.6v11.2", c, 2.2 * w) +
   `<ellipse cx="7.4" cy="17" rx="2.8" ry="2.4" fill="${c}"/>` +
   `<ellipse cx="15.8" cy="14.8" rx="2.8" ry="2.4" fill="${c}"/>`;
+export const clock: Glyph = (c, w = 1) =>
+  `<circle cx="12" cy="12" r="8" fill="none" stroke="${c}" stroke-width="${round(2 * w)}"/>` +
+  stroke("M12 6.8v5.6l3.6 2.2", c, 2 * w);
 
 /** Speech bubble with a note in it: say what's playing. */
 export const announce: Glyph = (c, w = 1) =>
@@ -125,7 +128,7 @@ export const rejectRequest: Glyph = (c, w = 1) =>
 interface KeyArtOptions {
   glyph: Glyph;
   /**
-   * Fills the whole key. The glyph is knocked out in white on top of it, which
+   * Fills the whole key. The glyph uses contrasting navy ink on top of it, which
    * is the "this is on / this is live" treatment.
    */
   tile?: string;
@@ -146,8 +149,8 @@ export function keyImage({ glyph, tile, tint, label, titled }: KeyArtOptions): s
   const warning = tile === Palette.warning;
   const danger = tint === Palette.danger;
   const unavailable = tint === Palette.dim;
-  const box = label ? 30 : titled ? 40 : 44;
-  const centerY = label ? 22 : titled ? 30 : KEY_SIZE / 2;
+  const box = label ? 44 : titled ? 40 : 44;
+  const centerY = label ? 25 : titled ? 30 : KEY_SIZE / 2;
   const ink = active ? Palette.navy : warning ? Palette.warning : (tint ?? Palette.white);
   const rail = active
     ? Palette.navy
@@ -212,8 +215,9 @@ export function labelKeyImage(
   const { glyph, tile, tint, label, prominent = false } = options;
   const active = tile === Palette.tile;
   const warning = tile === Palette.warning;
+  const danger = tint === Palette.danger;
   const ink = active ? Palette.navy : warning ? Palette.warning : (tint ?? Palette.white);
-  const rail = active ? Palette.navy : warning ? Palette.warning : Palette.rail;
+  const rail = active ? Palette.navy : warning ? Palette.warning : danger ? Palette.danger : Palette.rail;
   return svg(
     KEY_SIZE,
     field(active ? Palette.tile : Palette.surface) +
@@ -224,7 +228,7 @@ export function labelKeyImage(
         KEY_SIZE / 2,
         prominent ? 64 : 65,
         prominent ? (label.length > 2 ? 17 : 20) : label.length > 2 ? 9 : 10,
-        active ? Palette.tile : warning ? Palette.navy : ink,
+        active ? Palette.tile : warning ? Palette.navy : danger ? Palette.white : ink,
       ),
   );
 }
@@ -244,8 +248,9 @@ export function nowPlayingImage(options: {
   art?: string;
   label: string;
   offset?: number;
+  paused?: boolean;
 }): string {
-  const { art, label, offset = 0 } = options;
+  const { art, label, offset = 0, paused = false } = options;
   const size = KEY_SIZE;
   const bandHeight = 22;
   const bandY = size - bandHeight;
@@ -265,11 +270,36 @@ export function nowPlayingImage(options: {
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"`,
     ` width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
     background,
+    paused ? `<rect x="51" y="4" width="17" height="17" rx="3" fill="#000000"/><path d="M56 8h2.5v9H56zm5 0h2.5v9H61z" fill="#FFFFFF"/>` : "",
     `<rect x="0" y="${round(bandY)}" width="${size}" height="${bandHeight}" fill="#000000"/>`,
     `<text x="${round(offset)}" y="${round(baseline)}" fill="#FFFFFF"`,
     ` font-family="Helvetica" font-size="${fontSize}" font-weight="bold">${escapeText(label)}</text>`,
     `</svg>`,
   ].join("");
+}
+
+/** A dedicated, legible timer with a small progress bar. */
+export function trackTimeImage(elapsed: number, duration: number, remaining: boolean, paused = false): string {
+  const valid = Number.isFinite(elapsed) && Number.isFinite(duration) && duration > 0 && elapsed >= 0;
+  const position = valid ? Math.min(elapsed, duration) : 0;
+  const seconds = valid ? Math.floor(remaining ? duration - position : position) : 0;
+  const minutes = Math.floor(seconds / 60);
+  const time = valid ? `${remaining ? "−" : ""}${minutes}:${String(seconds % 60).padStart(2, "0")}` : "--:--";
+  return svg(KEY_SIZE,
+    field(Palette.surface) +
+    (valid && paused ? text("PAUSED", 36, 14, 8, Palette.white) : "") +
+    text(time, 36, 35, time.length > 6 ? 15 : 20, Palette.white) +
+    text(remaining ? "LEFT" : "ELAPSED", 36, 51, 8, Palette.white) +
+    `<rect x="6" y="59" width="60" height="5" rx="2.5" fill="${Palette.rail}"/>` +
+    (valid ? `<rect x="6" y="59" width="${round(60 * position / duration)}" height="5" rx="2.5" fill="${Palette.tile}"/>` : ""));
+}
+
+/** Connection feedback replaces live art and leaves the user-title area clear. */
+export function connectionStatusImage(label: string): string {
+  return svg(KEY_SIZE,
+    field(Palette.surface) +
+    `<circle cx="36" cy="17" r="4" fill="${Palette.dim}"/>` +
+    text(escapeText(label), 36, 40, 12, Palette.white));
 }
 
 /**

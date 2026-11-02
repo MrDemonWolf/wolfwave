@@ -116,9 +116,9 @@ installs update with `brew upgrade wolfwave`.
 
 **Stream Deck (optional)**
 
-- **Twelve keys.** Play / Pause, Skip, Hold Queue, Approve Next,
+- **Thirteen keys.** Play / Pause, Next Track, Hold / Resume Queue, Approve Next,
   Reject Request, Clear Queue, Block Song, Block Requester, Request
-  Access, Announce Song, Overlay, and Now Playing.
+  Audience, Announce Song, Show / Hide Overlay, Now Playing, and Track Time.
 - **Manual install for now.** The plugin is built from
   `apps/streamdeck/` until it's on the Elgato Marketplace. See the
   [Stream Deck guide](https://wolfwave.mrdemonwolf.dev/docs/streamdeck).

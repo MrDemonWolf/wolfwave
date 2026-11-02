@@ -88,14 +88,12 @@ whole key rather than by the glyph alone:
 
 | Treatment | Means | Keys |
 |---|---|---|
-| Brand tile `#0066CC`, glyph knocked out white | On / live | Overlay on, playing, queue held, links up |
-| Amber tile `#FF9F0A` | Wants the streamer to act | Approve Next with requests pending |
-| Red glyph on black `#FF453A` | Destructive | Clear Queue, Block Song |
-| White glyph on black | Available, currently off | everything else |
-| Grey glyph `#8E8E93` | Nothing to act on | Approve Next with an empty queue |
+| Brand tile `#0FACED`, glyph knocked out navy | On / live | Overlay on, playing, queue held, links up |
+| Amber tile `#F5A524` | Wants the streamer to act | Approve Next with requests pending |
+| Red glyph on navy `#D92D42` | Destructive | Clear Queue, Block Song |
+| White glyph on navy | Available, currently off | everything else |
+| Grey glyph `#73859F` | Nothing to act on | Approve Next with an empty queue |
 
-Brand **600** rather than 500 is deliberate: the default white Elgato title only
-clears 4.5:1 contrast on the darker blue.
 
 Some keys paint themselves at runtime with `setImage` instead of using their
 manifest state image, because no static file can carry a number, a word, or a
@@ -103,16 +101,17 @@ cover:
 
 | Key | Live art |
 |---|---|
-| Hold Queue | queue glyph plus the queue depth as a large numeral, capped at `99+` |
+| Hold / Resume Queue | queue glyph plus the queue depth as a large numeral, capped at `99+` |
 | Approve Next | check plus the pending count, amber tile when any are pending |
 | Clear Queue | red trash plus the queue depth |
-| Request Access | the gate glyph plus the current audience (`ALL` / `SUB` / `VIP` / `MOD`), tiled once it is narrower than everyone |
-| Now Playing | the track's album art, fetched and inlined as a data URI, with the title and artist scrolling across the bottom when they don't fit; falls back to the note glyph |
+| Request Audience | the gate glyph plus the current audience (`ALL` / `SUB` / `VIP` / `MOD`), tiled once it is narrower than everyone |
+| Now Playing | the track's album art, fetched and inlined as a data URI, with the title and artist scrolling across the bottom when they don't fit; shows a pause badge and falls back to the note glyph |
+| Track Time | elapsed or remaining time, a progress bar, and a paused label; press to switch, saved per key |
 
 Those leave the Elgato title alone, so a user-set label survives, and Play /
-Pause clears its title rather than writing the track into it. Any key drops back to its
-manifest image when the connection goes away, so a stale count can never sit
-under an `Offline` title.
+Pause clears its title rather than writing the track into it. When the connection goes away, each key replaces live art with a connection
+status image. It leaves the bottom title area clear so a custom label cannot
+obscure Offline, Token?, or Update.
 
 ### Hold to confirm
 
@@ -149,8 +148,8 @@ The base class paints these centrally, so no individual key can forget one:
 
 | Phase | Key shows | Meaning |
 |---|---|---|
-| `disconnected` | `Offline` | No socket. Retrying with capped backoff. A token WolfWave rejects (rotated, or the overlay token pasted by mistake) looks the same on the key; the Property Inspector says "WolfWave rejected this token". |
-| `unauthorized` | `Token?` | Control token missing or not 64 hex characters. Retrying won't help. |
+| `disconnected` | `Offline` | No socket: retrying with capped backoff, or no token entered yet. A token WolfWave rejects (rotated, or the overlay token pasted by mistake) looks the same on the key; the Property Inspector says "WolfWave rejected this token". |
+| `unauthorized` | `Token?` | Control token isn't 64 hex characters. Retrying won't help. A blank token shows `Offline` instead. |
 | `outdated` | `Update` | WolfWave rejected the protocol version (`ack error:"protocol"`). |
 | `connected` | per-key render | Live. |
 

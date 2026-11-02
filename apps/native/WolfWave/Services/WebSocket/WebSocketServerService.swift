@@ -430,11 +430,13 @@ actor WebSocketServerService {
         // progress baseline and skip the full rebroadcast + progress-timer
         // restart. The timer is already in the correct state because isPaused is
         // unchanged; overlay clients keep ticking locally from the last frame.
+        // Paused clients have no progress ticks to pick up a seek.
         let unchanged = currentTrack == track
             && currentArtist == artist
             && currentAlbum == album
             && currentDuration == duration
             && isPlaying == !isPaused
+            && (!isPaused || currentElapsed == elapsed)
             && (artworkURL == nil || artworkURL == currentArtworkURL)
         if unchanged {
             currentElapsed = elapsed

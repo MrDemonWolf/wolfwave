@@ -30,6 +30,7 @@ import {
   audienceGate,
   ban,
   check,
+  clock,
   hold,
   keyImage,
   labelKeyImage,
@@ -65,6 +66,7 @@ const ACTION_ICONS: Array<[string, Glyph]> = [
   ["blockrequester", personBlock],
   ["cycleaudience", audienceGate],
   ["nowplaying", note],
+  ["tracktime", clock],
 ];
 
 /**
@@ -81,7 +83,7 @@ const KEY_IMAGES: Array<[string, string]> = [
     "actions/playpause/key-playing",
     keyImage({ glyph: pause, label: "PAUSE", tile: Palette.tile }),
   ],
-  ["actions/skip/key", keyImage({ glyph: skip, label: "SKIP" })],
+  ["actions/skip/key", keyImage({ glyph: skip, label: "NEXT" })],
   ["actions/queuehold/key-running", keyImage({ glyph: hold, label: "HOLD" })],
   [
     "actions/queuehold/key-held",
@@ -129,6 +131,7 @@ const KEY_IMAGES: Array<[string, string]> = [
   ],
   // Replaced by album art whenever it can be fetched.
   ["actions/nowplaying/key-paused", keyImage({ glyph: note, label: "NOW" })],
+  ["actions/tracktime/key", keyImage({ glyph: clock, label: "TIME" })],
   [
     "actions/nowplaying/key-playing",
     keyImage({ glyph: note, label: "NOW", tile: Palette.tile }),

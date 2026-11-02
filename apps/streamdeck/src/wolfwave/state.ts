@@ -20,7 +20,10 @@ export type ConnectionPhase =
   | "disconnected"
   /** Socket open and authenticated. */
   | "connected"
-  /** Token missing or malformed — retrying will not help. */
+  /**
+   * Token is not 64 hex characters, so retrying will not help. A blank token
+   * stops the client instead, which reads as `disconnected` (Offline).
+   */
   | "unauthorized"
   /** WolfWave rejected our protocol version. Keys show the update state. */
   | "outdated";
@@ -62,8 +65,8 @@ export const initialState: WolfWaveState = {
  * Folds an inbound frame into state.
  *
  * Returns the *same object reference* when nothing changed, so callers can use
- * an identity check to skip a key re-render. That matters: `progress` frames
- * arrive on a timer while a track plays, and none of them change key state.
+ * an identity check to skip a key re-render. Progress has its own subscriber
+ * path so its timer cannot repaint unrelated keys.
  */
 export function reduce(
   state: WolfWaveState,
@@ -113,6 +116,7 @@ export function reduce(
         ? changed(state, { phase: "outdated" })
         : state;
 
+    case "progress":
     case "unknown":
       return state;
   }

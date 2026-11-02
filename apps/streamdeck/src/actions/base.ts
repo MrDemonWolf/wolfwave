@@ -13,6 +13,7 @@ import {
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import { now } from "../clock.js";
+import { connectionStatusImage } from "../keyart.js";
 import type { WolfWaveClient } from "../wolfwave/client.js";
 import type { WolfWaveAction } from "../wolfwave/protocol.js";
 import type { WolfWaveState } from "../wolfwave/state.js";
@@ -25,8 +26,8 @@ type DefaultSettings =
   SingletonAction extends SingletonAction<infer T> ? T : never;
 
 /**
- * A key action with the SDK's default settings type. WolfWave keys carry no
- * per-key settings (see `WolfWaveKeyAction`).
+ * A key action with the SDK's default settings type. Connection settings are
+ * global; individual actions may persist presentation choices per key.
  */
 export type WolfWaveKey = KeyAction<DefaultSettings>;
 
@@ -46,12 +47,15 @@ export const KeyState = {
 } as const;
 
 /**
- * Not generic over a settings type: connection settings are global (one
- * WolfWave install serves every key), so no action carries per-key settings.
+ * Connection settings are global (one WolfWave install serves every key).
+ * Presentation choices use the SDK's default settings type.
  */
 export abstract class WolfWaveKeyAction extends SingletonAction {
   /** Unsubscribe handles for visible keys, so disappearing keys stop rendering. */
   private readonly subscriptions = new Map<string, () => void>();
+
+  /** Keys whose connection image must be cleared before live art can return. */
+  private readonly connectionImages = new Set<string>();
 
   constructor(protected readonly client: WolfWaveClient) {
     super();
@@ -199,7 +203,7 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
    * a key that silently kept rendering its last-known title after WolfWave quit
    * would be actively misleading on stream.
    */
-  private async paint(action: WolfWaveKey, state: WolfWaveState): Promise<void> {
+  protected async paint(action: WolfWaveKey, state: WolfWaveState): Promise<void> {
     // Supersedes any render still suspended from an earlier state.
     this.bumpGeneration(action.id);
     switch (state.phase) {
@@ -213,21 +217,24 @@ export abstract class WolfWaveKeyAction extends SingletonAction {
         await this.reset(action, "Update");
         return;
       case "connected":
+        if (this.connectionImages.delete(action.id)) {
+          const generation = this.generationOf(action.id);
+          await action.setImage();
+          if (this.isStale(action.id, generation)) return;
+        }
         await this.render(action, state);
     }
   }
 
-  /**
-   * Drops a key back to its manifest art and says why.
-   *
-   * The `setImage()` with no argument matters: the keys that paint live art
-   * would otherwise keep showing a queue count from before WolfWave quit,
-   * under an "Offline" title, which reads as a live queue.
-   */
+  /** Replaces live art so stale counts and baked captions cannot obscure status. */
   private async reset(action: WolfWaveKey, title: string): Promise<void> {
+    const generation = this.generationOf(action.id);
     this.onReset(action);
-    await action.setImage();
-    await action.setTitle(title);
+    this.connectionImages.add(action.id);
+    await action.setImage(connectionStatusImage(title));
+    if (this.isStale(action.id, generation)) return;
+    await action.setTitle("");
+    if (this.isStale(action.id, generation)) return;
     await action.setState(KeyState.primary);
   }
 }
