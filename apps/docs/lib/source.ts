@@ -1,17 +1,15 @@
 import { docs } from 'fumadocs-mdx:collections/server';
 import { type InferPageType, loader } from 'fumadocs-core/source';
-import { createElement } from 'react';
-import { IconTile } from '@/components/docs/icon-tile';
-import { docsTabsPlugin } from './docs-tree';
+import { docsTreePlugin } from './docs-tree';
 import { absoluteUrl, pageUrl } from './site';
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
   baseUrl: '/docs',
   source: docs.toFumadocsSource(),
-  // Groups meta.json into the Guides / Developers / Design tabs and adds the
-  // sidebar icon tiles (lib/docs-nav.ts).
-  plugins: [docsTabsPlugin((entry) => createElement(IconTile, { icon: entry.icon, tint: entry.tint }))],
+  // Turns the meta.json groups into collapsible sidebar folders and applies the
+  // short sidebar labels (lib/docs-tree.ts, lib/docs-nav.ts).
+  plugins: [docsTreePlugin()],
 });
 
 /** Returns the OG-image slug segments + absolute URL for a docs page's social card. */

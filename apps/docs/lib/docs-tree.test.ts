@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { DOCS_NAV_ENTRIES, DOCS_TABS, HIDDEN_GROUP_LABELS } from "./docs-nav";
-import { decorateTree, docsTabsPlugin, groupIntoTabs, isFallbackTree, tabIdForUrl } from "./docs-tree";
+import { SIDEBAR_LABELS } from "./docs-nav";
+import { applyLabels, docsTreePlugin, groupForUrl, groupIntoFolders, isFallbackTree } from "./docs-tree";
 
 const meta = JSON.parse(readFileSync(new URL("../content/docs/meta.json", import.meta.url), "utf8")) as {
   pages: string[];
@@ -15,74 +15,82 @@ function sampleTree(): PageTree.Root {
   return {
     name: "Documentation",
     children: [
-      page("/docs", "Documentation"),
-      separator("Start here"),
+      page("/docs", "WolfWave docs"),
       page("/docs/installation", "Install"),
-      separator("Contribute"),
+      separator("Help"),
+      page("/docs/faq", "Frequently asked questions"),
+      separator("Developers"),
       page("/docs/development", "Development"),
-      separator("Design System"),
-      page("/docs/design-system", "Design System"),
     ],
   };
 }
 
-describe("groupIntoTabs", () => {
-  test("makes one typed root folder per tab, in tab order", () => {
-    const tree = groupIntoTabs(sampleTree());
-    expect(tree.children.map((node) => node.type === "folder" && node.root)).toEqual(DOCS_TABS.map((tab) => tab.id));
+const folders = (tree: PageTree.Root) =>
+  tree.children.filter((node): node is PageTree.Folder => node.type === "folder");
+
+describe("groupIntoFolders", () => {
+  test("keeps the pages before the first group at the top level", () => {
+    const tree = groupIntoFolders(sampleTree());
+    expect(tree.children.slice(0, 2).map((node) => node.type === "page" && node.url)).toEqual([
+      "/docs",
+      "/docs/installation",
+    ]);
   });
 
-  test("puts pages before the first separator in the first tab", () => {
-    const tree = groupIntoTabs(sampleTree());
-    expect(tabIdForUrl(tree, "/docs")).toBe("guides");
-    expect(tabIdForUrl(tree, "/docs/installation")).toBe("guides");
-    expect(tabIdForUrl(tree, "/docs/development")).toBe("developers");
-    expect(tabIdForUrl(tree, "/docs/design-system")).toBe("design-system");
+  test("turns each group into a folder of the pages after it, in order", () => {
+    const tree = groupIntoFolders(sampleTree());
+    expect(folders(tree).map((folder) => folder.name)).toEqual(["Help", "Developers"]);
+    expect(folders(tree).map((folder) => folder.children.map((child) => child.type === "page" && child.url))).toEqual([
+      ["/docs/faq"],
+      ["/docs/development"],
+    ]);
   });
 
-  test("keeps group separators but drops labels that repeat the tab", () => {
-    const tree = groupIntoTabs(sampleTree());
-    const names = tree.children.flatMap((tab) =>
-      tab.type === "folder" ? tab.children.filter((node) => node.type === "separator").map((node) => node.name) : [],
-    );
-    expect(names).toEqual(["Start here", "Contribute"]);
-  });
-
-  test("fails loudly on a group no tab claims", () => {
-    const tree = sampleTree();
-    tree.children.push(separator("Mystery"), page("/docs/mystery"));
-    expect(() => groupIntoTabs(tree)).toThrow(/Mystery/);
+  test("leaves no separators behind", () => {
+    const tree = groupIntoFolders(sampleTree());
+    const nodes = [...tree.children, ...folders(tree).flatMap((folder) => folder.children)];
+    expect(nodes.some((node) => node.type === "separator")).toBe(false);
   });
 
   test("keeps the fallback tree for unlisted pages", () => {
     const tree = sampleTree();
     tree.fallback = { name: "fallback", children: [page("/docs/changelog")] };
-    expect(groupIntoTabs(tree).fallback?.children).toHaveLength(1);
+    expect(groupIntoFolders(tree).fallback?.children).toHaveLength(1);
   });
 });
 
-describe("decorateTree", () => {
-  test("applies short labels and icons by URL, leaving others alone", () => {
-    const tree = decorateTree(groupIntoTabs(sampleTree()), (entry) => entry.tint);
-    const guides = tree.children[0];
-    if (guides.type !== "folder") throw new Error("expected the guides folder");
-    const home = guides.children[0];
-    expect(home.type === "page" && home.name).toBe("Overview");
-    expect(home.type === "page" && home.icon).toBe("brand");
+describe("applyLabels", () => {
+  test("shortens listed pages inside folders and leaves the rest alone", () => {
+    const tree = applyLabels(groupIntoFolders(sampleTree()), { "/docs/faq": "FAQ" });
+    const faq = folders(tree)[0].children[0];
+    expect(faq.type === "page" && faq.name).toBe("FAQ");
+    const home = tree.children[0];
+    expect(home.type === "page" && home.name).toBe("WolfWave docs");
   });
 });
 
-describe("docsTabsPlugin", () => {
+describe("groupForUrl", () => {
+  test("names a page's group, and none for top-level or unknown pages", () => {
+    const tree = groupIntoFolders(sampleTree());
+    expect(groupForUrl(tree, "/docs/development")).toBe("Developers");
+    expect(groupForUrl(tree, "/docs/installation")).toBeUndefined();
+    expect(groupForUrl(tree, "/docs/missing")).toBeUndefined();
+  });
+});
+
+describe("docsTreePlugin", () => {
   const transform = (root: PageTree.Root) => {
-    const hook = docsTabsPlugin((entry) => entry.tint).transformPageTree?.root;
+    const hook = docsTreePlugin().transformPageTree?.root;
     if (!hook) throw new Error("the plugin should transform the root");
     // The hook's `this` (the builder context) is unused.
     return hook.call({} as never, root);
   };
 
-  test("tabs and decorates the main tree", () => {
+  test("folds and labels the main tree", () => {
     const tree = transform({ ...sampleTree(), $id: "root" });
-    expect(tree.children.map((node) => node.type === "folder" && node.root)).toEqual(DOCS_TABS.map((tab) => tab.id));
+    expect(folders(tree).map((folder) => folder.name)).toEqual(["Help", "Developers"]);
+    const faq = folders(tree)[0].children[0];
+    expect(faq.type === "page" && faq.name).toBe(SIDEBAR_LABELS["/docs/faq"]);
   });
 
   test("leaves Fumadocs' fallback tree (unlisted pages) alone", () => {
@@ -92,47 +100,26 @@ describe("docsTabsPlugin", () => {
   });
 });
 
-describe("meta.json and docs-nav stay in step", () => {
-  const groups = meta.pages.filter((entry) => entry.startsWith("---")).map((entry) => entry.slice(3, -3));
-
-  test("every meta.json group belongs to exactly one tab", () => {
-    for (const group of groups) {
-      expect(DOCS_TABS.filter((tab) => tab.groups.includes(group))).toHaveLength(1);
-    }
-  });
-
-  test("every tab group exists in meta.json", () => {
-    for (const tab of DOCS_TABS) for (const group of tab.groups) expect(groups).toContain(group);
-  });
-
-  test("hidden labels name real groups", () => {
-    for (const group of HIDDEN_GROUP_LABELS) expect(groups).toContain(group);
-  });
-
-  test("every sidebar page and link has an icon tile", () => {
-    const urls = meta.pages
-      .filter((entry) => !entry.startsWith("---"))
-      .map((entry) => {
-        const link = entry.match(/^\[.*\]\((.+)\)$/);
-        if (link) return link[1];
-        const slug = entry.replace(/\/index$/, "").replace(/^index$/, "");
-        return slug ? `/docs/${slug}` : "/docs";
-      });
-    for (const url of urls) expect(DOCS_NAV_ENTRIES[url], `${url} needs an entry in DOCS_NAV_ENTRIES`).toBeDefined();
-    for (const url of Object.keys(DOCS_NAV_ENTRIES)) expect(urls, `${url} is not in meta.json`).toContain(url);
-  });
-
-  test("each tab's switcher URL is a page in that tab", () => {
-    const urls = new Map<string, string>();
-    let tab = DOCS_TABS[0].id as string;
-    for (const entry of meta.pages) {
-      if (entry.startsWith("---")) {
-        tab = DOCS_TABS.find((candidate) => candidate.groups.includes(entry.slice(3, -3)))?.id ?? tab;
-        continue;
-      }
+describe("meta.json and the sidebar labels stay in step", () => {
+  const urls = meta.pages
+    .filter((entry) => !entry.startsWith("---"))
+    .map((entry) => {
+      const link = entry.match(/^\[.*\]\((.+)\)$/);
+      if (link) return link[1];
       const slug = entry.replace(/\/index$/, "").replace(/^index$/, "");
-      urls.set(slug ? `/docs/${slug}` : "/docs", tab);
-    }
-    for (const candidate of DOCS_TABS) expect(urls.get(candidate.url)).toBe(candidate.id);
+      return slug ? `/docs/${slug}` : "/docs";
+    });
+
+  test("every label names a page in meta.json", () => {
+    for (const url of Object.keys(SIDEBAR_LABELS)) expect(urls, `${url} is not in meta.json`).toContain(url);
+  });
+
+  test("the home comes first, and every group holds at least one page", () => {
+    expect(urls[0]).toBe("/docs");
+    meta.pages.forEach((entry, index) => {
+      if (!entry.startsWith("---")) return;
+      const next = meta.pages[index + 1];
+      expect(next !== undefined && !next.startsWith("---"), `${entry} has no pages`).toBe(true);
+    });
   });
 });

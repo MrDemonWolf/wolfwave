@@ -248,15 +248,13 @@ The site lives in `apps/docs`: Next.js as a static export, with [Fumadocs](https
 
 1. Create `content/docs/<slug>.mdx`. Its URL is `/docs/<slug>`. Fill in `title`, a `description` of 50 to 160 characters, and the social card fields (`ogTitle`, `ogDescription`, `ogEyebrow`, `ogChips`, `keywords`). `metaTitle` changes only the browser title.
 2. List it in `content/docs/meta.json` under its group. Groups are the `---Name---` separators.
-3. Give it a sidebar tile in `lib/docs-nav.ts` (`DOCS_NAV_ENTRIES`): an icon, a tint, and an optional shorter label.
+3. Optional: give it a shorter sidebar label in `lib/docs-nav.ts` (`SIDEBAR_LABELS`).
 
-`bun run --filter docs test` fails if a page in `meta.json` has no tile, or a group belongs to no tab.
+`bun run --filter docs test` fails if a label names a page that isn't in `meta.json`, or a group has no pages.
 
-### Tabs and tiles
+### The sidebar
 
-The sidebar has three tabs: **Guides**, **Developers**, and **Design**. `DOCS_TABS` in `lib/docs-nav.ts` lists which `meta.json` groups each tab holds, and `lib/docs-tree.ts` builds the tabbed sidebar from them. Files never move into folders, so URLs, anchors, and every hard-coded `content/docs/*.mdx` path stay put.
-
-A tile's color says what the page is about: `brand` for WolfWave itself, a partner color for a service (`twitch`, `discord`, `apple-music`, and `graphite` for OBS and Stream Deck), `gray` for general and legal pages, `red` for fixes, `indigo` for contributor docs, and `wolfwave` for the design system.
+The sidebar is one plain list. The home, Install, and Features sit on top, and each `---Group---` separator in `meta.json` becomes a collapsible folder (`lib/docs-tree.ts`). Files never move into folders, so URLs, anchors, and every hard-coded `content/docs/*.mdx` path stay put.
 
 ### Formatting that renders specially
 
