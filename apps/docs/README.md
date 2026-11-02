@@ -29,7 +29,7 @@ Open <http://localhost:3000>.
 | `content/docs/` | All MDX content. Page order and groups are in `content/docs/meta.json`. |
 | `lib/docs-nav.ts` + `lib/docs-tree.ts` | Which groups make up the Guides, Developers and Design tabs, each page's sidebar icon tile, and the loader plugin that builds the tabbed sidebar. |
 | `lib/rehype-docs.ts` | UI path chips, troubleshooting Message / Why / Fix lists, and Mermaid diagrams, all from plain MDX. |
-| `components/docs/` | Docs header, tab switcher, icon tiles, Mermaid, and the docs home blocks. |
+| `components/docs/` | Docs header, tab switcher, icon tiles, and Mermaid. |
 | `app/global.css` + `app/tokens.generated.css` | Shared and landing styling. Generated CSS comes from `design-system/tokens.json`; do not edit by hand. |
 
 Adding a page? See [Edit the docs site](https://wolfwave.mrdemonwolf.dev/docs/development/#edit-the-docs-site).
