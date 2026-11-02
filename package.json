@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "ajv": "^8.20.0",
-    "sponsorkit": "^18.0.0",
+    "sponsorkit": "^19.0.0",
     "turbo": "^2.11.10"
   }
 }

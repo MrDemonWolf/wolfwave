@@ -6,7 +6,7 @@
       "name": "wolfwave",
       "devDependencies": {
         "ajv": "^8.20.0",
-        "sponsorkit": "^18.0.0",
+        "sponsorkit": "^19.0.0",
         "turbo": "^2.11.10",
       },
     },
@@ -1827,7 +1827,7 @@
 
     "normalize-path": ["normalize-path@3.0.0", "", {}, "sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA=="],
 
-    "normalize-url": ["normalize-url@9.0.1", "", {}, "sha512-ARftfC5HdUNu9jJeL8pHj8debUIHA2b91FizCoMzY4lG6dDX13jdvTK0TBe24IBDRf2HvJSzzwEPvmbkQWHRSg=="],
+    "normalize-url": ["normalize-url@10.0.0", "", {}, "sha512-aZEiiOP3lVdNrCCdPELWvJHbjJjoPfbWRLPAZLSsGA6l4ckvPmZSB+uX6JB4QQu33SeXCsd6v75jKivr43n/EQ=="],
 
     "npm-run-path": ["npm-run-path@4.0.1", "", { "dependencies": { "path-key": "^3.0.0" } }, "sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw=="],
 
@@ -2089,7 +2089,7 @@
 
     "space-separated-tokens": ["space-separated-tokens@2.0.2", "", {}, "sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q=="],
 
-    "sponsorkit": ["sponsorkit@18.0.0", "", { "dependencies": { "ansis": "^4.3.1", "cac": "^7.0.0", "consola": "^3.4.2", "d3-hierarchy": "^3.1.2", "normalize-url": "^9.0.1", "ofetch": "^1.5.1", "p-limit": "^7.3.1", "sharp": "^0.35.3", "unconfig": "^7.5.0" }, "bin": { "sponsorkit": "./dist/cli.mjs" } }, "sha512-9Jr+n4SjU8Qtldq8i0UlwwqBEAVy5JFbIQNXRUIs1N+LPTCnX2/of5oyHYftCLi3KxAODVMmyEdWqkJMTagR6w=="],
+    "sponsorkit": ["sponsorkit@19.0.0", "", { "dependencies": { "ansis": "^4.4.0", "cac": "^7.1.0", "consola": "^3.4.2", "d3-hierarchy": "^3.1.2", "normalize-url": "^10.0.0", "ofetch": "^1.5.1", "p-limit": "^7.3.3", "sharp": "^0.35.5", "unconfig": "^7.5.0" }, "bin": { "sponsorkit": "./dist/cli.mjs" } }, "sha512-srRaflySPU40DjZ07DUnxF9VhnbotupyIs1ahUXNLWf+T2V75uELRxCEmzeB7CE3WYhrsLC2JYRrtNlWQlPmtw=="],
 
     "stable-hash": ["stable-hash@0.0.5", "", {}, "sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA=="],
 
