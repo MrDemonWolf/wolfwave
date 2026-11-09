@@ -12,18 +12,18 @@
     "test": "bun test"
   },
   "dependencies": {
-    "fumadocs-core": "16.17.9",
-    "fumadocs-mdx": "15.4.10",
-    "fumadocs-ui": "16.17.9",
-    "lucide-react": "^1.65.0",
-    "mermaid": "^12.2.0",
-    "next": "16.4.3",
+    "fumadocs-core": "16.18.0",
+    "fumadocs-mdx": "15.5.0",
+    "fumadocs-ui": "16.18.0",
+    "lucide-react": "^1.70.0",
+    "mermaid": "^12.3.0",
+    "next": "16.4.5",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.4",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
@@ -32,7 +32,7 @@
     "serve": "^14.2.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "eslint-config-next": "16.4.3",
-    "eslint": "^10.13.0"
+    "eslint-config-next": "16.4.5",
+    "eslint": "^10.14.0"
   }
 }
