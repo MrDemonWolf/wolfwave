@@ -15,6 +15,10 @@ StatusChip(text: "Connected", color: DSColor.success, systemImage: StatusChip.St
 
 // Category tag with no shared icon vocabulary: dot fallback.
 StatusChip(text: "Twitch", color: .purple)
+
+// A resolved state from one pure function: preferred for anything with
+// more than two states.
+StatusChip(status)   // status: StatusChip.Descriptor
 ```
 
 | Param | Type | Notes |
@@ -22,6 +26,9 @@ StatusChip(text: "Twitch", color: .purple)
 | `text` | `String` | Short status label (≤ 16 chars). |
 | `color` | `Color` | Tint for the glyph + `DSOpacity.wash` (10%) background fill. Use semantic tokens. In light appearance the glyph is drawn in the token's darker `glyph…Light` variant (see [Glyph contrast](#glyph-contrast)); the wash keeps the tint. |
 | `systemImage` | `String?` | Optional leading SF Symbol. When set, replaces the colored dot so state reads through shape **and** color (WCAG 1.4.1). Use `StatusChip.StateGlyph.*` for the on / off / paused / error / starting vocabulary. `nil` (default) falls back to a colored dot. |
+
+### Descriptor
+`StatusChip.Descriptor` is one resolved state: `text`, `color`, `symbol`. It is `nonisolated` and `Equatable`. Write **one** `status` resolver that returns it, not three parallel `statusText` / `statusColor` / `statusSymbol` properties: three ladders over the same flags drift apart, one value cannot. Used by `StreamDeckPaneStatus` (as `Resolved`), `IntegrationDashboardView.Status`, `WebSocketServerCard`, and `SoftwareUpdateSettingsView`.
 
 ### StateGlyph vocabulary
 Shared SF Symbol names so connection state is consistent across panes. The enum is

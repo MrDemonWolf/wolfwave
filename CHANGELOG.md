@@ -149,6 +149,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **One chip state, one value.** `StatusChip.Descriptor` (text, tint, glyph) replaces parallel `statusText` / `statusColor` / `statusSymbol` properties in the Stream Widgets card, Software Update, the Stream Deck pane, and the General dashboard. The granted-state **Recheck** in General now uses `AsyncActionButton`, and the remaining Reduce Motion ternaries go through `.motionSafe` / `withMotionSafeAnimation`.
 - **Agent guidance is split by area.** `CLAUDE.md` is gone. The root `AGENTS.md` holds the repo-wide rules (CI, docs sync, versioning, release), and `apps/native/`, `apps/docs/`, `apps/widget/`, `apps/streamdeck/`, and `design-system/` each carry an `AGENTS.md` with the rules for that code.
 - **Request results say who reads the text.** `SongRequestService.RequestResult` splits `.denied` (the chat-ready audience refusal) from `.error` (a lookup failure, logged and never sent to chat). `SongRequestGatedCommand` gives the queue commands a silent preflight refusal while Song Requests is off, and `WidgetLink` is the one builder for widget Browser Source links.
 - **Bug-report fields are checked against the form.** `BugReportURL` fills issue-form fields by id (`BugReportURL.FormField`) and percent-encodes `+`; `make lint-sync` fails when an id names no text field in `bug_report.yml`. `RetentionImpact` drives the retention confirmation. `TwitchViewModel.RetryTarget` gains `.reloadCredentials` and moves with `retryTarget(for:)` into `TwitchFailure.swift`.

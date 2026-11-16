@@ -11,7 +11,7 @@ export const SIDEBAR_LABELS: Readonly<Record<string, string>> = {
   "/docs/support": "Help & Support",
   "/docs/comparison": "Compare Alternatives",
   "/docs/acknowledgements": "Acknowledgements",
-  "/docs/stream-deck": "Stream Deck Protocol",
+  "/docs/widget": "OBS Widget Internals",
   "/docs/design-system": "Overview",
   "/docs/design-system/components": "Components",
 };

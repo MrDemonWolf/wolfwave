@@ -16,11 +16,6 @@ import SwiftUI
 /// card for Homebrew installs (Sparkle disabled) and to the Sparkle-flavored
 /// card for DMG installs.
 struct SoftwareUpdateSettingsView: View {
-    // MARK: - Environment
-
-    /// Drops the card's state-change animations when Reduce Motion is on.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     // MARK: - State
 
     /// True when the last `updateStateChanged` reported a newer build that the
@@ -87,38 +82,36 @@ struct SoftwareUpdateSettingsView: View {
         appDelegate?.sparkleUpdater?.recheckAfterChannelChange()
     }
 
-    /// Status chip text derived from live update state.
-    private var statusText: String {
-        if isHomebrewInstall { return "Homebrew" }
-        if isCheckingForUpdates { return "Checking…" }
-        if updateAvailable, let latestVersion { return "v\(latestVersion) ready" }
-        if latestVersion != nil { return "Up to date" }
-        return updateCheckEnabled ? "Auto on" : "Auto off"
-    }
-
-    /// Status chip color matching `statusText`.
-    private var statusColor: Color {
-        if isHomebrewInstall { return DSColor.neutral }
-        if isCheckingForUpdates { return DSColor.warning }
-        // Stays .accentColor: an available update is the one state that should
-        // follow the user's system accent rather than a fixed brand blue.
-        if updateAvailable { return .accentColor }
-        if latestVersion != nil { return DSColor.success }
-        return updateCheckEnabled ? DSColor.success : DSColor.neutral
-    }
-
-    /// Update progress and availability use the shared status symbols.
-    private var statusSymbol: String {
-        if isHomebrewInstall { return "shippingbox" }
-        if isCheckingForUpdates { return StatusChip.StateGlyph.starting }
-        if updateAvailable { return "arrow.down.circle.fill" }
-        if latestVersion != nil || updateCheckEnabled { return StatusChip.StateGlyph.on }
-        return StatusChip.StateGlyph.off
+    /// Header chip derived from live update state, first match wins:
+    /// Homebrew install, checking, update ready, up to date, then the
+    /// automatic-check switch.
+    private var status: StatusChip.Descriptor {
+        if isHomebrewInstall {
+            return .init(text: "Homebrew", color: DSColor.neutral, symbol: "shippingbox")
+        }
+        if isCheckingForUpdates {
+            return .init(text: "Checking…", color: DSColor.warning, symbol: StatusChip.StateGlyph.starting)
+        }
+        if updateAvailable {
+            // Stays .accentColor: an available update is the one state that
+            // should follow the user's system accent rather than a fixed blue.
+            return .init(
+                text: latestVersion.map { "v\($0) ready" } ?? "Update ready",
+                color: .accentColor,
+                symbol: "arrow.down.circle.fill"
+            )
+        }
+        if latestVersion != nil {
+            return .init(text: "Up to date", color: DSColor.success, symbol: StatusChip.StateGlyph.on)
+        }
+        return updateCheckEnabled
+            ? .init(text: "Auto on", color: DSColor.success, symbol: StatusChip.StateGlyph.on)
+            : .init(text: "Auto off", color: DSColor.neutral, symbol: StatusChip.StateGlyph.off)
     }
 
     private var updateStatus: some View {
-        StatusChip(text: statusText, color: statusColor, systemImage: statusSymbol)
-            .accessibilityLabel("Software Update status: \(statusText)")
+        StatusChip(status)
+            .accessibilityLabel("Software Update status: \(status.text)")
     }
 
     // MARK: - Body
@@ -320,9 +313,9 @@ struct SoftwareUpdateSettingsView: View {
             }
         }
         .cardStyle()
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: selectedChannel)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: updateCheckEnabled)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: selectedChannel)
         .alert("Switch to Nightly builds?", isPresented: $showNightlyWarning) {
             Button("Switch to Nightly", role: .destructive) {
                 applyChannel(.nightly)

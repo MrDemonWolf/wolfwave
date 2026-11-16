@@ -1,0 +1,101 @@
+---
+title: OBS Overlay
+metaTitle: "Apple Music OBS Overlay: Now-Playing Widget Setup"
+description: "Show your Apple Music song on stream. Add WolfWave's now-playing widget to OBS as a Browser Source, pick a theme and layout, and size it right."
+ogTitle: Apple Music Now-Playing Overlay for OBS
+ogDescription: Paste one link into an OBS Browser Source. Five themes, five layouts, a queue ticker, and it all runs on your Mac.
+ogEyebrow: Guide
+ogChips:
+  - Browser Source
+  - 5 themes
+  - 5 layouts
+  - Runs on your Mac
+keywords:
+  - apple music obs overlay
+  - now playing widget obs mac
+  - apple music browser source
+  - obs now playing apple music
+  - song request queue overlay
+---
+
+**TL;DR:** Turn on Stream Widgets, copy one link, and paste it into OBS as a Browser Source. The overlay runs on your Mac. This page is for streamers.
+
+## Add it to OBS
+
+<Steps>
+
+<Step>Open **Settings → Stream Widgets** and turn on **Enable Stream Widgets**.</Step>
+<Step>In **Widget Setup**, turn on **Enable Widget Webpage**.</Step>
+<Step>Click **Copy Link**.</Step>
+<Step>In OBS, add a **Browser Source** and paste the link.</Step>
+<Step>Set the width and height from the [size table](#pick-a-size) for your layout.</Step>
+
+</Steps>
+
+<Callout type="warn">
+  In OBS, turn on **Shutdown source when not visible**. The widget then reconnects cleanly when you switch scenes.
+</Callout>
+
+Play a song in Apple Music. The card should appear within a few seconds.
+
+## Pick a size
+
+The widget keeps 16 px of clear space on every side, so the Browser Source is a little bigger than the card.
+
+| Layout | Looks like | OBS width × height |
+|---|---|---:|
+| Horizontal | Wide bar with art on the left | 532 × 132 |
+| Vertical | Tall card with art on top | 252 × 312 |
+| Compact | Thin one-line strip | 382 × 88 |
+| Vinyl | Spinning record with a progress ring | 292 × 332 |
+| Classic | Album tile beside a title card | 472 × 144 |
+
+## Change the look
+
+Everything is in the **Widget Appearance** card of **Settings → Stream Widgets**.
+
+- **Theme:** Default, Dark, Light, Glass, or Neon.
+- **Layout:** Horizontal, Vertical, Compact, Vinyl, or Classic.
+- **Text** and **Background** colors (Default and Glass themes only), and a **Font**.
+
+A live preview shows your edits as you make them. Nothing reaches OBS until you click **Apply**. **Revert** throws your edits away. The overlay restyles on its own, so you never edit the link or refresh OBS.
+
+Changed layouts? Update the Browser Source size to match.
+
+## What viewers see
+
+| When | The overlay |
+|---|---|
+| A song is playing | Shows the song, artist, art, and progress |
+| You pause | Stays up, dims the art, and freezes the progress bar |
+| Music stops or Apple Music quits | Clears the card |
+| You press the Stream Deck **Show / Hide Overlay** key | Hides or shows the card |
+
+## Extras
+
+Add these to the end of your link. Start the first one with `?` and any after it with `&`.
+
+| Add this | What it does |
+|---|---|
+| `queueTicker=1` | Shows the next 3 song requests in the bottom-right corner |
+| `duration=8` | Hides the card 8 seconds after each new song starts (use any number) |
+| `hideAlbumArt` | Leaves out the album art |
+
+The queue ticker reads "Queue open — !sr to join" when nothing is waiting. It needs [song requests](/docs/features#song-requests) turned on.
+
+## OBS on a second PC
+
+Use the **Network Address** link from **Widget Setup** in place of **Copy Link**. It carries a token, so treat it like a password and only use it on a network you trust.
+
+## It's not working
+
+- **The card never shows.** Check that Apple Music is playing and **Sync Music** is on in **Settings → General**.
+- **The Stream Widgets chip says Couldn't start.** Another app is using the port. See [Port already in use](/docs/troubleshooting#port-in-use).
+- **It stopped updating.** See [The overlay stopped updating](/docs/troubleshooting#overlay-not-updating).
+
+<Cards>
+  <Card title="Settings" href="/docs/settings#stream-widgets" description="Every control in the Stream Widgets pane." />
+  <Card title="Stream Deck" href="/docs/streamdeck" description="Show or hide the overlay from a key." />
+  <Card title="Streamer Mode" href="/docs/streamer-mode" description="Hide the overlay link while you're live." />
+  <Card title="OBS Widget Internals" href="/docs/widget" description="For developers: build, messages, and theming." />
+</Cards>

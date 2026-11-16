@@ -80,6 +80,35 @@ struct StatusChip: View {
     }
 }
 
+// MARK: - Descriptor
+
+extension StatusChip {
+
+    /// One resolved chip state: label, tint, and the glyph that carries the
+    /// same meaning through shape.
+    ///
+    /// Return this from a single `status` resolver instead of writing three
+    /// parallel `statusText` / `statusColor` / `statusSymbol` properties. Three
+    /// ladders over the same flags drift apart; one value cannot. It is
+    /// `nonisolated` and `Equatable` so a pure resolver (see
+    /// `StreamDeckPaneStatus`, `IntegrationDashboardView.Status`) is testable
+    /// without rendering a view.
+    nonisolated struct Descriptor: Equatable {
+        /// Short chip label, e.g. "Connected".
+        let text: String
+        /// Chip tint. A semantic `DSColor` for a state; see the tint table in
+        /// `design-system/components/status-chip.md`.
+        let color: Color
+        /// SF Symbol name, normally from `StatusChip.StateGlyph`.
+        let symbol: String
+    }
+
+    /// Builds the chip for a resolved state.
+    init(_ descriptor: Descriptor) {
+        self.init(text: descriptor.text, color: descriptor.color, systemImage: descriptor.symbol)
+    }
+}
+
 // MARK: - Status-State Symbols
 
 extension StatusChip {

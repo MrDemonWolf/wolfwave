@@ -22,14 +22,14 @@ struct IntegrationDashboardViewTests {
     @Test("Twitch names the channel when connected and never says sign in when not")
     func twitch() {
         let connected = Status.twitch(connected: true, channel: "nightowlstream", permissionPaused: false)
-        #expect(connected.text == "Connected")
+        #expect(connected.chip.text == "Connected")
         #expect(connected.subtitle.contains("@nightowlstream"))
 
         let noChannel = Status.twitch(connected: true, channel: nil, permissionPaused: false)
         #expect(noChannel.subtitle.contains("your channel"))
 
         let disconnected = Status.twitch(connected: false, channel: "nightowlstream", permissionPaused: false)
-        #expect(disconnected.text == "Disconnected")
+        #expect(disconnected.chip.text == "Disconnected")
         #expect(!disconnected.subtitle.localizedCaseInsensitiveContains("sign in"))
     }
 
@@ -38,7 +38,7 @@ struct IntegrationDashboardViewTests {
     @Test("Discord: the switch outranks the connection state")
     func discordSwitchOff() {
         for state in [DiscordRPCService.ConnectionState.connected, .connecting, .disconnected] {
-            #expect(Status.discord(enabled: false, state: state, permissionPaused: false).text == "Off")
+            #expect(Status.discord(enabled: false, state: state, permissionPaused: false).chip.text == "Off")
         }
     }
 
@@ -51,7 +51,7 @@ struct IntegrationDashboardViewTests {
         ]
     )
     func discordStates(state: DiscordRPCService.ConnectionState, text: String) {
-        #expect(Status.discord(enabled: true, state: state, permissionPaused: false).text == text)
+        #expect(Status.discord(enabled: true, state: state, permissionPaused: false).chip.text == text)
     }
 
     // MARK: - Stream Widgets
@@ -66,7 +66,7 @@ struct IntegrationDashboardViewTests {
         ]
     )
     func widgetStates(state: WebSocketServerService.ServerState, text: String) {
-        #expect(Status.widget(serverState: state, link: "http://localhost:8766", permissionPaused: false).text == text)
+        #expect(Status.widget(serverState: state, link: "http://localhost:8766", permissionPaused: false).chip.text == text)
     }
 
     @Test("Stream Widgets: the link shows only while the server is listening")
@@ -81,8 +81,8 @@ struct IntegrationDashboardViewTests {
     @Test("A listening server never claims OBS loaded the widget")
     func widgetDoesNotClaimOBS() {
         let status = Status.widget(serverState: .listening, link: "http://localhost:8766", permissionPaused: false)
-        #expect(!status.text.localizedCaseInsensitiveContains("OBS"))
-        #expect(!status.text.localizedCaseInsensitiveContains("connected"))
+        #expect(!status.chip.text.localizedCaseInsensitiveContains("OBS"))
+        #expect(!status.chip.text.localizedCaseInsensitiveContains("connected"))
     }
 
     // MARK: - Music permission
@@ -96,8 +96,8 @@ struct IntegrationDashboardViewTests {
             Status.widget(serverState: .error, link: "http://localhost:8766", permissionPaused: true),
         ]
         for row in rows {
-            #expect(row.text == "Paused")
-            #expect(row.symbol == StatusChip.StateGlyph.paused)
+            #expect(row.chip.text == "Paused")
+            #expect(row.chip.symbol == StatusChip.StateGlyph.paused)
         }
     }
 }

@@ -136,7 +136,7 @@ extension DiscordSettingsView {
                 }
             }
             .cardStyle()
-            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: buttonsEnabled)
         }
         .transition(.opacity)
     }

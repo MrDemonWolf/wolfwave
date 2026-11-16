@@ -33,6 +33,7 @@ const DOC_FILES = [
   "README.md",
   "design-system/AGENTS.md",
   "apps/docs/content/docs/features.mdx",
+  "apps/docs/content/docs/obs-overlay.mdx",
   "apps/docs/content/docs/widget.mdx",
 ];
 

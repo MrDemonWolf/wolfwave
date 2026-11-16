@@ -130,7 +130,7 @@ struct StreamDeckSettingsView: View {
     /// draws it), and the callout sits one row gap below with its button inside.
     private var controlCard: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-            StatusChip(text: status.text, color: status.color, systemImage: status.symbol)
+            StatusChip(status)
                 .accessibilityLabel("Stream Deck status: \(status.text)")
 
             ToggleSettingRow(

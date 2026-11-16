@@ -123,7 +123,7 @@ struct IntegrationDashboardView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        let chip = StatusChip(text: status.text, color: status.color, systemImage: status.symbol)
+        let chip = StatusChip(status.chip)
         let configureButton = Button(action: action) {
             HStack(spacing: DSSpace.s0) {
                 Text("Configure")
@@ -229,19 +229,15 @@ struct IntegrationDashboardView: View {
 
 extension IntegrationDashboardView {
 
-    /// One row's chip (label, tint, glyph) and the line under the row name.
+    /// One row's chip and the line under the row name.
     ///
     /// Pure and `nonisolated` so every state is testable without rendering the
     /// view (same shape as `StreamDeckPaneStatus`). Each resolver reports the
     /// first thing in the user's way: missing Music permission, then the
     /// integration being off, then its connection state.
     nonisolated struct Status: Equatable {
-        /// Short chip label, e.g. "Connected".
-        let text: String
-        /// Semantic `DSColor` tint for the chip.
-        let color: Color
-        /// SF Symbol name from `StatusChip.StateGlyph`.
-        let symbol: String
+        /// The row's chip: label, tint, and glyph.
+        let chip: StatusChip.Descriptor
         /// Plain-language detail shown under the row name.
         let subtitle: String
 
@@ -309,9 +305,7 @@ extension IntegrationDashboardView {
                 return starting("Starting", "Starting the widget server.")
             case .error:
                 return Status(
-                    text: "Couldn't start",
-                    color: DSColor.error,
-                    symbol: StatusChip.StateGlyph.error,
+                    chip: .init(text: "Couldn't start", color: DSColor.error, symbol: StatusChip.StateGlyph.error),
                     subtitle: "The widget server couldn't start. Open Stream Widgets to see why."
                 )
             case .stopped:
@@ -322,19 +316,19 @@ extension IntegrationDashboardView {
         // MARK: - Private Helpers
 
         private static func on(_ text: String, _ subtitle: String) -> Status {
-            Status(text: text, color: DSColor.success, symbol: StatusChip.StateGlyph.on, subtitle: subtitle)
+            Status(chip: .init(text: text, color: DSColor.success, symbol: StatusChip.StateGlyph.on), subtitle: subtitle)
         }
 
         private static func off(_ text: String, _ subtitle: String) -> Status {
-            Status(text: text, color: DSColor.neutral, symbol: StatusChip.StateGlyph.off, subtitle: subtitle)
+            Status(chip: .init(text: text, color: DSColor.neutral, symbol: StatusChip.StateGlyph.off), subtitle: subtitle)
         }
 
         private static func starting(_ text: String, _ subtitle: String) -> Status {
-            Status(text: text, color: DSColor.warning, symbol: StatusChip.StateGlyph.starting, subtitle: subtitle)
+            Status(chip: .init(text: text, color: DSColor.warning, symbol: StatusChip.StateGlyph.starting), subtitle: subtitle)
         }
 
         private static func paused(_ subtitle: String) -> Status {
-            Status(text: "Paused", color: DSColor.warning, symbol: StatusChip.StateGlyph.paused, subtitle: subtitle)
+            Status(chip: .init(text: "Paused", color: DSColor.warning, symbol: StatusChip.StateGlyph.paused), subtitle: subtitle)
         }
     }
 }

@@ -406,7 +406,7 @@ fileprivate struct WebSocketBrowserSourceCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
 
             Divider().padding(.leading, cardPadding)
 
@@ -549,7 +549,7 @@ fileprivate struct WebSocketWidgetAppearanceCard: View {
             applyBar
             WidgetAppearancePreview(config: draft)
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.fast), value: isDirty)
         // Font enumeration is slow; run it once, off the main actor.
         .task {
             guard fontFamilies.isEmpty else { return }

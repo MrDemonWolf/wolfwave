@@ -19,8 +19,6 @@ import SwiftUI
 struct SignedInView: View {
     // MARK: - Properties
 
-    /// Validation indicator animation collapses under Reduce Motion.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Masks the username and channel, and swaps the channel field for a
     /// read-only masked label.
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
@@ -134,7 +132,7 @@ struct SignedInView: View {
             }
 
             channelValidationIndicator
-                .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: channelValidationState)
+                .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: channelValidationState)
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)

@@ -53,10 +53,6 @@ struct MusicMonitorSettingsView: View {
     @State private var showPermissionRecovery = false
     /// True while the system Automation prompt is in flight ("Allow" spinner).
     @State private var isRequesting = false
-    /// True while the granted-state "Recheck" probe runs.
-    @State private var isRechecking = false
-    /// Briefly true after a recheck that confirmed the grant (shows "Checked").
-    @State private var recheckConfirmed = false
 
     // MARK: - Now playing
 
@@ -333,29 +329,22 @@ struct MusicMonitorSettingsView: View {
         }
     }
 
-    /// Recheck button that cycles spinner → "Checked" → button, driven by
-    /// `isRechecking` / `recheckConfirmed` (see `recheckTapped()`).
-    @ViewBuilder
+    /// Quiet "Recheck" for the granted state. `AsyncActionButton` owns the
+    /// spinner, the double-tap guard, and the brief checkmark, so a recheck
+    /// that changes nothing (the common case) still shows it ran. If the grant
+    /// is gone, `permissionState` changes and this control leaves the row.
     private var grantedRecheckControl: some View {
-        if isRechecking {
-            ProgressView()
-                .progressViewStyle(.circular)
-                .controlSize(.small)
-                .accessibilityLabel("Rechecking Apple Music access")
-                .accessibilityIdentifier("musicMonitor.recheckSpinner")
-        } else if recheckConfirmed {
-            SuccessFeedbackRow(text: "Checked")
-                .transition(.opacity)
-                .accessibilityIdentifier("musicMonitor.recheckConfirmation")
-        } else {
-            Button("Recheck", action: recheckTapped)
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Recheck Apple Music access")
-                .accessibilityHint("Re-queries macOS for the current automation permission state")
-                .accessibilityIdentifier("musicMonitor.recheckButton")
+        AsyncActionButton(
+            title: "Recheck",
+            style: .borderless,
+            successDuration: 1.2,
+            accessibilityIdentifier: "musicMonitor.recheckButton"
+        ) {
+            _ = await refreshPermission()
         }
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Recheck Apple Music access")
+        .accessibilityHint("Re-queries macOS for the current automation permission state")
     }
 
     /// SF Symbol for the permission row; a lock only when denied.
@@ -395,41 +384,6 @@ struct MusicMonitorSettingsView: View {
     }
 
     // MARK: - Helpers
-
-    /// Button-driven recheck. Wraps the off-main probe with a brief spinner
-    /// + checkmark so the user gets unambiguous feedback even when the
-    /// permission state doesn't change (the common already-granted case).
-    /// The checkmark clears itself about 1.2 seconds later. Re-entrant taps
-    /// are ignored while a probe is running.
-    private func recheckTapped() {
-        guard !isRechecking else { return }
-        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.fast), reduceMotion: reduceMotion) {
-            isRechecking = true
-            recheckConfirmed = false
-        }
-        Task {
-            // Off-main probe with a minimum visible spinner so it can't blink invisibly.
-            let next = await MusicPermissionChecker.recheck()
-            await MainActor.run {
-                MusicPermissionCache.write(next)
-                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
-                    permissionState = next
-                    isRechecking = false
-                    recheckConfirmed = (next == .granted)
-                }
-                if next == .granted {
-                    loadCurrentTrack()
-                    AppDelegate.shared?.refreshNowPlaying()
-                }
-            }
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
-            await MainActor.run {
-                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
-                    recheckConfirmed = false
-                }
-            }
-        }
-    }
 
     /// Re-queries Apple Music automation permission off the main actor, caches
     /// the result, and reloads the current track if permission is now granted.

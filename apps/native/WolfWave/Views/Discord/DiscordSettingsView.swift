@@ -114,8 +114,8 @@ struct DiscordSettingsView: View {
                 }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()

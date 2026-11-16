@@ -68,11 +68,6 @@ struct DiscordPreviewCard: View {
         let url: String
     }
 
-    // MARK: - Environment
-
-    /// Mode changes cross-fade unless Reduce Motion is on.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     // MARK: - Properties
 
     /// Which state the card mirrors. Track fields are ignored unless
@@ -127,7 +122,7 @@ struct DiscordPreviewCard: View {
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
         .opacity(mode == .discordOffline ? 0.55 : 1)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: mode)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: mode)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
     }

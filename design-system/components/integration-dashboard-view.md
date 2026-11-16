@@ -33,7 +33,7 @@ IntegrationDashboardView(
 
 ### Status resolution
 
-`IntegrationDashboardView.Status` is a pure, `nonisolated` value (chip text, tint, glyph, subtitle) with one static resolver per row: `twitch(...)`, `discord(...)`, `widget(...)`. Each reports the first thing in the user's way: Music permission, then the switch, then the connection. Add or change a state there, not in the view body, and pin it in `IntegrationDashboardViewTests`.
+`IntegrationDashboardView.Status` is a pure, `nonisolated` value (a `StatusChip.Descriptor` plus the subtitle) with one static resolver per row: `twitch(...)`, `discord(...)`, `widget(...)`. Each reports the first thing in the user's way: Music permission, then the switch, then the connection. Add or change a state there, not in the view body, and pin it in `IntegrationDashboardViewTests`.
 
 | Row | State | Chip | Tint |
 |---|---|---|---|

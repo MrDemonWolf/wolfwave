@@ -51,7 +51,7 @@ struct AlbumArtView: View {
                 placeholder.transition(.opacity)
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: loader.revision)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: loader.revision)
         .transaction { if reduceMotion { $0.animation = nil } }
         .task(id: image == nil ? url : nil) { await loader.load(image == nil ? url : nil) }
         .frame(width: size, height: size)

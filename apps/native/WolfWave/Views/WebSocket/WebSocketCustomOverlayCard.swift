@@ -19,9 +19,6 @@ import SwiftUI
 struct WebSocketCustomOverlayCard: View {
     // MARK: - Properties
 
-    /// The network-address row slides in unless Reduce Motion is on.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     /// Shared server switch. While on, the port field is locked and the copy
     /// buttons work; while off, copying is disabled.
     @AppStorage(AppConstants.UserDefaults.websocketEnabled)
@@ -162,7 +159,7 @@ struct WebSocketCustomOverlayCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: localNetworkIP)
         }
         .cardStyleUnpadded()
         .onAppear {
