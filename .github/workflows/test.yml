@@ -161,7 +161,7 @@ jobs:
               - 'CHANGELOG.md'
               - 'README.md'
               - 'CONTRIBUTING.md'
-              - 'CLAUDE.md'
+              - '**/AGENTS.md'
               - 'scripts/check-sync.mjs'
               - 'scripts/check-sync.test.mjs'
               - 'scripts/release-notes.mjs'

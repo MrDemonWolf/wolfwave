@@ -127,6 +127,6 @@ for (const { file, line, message } of failures) {
 }
 console.log(
   `\n❌ ${failures.length} header problem(s) across ${new Set(failures.map((f) => f.file)).size} file(s).\n` +
-    `The canonical header is documented in CLAUDE.md → Code Conventions.`,
+    `The canonical header is documented in apps/native/AGENTS.md → Code Conventions.`,
 );
 process.exit(1);

@@ -15,7 +15,7 @@ excluded:
   - apps/native/WolfWave/Core/DesignSystem/Tokens.generated.swift
 
 opt_in_rules:
-  # CLAUDE.md: "No force unwrapping; use optionals and guard."
+  # apps/native/AGENTS.md: "No force unwrapping; use optionals and guard."
   - force_unwrapping
 
 disabled_rules:

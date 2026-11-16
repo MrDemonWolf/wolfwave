@@ -133,7 +133,7 @@ function FaqRow({ q, a }: { q: string; a: React.ReactNode }) {
   );
 }
 
-/** Landing page. Section ids are linked from the navbar; keep them stable (see CLAUDE.md). */
+/** Landing page. Section ids are linked from the navbar; keep them stable (see apps/docs/AGENTS.md). */
 export default async function HomePage() {
   const [downloadUrl, release] = await Promise.all([
     getLatestDmgUrl(),

@@ -31,7 +31,7 @@ const REQUIRED_HEADINGS = [
 /** Docs checked for widget theme/layout counts, lists, and dimensions against tokens.json. */
 const DOC_FILES = [
   "README.md",
-  "CLAUDE.md",
+  "design-system/AGENTS.md",
   "apps/docs/content/docs/features.mdx",
   "apps/docs/content/docs/widget.mdx",
 ];

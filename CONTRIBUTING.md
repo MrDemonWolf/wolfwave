@@ -6,7 +6,7 @@ under GPL-3.0.
 
 This file covers what you need to get building and what a reviewable PR looks like.
 For the deeper architecture notes and house conventions, read
-[`CLAUDE.md`](CLAUDE.md); it is the source of truth and this file does not duplicate it.
+[`AGENTS.md`](AGENTS.md) and the per-area `AGENTS.md` files it links to; they are the source of truth and this file does not duplicate them.
 
 By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -118,7 +118,7 @@ baseline may only shrink. Do not regenerate it to silence a new warning.
 
 ## Code Conventions
 
-The full list is in [`CLAUDE.md`](CLAUDE.md). The ones that fail review most often:
+The full list is in [`apps/native/AGENTS.md`](apps/native/AGENTS.md). The ones that fail review most often:
 
 - **No force unwrapping.** No `!`, no `try!`, no `as!`. Use optionals and `guard`.
   This is enforced by a blocking CI job, not just a preference.
@@ -158,7 +158,7 @@ Documentation drift is treated as a bug. Match the change to what it touches:
 | You changed | Also update |
 |---|---|
 | A feature or a bot command | `README.md`, the affected docs pages (`features.mdx`, `settings.mdx`, `bot-commands.mdx`), `CHANGELOG.md`, and `changelog.mdx` |
-| A service, file name, or directory | `architecture.mdx` and the source-layout list in `CLAUDE.md` |
+| A service, file name, or directory | `architecture.mdx` and the source-layout list in `apps/native/AGENTS.md` |
 | A number (ports, sizes, theme counts, minimum macOS) | Every copy of it. Grep for the old value. |
 
 Never hardcode a value that drifts. Read it from its source instead: test count

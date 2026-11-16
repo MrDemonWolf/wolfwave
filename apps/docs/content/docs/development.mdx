@@ -167,7 +167,7 @@ If the build itself fails, `make test` only says `error: no test results found`.
 - **Your real data is safe.** Tests use a throwaway settings suite and an in-memory Keychain. Never use `UserDefaults.standard` in a test.
 - **Isolated output.** `make test*` builds into the gitignored `DerivedData/Tests`, so a test build never replaces the signed Debug app Xcode installs.
 
-The rules for shared test state (the `SharedTestStateIsolation` lock, `WolfWaveTestCase`) are in the repo's [`CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#writing-tests).
+The rules for shared test state (the `SharedTestStateIsolation` lock, `WolfWaveTestCase`) are in the repo's [`apps/native/AGENTS.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/apps/native/AGENTS.md#writing-tests).
 
 ### UI tests
 
@@ -284,7 +284,7 @@ Fumadocs' components (`Callout`, `Cards` and `Card`, `Steps`, `Tabs`, `Accordion
 
 Don't bump `CURRENT_PROJECT_VERSION`. CI sets the build number from `scripts/version.sh`.
 
-More detail: [`CONTRIBUTING.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CONTRIBUTING.md) and [`CLAUDE.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md).
+More detail: [`CONTRIBUTING.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/CONTRIBUTING.md) and [`AGENTS.md`](https://github.com/MrDemonWolf/wolfwave/blob/main/AGENTS.md).
 
 ## Rich Presence art assets (fork maintainers)
 
@@ -421,7 +421,7 @@ git push origin vX.Y.Z
 
 To rehearse, run the workflow by hand with `dry_run` on. It runs everything except the draft release.
 
-The full list is the [Release Checklist](https://github.com/MrDemonWolf/wolfwave/blob/main/CLAUDE.md#release-checklist).
+The full list is the [Release Checklist](https://github.com/MrDemonWolf/wolfwave/blob/main/AGENTS.md#release-checklist).
 
 ## Next steps
 
