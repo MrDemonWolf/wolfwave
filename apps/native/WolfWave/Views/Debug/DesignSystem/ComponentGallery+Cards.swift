@@ -53,18 +53,24 @@ extension DebugComponentGalleryCard {
                 IntegrationDashboardView(
                     twitchConnected: true,
                     twitchChannel: "nightowlstream",
-                    twitchViewerCount: 12,
-                    discordConnected: true,
-                    widgetRunning: true,
+                    discordEnabled: true,
+                    discordState: .connected,
+                    serverState: .listening,
                     widgetURL: "http://localhost:8766"
                 )
                 IntegrationDashboardView(
                     twitchConnected: false,
-                    twitchChannel: nil,
-                    twitchViewerCount: nil,
-                    discordConnected: false,
-                    widgetRunning: false,
-                    widgetURL: nil,
+                    discordEnabled: true,
+                    discordState: .connecting,
+                    serverState: .error,
+                    widgetURL: "http://localhost:8766"
+                )
+                IntegrationDashboardView(
+                    twitchConnected: false,
+                    discordEnabled: false,
+                    discordState: .disconnected,
+                    serverState: .stopped,
+                    widgetURL: "http://localhost:8766",
                     permissionPaused: true
                 )
             }

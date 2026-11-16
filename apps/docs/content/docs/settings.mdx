@@ -38,7 +38,15 @@ How WolfWave tracks your music and where it shows up.
 - **Sync Music.** The main switch. On by default. A row under it shows your Music access: **Music access on** (with **Recheck**), or **Allow** the first time macOS asks.
   - Access off? A banner appears. Click **Open System Settings**, turn on Music under WolfWave in Automation, then click **Try again**. **Show me how** walks you through it.
 - **Live from Apple Music.** The song, artist, album, and art WolfWave sees right now.
-- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. A chip shows the state: **Live**, **Showing now**, **Ready for OBS**, or **Off** (**Paused** while Music access is missing). **Configure** jumps to that pane.
+- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. **Configure** jumps to that pane. Every chip reads **Paused** while Music access is missing.
+
+  | Row | Chips |
+  |---|---|
+  | Twitch chat | **Connected**, **Disconnected** |
+  | Discord profile | **Connected**, **Connecting**, **Disconnected**, **Off** |
+  | Stream Widgets | **Running**, **Starting**, **Couldn't start**, **Off** |
+
+  The chips show connections, not what viewers see. **Connected** on Discord means WolfWave reached Discord; the song shows while music plays. **Running** means the widget server is up; it can't tell whether OBS loaded the browser source.
 - **App Visibility.**
   - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**. If macOS wants your OK, use **Approve in Login Items…**.
   - **Display mode:** **Dock and Menu Bar** (default), **Menu Bar Only**, or **Dock Only**. **Dock Only** is greyed out while Launch at Login is on, so the menu bar icon is always there. Turning Launch at Login on while in Dock Only switches you to Dock and Menu Bar.

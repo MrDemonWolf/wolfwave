@@ -50,6 +50,15 @@ export function pageUrl(path: string): string {
   return `${siteUrl}${clean}`;
 }
 
+/**
+ * Public URL of a docs page. The changelog is the one page with two routes:
+ * `/docs/changelog/` stays as a noindex compatibility page, and every link,
+ * canonical, sitemap entry and export points at `/changelog/` instead.
+ */
+export function docsPageUrl(path: string): string {
+  return pageUrl(path.replace(/\/$/, "") === "/docs/changelog" ? "/changelog" : path);
+}
+
 const API_REPO = repoUrl.replace("https://github.com", "https://api.github.com/repos");
 const GITHUB_HEADERS = {
   Accept: "application/vnd.github+json",
@@ -90,31 +99,6 @@ export async function getLatestRelease(): Promise<LatestRelease | null> {
 /** Bare SemVer of the latest release (e.g. `2.1.0`), or `null` on failure. */
 export async function getLatestVersion(): Promise<string | null> {
   return (await getLatestRelease())?.version ?? null;
-}
-
-/**
- * The star count earns a landing-page chip only at or above this. A small real
- * number reads as weak proof next to "Signed & notarized", so below it the chip
- * stays hidden instead of being padded or invented.
- */
-export const STAR_CHIP_MIN = 50;
-
-/**
- * Build-time GitHub star count for the repo. Returns `null` on any failure so
- * the landing page simply omits the chip; never a cached or invented number.
- */
-export async function getRepoStars(): Promise<number | null> {
-  try {
-    const res = await fetch(API_REPO, {
-      headers: GITHUB_HEADERS,
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!res.ok) return null;
-    const repo = await res.json();
-    return typeof repo?.stargazers_count === "number" ? repo.stargazers_count : null;
-  } catch {
-    return null;
-  }
 }
 
 /**

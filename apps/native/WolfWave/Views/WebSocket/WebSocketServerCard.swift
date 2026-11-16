@@ -59,7 +59,7 @@ struct WebSocketServerCard: View {
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 onChange: { _ in
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                    withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                         notifyServerSettingChanged()
                     }
                 },

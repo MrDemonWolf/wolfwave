@@ -1,7 +1,7 @@
 import { docs } from 'fumadocs-mdx:collections/server';
 import { type InferPageType, loader } from 'fumadocs-core/source';
 import { docsTreePlugin } from './docs-tree';
-import { absoluteUrl, pageUrl } from './site';
+import { absoluteUrl, docsPageUrl } from './site';
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
@@ -32,7 +32,7 @@ export async function getLLMText(page: InferPageType<typeof source>) {
 
   return `# ${page.data.title}
 
-URL: ${pageUrl(page.url === '/docs/changelog' ? '/changelog' : page.url)}${description}
+URL: ${docsPageUrl(page.url)}${description}
 
 ${processed}`;
 }

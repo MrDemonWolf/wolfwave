@@ -100,7 +100,7 @@ struct StreamDeckSettingsView: View {
         ) { notification in
             guard let rawValue = notification.stateString,
                   let state = WebSocketServerService.ServerState(rawValue: rawValue) else { return }
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 serverState = state
             }
         }

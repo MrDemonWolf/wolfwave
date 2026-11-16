@@ -304,10 +304,10 @@ struct AboutSettingsView: View {
         let payload = AboutCopy.versionClipboardPayload
         Pasteboard.copy(payload)
 
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) { versionCopied = true }
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.fast), reduceMotion: reduceMotion) { versionCopied = true }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(1500))
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) { versionCopied = false }
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) { versionCopied = false }
         }
     }
 

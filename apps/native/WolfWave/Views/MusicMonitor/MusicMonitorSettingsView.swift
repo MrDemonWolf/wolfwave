@@ -35,6 +35,11 @@ struct MusicMonitorSettingsView: View {
     @AppStorage(AppConstants.UserDefaults.trackingEnabled)
     private var trackingEnabled = true
 
+    /// The "Show on Discord" switch. The dashboard reads Off from this, so a
+    /// switched-off integration never looks like a failed connection.
+    @AppStorage(AppConstants.UserDefaults.discordPresenceEnabled)
+    private var discordPresenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
+
     // MARK: - Music permission
 
     /// Last resolved Automation grant for Music. Starts `.unknown` until the
@@ -67,13 +72,14 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Integration status
 
-    /// Dashboard chip inputs. Seeded by `loadIntegrationStatuses()`, then kept
-    /// current by the service state notifications.
+    /// Dashboard inputs. Seeded by `loadIntegrationStatuses()`, then kept
+    /// current by the service state notifications. The lifecycle enums are kept
+    /// whole (not collapsed to a Bool) so the dashboard can show Connecting,
+    /// Starting, and a failed server.
     @State private var twitchConnected = false
     @State private var twitchChannel: String?
-    @State private var discordActive = false
-    /// True when the WebSocket server reports `.listening`.
-    @State private var widgetRunning = false
+    @State private var discordState: DiscordRPCService.ConnectionState = .disconnected
+    @State private var serverState: WebSocketServerService.ServerState = .stopped
 
     // MARK: - Inputs
 
@@ -149,10 +155,10 @@ struct MusicMonitorSettingsView: View {
             IntegrationDashboardView(
                 twitchConnected: twitchConnected,
                 twitchChannel: twitchChannel,
-                twitchViewerCount: nil,
-                discordConnected: discordActive,
-                widgetRunning: widgetRunning,
-                widgetURL: widgetRunning ? WidgetLink.loopback : nil,
+                discordEnabled: discordPresenceEnabled,
+                discordState: discordState,
+                serverState: serverState,
+                widgetURL: WidgetLink.loopback,
                 permissionPaused: permissionState == .denied,
                 configure: configure
             )
@@ -180,13 +186,13 @@ struct MusicMonitorSettingsView: View {
             }
             await loadIntegrationStatuses()
         }
-        .onReceive(notif(AppConstants.Notifications.nowPlayingChanged)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: .nowPlayingChanged)) { notification in
             let payload = notification.nowPlaying
             // The source re-emits the same track ~every 5s. Only the track
             // identity change needs another artwork lookup; a pause flip updates
             // in place. Keep the old cover until the next lookup resolves.
             let trackChanged = currentTrack != payload.track || currentArtist != payload.artist
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 currentTrack = payload.track
                 currentArtist = payload.artist
                 currentAlbum = payload.album
@@ -199,19 +205,19 @@ struct MusicMonitorSettingsView: View {
             }
             if trackChanged { fetchArtwork() }
         }
-        .onReceive(notif(AppConstants.Notifications.twitchConnectionStateChanged)) { notification in
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+        .onReceive(NotificationCenter.default.publisher(for: .twitchConnectionStateChanged)) { notification in
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 twitchConnected = notification.isConnectedFlag ?? false
             }
         }
-        .onReceive(notif(AppConstants.Notifications.discordStateChanged)) { notification in
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                discordActive = (notification.stateString ?? "") == "connected"
+        .onReceive(NotificationCenter.default.publisher(for: .discordStateChanged)) { notification in
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
+                discordState = notification.stateString.flatMap(DiscordRPCService.ConnectionState.init(rawValue:)) ?? .disconnected
             }
         }
-        .onReceive(notif(AppConstants.Notifications.websocketServerStateChanged)) { notification in
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
-                widgetRunning = (notification.stateString ?? "") == "listening"
+        .onReceive(NotificationCenter.default.publisher(for: .websocketServerStateChanged)) { notification in
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
+                serverState = notification.stateString.flatMap(WebSocketServerService.ServerState.init(rawValue:)) ?? .stopped
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -225,12 +231,12 @@ struct MusicMonitorSettingsView: View {
                 showInstructionSheet = false
             }
         }
-        .onReceive(notif(AppConstants.Notifications.musicPermissionDenied)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .musicPermissionDenied)) { _ in
             // The data path detected that Music.app is running but ScriptingBridge
             // reads return nil, the canonical TCC Automation denial. Flip the
             // banner immediately and persist so other tabs see it too.
             MusicPermissionCache.write(.denied)
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 permissionState = .denied
             }
         }
@@ -390,15 +396,6 @@ struct MusicMonitorSettingsView: View {
 
     // MARK: - Helpers
 
-    /// Convenience wrapper around `NotificationCenter.default.publisher(for:)`
-    /// that builds the `NSNotification.Name` from a string constant.
-    ///
-    /// - Parameter name: Notification name string (from `AppConstants.Notifications`).
-    /// - Returns: A publisher emitting that notification.
-    private func notif(_ name: String) -> NotificationCenter.Publisher {
-        NotificationCenter.default.publisher(for: NSNotification.Name(name))
-    }
-
     /// Button-driven recheck. Wraps the off-main probe with a brief spinner
     /// + checkmark so the user gets unambiguous feedback even when the
     /// permission state doesn't change (the common already-granted case).
@@ -406,7 +403,7 @@ struct MusicMonitorSettingsView: View {
     /// are ignored while a probe is running.
     private func recheckTapped() {
         guard !isRechecking else { return }
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.fast)) {
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.fast), reduceMotion: reduceMotion) {
             isRechecking = true
             recheckConfirmed = false
         }
@@ -415,7 +412,7 @@ struct MusicMonitorSettingsView: View {
             let next = await MusicPermissionChecker.recheck()
             await MainActor.run {
                 MusicPermissionCache.write(next)
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     permissionState = next
                     isRechecking = false
                     recheckConfirmed = (next == .granted)
@@ -427,7 +424,7 @@ struct MusicMonitorSettingsView: View {
             }
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             await MainActor.run {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     recheckConfirmed = false
                 }
             }
@@ -440,7 +437,7 @@ struct MusicMonitorSettingsView: View {
     private func refreshPermission() async -> MusicPermissionState {
         let next = await MusicPermissionChecker.recheck()
         MusicPermissionCache.write(next)
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
             permissionState = next
         }
         if next == .granted {
@@ -461,7 +458,7 @@ struct MusicMonitorSettingsView: View {
                 // the TTL reflects the just-granted/denied result, not a stale
                 // earlier probe.
                 MusicPermissionCache.write(resolved)
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     permissionState = resolved
                 }
                 isRequesting = false
@@ -504,20 +501,13 @@ struct MusicMonitorSettingsView: View {
     /// Loads connection status for Twitch / Discord / overlay from the
     /// running services so the integration row chips reflect reality.
     private func loadIntegrationStatuses() async {
-        if let appDelegate = AppDelegate.shared {
-            twitchConnected = appDelegate.twitchService?.currentlyConnected ?? false
-            widgetRunning = appDelegate.websocketServer?.state == .listening
-            if let discordService = appDelegate.discordService {
-                Task { @MainActor in
-                    discordActive = await discordService.state == .connected
-                }
-            } else {
-                discordActive = false
-            }
-            let snapshot = await TwitchCredentialStore.shared.loadConnectionSnapshot()
-            guard !Task.isCancelled else { return }
-            twitchChannel = snapshot?.channelID
-        }
+        guard let appDelegate = AppDelegate.shared else { return }
+        twitchConnected = appDelegate.twitchService?.currentlyConnected ?? false
+        serverState = appDelegate.websocketServer?.state ?? .stopped
+        discordState = appDelegate.discordService?.stateSnapshot ?? .disconnected
+        let snapshot = await TwitchCredentialStore.shared.loadConnectionSnapshot()
+        guard !Task.isCancelled else { return }
+        twitchChannel = snapshot?.channelID
     }
 
     /// Posts a `trackingSettingChanged` notification so the music monitor

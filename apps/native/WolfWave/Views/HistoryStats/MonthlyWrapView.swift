@@ -271,7 +271,7 @@ struct MonthlyWrapView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try png.write(to: url, options: .atomic)
-            withAnimation(reduceMotion ? nil : .default) { didExport = true }
+            withMotionSafeAnimation(reduceMotion: reduceMotion) { didExport = true }
             Log.info("MonthlyWrapView: Exported monthly wrap image", category: .history)
         } catch {
             Log.error("MonthlyWrapView: Export failed: \(error.localizedDescription)", category: .history)

@@ -77,7 +77,7 @@ struct WebSocketSettingsView: View {
                 for: Notification.Name.websocketServerStateChanged
             )
         ) { notification in
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 if let rawValue = notification.stateString,
                    let state = WebSocketServerService.ServerState(rawValue: rawValue) {
                     serverState = state
@@ -106,7 +106,7 @@ struct WebSocketSettingsView: View {
         let ip = await NetworkInfoService.shared.refreshIPv4()
         await MainActor.run {
             guard ip != localNetworkIP else { return }
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 localNetworkIP = ip
             }
         }

@@ -140,7 +140,7 @@ struct DiscordSettingsView: View {
             )
         ) { notification in
             if let rawValue = notification.stateString {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     switch rawValue {
                     case "connected":   connectionState = .connected
                     case "connecting":  connectionState = .connecting
@@ -347,7 +347,7 @@ struct DiscordSettingsView: View {
         guard let track = payload.track, let artist = payload.artist else {
             // No track in the payload: playback stopped, or Apple Music quit.
             // Mirror the live presence, which clears the profile in both cases.
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
             }
             return
@@ -367,7 +367,7 @@ struct DiscordSettingsView: View {
             appleMusicURL: links.trackViewURL,
             songLinkURL: links.songLinkURL
         )
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
             playbackMode = payload.isPaused ? .paused : .playing
         }
     }

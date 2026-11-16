@@ -67,6 +67,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **General shows real connection states.** The Integrations rows now say Connected, Connecting, Running, or Couldn't start instead of Live and Ready for OBS, which claimed things WolfWave can't see. A disconnected Twitch row no longer tells you to sign in again.
 - **`$song` and `$lastsong` read naturally.** In custom commands they fill in just the song and artist, like `Howl at the Moon by Gray Wolf`, instead of the whole `!song` reply with its emoji and link. A song title that starts with `!` can't set off other bots.
 - **Request commands follow the Song Requests switch.** While Song Requests is off, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` stay quiet, so a mod's `!skip` can't start your fallback playlist.
 - **No raw errors in chat.** When a song search or link lookup fails, `!sr`, channel points, and Bits say "song search isn't working right now" instead of the technical error. The details go to the log.
@@ -148,6 +149,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **Agent guidance is split by area.** `CLAUDE.md` is gone. The root `AGENTS.md` holds the repo-wide rules (CI, docs sync, versioning, release), and `apps/native/`, `apps/docs/`, `apps/widget/`, `apps/streamdeck/`, and `design-system/` each carry an `AGENTS.md` with the rules for that code.
 - **Request results say who reads the text.** `SongRequestService.RequestResult` splits `.denied` (the chat-ready audience refusal) from `.error` (a lookup failure, logged and never sent to chat). `SongRequestGatedCommand` gives the queue commands a silent preflight refusal while Song Requests is off, and `WidgetLink` is the one builder for widget Browser Source links.
 - **Bug-report fields are checked against the form.** `BugReportURL` fills issue-form fields by id (`BugReportURL.FormField`) and percent-encodes `+`; `make lint-sync` fails when an id names no text field in `bug_report.yml`. `RetentionImpact` drives the retention confirmation. `TwitchViewModel.RetryTarget` gains `.reloadCredentials` and moves with `retryTarget(for:)` into `TwitchFailure.swift`.
 - **One home for Twitch and Discord defaults.** Every `@AppStorage` seed and `Preferences.bool(_:default:)` read for those keys now references `AppConstants.UserDefaults.Defaults`. New `FreshInstallDefaults` writes day-one values once per install at launch (fresh installs get them, existing installs get their old values pinned), so a new default never flips an upgrade. The onboarding UI tests gained Escape and progress-header coverage plus a light/dark screenshot capture (`testCapturesEveryStep`), backed by new `WOLFWAVE_UI_TEST_APPEARANCE` and `WOLFWAVE_UI_TEST_HOLD_COMPLETION` switches. The `stepContentMinHeight` token is replaced by `contentMaxWidth`.

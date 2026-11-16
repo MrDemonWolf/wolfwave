@@ -1,6 +1,6 @@
 import { llms } from 'fumadocs-core/source/llms';
 import { source } from '@/lib/source';
-import { absoluteUrl, pageUrl, repoUrl } from '@/lib/site';
+import { absoluteUrl, docsPageUrl, pageUrl, repoUrl } from '@/lib/site';
 
 export const revalidate = false;
 
@@ -20,7 +20,7 @@ export async function GET() {
     .trim()
     // Page links are site-relative (`/docs/...`). Make them absolute, with the
     // base path and trailing slash, so the index works wherever it is read.
-    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${pageUrl(path === '/docs/changelog' ? '/changelog' : path)})`);
+    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${docsPageUrl(path)})`);
 
   const body = `# WolfWave
 
