@@ -316,19 +316,31 @@ extension IntegrationDashboardView {
         // MARK: - Private Helpers
 
         private static func on(_ text: String, _ subtitle: String) -> Status {
-            Status(chip: .init(text: text, color: DSColor.success, symbol: StatusChip.StateGlyph.on), subtitle: subtitle)
+            Status(
+                chip: .init(text: text, color: DSColor.success, symbol: StatusChip.StateGlyph.on),
+                subtitle: subtitle
+            )
         }
 
         private static func off(_ text: String, _ subtitle: String) -> Status {
-            Status(chip: .init(text: text, color: DSColor.neutral, symbol: StatusChip.StateGlyph.off), subtitle: subtitle)
+            Status(
+                chip: .init(text: text, color: DSColor.neutral, symbol: StatusChip.StateGlyph.off),
+                subtitle: subtitle
+            )
         }
 
         private static func starting(_ text: String, _ subtitle: String) -> Status {
-            Status(chip: .init(text: text, color: DSColor.warning, symbol: StatusChip.StateGlyph.starting), subtitle: subtitle)
+            Status(
+                chip: .init(text: text, color: DSColor.warning, symbol: StatusChip.StateGlyph.starting),
+                subtitle: subtitle
+            )
         }
 
         private static func paused(_ subtitle: String) -> Status {
-            Status(chip: .init(text: "Paused", color: DSColor.warning, symbol: StatusChip.StateGlyph.paused), subtitle: subtitle)
+            Status(
+                chip: .init(text: "Paused", color: DSColor.warning, symbol: StatusChip.StateGlyph.paused),
+                subtitle: subtitle
+            )
         }
     }
 }

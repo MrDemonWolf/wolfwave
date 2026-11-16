@@ -208,12 +208,14 @@ struct MusicMonitorSettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .discordStateChanged)) { notification in
             withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
-                discordState = notification.stateString.flatMap(DiscordRPCService.ConnectionState.init(rawValue:)) ?? .disconnected
+                discordState = notification.stateString
+                    .flatMap(DiscordRPCService.ConnectionState.init(rawValue:)) ?? .disconnected
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .websocketServerStateChanged)) { notification in
             withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
-                serverState = notification.stateString.flatMap(WebSocketServerService.ServerState.init(rawValue:)) ?? .stopped
+                serverState = notification.stateString
+                    .flatMap(WebSocketServerService.ServerState.init(rawValue:)) ?? .stopped
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

@@ -47,7 +47,7 @@ struct IntegrationDashboardViewTests {
         arguments: [
             (DiscordRPCService.ConnectionState.connected, "Connected"),
             (.connecting, "Connecting"),
-            (.disconnected, "Disconnected"),
+            (.disconnected, "Disconnected")
         ]
     )
     func discordStates(state: DiscordRPCService.ConnectionState, text: String) {
@@ -62,7 +62,7 @@ struct IntegrationDashboardViewTests {
             (WebSocketServerService.ServerState.listening, "Running"),
             (.starting, "Starting"),
             (.error, "Couldn't start"),
-            (.stopped, "Off"),
+            (.stopped, "Off")
         ]
     )
     func widgetStates(state: WebSocketServerService.ServerState, text: String) {
@@ -93,7 +93,7 @@ struct IntegrationDashboardViewTests {
             Status.twitch(connected: true, channel: "nightowlstream", permissionPaused: true),
             Status.discord(enabled: true, state: .connected, permissionPaused: true),
             Status.discord(enabled: false, state: .disconnected, permissionPaused: true),
-            Status.widget(serverState: .error, link: "http://localhost:8766", permissionPaused: true),
+            Status.widget(serverState: .error, link: "http://localhost:8766", permissionPaused: true)
         ]
         for row in rows {
             #expect(row.chip.text == "Paused")
