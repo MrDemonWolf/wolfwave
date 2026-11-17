@@ -19,7 +19,7 @@ SettingsPaneScroll {
 | `content` | `@ViewBuilder () -> Content` | The pane's sections, stacked with `SettingsUI.sectionSpacing`. |
 
 ## Tokens used
-- `AppConstants.SettingsUI.maxContentWidth` (`DSDimension.Settings.maxContentWidth`, 720): column cap
+- `AppConstants.SettingsUI.maxContentWidth` (`DSDimension.Settings.maxContentWidth`, 960): column cap. Wide enough for two cards side by side through `ResponsiveRow(floor: DSDimension.Settings.twoColumnFloor)` (860); narrower windows keep one column
 - `AppConstants.SettingsUI.contentPaddingH` (28) / `contentPaddingV` (22): pane insets
 - `AppConstants.SettingsUI.sectionSpacing` (24): gap between sections
 

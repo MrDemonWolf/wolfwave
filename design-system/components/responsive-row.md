@@ -43,6 +43,9 @@ graph TD
 - Purely structural; adds no semantics of its own. The two children keep their own accessibility elements and reading order (left/top before right/bottom in both layouts).
 - Collapsing to one column improves readability at large Dynamic Type sizes and narrow windows.
 
+### Settings panes
+Settings content is capped at `DSDimension.Settings.maxContentWidth` (960). Pair cards there with `ResponsiveRow(floor: DSDimension.Settings.twoColumnFloor)` (860), which keeps each column at about 420pt or more; the default floor (580) is for the History & Stats dashboard and is too tight for a row with a switch or button. Pair only cards of similar height, and give each `.frame(maxHeight: .infinity)` before `.cardStyle()` so their surfaces match.
+
 ## Do / Don't
 - ✅ Use for two peer cards that benefit from sitting side by side but must stack when space is tight.
 - ✅ Let the children own their card surface (`cardStyleUnpadded()`); `ResponsiveRow` only handles placement.
