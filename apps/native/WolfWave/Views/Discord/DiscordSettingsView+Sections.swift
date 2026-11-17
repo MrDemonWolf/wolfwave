@@ -28,6 +28,7 @@ extension DiscordSettingsView {
                     accessibilityIdentifier: "discordPresenceToggle",
                     accessibilityHint: "Toggle to enable or disable Discord Status",
                     status: statusChip,
+                    statusLabels: Self.statusChipLabels,
                     onChange: { newValue in
                         notifyPresenceSettingChanged(enabled: newValue)
                     }

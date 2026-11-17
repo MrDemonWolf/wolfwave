@@ -85,6 +85,27 @@ struct IntegrationDashboardViewTests {
         #expect(!status.chip.text.localizedCaseInsensitiveContains("connected"))
     }
 
+    // MARK: - Chip sizing
+
+    @Test("Every chip label is in the sizing list, so no state can resize the chip")
+    func sizingLabelsCoverEveryState() {
+        var rows = [
+            Status.twitch(connected: true, channel: nil, permissionPaused: false),
+            Status.twitch(connected: false, channel: nil, permissionPaused: false),
+            Status.twitch(connected: true, channel: nil, permissionPaused: true),
+            Status.discord(enabled: false, state: .disconnected, permissionPaused: false)
+        ]
+        for state in [DiscordRPCService.ConnectionState.connected, .connecting, .disconnected] {
+            rows.append(Status.discord(enabled: true, state: state, permissionPaused: false))
+        }
+        for state in [WebSocketServerService.ServerState.listening, .starting, .error, .stopped] {
+            rows.append(Status.widget(serverState: state, link: "", permissionPaused: false))
+        }
+        for row in rows {
+            #expect(Status.allLabels.contains(row.chip.text), "missing sizing label: \(row.chip.text)")
+        }
+    }
+
     // MARK: - Music permission
 
     @Test("Missing Music permission pauses every row, whatever its state")

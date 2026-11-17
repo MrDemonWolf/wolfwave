@@ -241,21 +241,28 @@ extension View {
 // MARK: - Stable Width (No State-Change Resize)
 
 extension View {
-    /// Locks the view's width to the widest of the provided ghost labels so
-    /// state changes (idle → testing → success/failure, etc.) never resize
-    /// the button or pill. Ghost labels render hidden in the background and
+    /// Sizes the view to the widest of the provided ghost labels so state
+    /// changes (idle → running → success, Join → Connecting → Leave) never
+    /// resize the button or pill. Ghost labels are laid out but hidden, and
     /// are excluded from hit-testing and accessibility.
+    ///
+    /// **Apply it to the label inside a `Button`, never to the button.** A
+    /// button sizes to its label, so only a wider label makes a wider button.
+    /// The ghosts share a `ZStack` with the content because a stack takes the
+    /// size of its largest child. An earlier version put them in a
+    /// `.background`, which never changes a view's size, so it locked nothing
+    /// and every button using it still jumped between states.
     ///
     /// Adapts automatically to localization, dynamic type, and new states;
     /// no magic `minWidth` values needed.
     func stableWidth<Ghost: View>(@ViewBuilder ghosts: () -> Ghost) -> some View {
-        background(
+        ZStack {
             ZStack { ghosts() }
                 .hidden()
                 .accessibilityHidden(true)
                 .allowsHitTesting(false)
-        )
-        .fixedSize(horizontal: true, vertical: false)
+            self
+        }
     }
 }
 

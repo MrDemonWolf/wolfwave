@@ -123,4 +123,17 @@ struct StreamDeckPaneStatusTests {
 
         #expect(Set(symbols).count == symbols.count)
     }
+
+    @Test("Every label the resolver can return is in the chip's sizing list")
+    func sizingLabelsCoverEveryState() {
+        for controlEnabled in [true, false] {
+            for serverEnabled in [true, false] {
+                for state in [WebSocketServerService.ServerState.stopped, .starting, .listening, .error] {
+                    let text = StreamDeckPaneStatus.resolve(
+                        controlEnabled: controlEnabled, serverEnabled: serverEnabled, serverState: state).text
+                    #expect(StreamDeckPaneStatus.allLabels.contains(text), "missing sizing label: \(text)")
+                }
+            }
+        }
+    }
 }

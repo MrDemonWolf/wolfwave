@@ -68,6 +68,10 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Discord settings are one clean column.** The profile preview now sits right under the switch, with the button, playlist, and behavior settings full width below it, instead of a cramped two-column split.
+- **A shorter menu bar menu.** Pause and skip now sit right under the song. Copy Song Info, Copy Song Link, and Send to Twitch Chat are in a **Share Song** submenu, and **About**, **Open Widget in Browser**, and **Restart Integrations…** moved into **Help**.
+- **Covers for brand-new songs.** When Apple's public song search hasn't caught up with a new release, WolfWave now checks the Apple Music catalog too, so the cover and song links still show on Discord and your overlay. This needs Apple Music access, which Song Requests asks for.
+- **Play and pause badge on Discord.** The small badge on your Discord status is now a play icon while a song plays and a pause icon while it's paused. It used to be the Apple Music logo while playing.
+- **Nothing jumps when a status changes.** Status chips keep one size across all their states, and buttons such as **Join Channel** keep their width while they show Connecting. The Twitch channel row drops the extra "Channel verified" line once you're connected.
 - **Settings waste less space.** Status chips sit on the same row as the switch they describe (Discord, Stream Widgets, Stream Deck), Software Update puts the version, status, and **Check Now** on one row, and Advanced uses compact buttons on the right in place of full-width ones.
 - **Smaller Twitch sign-in button.** **Connect with Twitch** is sized to its label, not stretched across the card.
 - **Leave Channel no longer looks dangerous.** It's a plain button on the right with a one-line explanation, matching the Sign Out row. Only Sign Out is red.

@@ -270,7 +270,7 @@ final class DiscordPresenceBuilderTests: WolfWaveTestCase {
         )
         XCTAssertNotNil(activity["timestamps"])
         let assets = activity["assets"] as? [String: String]
-        XCTAssertEqual(assets?["small_image"], "apple_music")
+        XCTAssertEqual(assets?["small_image"], "play")
     }
 
     func test_buildActivity_assetsAlwaysIncludeFallbackImage() {
@@ -283,7 +283,7 @@ final class DiscordPresenceBuilderTests: WolfWaveTestCase {
         let assets = activity["assets"] as? [String: String]
         XCTAssertEqual(assets?["large_image"], "apple_music")
         XCTAssertEqual(assets?["large_text"], "Album Name")
-        XCTAssertEqual(assets?["small_image"], "apple_music")
+        XCTAssertEqual(assets?["small_image"], "play")
         XCTAssertEqual(assets?["small_text"], "Apple Music")
     }
 

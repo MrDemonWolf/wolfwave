@@ -126,16 +126,17 @@ struct AsyncActionButton: View {
                     reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base),
                     value: phase
                 )
+                // On the label, not the button: see `stableWidth(ghosts:)`.
+                .modifier(AsyncActionButtonWidthModifier(fillsWidth: fillsWidth, ghosts: {
+                    idleLabel
+                    spinnerLabel
+                    successLabel
+                }))
         }
         .modifier(AsyncActionButtonStyleModifier(style: style, size: size))
         .tint(tint)
         .disabled(isDisabled || phase == .running)
         .pointerCursor()
-        .modifier(AsyncActionButtonWidthModifier(fillsWidth: fillsWidth, ghosts: {
-            idleLabel
-            spinnerLabel
-            successLabel
-        }))
         .onDisappear {
             task?.cancel()
             task = nil
@@ -262,9 +263,9 @@ struct AsyncActionButton: View {
 
 // MARK: - Width Modifier
 
-/// Applies the `stableWidth` lock only when the button sizes to its label. A
-/// `fillsWidth` button takes the container's width, and `stableWidth` ends in
-/// `fixedSize(horizontal: true)`, which would fight that.
+/// Applied to the button's label. Locks the width with `stableWidth` when the
+/// button sizes to its label; a `fillsWidth` button stretches its label to the
+/// container instead, where there is nothing to lock.
 private struct AsyncActionButtonWidthModifier<Ghosts: View>: ViewModifier {
     let fillsWidth: Bool
     @ViewBuilder let ghosts: () -> Ghosts

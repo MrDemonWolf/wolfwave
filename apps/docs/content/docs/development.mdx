@@ -81,7 +81,7 @@ Shipping a fork? Fill in both so those links point at your repo. They don't chan
 
 - **Twitch Client ID:** create an app at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps).
 - **Discord Application ID:** create an app at [discord.com/developers/applications](https://discord.com/developers/applications).
-- **Discord art assets:** upload `apple_music`, `pause`, and `wolfwave` to your Discord app. See [Rich Presence art assets](#rich-presence-art-assets-fork-maintainers).
+- **Discord art assets:** upload `apple_music`, `play`, `pause`, and `wolfwave` to your Discord app. See [Rich Presence art assets](#rich-presence-art-assets-fork-maintainers).
 
 <Callout type="warn">
   `Config.xcconfig` is gitignored. Every contributor uses their own. Never commit it.
@@ -294,7 +294,8 @@ Rich Presence shows three images registered on the Discord app. They are **not**
 
 | Asset name | Shown when |
 |---|---|
-| `apple_music` | Fallback large image, and the small badge while playing |
+| `apple_music` | Fallback large image, and the small badge on the idle status |
+| `play` | Small badge while playing |
 | `pause` | Small badge while paused |
 | `wolfwave` | Large image on the song-less idle status (the default **When music stops** choice, "Listening to WolfWave") |
 
@@ -303,7 +304,7 @@ Discord shows no image for a name that isn't uploaded.
 Shipping a fork with your own `DISCORD_CLIENT_ID`?
 
 1. Open your Discord app's **Rich Presence → Art Assets** page.
-2. Upload `apple_music.png`, `pause.png`, and `wolfwave.png` from [`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets). Name each asset after its file, without `.png`, in exact lowercase.
+2. Upload `apple_music.png`, `play.png`, `pause.png`, and `wolfwave.png` from [`discord-assets/`](https://github.com/MrDemonWolf/wolfwave/tree/main/discord-assets). Name each asset after its file, without `.png`, in exact lowercase.
 3. Wait about 10 minutes for Discord's CDN.
 
 ## Next steps

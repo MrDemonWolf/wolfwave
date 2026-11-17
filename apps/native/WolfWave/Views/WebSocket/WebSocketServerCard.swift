@@ -56,6 +56,7 @@ struct WebSocketServerCard: View {
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 status: serverStatus,
+                statusLabels: Self.serverStatusLabels,
                 onChange: { _ in
                     withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                         notifyServerSettingChanged()
@@ -83,6 +84,10 @@ struct WebSocketServerCard: View {
     }
 
     // MARK: - Private Helpers
+
+    /// Every label `serverStatus` can return, so the chip keeps one width.
+    /// "88 connected" stands in for any two-digit client count.
+    private static let serverStatusLabels = ["Listening", "88 connected", "Starting", "Couldn't start", "Stopped"]
 
     /// Server chip for `serverState`. A listening server shows how many
     /// overlays are connected once one joins.

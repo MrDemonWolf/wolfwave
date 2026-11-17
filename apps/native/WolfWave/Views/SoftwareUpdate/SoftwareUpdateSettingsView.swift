@@ -82,6 +82,12 @@ struct SoftwareUpdateSettingsView: View {
         appDelegate?.sparkleUpdater?.recheckAfterChannelChange()
     }
 
+    /// Every fixed label `status` can return, so the chip keeps one width.
+    /// The "vX.Y.Z ready" label varies; a typical version stands in for it.
+    private static let statusLabels = [
+        "Homebrew", "Checking…", "Update ready", "v88.88.88 ready", "Up to date", "Auto on", "Auto off"
+    ]
+
     /// Header chip derived from live update state, first match wins:
     /// Homebrew install, checking, update ready, up to date, then the
     /// automatic-check switch.
@@ -110,7 +116,7 @@ struct SoftwareUpdateSettingsView: View {
     }
 
     private var updateStatus: some View {
-        StatusChip(status)
+        StatusChip(status, sizingLabels: Self.statusLabels)
             .accessibilityLabel("Software Update status: \(status.text)")
     }
 

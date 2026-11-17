@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MusicKit
 
 // MARK: - Artwork Service
 
@@ -33,7 +34,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     // MARK: - Singleton
 
     /// Shared instance used across the app.
-    static let shared = ArtworkService()
+    static let shared = ArtworkService(catalogFallback: ArtworkService.appleMusicCatalogLinks)
 
     // MARK: - Types
 
@@ -124,6 +125,11 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// URL session used for iTunes Search API requests. Injectable for testing.
     private let session: URLSession
 
+    /// Second lookup, tried only when iTunes Search answers with no match.
+    /// See ``appleMusicCatalogLinks(track:artist:)`` for why it exists. `nil`
+    /// (the default, and what tests get) keeps a miss a miss.
+    private let catalogFallback: (@Sendable (_ track: String, _ artist: String) async -> TrackLinks?)?
+
     /// On-disk location of the persisted links cache, or nil to run memory-only.
     /// nil in tests so they never touch the shared Application Support file.
     private let persistenceURL: URL?
@@ -138,17 +144,21 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///     Application Support directory. Pass nil to disable disk persistence
     ///     (used by tests).
     ///   - now: Clock for transient-failure back-off and the lookup TTL. Defaults to `Date()`.
+    ///   - catalogFallback: Lookup tried after an iTunes Search miss. Defaults
+    ///     to none; the shared instance passes the Apple Music catalog search.
     ///
     /// Loads the persisted cache synchronously, so the first lookup after launch
     /// can be served from disk without a network call.
     init(
         session: URLSession = .shared,
         persistenceURL: URL? = ArtworkService.defaultPersistenceURL(),
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        catalogFallback: (@Sendable (_ track: String, _ artist: String) async -> TrackLinks?)? = nil
     ) {
         self.session = session
         self.persistenceURL = persistenceURL
         self.now = now
+        self.catalogFallback = catalogFallback
         loadFromDisk()
     }
 
@@ -324,13 +334,21 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                 return TrackTextNormalizer.title(title) == TrackTextNormalizer.title(track)
                     && TrackTextNormalizer.text(name) == TrackTextNormalizer.text(artist)
             }) else {
-                // A valid 2xx empty result is a real miss. Persist only this case;
-                // transient transport/HTTP/decoding failures above remain retryable.
-                self.cacheQueue.sync {
-                    guard self.cacheGeneration == inFlightKey.generation else { return }
-                    self.recordResolution(cacheKey)
+                // A valid 2xx empty result is a real miss from iTunes Search.
+                // Its index lags new releases by weeks, so give the Apple Music
+                // catalog one try before recording the miss. Transient
+                // transport/HTTP/decoding failures above remain retryable.
+                guard let catalogFallback = self.catalogFallback else {
+                    self.commit(emptyLinks, cacheKey: cacheKey, inFlightKey: inFlightKey)
+                    return
                 }
-                self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
+                Task {
+                    let links = await catalogFallback(track, artist) ?? emptyLinks
+                    if links.artworkURL != nil {
+                        Log.debug("Artwork: Found \"\(track)\" in the Apple Music catalog", category: .artwork)
+                    }
+                    self.commit(links, cacheKey: cacheKey, inFlightKey: inFlightKey)
+                }
                 return
             }
 
@@ -343,17 +361,53 @@ nonisolated final class ArtworkService: @unchecked Sendable {
 
             let links = TrackLinks(artworkURL: artworkURL, trackViewURL: trackViewURL, songLinkURL: songLinkURL)
 
-            self.cacheQueue.sync {
-                guard self.cacheGeneration == inFlightKey.generation else { return }
-                if let artworkURL { self.cache[cacheKey] = artworkURL }
-                if let trackViewURL { self.trackViewURLCache[cacheKey] = trackViewURL }
-                if let songLinkURL { self.songLinkURLCache[cacheKey] = songLinkURL }
-                self.recordResolution(cacheKey)
-            }
-
             Log.debug("Artwork: Found track links for \"\(track)\"", category: .artwork)
-            self.finishInFlight(inFlightKey: inFlightKey, with: links)
+            self.commit(links, cacheKey: cacheKey, inFlightKey: inFlightKey)
         }.resume()
+    }
+
+    /// Caches a finished lookup (links found, or a real miss when they are all
+    /// nil), then answers everyone waiting on it.
+    private func commit(_ links: TrackLinks, cacheKey: CacheKey, inFlightKey: InFlightKey) {
+        cacheQueue.sync {
+            guard cacheGeneration == inFlightKey.generation else { return }
+            if let artworkURL = links.artworkURL { cache[cacheKey] = artworkURL }
+            if let trackViewURL = links.trackViewURL { trackViewURLCache[cacheKey] = trackViewURL }
+            if let songLinkURL = links.songLinkURL { songLinkURLCache[cacheKey] = songLinkURL }
+            recordResolution(cacheKey)
+        }
+        finishInFlight(inFlightKey: inFlightKey, with: links)
+    }
+
+    // MARK: - Apple Music Catalog Fallback
+
+    /// Looks a track up in the Apple Music catalog through MusicKit.
+    ///
+    /// iTunes Search is the first choice because it needs no permission, but
+    /// its index runs weeks behind: a single released two weeks earlier was in
+    /// the catalog (and resolvable by ID) while a search for its exact title
+    /// returned nothing, so its cover never reached Discord or the overlay.
+    ///
+    /// Never prompts. It only runs when the user has already granted Apple
+    /// Music access (Song Requests asks for it); otherwise it returns `nil`
+    /// and the miss stands.
+    ///
+    /// - Returns: Links for the first result whose title and artist match, or
+    ///   `nil` when there is no access, no match, or the request fails.
+    static func appleMusicCatalogLinks(track: String, artist: String) async -> TrackLinks? {
+        guard MusicAuthorization.currentStatus == .authorized else { return nil }
+        var request = MusicCatalogSearchRequest(term: "\(track) \(artist)", types: [Song.self])
+        request.limit = 5
+        guard let response = try? await request.response() else { return nil }
+        guard let song = response.songs.first(where: {
+            TrackTextNormalizer.title($0.title) == TrackTextNormalizer.title(track)
+                && TrackTextNormalizer.text($0.artistName) == TrackTextNormalizer.text(artist)
+        }) else { return nil }
+        return TrackLinks(
+            artworkURL: song.artwork?.url(width: 512, height: 512)?.absoluteString,
+            trackViewURL: song.url?.absoluteString,
+            songLinkURL: "\(AppConstants.API.songLinkTrackPrefix)\(song.id.rawValue)"
+        )
     }
 
     /// Records that a lookup completed for `cacheKey` (success or miss) and bounds

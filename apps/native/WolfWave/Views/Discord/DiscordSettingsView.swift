@@ -270,6 +270,12 @@ struct DiscordSettingsView: View {
         }
     }
 
+    /// Every label `statusChip` can return, so the chip keeps one width.
+    static let statusChipLabels = [
+        "Connected", "Connecting", "Disconnected",
+        "Discord not running", "Refused", "Blocked", "Not configured"
+    ]
+
     /// Connection status chip. While enabled but disconnected it names the
     /// actual failure; with no failure recorded yet it reads "Connecting".
     var statusChip: StatusChip.Descriptor {

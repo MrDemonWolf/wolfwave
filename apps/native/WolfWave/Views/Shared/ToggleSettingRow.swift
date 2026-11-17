@@ -39,6 +39,10 @@ struct ToggleSettingRow: View {
     /// row it describes, so a pane never spends a line of its own on a chip.
     /// VoiceOver hears it as part of the switch's value.
     var status: StatusChip.Descriptor?
+    /// Every label `status` can carry on this row. Pass it whenever the state
+    /// changes while the pane is open, so the chip keeps one width and the
+    /// row never shifts. See ``StatusChip/sizingLabels``.
+    var statusLabels: [String] = []
     /// Called with the new value whenever `isOn` changes. Fires for any change
     /// to the binding, not only a click on this switch, so a write from
     /// elsewhere (another view, a defaults change) triggers it too.
@@ -96,13 +100,13 @@ struct ToggleSettingRow: View {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .center, spacing: DSSpace.s4) {
                         labelText
-                        StatusChip(status)
+                        StatusChip(status, sizingLabels: statusLabels)
                     }
                     .frame(minWidth: DSDimension.Settings.inlineActionsMinWidth)
 
                     VStack(alignment: .leading, spacing: DSSpace.s2) {
                         labelText
-                        StatusChip(status)
+                        StatusChip(status, sizingLabels: statusLabels)
                     }
                 }
             } else {
