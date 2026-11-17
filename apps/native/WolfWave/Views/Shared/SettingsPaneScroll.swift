@@ -8,6 +8,14 @@
 
 import SwiftUI
 
+extension EnvironmentValues {
+    /// Top content inset of the enclosing ``SettingsPaneScroll``: how much of
+    /// the scroll view sits under the window toolbar. A view that pins itself
+    /// while the pane scrolls (the Discord preview) offsets by this so it
+    /// stops below the toolbar, not behind it.
+    @Entry var settingsPaneTopInset: CGFloat = 0
+}
+
 /// The scrolling content column every settings pane sits in: width clamped to
 /// `SettingsUI.maxContentWidth`, centered in the pane, with the standard insets.
 ///
@@ -32,6 +40,10 @@ struct SettingsPaneScroll<Content: View>: View {
     /// Width of the scroll view itself, scroller included. Zero until the
     /// first layout pass reports it.
     @State private var paneWidth: CGFloat = 0
+
+    /// How far the scroll view's content is inset at the top (the toolbar it
+    /// scrolls under). Published to the pane as `settingsPaneTopInset`.
+    @State private var topInset: CGFloat = 0
 
     // MARK: - Init
 
@@ -60,6 +72,14 @@ struct SettingsPaneScroll<Content: View>: View {
         } action: { width in
             paneWidth = width
         }
+        // The inset only changes when the toolbar does, so publishing it does
+        // not re-render the pane while it scrolls.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentInsets.top
+        } action: { _, inset in
+            topInset = inset
+        }
+        .environment(\.settingsPaneTopInset, topInset)
     }
 
     // MARK: - Private Helpers

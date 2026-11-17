@@ -85,6 +85,10 @@ struct DiscordSettingsView: View {
     /// `.nowPlayingChanged` (track present / paused / nil) and the Discord
     /// connection state.
     @State private var playbackMode: DiscordPreviewCard.Mode = .stopped
+    /// Height of the control column, so the pinned preview stops at its end.
+    @State private var controlsHeight: CGFloat = 0
+    /// How much of the pane scrolls under the toolbar.
+    @Environment(\.settingsPaneTopInset) private var paneTopInset
     /// Pending debounced settings re-send; replaced on each change.
     @State private var settingsChangedTask: Task<Void, Never>?
 
@@ -111,6 +115,10 @@ struct DiscordSettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                         previewSection
                             .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .pinnedWhileScrolling(
+                                topInset: paneTopInset + DSSpace.s6,
+                                within: controlsHeight
+                            )
                     }
                     .frame(minWidth: DSDimension.Settings.twoColumnFloor)
 
@@ -175,7 +183,8 @@ struct DiscordSettingsView: View {
         .onChange(of: clearWhilePaused) { _, _ in scheduleSettingsResend() }
     }
 
-    /// Profile Buttons, Playlist, and the not-playing options, stacked.
+    /// Profile Buttons, Playlist, and the not-playing options, stacked. Its
+    /// height bounds how far the preview beside it may travel while pinned.
     private var controlSections: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             buttonsSection
@@ -184,6 +193,11 @@ struct DiscordSettingsView: View {
                 .deepLinkSection("playlist")
             behaviorSection
                 .deepLinkSection("behavior")
+        }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            controlsHeight = height
         }
     }
 

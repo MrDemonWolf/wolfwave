@@ -47,8 +47,12 @@ struct AboutSettingsView: View {
             Text("Version details, helpful links, and legal information.")
                 .fieldSubtitle()
 
-            identityCard
-            actionsCard
+            // Who the app is beside what you can do with it, in a wide window.
+            ResponsiveRow(floor: DSDimension.Settings.twoColumnFloor) {
+                identityCard
+            } right: {
+                actionsCard
+            }
             linksCard
             acknowledgementsCard
         }
@@ -62,6 +66,7 @@ struct AboutSettingsView: View {
         // No heading: the icon, name, and version say what this card is. An
         // "Identity" title with a line describing it only pushed them down.
         hero
+            .frame(maxHeight: .infinity)
             .cardStyle()
     }
 
@@ -126,6 +131,7 @@ struct AboutSettingsView: View {
             actionGrid
             sponsorToggle
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .cardStyle()
     }
 

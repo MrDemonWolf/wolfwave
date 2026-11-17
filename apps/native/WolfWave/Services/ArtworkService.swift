@@ -34,7 +34,10 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     // MARK: - Singleton
 
     /// Shared instance used across the app.
-    static let shared = ArtworkService(catalogFallback: ArtworkService.appleMusicCatalogLinks)
+    static let shared = ArtworkService(
+        usesArtistLookup: true,
+        catalogFallback: ArtworkService.appleMusicCatalogLinks
+    )
 
     // MARK: - Types
 
@@ -125,7 +128,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// URL session used for iTunes Search API requests. Injectable for testing.
     private let session: URLSession
 
-    /// Second lookup, tried only when iTunes Search answers with no match.
+    /// Whether an iTunes Search miss is retried through the artist's own
+    /// catalog page. See ``artistLookupLinks(track:artist:)``. Off by default
+    /// so tests that count requests keep their one-request-per-lookup shape;
+    /// the shared instance turns it on.
+    private let usesArtistLookup: Bool
+
+    /// Last lookup, tried when iTunes Search and the artist lookup both miss.
     /// See ``appleMusicCatalogLinks(track:artist:)`` for why it exists. `nil`
     /// (the default, and what tests get) keeps a miss a miss.
     ///
@@ -149,8 +158,10 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///     Application Support directory. Pass nil to disable disk persistence
     ///     (used by tests).
     ///   - now: Clock for transient-failure back-off and the lookup TTL. Defaults to `Date()`.
-    ///   - catalogFallback: Lookup tried after an iTunes Search miss. Defaults
-    ///     to none; the shared instance passes the Apple Music catalog search.
+    ///   - usesArtistLookup: Retry an iTunes Search miss through the artist's
+    ///     catalog page. Defaults to off; the shared instance turns it on.
+    ///   - catalogFallback: Lookup tried after those miss. Defaults to none;
+    ///     the shared instance passes the Apple Music catalog search.
     ///
     /// Loads the persisted cache synchronously, so the first lookup after launch
     /// can be served from disk without a network call.
@@ -158,11 +169,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         session: URLSession = .shared,
         persistenceURL: URL? = ArtworkService.defaultPersistenceURL(),
         now: @escaping @Sendable () -> Date = { Date() },
+        usesArtistLookup: Bool = false,
         catalogFallback: (@Sendable (_ track: String, _ artist: String) async throws -> TrackLinks?)? = nil
     ) {
         self.session = session
         self.persistenceURL = persistenceURL
         self.now = now
+        self.usesArtistLookup = usesArtistLookup
         self.catalogFallback = catalogFallback
         loadFromDisk()
     }
@@ -340,22 +353,28 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     && TrackTextNormalizer.text(name) == TrackTextNormalizer.text(artist)
             }) else {
                 // A valid 2xx empty result is a real miss from iTunes Search.
-                // Its index lags new releases by weeks, so give the Apple Music
-                // catalog one try before recording the miss. Transient
+                // Its index lags new releases by weeks, so try the slower
+                // routes that do see them before recording the miss. Transient
                 // transport/HTTP/decoding failures above remain retryable.
-                guard let catalogFallback = self.catalogFallback else {
+                guard self.usesArtistLookup || self.catalogFallback != nil else {
                     self.commit(emptyLinks, cacheKey: cacheKey, inFlightKey: inFlightKey)
                     return
                 }
                 Task {
                     do {
-                        let links = try await catalogFallback(track, artist) ?? emptyLinks
-                        if links.artworkURL != nil {
-                            Log.debug(
-                                "Artwork: Found \"\(track)\" in the Apple Music catalog",
-                                category: .artwork)
+                        var links: TrackLinks?
+                        if self.usesArtistLookup {
+                            links = try await self.artistLookupLinks(track: track, artist: artist)
                         }
-                        self.commit(links, cacheKey: cacheKey, inFlightKey: inFlightKey)
+                        if links == nil, let catalogFallback = self.catalogFallback {
+                            links = try await catalogFallback(track, artist)
+                        }
+                        if links != nil {
+                            Log.info("Artwork: Found \"\(track)\" through the catalog fallback", category: .artwork)
+                        } else {
+                            Log.info("Artwork: No catalog match for \"\(track)\" by \(artist)", category: .artwork)
+                        }
+                        self.commit(links ?? emptyLinks, cacheKey: cacheKey, inFlightKey: inFlightKey)
                     } catch {
                         // No answer is not a miss. Back off briefly and let
                         // the next lookup try again, exactly as a failed
@@ -395,6 +414,69 @@ nonisolated final class ArtworkService: @unchecked Sendable {
             recordResolution(cacheKey)
         }
         finishInFlight(inFlightKey: inFlightKey, with: links)
+    }
+
+    // MARK: - Artist Lookup Fallback
+
+    /// Finds a track through its artist's catalog page: search for the artist,
+    /// then list that artist's songs newest first and match the title.
+    ///
+    /// This is the fallback that needs no permission. iTunes *Search* lags new
+    /// releases by weeks, but *Lookup* by ID is current: a single released two
+    /// weeks earlier was missing from a title search and from an artist-name
+    /// song search, yet was first in the artist's lookup list.
+    ///
+    /// Costs two extra requests, and only after a search miss. A credit that
+    /// is not one artist's exact name ("A & B") finds no artist and returns
+    /// `nil`.
+    ///
+    /// - Returns: Links for the matching song, or `nil` when the artist or the
+    ///   title is not found.
+    /// - Throws: When a request fails, so the caller retries later instead of
+    ///   caching a miss.
+    private func artistLookupLinks(track: String, artist: String) async throws -> TrackLinks? {
+        let artists = try await itunesResults(AppConstants.API.itunesSearch, [
+            URLQueryItem(name: "media", value: "music"),
+            URLQueryItem(name: "entity", value: "musicArtist"),
+            URLQueryItem(name: "limit", value: "5"),
+            URLQueryItem(name: "term", value: artist)
+        ])
+        guard let artistID = artists.first(where: {
+            ($0["artistName"] as? String).map(TrackTextNormalizer.text) == TrackTextNormalizer.text(artist)
+        })?["artistId"] as? Int else { return nil }
+
+        let songs = try await itunesResults(AppConstants.API.itunesLookup, [
+            URLQueryItem(name: "id", value: String(artistID)),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "200"),
+            URLQueryItem(name: "sort", value: "recent")
+        ])
+        guard let song = songs.first(where: {
+            ($0["trackName"] as? String).map(TrackTextNormalizer.title) == TrackTextNormalizer.title(track)
+        }) else { return nil }
+
+        return TrackLinks(
+            artworkURL: (song["artworkUrl100"] as? String)?
+                .replacingOccurrences(of: "100x100", with: "512x512"),
+            trackViewURL: song["trackViewUrl"] as? String,
+            songLinkURL: (song["trackId"] as? Int).map { "\(AppConstants.API.songLinkTrackPrefix)\($0)" }
+        )
+    }
+
+    /// Runs one iTunes Search / Lookup request and returns its `results`.
+    ///
+    /// - Throws: `URLError(.badServerResponse)` for a non-2xx status or a body
+    ///   that is not the expected JSON, plus any transport error.
+    private func itunesResults(_ endpoint: String, _ items: [URLQueryItem]) async throws -> [[String: Any]] {
+        guard var components = URLComponents(string: endpoint) else { throw URLError(.badURL) }
+        components.queryItems = items
+        guard let url = components.url else { throw URLError(.badURL) }
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = json["results"] as? [[String: Any]]
+        else { throw URLError(.badServerResponse) }
+        return results
     }
 
     // MARK: - Apple Music Catalog Fallback
