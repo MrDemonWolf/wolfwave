@@ -109,6 +109,37 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Missing", artist: "Nobody"))
     }
 
+    /// A fallback that cannot get an answer is not a miss. It backs off for a
+    /// minute like a failed iTunes request, then the next lookup tries again
+    /// and can still find the track. A real miss would hide it for days.
+    func testCatalogFallbackFailureIsRetriedNotCachedAsAMiss() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        let clock = ThreadSafeBox(Date())
+        let attempts = ThreadSafeBox(0)
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            now: { clock.value },
+            catalogFallback: { _, _ in
+                attempts.mutate { $0 += 1 }
+                if attempts.value == 1 { throw URLError(.notConnectedToInternet) }
+                return TrackLinks(
+                    artworkURL: "https://example.com/found.jpg", trackViewURL: nil, songLinkURL: nil)
+            })
+
+        let first = await fetchLinks(track: "New", artist: "Wolf")
+        XCTAssertNil(first.artworkURL)
+
+        clock.mutate { $0.addTimeInterval(61) }
+        XCTAssertFalse(service.hasAttemptedTrackLinks(track: "New", artist: "Wolf"))
+
+        let retried = await fetchLinks(track: "New", artist: "Wolf")
+        XCTAssertEqual(retried.artworkURL, "https://example.com/found.jpg")
+        XCTAssertEqual(attempts.value, 2)
+    }
+
     func testItunesMismatchTreatedAsMiss() async {
         handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200),
