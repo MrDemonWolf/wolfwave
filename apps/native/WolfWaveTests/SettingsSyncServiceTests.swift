@@ -74,8 +74,10 @@ final class SettingsSyncServiceTests: WolfWaveTestCase {
         debounce: Duration = .zero,
         initialSyncDelay: Duration = .seconds(60)
     ) -> SettingsSyncService {
+        // `store:` is an autoclosure (the real iCloud store is created lazily),
+        // so the capture of this test's store has to be spelled out.
         SettingsSyncService(
-            store: store,
+            store: self.store,
             backup: backup,
             defaults: defaults,
             center: center,
