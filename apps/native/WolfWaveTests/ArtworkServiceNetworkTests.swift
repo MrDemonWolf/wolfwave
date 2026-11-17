@@ -67,6 +67,48 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertNil(links.songLinkURL)
     }
 
+    // MARK: - Apple Music catalog fallback
+
+    /// iTunes Search runs weeks behind new releases. A miss there asks the
+    /// catalog fallback once, and its answer is what callers receive.
+    func testCatalogFallbackFillsAnItunesMiss() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            catalogFallback: { track, artist in
+                TrackLinks(
+                    artworkURL: "https://example.com/\(track)-\(artist).jpg",
+                    trackViewURL: "https://music.apple.com/song/1",
+                    songLinkURL: "https://song.link/i/1")
+            })
+
+        let links = await fetchLinks(track: "New", artist: "Wolf")
+
+        XCTAssertEqual(links.artworkURL, "https://example.com/New-Wolf.jpg")
+        XCTAssertEqual(links.trackViewURL, "https://music.apple.com/song/1")
+        XCTAssertEqual(service.cachedArtworkURL(track: "New", artist: "Wolf"), "https://example.com/New-Wolf.jpg")
+    }
+
+    /// A fallback that also finds nothing leaves a recorded miss, so the track
+    /// is not looked up again on every playback tick.
+    func testCatalogFallbackMissIsStillAMiss() async {
+        handlerStore.handler = { request in
+            (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            catalogFallback: { _, _ in nil })
+
+        let links = await fetchLinks(track: "Missing", artist: "Nobody")
+
+        XCTAssertNil(links.artworkURL)
+        XCTAssertTrue(service.hasAttemptedTrackLinks(track: "Missing", artist: "Nobody"))
+    }
+
     func testItunesMismatchTreatedAsMiss() async {
         handlerStore.handler = { request in
             (MockURLProtocol.httpResponse(for: request, status: 200),
