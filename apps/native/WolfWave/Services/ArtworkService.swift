@@ -469,7 +469,13 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     ///   that is not the expected JSON, plus any transport error.
     private func itunesResults(_ endpoint: String, _ items: [URLQueryItem]) async throws -> [[String: Any]] {
         guard var components = URLComponents(string: endpoint) else { throw URLError(.badURL) }
-        components.queryItems = items
+        // Encode by hand, as the title search does: `queryItems` leaves a
+        // literal `+` alone, and iTunes reads `+` as a space, so an artist
+        // such as "+44" would be searched as " 44" and never match.
+        let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "+&=?#"))
+        components.percentEncodedQueryItems = items.map {
+            URLQueryItem(name: $0.name, value: $0.value?.addingPercentEncoding(withAllowedCharacters: allowed))
+        }
         guard let url = components.url else { throw URLError(.badURL) }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),

@@ -122,6 +122,25 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(links.songLinkURL, "\(AppConstants.API.songLinkTrackPrefix)2")
     }
 
+    /// A `+` in the artist name is sent as `%2B`. Left literal, iTunes reads
+    /// it as a space and the artist is never found.
+    func testArtistLookupEscapesPlusInArtistName() async {
+        let artistQuery = ThreadSafeBox("")
+        handlerStore.handler = { request in
+            let url = request.url?.absoluteString ?? ""
+            if url.contains("musicArtist") { artistQuery.mutate { $0 = url } }
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            usesArtistLookup: true)
+
+        _ = await fetchLinks(track: "Song", artist: "+44")
+
+        XCTAssertTrue(artistQuery.value.contains("term=%2B44"), artistQuery.value)
+    }
+
     /// A fallback that also finds nothing leaves a recorded miss, so the track
     /// is not looked up again on every playback tick.
     func testCatalogFallbackMissIsStillAMiss() async {
