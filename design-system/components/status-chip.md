@@ -30,6 +30,9 @@ StatusChip(status)   // status: StatusChip.Descriptor
 ### Descriptor
 `StatusChip.Descriptor` is one resolved state: `text`, `color`, `symbol`. It is `nonisolated` and `Equatable`. Write **one** `status` resolver that returns it, not three parallel `statusText` / `statusColor` / `statusSymbol` properties: three ladders over the same flags drift apart, one value cannot. Used by `StreamDeckPaneStatus` (as `Resolved`), `IntegrationDashboardView.Status`, `WebSocketServerCard`, and `SoftwareUpdateSettingsView`.
 
+### Fixed size
+A chip whose label changes while it is on screen must not resize: a chip that grows from "Off" to "Disconnected" shoves the text or switch beside it. Pass `sizingLabels` (every label the resolver can return) and the chip sizes to the widest one. `StatusChip(descriptor, sizingLabels:)` and `ToggleSettingRow.statusLabels` both forward it. Keep the list beside the resolver (`StreamDeckPaneStatus.allLabels`, `IntegrationDashboardView.Status.allLabels`) and pin it with a test.
+
 ### StateGlyph vocabulary
 Shared SF Symbol names so connection state is consistent across panes. The enum is
 `nonisolated` (the module defaults to `MainActor`) so pure status resolvers such as

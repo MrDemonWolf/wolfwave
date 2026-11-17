@@ -25,6 +25,10 @@ nonisolated enum StreamDeckPaneStatus {
     /// as color).
     typealias Resolved = StatusChip.Descriptor
 
+    /// Every label ``resolve(controlEnabled:serverEnabled:serverState:)`` can
+    /// return, so the chip keeps one width across states.
+    static let allLabels = ["Server off", "Server error", "Starting", "Commands off", "Ready"]
+
     // MARK: - Public Methods
 
     /// Resolves the chip for the current switch positions and server state.

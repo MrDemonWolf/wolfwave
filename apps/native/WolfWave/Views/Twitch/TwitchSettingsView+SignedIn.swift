@@ -145,7 +145,11 @@ struct SignedInView: View {
     /// instead of hiding it in a hover tooltip.
     @ViewBuilder
     private var channelValidationIndicator: some View {
-        if channelValidationRowState != .idle {
+        // Once connected, the Connected chip and the name's badge already
+        // say the channel is good; a third "Channel verified" line is noise.
+        // Progress and failures still show.
+        if channelValidationRowState != .idle,
+           !(isChannelConnected && channelValidationState == .valid) {
             FieldValidationRow(state: channelValidationRowState)
                 .padding(.top, DSSpace.s2)
         }
@@ -289,7 +293,27 @@ struct SignedInView: View {
                         onJoinChannel()
                     }
                 }) {
-                    if isConnecting {
+                    Group {
+                        if isConnecting {
+                            HStack(spacing: DSSpace.s1h) {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .controlSize(.mini)
+                                Text("Connecting\u{2026}")
+                                    .font(.system(size: DSFont.Size.body))
+                            }
+                        } else {
+                            Text(isChannelConnected ? "Leave Channel" : "Join Channel")
+                                .font(.system(size: DSFont.Size.body))
+                        }
+                    }
+                    // On the label so the button itself keeps one width
+                    // through Join, Connecting, and Leave.
+                    .stableWidth {
+                        Text("Join Channel")
+                            .font(.system(size: DSFont.Size.body))
+                        Text("Leave Channel")
+                            .font(.system(size: DSFont.Size.body))
                         HStack(spacing: DSSpace.s1h) {
                             ProgressView()
                                 .progressViewStyle(.circular)
@@ -297,27 +321,11 @@ struct SignedInView: View {
                             Text("Connecting\u{2026}")
                                 .font(.system(size: DSFont.Size.body))
                         }
-                    } else {
-                        Text(isChannelConnected ? "Leave Channel" : "Join Channel")
-                            .font(.system(size: DSFont.Size.body))
                     }
                 }
                 .disabled(shouldDisableConnectButton)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .stableWidth {
-                    Text("Join Channel")
-                        .font(.system(size: DSFont.Size.body))
-                    Text("Leave Channel")
-                        .font(.system(size: DSFont.Size.body))
-                    HStack(spacing: DSSpace.s1h) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .controlSize(.mini)
-                        Text("Connecting\u{2026}")
-                            .font(.system(size: DSFont.Size.body))
-                    }
-                }
                 .frame(height: Self.actionButtonHeight)
                 .pointerCursor()
                 .accessibilityLabel(

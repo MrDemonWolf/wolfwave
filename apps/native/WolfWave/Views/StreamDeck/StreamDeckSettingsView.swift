@@ -137,6 +137,7 @@ struct StreamDeckSettingsView: View {
                 accessibilityLabel: "Toggle Stream Deck commands",
                 accessibilityIdentifier: "streamDeckControlEnabledToggle",
                 status: status,
+                statusLabels: StreamDeckPaneStatus.allLabels,
                 hint: "Commands are only accepted from this Mac. A Stream Deck on another"
                     + " machine, or anything on your network, is refused.",
                 hintSystemImage: "lock.fill"

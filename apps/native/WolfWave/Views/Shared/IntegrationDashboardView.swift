@@ -123,7 +123,7 @@ struct IntegrationDashboardView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        let chip = StatusChip(status.chip)
+        let chip = StatusChip(status.chip, sizingLabels: Status.allLabels)
         let configureButton = Button(action: action) {
             HStack(spacing: DSSpace.s0) {
                 Text("Configure")
@@ -240,6 +240,13 @@ extension IntegrationDashboardView {
         let chip: StatusChip.Descriptor
         /// Plain-language detail shown under the row name.
         let subtitle: String
+
+        /// Every chip label any row can show. All three rows size to the
+        /// widest, so the chips line up in a column and never resize.
+        static let allLabels = [
+            "Paused", "Connected", "Disconnected", "Off",
+            "Connecting", "Running", "Starting", "Couldn't start"
+        ]
 
         // MARK: - Resolvers
 

@@ -36,6 +36,11 @@ struct StatusChip: View {
     /// Optional leading SF Symbol. When set, the symbol replaces the colored
     /// dot so state is conveyed by shape and color together, not color alone.
     var systemImage: String?
+    /// Every label this chip can show in its spot. The chip sizes to the
+    /// widest one, so it never grows or shrinks when the state changes and
+    /// nothing beside it shifts. Empty (the default) sizes to `text` alone,
+    /// which is right for a chip whose label never changes.
+    var sizingLabels: [String] = []
 
     /// Picks the light- or dark-appearance glyph color.
     @Environment(\.colorScheme) private var colorScheme
@@ -65,6 +70,12 @@ struct StatusChip: View {
                 .font(.system(size: DSFont.Size.sm, weight: .semibold))
                 .foregroundStyle(.primary)
                 .contentTransition(.opacity)
+                .stableWidth {
+                    ForEach(sizingLabels, id: \.self) { label in
+                        Text(label)
+                            .font(.system(size: DSFont.Size.sm, weight: .semibold))
+                    }
+                }
         }
         .frame(minWidth: DSDimension.StatusChip.minWidth)
         .padding(.horizontal, DSSpace.s3)
@@ -104,8 +115,18 @@ extension StatusChip {
     }
 
     /// Builds the chip for a resolved state.
-    init(_ descriptor: Descriptor) {
-        self.init(text: descriptor.text, color: descriptor.color, systemImage: descriptor.symbol)
+    ///
+    /// - Parameters:
+    ///   - descriptor: The state to show now.
+    ///   - sizingLabels: Every label the resolver can return, so the chip
+    ///     keeps one width across states. See ``sizingLabels``.
+    init(_ descriptor: Descriptor, sizingLabels: [String] = []) {
+        self.init(
+            text: descriptor.text,
+            color: descriptor.color,
+            systemImage: descriptor.symbol,
+            sizingLabels: sizingLabels
+        )
     }
 }
 

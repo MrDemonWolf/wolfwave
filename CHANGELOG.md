@@ -68,6 +68,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **Discord settings are one clean column.** The profile preview now sits right under the switch, with the button, playlist, and behavior settings full width below it, instead of a cramped two-column split.
+- **Nothing jumps when a status changes.** Status chips keep one size across all their states, and buttons such as **Join Channel** keep their width while they show Connecting. The Twitch channel row drops the extra "Channel verified" line once you're connected.
 - **Settings waste less space.** Status chips sit on the same row as the switch they describe (Discord, Stream Widgets, Stream Deck), Software Update puts the version, status, and **Check Now** on one row, and Advanced uses compact buttons on the right in place of full-width ones.
 - **Smaller Twitch sign-in button.** **Connect with Twitch** is sized to its label, not stretched across the card.
 - **Leave Channel no longer looks dangerous.** It's a plain button on the right with a one-line explanation, matching the Sign Out row. Only Sign Out is red.
