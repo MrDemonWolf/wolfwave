@@ -39,8 +39,13 @@ extension AppConstants {
         /// WolfWave state, visually distinct from active Apple Music playback.
         static let artAssetWolfWave = "wolfwave"
 
-        /// Apple Music mark. Large image fallback + small source badge.
+        /// Apple Music mark. Large image fallback, and the small badge on the
+        /// idle activity (nothing playing, nothing paused).
         static let artAssetAppleMusic = "apple_music"
+
+        /// Play badge on `small_image` while a song is playing, the pair of
+        /// ``artAssetPause``, so the small badge always says play or pause.
+        static let artAssetPlay = "play"
 
         /// Pause badge swapped onto `small_image` while playback is paused.
         static let artAssetPause = "pause"

@@ -218,25 +218,36 @@ struct DiscordPreviewCard: View {
             .saturation(mode == .paused ? 0.4 : 1)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
 
-            // Small corner badge mirrors Discord's `assets.small_image`. While
-            // paused the live presence swaps this to a pause glyph + "Paused"
-            // text, so the preview does the same.
+            // Small corner badge mirrors Discord's `assets.small_image`: a play
+            // glyph while the song plays, a pause glyph + "Paused" tooltip
+            // while paused, exactly as the live presence sends it.
             cornerBadge(
-                paused: mode == .paused,
+                mode == .paused ? .pause : .play,
                 tooltip: mode == .paused ? "Paused" : (playlistTooltip ?? "Apple Music")
             )
         }
     }
 
-    /// Apple Music source badge mirroring Discord's `assets.small_image`.
-    /// `paused` swaps the glyph to a pause symbol. Shared by the playing,
-    /// paused, and idle tiles so the small badge stays visually identical.
-    private func cornerBadge(paused: Bool, tooltip: String) -> some View {
-        // Renders the real Discord `assets.small_image` art (`apple_music.png` /
-        // `pause.png` uploaded to the Discord portal) clipped to a circle, which
-        // is exactly how the live client draws the small badge. Previously a
-        // hand-built SF Symbol on a gradient stood in for it.
-        Image(paused ? "DiscordArtPause" : "DiscordArtAppleMusic")
+    /// Which art the small corner badge shows. Raw values are asset-catalog
+    /// names holding the same PNGs uploaded to the Discord portal.
+    private enum Badge: String {
+        /// A song is playing.
+        case play = "DiscordArtPlay"
+        /// A song is loaded but paused.
+        case pause = "DiscordArtPause"
+        /// Idle activity: nothing playing, so the badge names the source.
+        case appleMusic = "DiscordArtAppleMusic"
+    }
+
+    /// Small badge mirroring Discord's `assets.small_image`. Shared by the
+    /// playing, paused, and idle tiles so the badge stays visually identical.
+    private func cornerBadge(_ badge: Badge, tooltip: String) -> some View {
+        // Renders the real Discord `assets.small_image` art (`play.png` /
+        // `pause.png` / `apple_music.png` uploaded to the Discord portal)
+        // clipped to a circle, which is exactly how the live client draws the
+        // small badge. Previously a hand-built SF Symbol on a gradient stood
+        // in for it.
+        Image(badge.rawValue)
             .resizable()
             .scaledToFill()
             .frame(width: 22, height: 22)
@@ -402,7 +413,7 @@ struct DiscordPreviewCard: View {
                 wolfWaveArtTile
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm, style: .continuous))
-                cornerBadge(paused: false, tooltip: "Apple Music")
+                cornerBadge(.appleMusic, tooltip: "Apple Music")
             }
             VStack(alignment: .leading, spacing: DSSpace.s1) {
                 Text(AppConstants.Discord.idleDetails)

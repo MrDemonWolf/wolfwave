@@ -71,11 +71,11 @@ nonisolated enum DiscordPresenceBuilder {
         }
 
         let largeImage = artworkURL ?? AppConstants.Discord.artAssetAppleMusic
-        // When paused: swap the small badge to the "pause" art asset (uploaded
-        // to the Discord developer portal under Rich Presence > Art Assets) and
-        // override the tooltip. Source-of-truth keeps `large_image` intact so
-        // album art still shows.
-        let smallImageKey = isPaused ? AppConstants.Discord.artAssetPause : AppConstants.Discord.artAssetAppleMusic
+        // The small badge is the play / pause indicator: "play" while a song
+        // plays, "pause" while paused (both uploaded to the Discord developer
+        // portal under Rich Presence > Art Assets). Pausing also overrides the
+        // tooltip. `large_image` is untouched, so album art still shows.
+        let smallImageKey = isPaused ? AppConstants.Discord.artAssetPause : AppConstants.Discord.artAssetPlay
         let smallTextValue = isPaused ? "Paused" : smallText(playlist: playlistDisplay, style: style)
         var assets = [
             "large_image": largeImage,
