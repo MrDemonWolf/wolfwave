@@ -45,8 +45,8 @@ struct WebSocketServerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-            StatusChip(text: serverStatusText, color: serverStatusColor, systemImage: serverStatusSymbol)
-                .accessibilityLabel("Stream Widgets status: \(serverStatusText)")
+            StatusChip(serverStatus)
+                .accessibilityLabel("Stream Widgets status: \(serverStatus.text)")
 
             // The hint states the reach of what the switch just turned on. The
             // server is bound on the LAN, not only on this Mac, and nothing in
@@ -59,7 +59,7 @@ struct WebSocketServerCard: View {
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
                 onChange: { _ in
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                    withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                         notifyServerSettingChanged()
                     }
                 },
@@ -86,37 +86,22 @@ struct WebSocketServerCard: View {
 
     // MARK: - Private Helpers
 
-    /// Server chip label; shows the client count while listening.
-    private var serverStatusText: String {
+    /// Server chip for `serverState`. A listening server shows how many
+    /// overlays are connected once one joins.
+    private var serverStatus: StatusChip.Descriptor {
         switch serverState {
         case .listening:
-            return clientCount > 0 ? "\(clientCount) connected" : "Listening"
+            return .init(
+                text: clientCount > 0 ? "\(clientCount) connected" : "Listening",
+                color: DSColor.success,
+                symbol: StatusChip.StateGlyph.on
+            )
         case .starting:
-            return "Starting"
+            return .init(text: "Starting", color: DSColor.warning, symbol: StatusChip.StateGlyph.starting)
         case .error:
-            return "Couldn't start"
+            return .init(text: "Couldn't start", color: DSColor.error, symbol: StatusChip.StateGlyph.error)
         case .stopped:
-            return "Stopped"
-        }
-    }
-
-    /// Server chip tint for `serverState`.
-    private var serverStatusColor: Color {
-        switch serverState {
-        case .listening: return DSColor.success
-        case .starting:  return DSColor.warning
-        case .error:     return DSColor.error
-        case .stopped:   return DSColor.neutral
-        }
-    }
-
-    /// Leading chip glyph so server state reads through shape as well as color.
-    private var serverStatusSymbol: String {
-        switch serverState {
-        case .listening: return StatusChip.StateGlyph.on
-        case .starting:  return StatusChip.StateGlyph.starting
-        case .error:     return StatusChip.StateGlyph.error
-        case .stopped:   return StatusChip.StateGlyph.off
+            return .init(text: "Stopped", color: DSColor.neutral, symbol: StatusChip.StateGlyph.off)
         }
     }
 

@@ -76,9 +76,6 @@ extension AppConstants {
         /// Discord hard cap on button label length (characters).
         static let buttonLabelMaxLength = 32
 
-        /// Discord hard cap on number of buttons per activity.
-        static let maxButtons = 2
-
         /// Discord hard cap on activity `details` / `state` text length (characters).
         static let activityTextMaxLength = 128
 

@@ -8,12 +8,19 @@
 
 import SwiftUI
 
-/// Compact dashboard listing every place WolfWave is broadcasting right now.
-/// Each row: brand glyph · plain-language status · chip · "Configure ›".
+/// General-pane dashboard: one row per integration (Twitch chat, Discord
+/// profile, Stream Widgets) with a brand glyph, a status chip, one plain line
+/// of detail, and "Configure ›".
 ///
-/// Rendered by `MusicMonitorSettingsView` on the General pane. The view is
-/// stateless about the integrations: the host passes in each one's current
-/// state, and "Configure ›" routes back through `configure`.
+/// The chips report **connections**, never what an audience can see. A
+/// connected Discord session does not mean a song is showing on the profile,
+/// and a running widget server does not mean OBS loaded the browser source.
+/// Keep the copy inside that limit: say what WolfWave knows, then point at the
+/// pane that can check the rest.
+///
+/// The view holds no integration state. `MusicMonitorSettingsView` passes each
+/// service's live state in, `Status` turns it into chip + subtitle, and
+/// "Configure ›" routes back through `configure`.
 struct IntegrationDashboardView: View {
 
     /// Streamer Mode masks the Twitch channel and widget URL in the subtitles.
@@ -26,15 +33,16 @@ struct IntegrationDashboardView: View {
     var twitchConnected: Bool
     /// Channel login shown as `@channel`; masked under Streamer Mode.
     var twitchChannel: String?
-    /// Live viewer count; omitted from the subtitle when `nil` or zero.
-    var twitchViewerCount: Int?
-    /// Whether Discord Rich Presence is connected.
-    var discordConnected: Bool
-    /// Whether the widget HTTP server is up.
-    var widgetRunning: Bool
-    /// Browser-source URL for OBS. Falls back to a bare localhost string when
-    /// `nil`; masked under Streamer Mode.
-    var widgetURL: String?
+    /// The "Show on Discord" switch. Off outranks the connection state, so a
+    /// switched-off integration never reads as a failed connection.
+    var discordEnabled: Bool
+    /// Discord IPC connection lifecycle.
+    var discordState: DiscordRPCService.ConnectionState
+    /// Lifecycle of the server behind Stream Widgets.
+    var serverState: WebSocketServerService.ServerState
+    /// Browser-source link, shown only while the server is listening; masked
+    /// under Streamer Mode. Pass `WidgetLink.loopback` so custom ports show.
+    var widgetURL: String
     /// Music Automation permission is denied. Every row switches to a Paused
     /// chip and explains why.
     var permissionPaused: Bool = false
@@ -53,7 +61,7 @@ struct IntegrationDashboardView: View {
                 Text("Integrations")
                     .sectionHeader()
                 Spacer()
-                Text("Where WolfWave is broadcasting right now.")
+                Text("Connection status and setup.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
             }
@@ -62,16 +70,16 @@ struct IntegrationDashboardView: View {
                 row(
                     icon: brandIcon("TwitchLogo", fallback: "bubble.left.fill", color: AppConstants.Brand.twitch),
                     name: "Twitch chat",
-                    chip: twitchChip,
-                    subtitle: twitchSubtitle,
+                    status: twitchStatus,
                     action: { configure(.twitch) }
                 )
                 Divider().padding(.leading, DSSpace.s11)
                 row(
                     icon: brandIcon("DiscordLogo", fallback: "headphones", color: AppConstants.Brand.discord),
                     name: "Discord profile",
-                    chip: discordChip,
-                    subtitle: discordSubtitle,
+                    status: Status.discord(
+                        enabled: discordEnabled, state: discordState, permissionPaused: permissionPaused
+                    ),
                     action: { configure(.discord) }
                 )
                 Divider().padding(.leading, DSSpace.s11)
@@ -81,8 +89,7 @@ struct IntegrationDashboardView: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 22),
                     name: "Stream Widgets",
-                    chip: widgetChip,
-                    subtitle: widgetSubtitle,
+                    status: widgetStatus,
                     action: { configure(.obs) }
                 )
             }
@@ -99,25 +106,24 @@ struct IntegrationDashboardView: View {
     /// - Parameters:
     ///   - icon: View rendering the brand or fallback icon.
     ///   - name: Human-readable integration name (Twitch, Discord, etc.).
-    ///   - chip: Status chip showing connection state.
-    ///   - subtitle: One-line description shown below the name.
+    ///   - status: Resolved chip and the line shown below the name.
     ///   - action: Closure invoked when the configure button is pressed.
     @ViewBuilder
     private func row<Icon: View>(
         icon: Icon,
         name: String,
-        chip: StatusChip,
-        subtitle: String,
+        status: Status,
         action: @escaping () -> Void
     ) -> some View {
         let details = VStack(alignment: .leading, spacing: DSSpace.s0) {
             Text(name)
                 .font(.system(size: DSFont.Size.base, weight: .medium))
-            Text(subtitle)
+            Text(status.subtitle)
                 .font(.system(size: DSFont.Size.sm))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        let chip = StatusChip(status.chip)
         let configureButton = Button(action: action) {
             HStack(spacing: DSSpace.s0) {
                 Text("Configure")
@@ -204,82 +210,161 @@ struct IntegrationDashboardView: View {
         .frame(width: 22)
     }
 
-    // MARK: - Chips & subtitles
+    // MARK: - Masked inputs
 
-    /// Paused, Live, or Off for the Twitch row.
-    private var twitchChip: StatusChip {
-        if permissionPaused {
-            return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
-        }
-        return twitchConnected
-            ? StatusChip(text: "Live", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
-            : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
+    /// Twitch row status, with the channel masked for Streamer Mode.
+    private var twitchStatus: Status {
+        let channel = twitchChannel.map { StreamerMode.mask($0, style: .channel, isOn: streamerMode) }
+        return Status.twitch(connected: twitchConnected, channel: channel, permissionPaused: permissionPaused)
     }
 
-    /// Twitch row detail: the pause reason, the (masked) channel plus viewer
-    /// count when connected, or a sign-in prompt.
-    private var twitchSubtitle: String {
-        if permissionPaused { return "Will reply once Music permission is restored." }
-        if twitchConnected {
-            let displayName = twitchChannel.map {
-                StreamerMode.mask($0, style: .channel, isOn: streamerMode)
-            }
-            let channel = displayName.map { "@\($0)" } ?? "your channel"
-            if let n = twitchViewerCount, n > 0 {
-                return "Connected to \(channel) · \(n) people watching"
-            }
-            return "Connected to \(channel)"
-        }
-        return "Sign in so !song works in chat."
-    }
-
-    /// Paused, Showing now, or Off for the Discord row.
-    private var discordChip: StatusChip {
-        if permissionPaused {
-            return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
-        }
-        return discordConnected
-            ? StatusChip(text: "Showing now", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
-            : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
-    }
-
-    /// Discord row detail for the paused, connected, and off states.
-    private var discordSubtitle: String {
-        if permissionPaused { return "Paused while Music permission is missing." }
-        return discordConnected
-            ? "Friends can see what you're playing."
-            : "Turn it on to share Apple Music on your Discord profile."
-    }
-
-    /// Paused, Ready for OBS, or Off for the Stream Widgets row.
-    private var widgetChip: StatusChip {
-        if permissionPaused {
-            return StatusChip(text: "Paused", color: DSColor.warning, systemImage: StatusChip.StateGlyph.paused)
-        }
-        return widgetRunning
-            ? StatusChip(text: "Ready for OBS", color: DSColor.success, systemImage: StatusChip.StateGlyph.on)
-            : StatusChip(text: "Off", color: DSColor.neutral, systemImage: StatusChip.StateGlyph.off)
-    }
-
-    /// Stream Widgets row detail: the pause note, the (masked) OBS URL while
-    /// running, or a prompt to turn the server on.
-    private var widgetSubtitle: String {
-        if permissionPaused { return "Showing the last known track until permission is fixed." }
-        if widgetRunning {
-            let display = StreamerMode.mask(widgetURL ?? "http://localhost", style: .url, isOn: streamerMode)
-            return "Drop this URL into OBS: \(display)"
-        }
-        return "Turn on the widget server to feed your overlay."
+    /// Stream Widgets row status, with the link masked for Streamer Mode.
+    private var widgetStatus: Status {
+        let link = StreamerMode.mask(widgetURL, style: .url, isOn: streamerMode)
+        return Status.widget(serverState: serverState, link: link, permissionPaused: permissionPaused)
     }
 }
 
-#Preview {
+// MARK: - Status
+
+extension IntegrationDashboardView {
+
+    /// One row's chip and the line under the row name.
+    ///
+    /// Pure and `nonisolated` so every state is testable without rendering the
+    /// view (same shape as `StreamDeckPaneStatus`). Each resolver reports the
+    /// first thing in the user's way: missing Music permission, then the
+    /// integration being off, then its connection state.
+    nonisolated struct Status: Equatable {
+        /// The row's chip: label, tint, and glyph.
+        let chip: StatusChip.Descriptor
+        /// Plain-language detail shown under the row name.
+        let subtitle: String
+
+        // MARK: - Resolvers
+
+        /// Twitch chat row.
+        ///
+        /// - Parameters:
+        ///   - connected: Whether the chat bot is connected.
+        ///   - channel: Channel login, already masked for Streamer Mode.
+        ///   - permissionPaused: Music Automation permission is denied.
+        static func twitch(connected: Bool, channel: String?, permissionPaused: Bool) -> Status {
+            if permissionPaused { return paused("Will reply once Music permission is restored.") }
+            guard connected else {
+                // Not "sign in": a signed-in account can still be disconnected.
+                return off("Disconnected", "Open Twitch settings to connect.")
+            }
+            let target = channel.map { "@\($0)" } ?? "your channel"
+            return on("Connected", "Chat commands work in \(target).")
+        }
+
+        /// Discord profile row.
+        ///
+        /// - Parameters:
+        ///   - enabled: The "Show on Discord" switch.
+        ///   - state: Discord IPC connection lifecycle.
+        ///   - permissionPaused: Music Automation permission is denied.
+        static func discord(
+            enabled: Bool,
+            state: DiscordRPCService.ConnectionState,
+            permissionPaused: Bool
+        ) -> Status {
+            if permissionPaused { return paused("Paused while Music permission is missing.") }
+            guard enabled else {
+                return off("Off", "Turn it on to share Apple Music on your Discord profile.")
+            }
+            switch state {
+            case .connected:
+                return on("Connected", "Your profile shows the song while music plays.")
+            case .connecting:
+                return starting("Connecting", "Looking for the Discord app.")
+            case .disconnected:
+                return off("Disconnected", "Open the Discord app, or check Discord settings.")
+            }
+        }
+
+        /// Stream Widgets row.
+        ///
+        /// - Parameters:
+        ///   - serverState: Lifecycle of the widget server.
+        ///   - link: Browser-source link, already masked for Streamer Mode.
+        ///   - permissionPaused: Music Automation permission is denied.
+        static func widget(
+            serverState: WebSocketServerService.ServerState,
+            link: String,
+            permissionPaused: Bool
+        ) -> Status {
+            if permissionPaused { return paused("Track updates are paused until Music permission is restored.") }
+            switch serverState {
+            case .listening:
+                // "Running", not "Ready for OBS": the server can't see whether
+                // a browser source ever loaded the page.
+                return on("Running", "Add this to OBS as a browser source: \(link)")
+            case .starting:
+                return starting("Starting", "Starting the widget server.")
+            case .error:
+                return Status(
+                    chip: .init(text: "Couldn't start", color: DSColor.error, symbol: StatusChip.StateGlyph.error),
+                    subtitle: "The widget server couldn't start. Open Stream Widgets to see why."
+                )
+            case .stopped:
+                return off("Off", "Turn on Stream Widgets to feed your overlay.")
+            }
+        }
+
+        // MARK: - Private Helpers
+
+        private static func on(_ text: String, _ subtitle: String) -> Status {
+            Status(
+                chip: .init(text: text, color: DSColor.success, symbol: StatusChip.StateGlyph.on),
+                subtitle: subtitle
+            )
+        }
+
+        private static func off(_ text: String, _ subtitle: String) -> Status {
+            Status(
+                chip: .init(text: text, color: DSColor.neutral, symbol: StatusChip.StateGlyph.off),
+                subtitle: subtitle
+            )
+        }
+
+        private static func starting(_ text: String, _ subtitle: String) -> Status {
+            Status(
+                chip: .init(text: text, color: DSColor.warning, symbol: StatusChip.StateGlyph.starting),
+                subtitle: subtitle
+            )
+        }
+
+        private static func paused(_ subtitle: String) -> Status {
+            Status(
+                chip: .init(text: "Paused", color: DSColor.warning, symbol: StatusChip.StateGlyph.paused),
+                subtitle: subtitle
+            )
+        }
+    }
+}
+
+#Preview("Connected") {
     IntegrationDashboardView(
         twitchConnected: true,
         twitchChannel: "nightowlstream",
-        twitchViewerCount: 12,
-        discordConnected: true,
-        widgetRunning: true,
+        discordEnabled: true,
+        discordState: .connected,
+        serverState: .listening,
+        widgetURL: "http://localhost:8766"
+    )
+    .padding()
+    .frame(width: 720)
+    .background(Color(nsColor: .underPageBackgroundColor))
+}
+
+#Preview("Off and failing") {
+    IntegrationDashboardView(
+        twitchConnected: false,
+        discordEnabled: true,
+        discordState: .connecting,
+        serverState: .error,
         widgetURL: "http://localhost:8766"
     )
     .padding()

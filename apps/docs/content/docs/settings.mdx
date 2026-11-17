@@ -38,7 +38,15 @@ How WolfWave tracks your music and where it shows up.
 - **Sync Music.** The main switch. On by default. A row under it shows your Music access: **Music access on** (with **Recheck**), or **Allow** the first time macOS asks.
   - Access off? A banner appears. Click **Open System Settings**, turn on Music under WolfWave in Automation, then click **Try again**. **Show me how** walks you through it.
 - **Live from Apple Music.** The song, artist, album, and art WolfWave sees right now.
-- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. A chip shows the state: **Live**, **Showing now**, **Ready for OBS**, or **Off** (**Paused** while Music access is missing). **Configure** jumps to that pane.
+- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. **Configure** jumps to that pane. Every chip reads **Paused** while Music access is missing.
+
+  | Row | Chips |
+  |---|---|
+  | Twitch chat | **Connected**, **Disconnected** |
+  | Discord profile | **Connected**, **Connecting**, **Disconnected**, **Off** |
+  | Stream Widgets | **Running**, **Starting**, **Couldn't start**, **Off** |
+
+  The chips show connections, not what viewers see. **Connected** on Discord means WolfWave reached Discord; the song shows while music plays. **Running** means the widget server is up; it can't tell whether OBS loaded the browser source.
 - **App Visibility.**
   - **Launch at Login:** start WolfWave when you log in. If macOS blocks it, use **Open Login Items**. If macOS wants your OK, use **Approve in Login Items…**.
   - **Display mode:** **Dock and Menu Bar** (default), **Menu Bar Only**, or **Dock Only**. **Dock Only** is greyed out while Launch at Login is on, so the menu bar icon is always there. Turning Launch at Login on while in Dock Only switches you to Dock and Menu Bar.
@@ -101,7 +109,7 @@ Chat commands: [Bot Commands](/docs/bot-commands).
 Your OBS overlay. Cards are in the order you need them:
 
 1. **Enable Stream Widgets.** Starts the connection the overlay uses.
-2. **Widget Setup.** Turn on **Enable Widget Webpage**, then **Copy Link**. The OBS steps are in [Now-playing widget](/docs/features#now-playing-widget). **Widget Port (Advanced)** is here too. **Network Address** is for two-PC setups on a network you trust.
+2. **Widget Setup.** Turn on **Enable Widget Webpage**, then **Copy Link**. The OBS steps are in [OBS Overlay](/docs/obs-overlay). **Widget Port (Advanced)** is here too. **Network Address** is for two-PC setups on a network you trust.
 3. **Widget Appearance.** Theme, layout, colors, and font, with a live preview. Your edits wait until you click **Apply**. The pane says "Unsaved changes" until then, and **Revert** drops them.
 4. **Build your own overlay.** The raw feed: port, read-only **Overlay Token**, and the local and network addresses. Only needed for a hand-made overlay. Edit the token by hand and click **Save**, or **Regenerate** it. Regenerate asks first, and active overlays disconnect until you copy the new link back into OBS.
 
@@ -117,7 +125,7 @@ Other tips:
 - To change the widget port, turn off **Enable Widget Webpage** first. To change the raw-feed **Port** in Build your own overlay, turn off **Enable Stream Widgets** first. A bad port is put back, and the field says **Saved** or **Not saved**.
 - A greyed-out button tells you what to turn on first.
 
-Sizes, themes, and messages: [OBS Widget](/docs/widget).
+Sizes, themes, and link extras: [OBS Overlay](/docs/obs-overlay). Building your own? See [OBS Widget Internals](/docs/widget).
 
 ## Stream Deck
 

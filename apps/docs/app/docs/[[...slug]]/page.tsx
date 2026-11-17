@@ -13,7 +13,7 @@ import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { ChevronRight, SquarePen } from 'lucide-react';
 import { groupForUrl } from '@/lib/docs-tree';
-import { pageUrl, repoUrl } from '@/lib/site';
+import { docsPageUrl, repoUrl } from '@/lib/site';
 import { docsPageLd, docsTitle, jsonLdScript, lastCommitDate } from '@/lib/seo';
 
 const updatedFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' });
@@ -31,7 +31,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
-  const url = pageUrl(params.slug?.join('/') === 'changelog' ? '/changelog' : page.url);
+  const url = docsPageUrl(page.url);
   const isDocsRoot = !params.slug?.length;
   const absolutePath = (page as { absolutePath?: string }).absolutePath;
   const updated = lastCommitDate(absolutePath);
@@ -135,7 +135,7 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   if (!page) notFound();
 
   const isChangelog = params.slug?.join('/') === 'changelog';
-  const url = pageUrl(isChangelog ? '/changelog' : page.url);
+  const url = docsPageUrl(page.url);
   const ogImage = getPageImage(page).url;
   const ogTitle = page.data.ogTitle ?? page.data.title;
   const ogDescription = page.data.ogDescription ?? page.data.description;

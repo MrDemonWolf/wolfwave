@@ -1,6 +1,6 @@
 import { llms } from 'fumadocs-core/source/llms';
 import { source } from '@/lib/source';
-import { absoluteUrl, pageUrl, repoUrl } from '@/lib/site';
+import { absoluteUrl, docsPageUrl, pageUrl, repoUrl } from '@/lib/site';
 
 export const revalidate = false;
 
@@ -20,7 +20,7 @@ export async function GET() {
     .trim()
     // Page links are site-relative (`/docs/...`). Make them absolute, with the
     // base path and trailing slash, so the index works wherever it is read.
-    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${pageUrl(path === '/docs/changelog' ? '/changelog' : path)})`);
+    .replace(/\]\((\/docs[^)]*)\)/g, (_, path: string) => `](${docsPageUrl(path)})`);
 
   const body = `# WolfWave
 
@@ -30,7 +30,7 @@ export async function GET() {
 
 - Streamers: [Installation](${pageUrl('/docs/installation')}) covers the install and the setup wizard. [Features](${pageUrl('/docs/features')}) and [Settings](${pageUrl('/docs/settings')}) cover each feature.
 - Viewers in chat: [What can I type in chat?](${pageUrl('/docs/bot-commands')}#what-can-i-type-in-chat) lists every chat command and what it does.
-- Developers: [Development](${pageUrl('/docs/development')}), [Architecture](${pageUrl('/docs/architecture')}), the [Stream Deck control API](${pageUrl('/docs/stream-deck')}), and the [OBS widget](${pageUrl('/docs/widget')}). Source code: ${repoUrl}
+- Developers: [Development](${pageUrl('/docs/development')}), [Architecture](${pageUrl('/docs/architecture')}), the [Stream Deck Control API](${pageUrl('/docs/stream-deck')}), and the [OBS widget](${pageUrl('/docs/widget')}). Source code: ${repoUrl}
 
 ## Full text
 

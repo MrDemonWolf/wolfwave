@@ -114,8 +114,8 @@ struct DiscordSettingsView: View {
                 }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
-        .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
+        .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: playlistEnabled)
         .onAppear {
             hasClientID = DiscordRPCService.resolveClientID() != nil
             refreshConnectionState()
@@ -140,7 +140,7 @@ struct DiscordSettingsView: View {
             )
         ) { notification in
             if let rawValue = notification.stateString {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+                withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                     switch rawValue {
                     case "connected":   connectionState = .connected
                     case "connecting":  connectionState = .connecting
@@ -272,43 +272,30 @@ struct DiscordSettingsView: View {
         }
     }
 
-    /// Connection status chip label. While enabled but disconnected it names the
+    /// Connection status chip. While enabled but disconnected it names the
     /// actual failure; with no failure recorded yet it reads "Connecting".
-    var statusChipText: String {
+    var statusChip: StatusChip.Descriptor {
         switch connectionState {
-        case .connected:    return "Connected"
-        case .connecting:   return "Connecting"
+        case .connected:
+            return .init(text: "Connected", color: DSColor.success, symbol: StatusChip.StateGlyph.on)
+        case .connecting:
+            return .init(text: "Connecting", color: DSColor.warning, symbol: StatusChip.StateGlyph.starting)
         case .disconnected:
-            guard presenceEnabled else { return "Disconnected" }
+            guard presenceEnabled else {
+                return .init(text: "Disconnected", color: DSColor.neutral, symbol: StatusChip.StateGlyph.off)
+            }
             // "Discord not running" used to be asserted for every failure,
             // including a rejected handshake with Discord open on screen.
+            let failure: String
             switch connectionFailure {
-            case .notRunning:          return "Discord not running"
-            case .none:                return "Connecting"
-            case .handshakeRejected:    return "Refused"
-            case .socketUnavailable:    return "Blocked"
-            case .notConfigured:        return "Not configured"
+            case .none:
+                return .init(text: "Connecting", color: DSColor.warning, symbol: StatusChip.StateGlyph.starting)
+            case .notRunning:        failure = "Discord not running"
+            case .handshakeRejected: failure = "Refused"
+            case .socketUnavailable: failure = "Blocked"
+            case .notConfigured:     failure = "Not configured"
             }
-        }
-    }
-
-    /// Connection status chip tint, matching `statusChipText`.
-    var statusChipColor: Color {
-        switch connectionState {
-        case .connected:    return DSColor.success
-        case .connecting:   return DSColor.warning
-        case .disconnected: return presenceEnabled && connectionFailure == .none ? DSColor.warning : DSColor.neutral
-        }
-    }
-
-    /// Shape accompanies the text so connection states use the shared vocabulary.
-    var statusChipSymbol: String {
-        switch connectionState {
-        case .connected: return StatusChip.StateGlyph.on
-        case .connecting: return StatusChip.StateGlyph.starting
-        case .disconnected:
-            if !presenceEnabled { return StatusChip.StateGlyph.off }
-            return connectionFailure == .none ? StatusChip.StateGlyph.starting : StatusChip.StateGlyph.error
+            return .init(text: failure, color: DSColor.neutral, symbol: StatusChip.StateGlyph.error)
         }
     }
 
@@ -347,7 +334,7 @@ struct DiscordSettingsView: View {
         guard let track = payload.track, let artist = payload.artist else {
             // No track in the payload: playback stopped, or Apple Music quit.
             // Mirror the live presence, which clears the profile in both cases.
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+            withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                 playbackMode = isAppleMusicRunning() ? .stopped : .musicClosed
             }
             return
@@ -367,7 +354,7 @@ struct DiscordSettingsView: View {
             appleMusicURL: links.trackViewURL,
             songLinkURL: links.songLinkURL
         )
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base)) {
+        withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
             playbackMode = payload.isPaused ? .paused : .playing
         }
     }

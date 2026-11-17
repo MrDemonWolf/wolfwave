@@ -128,10 +128,10 @@ extension AdvancedSettingsView {
                 .exportHeader
             Pasteboard.copy("\(header)\n\n\(trimmed)")
 
-            withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = true }
+            withMotionSafeAnimation(reduceMotion: reduceMotion) { showingCopyFeedback = true }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(2))
-                withAnimation(reduceMotion ? nil : .default) { showingCopyFeedback = false }
+                withMotionSafeAnimation(reduceMotion: reduceMotion) { showingCopyFeedback = false }
             }
             Log.info("Logs copied to clipboard", category: .app)
         } catch {

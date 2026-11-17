@@ -34,9 +34,6 @@ struct DeviceCodeView: View {
     /// Starts a fresh device flow. Offered once `expiresAt` has passed.
     var onRequestNewCode: (() -> Void)?
 
-    /// Disables the code-change spring under Reduce Motion.
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     // MARK: - Body
 
     var body: some View {
@@ -103,7 +100,7 @@ struct DeviceCodeView: View {
                 expiryRow(expiresAt)
             }
         }
-        .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: userCode)
+        .motionSafe(DSMotion.Spring.snappy, value: userCode)
     }
 
     // MARK: - Expiry

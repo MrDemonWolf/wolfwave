@@ -9,7 +9,7 @@ instructions, and contribution guidelines.
 
 - [Root README](../../../README.md): product overview, install, tech stack.
 - [Documentation site](https://wolfwave.mrdemonwolf.dev): usage, bot commands, architecture, security.
-- [CLAUDE.md](../../../CLAUDE.md): internal architecture notes for contributors and Claude Code.
+- [AGENTS.md](../AGENTS.md): internal architecture notes for contributors and coding agents.
 - [SECURITY.md](SECURITY.md): disclosure policy for security issues.
 
 ## Layout

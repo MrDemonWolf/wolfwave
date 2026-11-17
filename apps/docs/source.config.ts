@@ -9,7 +9,6 @@ import { rehypeIssueBlocks, rehypeMermaid, rehypeUiPaths } from './lib/rehype-do
 // and page metadata; all optional so existing pages stay valid.
 const extendedFrontmatter = pageSchema.extend({
   keywords: z.array(z.string()).optional(),
-  section: z.string().optional(),
   ogChips: z.array(z.string()).optional(),
   ogEyebrow: z.string().optional(),
   ogTitle: z.string().optional(),

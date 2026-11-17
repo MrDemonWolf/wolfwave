@@ -14,7 +14,7 @@ import XCTest
 /// status mapping, monotonic interval timing, stale-probe suppression (a probe that
 /// finishes after stop or restart must not publish), overlap coalescing, and the
 /// tolerant `playerState` parsing. The `testExtractPlayerState*` cases lock in the
-/// parser contract documented in CLAUDE.md; do not narrow them.
+/// parser contract documented in apps/native/AGENTS.md; do not narrow them.
 @MainActor
 final class AppleMusicSourceTests: XCTestCase {
     var monitor: AppleMusicSource!

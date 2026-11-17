@@ -228,7 +228,7 @@ struct TwitchSettingsView: View {
     /// with one outline, matching the Bot Commands cards below.
     private var signedInCard: some View {
         connectedContent
-            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
     }
 
     /// Main card that switches content based on integration state.
@@ -278,7 +278,7 @@ struct TwitchSettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .top)
             }
             .cardStyle()
-            .animation(reduceMotion ? nil : .easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
+            .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: viewModel.integrationState)
         }
     }
 
@@ -352,7 +352,7 @@ struct TwitchSettingsView: View {
                 // Symmetric transition (same shape in and out) so the card
                 // doesn't snap on dismissal.
                 .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(reduceMotion ? nil : DSMotion.Spring.snappy, value: viewModel.authState.userCode)
+                .motionSafe(DSMotion.Spring.snappy, value: viewModel.authState.userCode)
             }
 
             // Always-visible spinner + cancel row once device code is shown

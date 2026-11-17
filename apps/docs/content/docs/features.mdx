@@ -154,35 +154,11 @@ These live in the **Channel Points & Bits** card. Enable the tools on Twitch, si
 
 Show the current song on stream. It runs on your Mac. No overlay website needed.
 
-**Turn it on:**
+- **One link.** Turn on **Enable Stream Widgets** and **Enable Widget Webpage** in **Settings → Stream Widgets**, click **Copy Link**, and paste it into an OBS **Browser Source**.
+- **Your look.** Five themes (Default, Dark, Light, Glass, Neon) and five layouts (Horizontal, Vertical, Compact, Vinyl, Classic), with a live preview.
+- **Queue ticker.** Show the next requests on screen.
 
-<Steps>
-
-<Step>Open **Settings → Stream Widgets** and turn on **Enable Stream Widgets**.</Step>
-<Step>In **Widget Setup**, turn on **Enable Widget Webpage**.</Step>
-<Step>Click **Copy Link**.</Step>
-<Step>In OBS, add a **Browser Source** and paste the link.</Step>
-<Step>Set the width and height the pane shows for your layout.</Step>
-
-</Steps>
-
-<Callout type="warn">
-  In OBS, turn on **Shutdown source when not visible**. The widget then reconnects cleanly when you switch scenes.
-</Callout>
-
-**Style it** (the **Widget Appearance** card):
-
-- **Theme:** Default, Dark, Light, Glass, or Neon.
-- **Layout:** Horizontal, Vertical, Compact, Vinyl, or Classic.
-- **Text** and **Background** colors (Default and Glass themes), and a **Font**.
-- A live preview shows your edits. Click **Apply** to send them to the overlay, or **Revert** to undo them.
-
-**Extras:**
-
-- **Queue ticker.** Add `?queueTicker=1` to the link to show the next requests on screen.
-- **Two-PC setups.** Use the **Network Address** link. Only use it on a network you trust.
-
-Sizes, messages, and theming: [OBS Widget](/docs/widget). Security details: [WebSocket security](/docs/security#websocket-server-security).
+Setup, sizes, and extras: [OBS Overlay](/docs/obs-overlay).
 
 ## Stream Deck
 
@@ -235,9 +211,7 @@ One more banner has no switch: **Twitch Authentication Expired** shows up if you
 
 ## App basics
 
-- **Display mode.** Show WolfWave in the menu bar, the Dock, or both. **Launch at Login** starts it with your Mac. Both are in [Settings → General](/docs/settings#general).
-- **Appearance.** **System**, **Light**, or **Dark**. Same place.
-- **Updates.** WolfWave checks for new versions in the background (on by default). Pick **Stable** or **Nightly (dev)** in [Settings → Software Update](/docs/settings#software-update). Installed with Homebrew? Updates come from Homebrew instead.
+Menu bar or Dock, **Launch at Login**, light or dark, and updates (**Stable** or **Nightly**) are all in [Settings](/docs/settings#general).
 
 ## Streamer Mode
 
@@ -251,27 +225,17 @@ One click in the menu bar hides private info on screen. Your channel name shows 
 
 More: [Back Up & Restore](/docs/backup).
 
-## Diagnostics and bug reports
+## Help, privacy, and security
 
-- **Report a Bug** (**menu bar → Help**) opens a GitHub issue with your app version filled in.
-- **Export Logs** (**Settings → Advanced**) saves one file with your setup, the last crash, and your logs.
-- **Share Diagnostics** (**Settings → Advanced**) is off by default. Turn on **Collect on-device diagnostics** and WolfWave keeps crash and performance reports on your Mac. Nothing is uploaded. **Reveal Diagnostics Folder** opens them in Finder. WolfWave keeps the newest 50 reports from the last 30 days, and deletes them when you turn it off.
-- Error messages name the problem, offer a fix, and often link to [Troubleshooting](/docs/troubleshooting).
-
-More: [Report a bug](/docs/support#report-a-bug).
-
-## Security and privacy
-
-- Sign-ins are stored in the macOS Keychain.
-- No analytics. Data only goes to services you turn on.
-- Signed and notarized by Apple.
-
-More: [Security](/docs/security) and the [Privacy Policy](/docs/privacy-policy). Comparing tools? See the [comparison](/docs/comparison).
+- **Something broke?** **Report a Bug** (**menu bar → Help**) opens a GitHub issue with your version filled in, and **Export Logs** saves one file to attach. More: [Report a bug](/docs/support#report-a-bug) and [Troubleshooting](/docs/troubleshooting).
+- **Your data stays yours.** Sign-ins live in the macOS Keychain. No analytics. Data only goes to services you turn on. More: [Security](/docs/security) and the [Privacy Policy](/docs/privacy-policy).
+- **Comparing tools?** See the [comparison](/docs/comparison).
 
 ## Where to next
 
 <Cards>
   <Card title="Install" href="/docs/installation" description="Get WolfWave running on your Mac." />
+  <Card title="OBS Overlay" href="/docs/obs-overlay" description="Put the current song on stream." />
   <Card title="Bot Commands" href="/docs/bot-commands" description="Every chat command, with examples." />
   <Card title="Settings" href="/docs/settings" description="What lives in each pane." />
   <Card title="Troubleshooting" href="/docs/troubleshooting" description="Fixes, sorted by symptom." />

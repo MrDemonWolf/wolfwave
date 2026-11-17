@@ -85,6 +85,7 @@ The next release. These changes ship on the [Nightly channel](/docs/nightly) off
 
 ### Fixed
 
+- **General shows real connection states.** The Integrations rows now say Connected, Connecting, Running, or Couldn't start instead of Live and Ready for OBS, which claimed things WolfWave can't see. A disconnected Twitch row no longer tells you to sign in again.
 - **`$song` and `$lastsong` read naturally.** In custom commands they fill in just the song and artist, like `Howl at the Moon by Gray Wolf`, instead of the whole `!song` reply with its emoji and link. A song title that starts with `!` can't set off other bots.
 - **Request commands follow the Song Requests switch.** While Song Requests is off, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` stay quiet, so a mod's `!skip` can't start your fallback playlist.
 - **No raw errors in chat.** When a song search or link lookup fails, `!sr`, channel points, and Bits say "song search isn't working right now" instead of the technical error. The details go to the log.

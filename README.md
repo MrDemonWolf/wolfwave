@@ -332,7 +332,7 @@ Monorepo (bun + Turborepo):
 - `bun run tokens` regenerates the design tokens.
 
 The full list of `make` and `bun` targets is in `Makefile`,
-`package.json`, and [CLAUDE.md](CLAUDE.md).
+`package.json`, and [AGENTS.md](AGENTS.md).
 
 ### Code Quality
 
