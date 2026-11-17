@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents (Claude Code, Codex, and others) working in this repository. This file holds the rules that apply everywhere. Each area has its own `AGENTS.md` with the rules for that code; **read the one for the directory you are editing before you change anything in it.**
+Guidance for coding agents working in this repository. This file holds the rules that apply everywhere. Each area has its own `AGENTS.md` with the rules for that code; **read the one for the directory you are editing before you change anything in it.**
 
 | Editing | Also read |
 |---|---|

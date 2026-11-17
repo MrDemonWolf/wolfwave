@@ -65,7 +65,12 @@ final class SettingsSyncService {
     /// KVS key holding the encoded `SettingsBackup`.
     static let payloadKey = "settings.v1"
 
-    private let store: SettingsSyncStore
+    /// Resolved on first use, which only happens once sync is enabled. Merely
+    /// touching `NSUbiquitousKeyValueStore.default` in a build without the
+    /// iCloud entitlement (every local dev build) makes the system log
+    /// "BUG IN CLIENT OF KVS", so a disabled service must never create it.
+    private lazy var store: SettingsSyncStore = makeStore()
+    private let makeStore: () -> SettingsSyncStore
     private let backup: SettingsBackupService
     private let defaults: Foundation.UserDefaults
     private let center: NotificationCenter
@@ -100,7 +105,7 @@ final class SettingsSyncService {
     ///
     /// - Parameters:
     ///   - store: Key-value store. Defaults to the real iCloud store; tests pass
-    ///     an in-memory one.
+    ///     an in-memory one. Evaluated lazily, on the first enable.
     ///   - backup: Payload builder and applier shared with Export / Import.
     ///   - defaults: Store observed for local changes and holding the
     ///     last-applied timestamp.
@@ -108,14 +113,14 @@ final class SettingsSyncService {
     ///   - debounce: Push delay after a local change.
     ///   - initialSyncDelay: Delay before the start-up re-check.
     init(
-        store: SettingsSyncStore = NSUbiquitousKeyValueStore.default,
+        store: @autoclosure @escaping () -> SettingsSyncStore = NSUbiquitousKeyValueStore.default,
         backup: SettingsBackupService = SettingsBackupService(),
         defaults: Foundation.UserDefaults = DefaultsStore.store,
         center: NotificationCenter = .default,
         debounce: Duration = .seconds(2),
         initialSyncDelay: Duration = .seconds(10)
     ) {
-        self.store = store
+        self.makeStore = store
         self.backup = backup
         self.defaults = defaults
         self.center = center

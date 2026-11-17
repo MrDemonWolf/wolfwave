@@ -45,9 +45,6 @@ struct WebSocketServerCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-            StatusChip(serverStatus)
-                .accessibilityLabel("Stream Widgets status: \(serverStatus.text)")
-
             // The hint states the reach of what the switch just turned on. The
             // server is bound on the LAN, not only on this Mac, and nothing in
             // the pane said so: a detail worth knowing before you put the
@@ -58,6 +55,7 @@ struct WebSocketServerCard: View {
                 isOn: $websocketEnabled,
                 accessibilityLabel: "Toggle Stream Widgets",
                 accessibilityIdentifier: "websocketEnabledToggle",
+                status: serverStatus,
                 onChange: { _ in
                     withMotionSafeAnimation(.easeInOut(duration: DSMotion.Duration.base), reduceMotion: reduceMotion) {
                         notifyServerSettingChanged()

@@ -49,6 +49,12 @@ enum MusicPermissionChecker {
     /// Events probe to a background `Task.detached` and keep the main thread
     /// free for UI work.
     nonisolated static func currentState() -> MusicPermissionState {
+        // With Music closed the probe can only answer `procNotFound`, and the
+        // system prints a console line every time it does. Skip the call and
+        // resolve the same status directly: same result, quiet console.
+        guard MusicProcess.isRunning else {
+            return resolve(status: OSStatus(procNotFound), lastKnown: loadPersisted())
+        }
         let target = NSAppleEventDescriptor(bundleIdentifier: AppConstants.Music.bundleIdentifier)
         let status = AEDeterminePermissionToAutomateTarget(
             target.aeDesc, typeWildCard, typeWildCard, false

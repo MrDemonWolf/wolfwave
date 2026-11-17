@@ -255,9 +255,10 @@ final class SettingsUITests: WolfWaveUITestCase {
         expect(toggle, "the Discord presence toggle")
         toggle.click()
         expect(app.staticTexts["Show buttons"], "the enabled Discord configuration")
+        // The preview sits directly under the switch, so it is normally on
+        // screen already. Scroll only if it is not: an unconditional swipe
+        // pushed it off the top once it stopped living at the bottom.
         let preview = app.staticTexts["statusChip.Offline"]
-        app.activate()
-        app.scrollViews["settings.pane.Discord"].swipeUp()
         expect(preview, "the Discord preview")
         for _ in 0..<4 where !preview.isHittable {
             app.activate()

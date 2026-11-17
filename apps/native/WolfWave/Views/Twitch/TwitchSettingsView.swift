@@ -308,11 +308,12 @@ struct TwitchSettingsView: View {
                     Text(signInButtonTitle)
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 32)
+                .padding(.horizontal, DSSpace.s2)
             }
+            // Sized to its label, like every other macOS primary button. It
+            // used to stretch the full width of the card.
             .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
+            .controlSize(.large)
             .pointerCursor()
             .scaleEffect(viewModel.authState.isInProgress ? 0.995 : 1.0)
             .animation(
@@ -323,6 +324,7 @@ struct TwitchSettingsView: View {
             .accessibilityHint("Starts the Twitch authorization flow")
             .accessibilityIdentifier("twitchSignInButton")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 

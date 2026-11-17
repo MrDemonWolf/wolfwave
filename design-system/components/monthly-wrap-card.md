@@ -19,7 +19,7 @@ MonthlyWrapCard(data: wrap)
 
 Card width is owner-controlled (production callers use `380`). Height grows to content.
 
-The hosting Monthly Wrap sheet shows a warning callout for rendering or file-write failures. Share exports use unique temporary PNG files, removed when sharing completes or is cancelled.
+The hosting Monthly Wrap sheet shows a warning callout for rendering or file-write failures. Share exports use unique temporary PNG files, removed when sharing completes or is cancelled. The sheet's "saved" confirmation animates through `withMotionSafeAnimation`, so Reduce Motion shows it without a fade.
 
 ## Tokens used
 - Background gradient: `AppConstants.Brand.wolfwaveGradientStart` → `wolfwaveGradientEnd` (`DSColor.partnerWolfwaveGradientStart` / `End`, `#0A2540` → `#2563EB`)

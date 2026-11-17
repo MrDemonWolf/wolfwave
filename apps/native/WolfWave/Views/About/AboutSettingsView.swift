@@ -59,18 +59,10 @@ struct AboutSettingsView: View {
 
     /// Card wrapping the icon / name / version hero.
     private var identityCard: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Identity")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-                Text("App name, version, and quick-copy build info.")
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
-            }
-
-            hero
-        }
-        .cardStyle()
+        // No heading: the icon, name, and version say what this card is. An
+        // "Identity" title with a line describing it only pushed them down.
+        hero
+            .cardStyle()
     }
 
     /// Identity hero: app icon on the leading edge, name + version pill stacked

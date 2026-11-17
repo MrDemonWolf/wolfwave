@@ -121,6 +121,7 @@ extension DiscordRPCService {
                         }
                         return
                     }
+                    Log.info("DiscordRPCService: Connected to Discord on slot \(slot)", category: .discord)
                     state = .connected
                     lastFailure = .none
                     reconnectDelay = AppConstants.Discord.reconnectBaseDelay

@@ -19,9 +19,6 @@ extension DiscordSettingsView {
     var connectionSection: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-                StatusChip(statusChip)
-                    .accessibilityLabel("Discord status: \(statusChip.text)")
-
                 ToggleSettingRow(
                     title: "Show on Discord",
                     subtitle: "Displays the song and cover art on your profile",
@@ -30,6 +27,7 @@ extension DiscordSettingsView {
                     accessibilityLabel: "Enable Discord Status",
                     accessibilityIdentifier: "discordPresenceToggle",
                     accessibilityHint: "Toggle to enable or disable Discord Status",
+                    status: statusChip,
                     onChange: { newValue in
                         notifyPresenceSettingChanged(enabled: newValue)
                     }
@@ -290,8 +288,13 @@ extension DiscordSettingsView {
         }
     }
 
-    /// Live mock of the profile card, plus a hint when the playlist is only
-    /// visible as the icon tooltip.
+    /// Width of the mock profile card, close to Discord's own activity card.
+    /// Stretched across the whole pane it stops reading as a profile.
+    private static let previewCardWidth: CGFloat = 380
+
+    /// Live mock of the profile card, centered on a card "stage" so it reads
+    /// as a picture of Discord and not as another settings row, plus a hint
+    /// when the playlist is only visible as the icon tooltip.
     var previewSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             SectionHeaderWithStatus(
@@ -312,7 +315,9 @@ extension DiscordSettingsView {
                 button2: Self.previewButton(index: 2, url: nowPlaying.songLinkURL, defaults: DefaultsStore.store),
                 playlistTooltip: previewPlaylistTooltip
             )
-            .padding(.horizontal, DSSpace.s1)
+            .frame(maxWidth: Self.previewCardWidth)
+            .frame(maxWidth: .infinity)
+            .cardStyle()
 
             if previewMode.showsTrack, let tooltip = previewPlaylistTooltip {
                 HStack(spacing: DSSpace.s1h) {

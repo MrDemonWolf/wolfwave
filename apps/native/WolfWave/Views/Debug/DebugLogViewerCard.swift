@@ -27,7 +27,7 @@ struct DebugLogViewerCard: View {
     // MARK: - Configuration
 
     /// How much history to show on open, and after a clear or rotation.
-    private static let primingBytes: UInt64 = 256 * 1024
+    nonisolated private static let primingBytes: UInt64 = 256 * 1024
 
     /// Upper bound on retained records, so a chatty session cannot grow this
     /// view without limit. Oldest are dropped.

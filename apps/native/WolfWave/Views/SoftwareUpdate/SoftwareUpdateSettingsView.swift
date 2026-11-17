@@ -193,17 +193,50 @@ struct SoftwareUpdateSettingsView: View {
     @ViewBuilder
     private var sparkleUpdateCard: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
-            updateStatus
+            // Version, live status, and the manual check on one row: the
+            // three things you look at together. The chip used to sit on its
+            // own line and Check Now hung alone at the bottom of the card.
+            HStack(alignment: .center, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s1) {
+                    Text("Version \(currentVersion)")
+                        .font(.system(size: DSFont.Size.base, weight: .semibold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
-            VStack(alignment: .leading, spacing: DSSpace.s1) {
-                Text("Version \(currentVersion)")
-                    .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                if updateAvailable, let version = latestVersion {
-                    Text("Version \(version) is ready to install.")
-                        .font(.system(size: DSFont.Size.body))
-                        .foregroundStyle(.secondary)
+                    if updateAvailable, let version = latestVersion {
+                        Text("Version \(version) is ready to install.")
+                            .font(.system(size: DSFont.Size.body))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+
+                Spacer(minLength: DSSpace.s2)
+
+                updateStatus
+
+                Button {
+                    // The `updateStateChanged` notification observer resets
+                    // `isCheckingForUpdates` when Sparkle's delegate reports
+                    // a result, so no fixed timer is needed. A check Sparkle
+                    // ignored never reports, so don't start the spinner then.
+                    isCheckingForUpdates = appDelegate?.sparkleUpdater?.checkForUpdates() ?? false
+                } label: {
+                    if isCheckingForUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 14, height: 14)
+                    } else {
+                        Text("Check Now")
+                            .font(.system(size: DSFont.Size.body, weight: .medium))
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isCheckingForUpdates)
+                .pointerCursor()
+                .accessibilityLabel("Check for updates now")
+                .accessibilityHint("Manually checks for a newer version of WolfWave")
+                .accessibilityValue(isCheckingForUpdates ? "Checking" : "Idle")
             }
 
             if selectedChannel == .nightly {
@@ -223,20 +256,6 @@ struct SoftwareUpdateSettingsView: View {
                 systemImage: "hammer.fill"
             )
             #endif
-
-            if updateCheckEnabled && !updateAvailable {
-                CalloutBanner(
-                    "Auto-updates on. We'll notify you of new versions.",
-                    style: .success
-                )
-                .transition(.opacity)
-            } else if !updateCheckEnabled && !updateAvailable {
-                CalloutBanner(
-                    "Automatic updates are off. Use Check Now to look for updates.",
-                    style: .neutral
-                )
-                .transition(.opacity)
-            }
 
             Divider()
 
@@ -284,33 +303,6 @@ struct SoftwareUpdateSettingsView: View {
             .disabled(true)
             #endif
 
-            HStack {
-                Spacer()
-
-                Button {
-                    // The `updateStateChanged` notification observer resets
-                    // `isCheckingForUpdates` when Sparkle's delegate reports
-                    // a result, so no fixed timer is needed. A check Sparkle
-                    // ignored never reports, so don't start the spinner then.
-                    isCheckingForUpdates = appDelegate?.sparkleUpdater?.checkForUpdates() ?? false
-                } label: {
-                    if isCheckingForUpdates {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(width: 14, height: 14)
-                    } else {
-                        Text("Check Now")
-                            .font(.system(size: DSFont.Size.body, weight: .medium))
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(isCheckingForUpdates)
-                .pointerCursor()
-                .accessibilityLabel("Check for updates now")
-                .accessibilityHint("Manually checks for a newer version of WolfWave")
-                .accessibilityValue(isCheckingForUpdates ? "Checking" : "Idle")
-            }
         }
         .cardStyle()
         .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: updateAvailable)

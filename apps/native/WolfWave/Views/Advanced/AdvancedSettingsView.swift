@@ -128,7 +128,10 @@ struct AdvancedSettingsView: View {
             }
 
             // Onboarding Card
-            VStack(alignment: .leading, spacing: DSSpace.s4) {
+            // One row: what it is on the left, the action on the right. A
+            // full-width button under two lines of text doubled the card's
+            // height for a single rarely-used action.
+            HStack(alignment: .center, spacing: DSSpace.s4) {
                 VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("Setup Wizard")
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
@@ -139,15 +142,14 @@ struct AdvancedSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Button(action: { showingOnboardingResetAlert = true }) {
-                    Label("Rerun Setup Wizard", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .pointerCursor()
-                .accessibilityHint("Opens the setup wizard")
+                Spacer(minLength: DSSpace.s2)
+
+                Button("Rerun Setup…") { showingOnboardingResetAlert = true }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .pointerCursor()
+                    .accessibilityLabel("Rerun Setup Wizard")
+                    .accessibilityHint("Opens the setup wizard")
             }
             .cardStyle()
             .alert("Rerun Setup Wizard?", isPresented: $showingOnboardingResetAlert) {
@@ -296,35 +298,31 @@ struct AdvancedSettingsView: View {
     /// Artwork cache entry count + disk size with a confirmed Clear action.
     @ViewBuilder
     private var artworkCacheCard: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s4) {
+        // Same one-row shape as Setup Wizard: description left, action right.
+        HStack(alignment: .center, spacing: DSSpace.s4) {
             VStack(alignment: .leading, spacing: DSSpace.s1) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Artwork Cache")
-                        .font(.system(size: DSFont.Size.base, weight: .semibold))
-                    Spacer()
-                    Text(artworkStatsText)
-                        .font(.system(size: DSFont.Size.sm, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Artwork cache: \(artworkStatsText)")
-                }
+                Text("Artwork Cache")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
 
                 Text("Saved album art links so tracks don't reload every launch.")
                     .font(.system(size: DSFont.Size.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Text(artworkStatsText)
+                    .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel("Artwork cache: \(artworkStatsText)")
             }
 
-            ActionGrid {
-                GridRow {
-                    ActionGridButton(
-                        title: "Clear Artwork Cache",
-                        systemImage: "trash",
-                        action: { showingClearArtworkAlert = true },
-                        accessibilityIdentifier: "clearArtworkCacheButton"
-                    )
-                    .gridCellColumns(2)
-                }
-            }
+            Spacer(minLength: DSSpace.s2)
+
+            Button("Clear Cache…") { showingClearArtworkAlert = true }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Clear Artwork Cache")
+                .accessibilityIdentifier("clearArtworkCacheButton")
         }
         .cardStyle()
         .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {

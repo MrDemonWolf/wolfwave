@@ -67,6 +67,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Discord settings are one clean column.** The profile preview now sits right under the switch, with the button, playlist, and behavior settings full width below it, instead of a cramped two-column split.
+- **Settings waste less space.** Status chips sit on the same row as the switch they describe (Discord, Stream Widgets, Stream Deck), Software Update puts the version, status, and **Check Now** on one row, and Advanced uses compact buttons on the right in place of full-width ones.
+- **Smaller Twitch sign-in button.** **Connect with Twitch** is sized to its label, not stretched across the card.
+- **Leave Channel no longer looks dangerous.** It's a plain button on the right with a one-line explanation, matching the Sign Out row. Only Sign Out is red.
+- **Twitch says Sign Out everywhere.** The button used to say Log Out while its label and the confirmation said Sign out.
 - **General shows real connection states.** The Integrations rows now say Connected, Connecting, Running, or Couldn't start instead of Live and Ready for OBS, which claimed things WolfWave can't see. A disconnected Twitch row no longer tells you to sign in again.
 - **`$song` and `$lastsong` read naturally.** In custom commands they fill in just the song and artist, like `Howl at the Moon by Gray Wolf`, instead of the whole `!song` reply with its emoji and link. A song title that starts with `!` can't set off other bots.
 - **Request commands follow the Song Requests switch.** While Song Requests is off, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` stay quiet, so a mod's `!skip` can't start your fallback playlist.
