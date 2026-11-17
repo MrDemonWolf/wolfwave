@@ -65,6 +65,19 @@ struct ToggleSettingRow: View {
 
     // MARK: - Private Views
 
+    /// Title over subtitle, filling the row's leading side.
+    private var labelText: some View {
+        VStack(alignment: .leading, spacing: DSSpace.s0) {
+            Text(title)
+                .font(.system(size: DSFont.Size.base, weight: .medium))
+            Text(subtitle)
+                .font(.system(size: DSFont.Size.sm))
+                .foregroundStyle(.secondary)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     /// Switch position, plus the live status when the row carries one.
     private var accessibilityValueText: String {
         let position = isOn ? "Enabled" : "Disabled"
@@ -76,20 +89,24 @@ struct ToggleSettingRow: View {
     @ViewBuilder
     private var toggle: some View {
         let base = Toggle(isOn: $isOn) {
-            HStack(alignment: .center, spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text(title)
-                        .font(.system(size: DSFont.Size.base, weight: .medium))
-                    Text(subtitle)
-                        .font(.system(size: DSFont.Size.sm))
-                        .foregroundStyle(.secondary)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if let status {
+                // Chip beside the switch when the row is wide enough to keep
+                // the title on one line; under the text in a narrow window,
+                // where an inline chip squeezed the title into a tall column.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: DSSpace.s4) {
+                        labelText
+                        StatusChip(status)
+                    }
+                    .frame(minWidth: DSDimension.Settings.inlineActionsMinWidth)
 
-                if let status {
-                    StatusChip(status)
+                    VStack(alignment: .leading, spacing: DSSpace.s2) {
+                        labelText
+                        StatusChip(status)
+                    }
                 }
+            } else {
+                labelText
             }
         }
             .toggleStyle(.switch)

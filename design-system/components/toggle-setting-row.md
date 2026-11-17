@@ -27,7 +27,7 @@ ToggleSettingRow(
 | `accessibilityIdentifier` | `String` | Required. For UI tests. |
 | `accessibilityHint` | `String?` | Optional. Explains the consequence ("Reconnects Twitch chat."). |
 | `onChange` | `((Bool) -> Void)?` | Side-effect on toggle (e.g. start/stop a service). Binding still updates. |
-| `status` | `StatusChip.Descriptor?` | Optional live state for what the switch controls (connected, listening, failed). Drawn as a `StatusChip` beside the switch, on the same row. Read by VoiceOver as part of the switch's value. `nil` draws nothing. |
+| `status` | `StatusChip.Descriptor?` | Optional live state for what the switch controls (connected, listening, failed). Drawn as a `StatusChip` beside the switch, on the same row; below `DSDimension.Settings.inlineActionsMinWidth` (480) `ViewThatFits` moves it under the text so the title never wraps into a column. Read by VoiceOver as part of the switch's value. `nil` draws nothing. |
 | `hint` | `String?` | Optional footnote that belongs to this switch, drawn as a `HintRow` under the row, `DSSpace.s1h` below it, on the title's leading edge. `nil` draws nothing. |
 | `hintSystemImage` | `String` | The hint's SF Symbol. Default `info.circle.fill`. |
 

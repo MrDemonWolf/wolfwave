@@ -200,6 +200,8 @@ struct SoftwareUpdateSettingsView: View {
                 VStack(alignment: .leading, spacing: DSSpace.s1) {
                     Text("Version \(currentVersion)")
                         .font(.system(size: DSFont.Size.base, weight: .semibold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
                     if updateAvailable, let version = latestVersion {
                         Text("Version \(version) is ready to install.")
