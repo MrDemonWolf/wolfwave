@@ -266,6 +266,34 @@ extension View {
     }
 }
 
+// MARK: - Pinned While Scrolling
+
+extension View {
+    /// Keeps the view in sight while its scroll view scrolls: once it would
+    /// pass `topInset` from the top of the scroll view, it stays there until
+    /// it reaches the end of the `within`-tall column beside it.
+    ///
+    /// For a short view next to a tall one, such as a live preview beside the
+    /// settings that drive it, so a change far down the page is still seen.
+    ///
+    /// Done with `visualEffect`, which moves the rendered view without
+    /// changing layout. Nothing re-lays-out as the pane scrolls, and the
+    /// offset cannot feed back into the frame it is computed from.
+    ///
+    /// - Parameters:
+    ///   - topInset: Distance to keep from the scroll view's top edge. Include
+    ///     whatever the scroll view sits under (a toolbar).
+    ///   - height: Height of the column the view travels within. The view
+    ///     never moves past the bottom of it.
+    func pinnedWhileScrolling(topInset: CGFloat, within height: CGFloat) -> some View {
+        visualEffect { content, proxy in
+            let top = proxy.frame(in: .scrollView(axis: .vertical)).minY
+            let travel = max(0, height - proxy.size.height)
+            return content.offset(y: min(max(0, topInset - top), travel))
+        }
+    }
+}
+
 // MARK: - Skeleton Loading
 
 /// A view modifier that renders the content as a redacted placeholder while

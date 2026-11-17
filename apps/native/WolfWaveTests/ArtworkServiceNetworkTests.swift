@@ -92,6 +92,55 @@ final class ArtworkServiceNetworkTests: XCTestCase {
         XCTAssertEqual(service.cachedArtworkURL(track: "New", artist: "Wolf"), "https://example.com/New-Wolf.jpg")
     }
 
+    /// The no-permission route: a title-search miss finds the artist, lists
+    /// that artist's songs, and matches the title there.
+    func testArtistLookupFindsASongTheSearchIndexLacks() async {
+        handlerStore.handler = { request in
+            let url = request.url?.absoluteString ?? ""
+            let body: String
+            if url.contains("/lookup") {
+                body = #"{"results":[{"wrapperType":"artist","artistName":"Wolf"},"#
+                    + #"{"trackName":"Other","artworkUrl100":"https://cdn.example/o/100x100.jpg","trackId":1},"#
+                    + #"{"trackName":"New","artworkUrl100":"https://cdn.example/n/100x100.jpg","#
+                    + #""trackViewUrl":"https://music.apple.com/song/2","trackId":2}]}"#
+            } else if url.contains("musicArtist") {
+                body = #"{"results":[{"artistName":"Wolf","artistId":42}]}"#
+            } else {
+                body = #"{"results":[]}"#
+            }
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(body.utf8))
+        }
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            usesArtistLookup: true)
+
+        let links = await fetchLinks(track: "New", artist: "Wolf")
+
+        XCTAssertEqual(links.artworkURL, "https://cdn.example/n/512x512.jpg")
+        XCTAssertEqual(links.trackViewURL, "https://music.apple.com/song/2")
+        XCTAssertEqual(links.songLinkURL, "\(AppConstants.API.songLinkTrackPrefix)2")
+    }
+
+    /// A `+` in the artist name is sent as `%2B`. Left literal, iTunes reads
+    /// it as a space and the artist is never found.
+    func testArtistLookupEscapesPlusInArtistName() async {
+        let artistQuery = ThreadSafeBox("")
+        handlerStore.handler = { request in
+            let url = request.url?.absoluteString ?? ""
+            if url.contains("musicArtist") { artistQuery.mutate { $0 = url } }
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data(#"{"results":[]}"#.utf8))
+        }
+        service = ArtworkService(
+            session: MockURLProtocol.makeSession(handlerStore: handlerStore),
+            persistenceURL: nil,
+            usesArtistLookup: true)
+
+        _ = await fetchLinks(track: "Song", artist: "+44")
+
+        XCTAssertTrue(artistQuery.value.contains("term=%2B44"), artistQuery.value)
+    }
+
     /// A fallback that also finds nothing leaves a recorded miss, so the track
     /// is not looked up again on every playback tick.
     func testCatalogFallbackMissIsStillAMiss() async {

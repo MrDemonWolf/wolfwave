@@ -360,6 +360,10 @@ nonisolated enum AppConstants {
         /// iTunes Search API endpoint used for artwork + track metadata lookups.
         static let itunesSearch = "https://itunes.apple.com/search"
 
+        /// iTunes Lookup API endpoint: resolves an artist, album, or track by
+        /// ID. Unlike search, it reflects new releases right away.
+        static let itunesLookup = "https://itunes.apple.com/lookup"
+
         /// song.link universal music link prefix; append a track id to form a full URL.
         static let songLinkTrackPrefix = "https://song.link/i/"
 

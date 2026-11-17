@@ -24,6 +24,9 @@ struct DebugInspectorsCard: View {
     @State private var refreshTick = 0
     /// Case-insensitive substring filter over UserDefaults key names.
     @State private var filter: String = ""
+    /// Lists keys with no stored value too. Off by default: unset keys are
+    /// most of the list and say nothing about this install.
+    @State private var showsUnsetKeys = false
 
     /// Keychain presence flags, loaded off-main via `.task(id: refreshTick)`
     /// so the card paints instantly. Each `KeychainService.load…()` call is a
@@ -49,7 +52,10 @@ struct DebugInspectorsCard: View {
         .throttle(for: .milliseconds(400), scheduler: RunLoop.main, latest: true)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DSSpace.s6) {
+        // Three cards, not one long one: build and Keychain are short and sit
+        // side by side when there is room, and the defaults list (the part
+        // you actually scroll) gets its own surface and its own controls.
+        VStack(alignment: .leading, spacing: DSSpace.s4) {
             HStack(alignment: .top, spacing: DSSpace.s2) {
                 Text("Live state from Keychain and services. Read-only.")
                     .font(.system(size: DSFont.Size.body))
@@ -65,13 +71,19 @@ struct DebugInspectorsCard: View {
                 .help("Refresh values")
             }
 
-            bundleSection
-            Divider()
-            keychainSection
-            Divider()
+            ResponsiveRow(spacing: DSSpace.s4) {
+                bundleSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .cardStyle()
+            } right: {
+                keychainSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .cardStyle()
+            }
+
             userDefaultsSection
+                .cardStyle()
         }
-        .cardStyle()
         .task(id: refreshTick) {
             let presence = await Task.detached(priority: .userInitiated) {
                 [
@@ -195,18 +207,35 @@ struct DebugInspectorsCard: View {
     /// do not appear.
     private var userDefaultsSection: some View {
         VStack(alignment: .leading, spacing: DSSpace.s1h) {
-            HStack {
+            // Read the tick so the set / unset split below follows live edits.
+            let _ = refreshTick
+            let allKeys = AppConstants.UserDefaults.allKeys.sorted()
+            let setKeys = allKeys.filter { DefaultsStore.store.object(forKey: $0) != nil }
+            let keys = (showsUnsetKeys ? allKeys : setKeys)
+                .filter { filter.isEmpty || $0.localizedCaseInsensitiveContains(filter) }
+
+            HStack(spacing: DSSpace.s3) {
                 Text("User defaults")
                     .sectionEyebrow()
+                Text("\(setKeys.count) set of \(allKeys.count)")
+                    .font(.system(size: DSFont.Size.sm, design: .monospaced))
+                    .foregroundStyle(.secondary)
                 Spacer()
+                // Most keys are unset on any given install. Listing them all
+                // buried the handful that explain the app's current behavior.
+                Toggle("Show unset", isOn: $showsUnsetKeys)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: DSFont.Size.sm))
                 TextField("Filter", text: $filter)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 160)
             }
 
-            let keys = AppConstants.UserDefaults.allKeys
-                .filter { filter.isEmpty || $0.localizedCaseInsensitiveContains(filter) }
-                .sorted()
+            if keys.isEmpty {
+                Text(filter.isEmpty ? "No keys are set." : "No keys match \"\(filter)\".")
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.secondary)
+            }
 
             ForEach(keys, id: \.self) { key in
                 userDefaultsRow(key: key)
@@ -291,7 +320,7 @@ struct DebugInspectorsCard: View {
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: 200, alignment: .leading)
+                .frame(maxWidth: 260, alignment: .leading)
             Text(Self.formatValue(value))
                 .font(.system(size: DSFont.Size.sm, design: .monospaced))
                 .foregroundStyle(value == nil ? .secondary : .primary)
