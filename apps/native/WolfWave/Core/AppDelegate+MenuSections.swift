@@ -223,8 +223,10 @@ extension AppDelegate {
 
     // MARK: - Streamer Quick Actions
 
-    /// Adds the Streamer Mode toggle, the widget link actions (only while the
-    /// overlay is on), and Restart Integrations.
+    /// Adds the two things reached for when going live: the Streamer Mode
+    /// toggle and Copy Widget Link (only while the overlay is on). Open Widget
+    /// in Browser and Restart Integrations are occasional, so they live in the
+    /// Help submenu.
     func buildStreamerActions(into menu: NSMenu) {
         let streamerModeOn = StreamerMode.isEnabled
         let streamerModeItem = NSMenuItem(
@@ -252,36 +254,15 @@ extension AppDelegate {
                 accessibilityDescription: "Copy Widget Link"
             )
             menu.addItem(copyItem)
-
-            let openItem = NSMenuItem(
-                title: "Open Widget in Browser",
-                action: #selector(openWidgetInBrowser),
-                keyEquivalent: ""
-            )
-            openItem.image = NSImage(
-                systemSymbolName: "safari",
-                accessibilityDescription: "Open Widget in Browser"
-            )
-            menu.addItem(openItem)
         }
-
-        let reconnectItem = NSMenuItem(
-            title: "Restart Integrations\u{2026}",
-            action: #selector(reconnectAllServices),
-            keyEquivalent: ""
-        )
-        reconnectItem.image = NSImage(
-            systemSymbolName: "arrow.triangle.2.circlepath",
-            accessibilityDescription: "Restart Integrations"
-        )
-        menu.addItem(reconnectItem)
 
         menu.addItem(.separator())
     }
 
-    // MARK: - App Items (Settings · Help ▸ · About · Quit)
+    // MARK: - App Items (Settings · Help ▸ · Quit)
 
-    /// Adds Settings (Cmd-comma), the Help submenu, About, and Quit (Cmd-Q).
+    /// Adds Settings (Cmd-comma), the Help submenu (which holds About), and
+    /// Quit (Cmd-Q).
     func buildAppItems(into menu: NSMenu) {
         let settingsItem = NSMenuItem(
             title: AppConstants.MenuLabels.settings,
@@ -302,17 +283,6 @@ extension AppDelegate {
         helpParent.submenu = buildHelpSubmenu()
         menu.addItem(helpParent)
 
-        let aboutItem = NSMenuItem(
-            title: "About \(appName)",
-            action: #selector(showAbout),
-            keyEquivalent: ""
-        )
-        aboutItem.image = NSImage(
-            systemSymbolName: "info.circle",
-            accessibilityDescription: "About"
-        )
-        menu.addItem(aboutItem)
-
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
@@ -327,10 +297,23 @@ extension AppDelegate {
         menu.addItem(quitItem)
     }
 
-    /// Builds the Help submenu: What's New, Check for Updates, docs and
-    /// community links, bug report, GitHub, and the optional Sponsor link.
+    /// Builds the Help submenu: About, What's New, Check for Updates, docs and
+    /// community links, bug report, GitHub, the optional Sponsor link, and the
+    /// occasional tools (Open Widget in Browser, Restart Integrations).
     private func buildHelpSubmenu() -> NSMenu {
         let submenu = NSMenu()
+
+        let aboutItem = NSMenuItem(
+            title: "About \(appName)",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.image = NSImage(
+            systemSymbolName: "info.circle",
+            accessibilityDescription: "About"
+        )
+        submenu.addItem(aboutItem)
+        submenu.addItem(.separator())
 
         let whatsNew = NSMenuItem(
             title: "What's New",
@@ -400,6 +383,32 @@ extension AppDelegate {
             sponsor.image = NSImage(systemSymbolName: "heart", accessibilityDescription: nil)
             submenu.addItem(sponsor)
         }
+
+        submenu.addItem(.separator())
+
+        if FeatureFlags.websocketEnabled {
+            let openItem = NSMenuItem(
+                title: "Open Widget in Browser",
+                action: #selector(openWidgetInBrowser),
+                keyEquivalent: ""
+            )
+            openItem.image = NSImage(
+                systemSymbolName: "safari",
+                accessibilityDescription: "Open Widget in Browser"
+            )
+            submenu.addItem(openItem)
+        }
+
+        let reconnectItem = NSMenuItem(
+            title: "Restart Integrations\u{2026}",
+            action: #selector(reconnectAllServices),
+            keyEquivalent: ""
+        )
+        reconnectItem.image = NSImage(
+            systemSymbolName: "arrow.triangle.2.circlepath",
+            accessibilityDescription: "Restart Integrations"
+        )
+        submenu.addItem(reconnectItem)
 
         return submenu
     }

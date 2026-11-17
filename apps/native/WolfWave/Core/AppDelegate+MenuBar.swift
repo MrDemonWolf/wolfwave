@@ -382,8 +382,13 @@ extension AppDelegate: NSMenuDelegate {
     public func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        buildNowPlayingSection(into: menu)
+        // Order is by how often an item is reached for mid-stream: what's
+        // playing, then transport, then the quieter song actions. Anything
+        // used once in a while lives in a submenu, so the top level stays
+        // short enough to scan.
+        buildNowPlayingHeader(into: menu)
         buildPlaybackControls(into: menu)
+        buildSongActions(into: menu)
         buildSongRequestSection(into: menu)
         buildServiceToggles(into: menu)
         buildStreamerActions(into: menu)
@@ -396,45 +401,42 @@ extension AppDelegate: NSMenuDelegate {
 
     // MARK: - Now Playing
 
-    /// Adds the now-playing card plus Copy Song Info, Copy Song Link, Share to
-    /// Twitch Chat (only while connected), and the Recently Played submenu.
+    /// Adds the now-playing card. Adds nothing when no song is known.
     ///
-    /// Adds nothing, not even a separator, when no song is known.
-    private func buildNowPlayingSection(into menu: NSMenu) {
+    /// The card closes its own group only when the playback controls will not
+    /// follow it (Music.app closed), so the two read as one block otherwise.
+    private func buildNowPlayingHeader(into menu: NSMenu) {
         guard let song = currentSong else { return }
 
-        let nowPlayingItem = makeNowPlayingMenuItem(
+        menu.addItem(makeNowPlayingMenuItem(
             song: song,
             artist: currentArtist,
             artwork: currentAlbumArtwork()
-        )
-        menu.addItem(nowPlayingItem)
+        ))
+        if !isMusicAppOpen() {
+            menu.addItem(.separator())
+        }
+    }
 
-        let copyItem = NSMenuItem(
-            title: "Copy Song Info",
-            action: #selector(copyCurrentTrack),
-            keyEquivalent: ""
-        )
-        copyItem.image = NSImage(
-            systemSymbolName: "doc.on.doc",
-            accessibilityDescription: "Copy Song Info"
-        )
-        menu.addItem(copyItem)
+    /// Adds the Share Song and Recently Played submenus.
+    ///
+    /// Copy Song Info, Copy Song Link, and Send to Twitch Chat used to be
+    /// three top-level rows above the transport controls. They are one
+    /// submenu now, so Pause and Next sit right under the song.
+    ///
+    /// Adds nothing, not even a separator, when there is no song and no history.
+    private func buildSongActions(into menu: NSMenu) {
+        var added = false
 
-        let linkItem = makeCopySongLinkItem(song: song, artist: currentArtist)
-        menu.addItem(linkItem)
-
-        if twitchService?.currentlyConnected ?? false {
-            let shareItem = NSMenuItem(
-                title: "Share to Twitch Chat",
-                action: #selector(shareCurrentTrackToTwitch),
-                keyEquivalent: ""
+        if let song = currentSong {
+            let shareParent = NSMenuItem(title: "Share Song", action: nil, keyEquivalent: "")
+            shareParent.image = NSImage(
+                systemSymbolName: "square.and.arrow.up",
+                accessibilityDescription: "Share Song"
             )
-            shareItem.image = NSImage(
-                systemSymbolName: "bubble.left.and.bubble.right",
-                accessibilityDescription: "Share to Twitch Chat"
-            )
-            menu.addItem(shareItem)
+            shareParent.submenu = buildShareSongSubmenu(song: song)
+            menu.addItem(shareParent)
+            added = true
         }
 
         if !recentTracks.isEmpty {
@@ -449,9 +451,46 @@ extension AppDelegate: NSMenuDelegate {
             )
             recentParent.submenu = buildRecentlyPlayedSubmenu()
             menu.addItem(recentParent)
+            added = true
         }
 
-        menu.addItem(.separator())
+        if added {
+            menu.addItem(.separator())
+        }
+    }
+
+    /// Builds the Share Song submenu: Copy Song Info, Copy Song Link, and
+    /// Send to Twitch Chat (only while Twitch is connected).
+    private func buildShareSongSubmenu(song: String) -> NSMenu {
+        let submenu = NSMenu()
+
+        let copyItem = NSMenuItem(
+            title: "Copy Song Info",
+            action: #selector(copyCurrentTrack),
+            keyEquivalent: ""
+        )
+        copyItem.image = NSImage(
+            systemSymbolName: "doc.on.doc",
+            accessibilityDescription: "Copy Song Info"
+        )
+        submenu.addItem(copyItem)
+
+        submenu.addItem(makeCopySongLinkItem(song: song, artist: currentArtist))
+
+        if twitchService?.currentlyConnected ?? false {
+            let shareItem = NSMenuItem(
+                title: "Send to Twitch Chat",
+                action: #selector(shareCurrentTrackToTwitch),
+                keyEquivalent: ""
+            )
+            shareItem.image = NSImage(
+                systemSymbolName: "bubble.left.and.bubble.right",
+                accessibilityDescription: "Send to Twitch Chat"
+            )
+            submenu.addItem(shareItem)
+        }
+
+        return submenu
     }
 
     /// Builds the Recently Played submenu, one row per `recentTracks` entry.
