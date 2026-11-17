@@ -58,9 +58,9 @@ struct SignedInView: View {
     @State private var showingLogOutConfirmation = false
 
     /// Shared height for every button in the action row. Pinning all of them to
-    /// one value keeps Join/Leave and Log Out visually aligned;
-    /// without it, the taller `checkmark.circle.fill` glyph makes the connect
-    /// button a hair taller than its neighbors.
+    /// one value keeps Reconnect, Join/Leave, and Sign Out visually aligned;
+    /// without it, the Reconnect button's glyph makes it a hair taller than
+    /// its neighbors.
     private static let actionButtonHeight: CGFloat = 22
 
     // MARK: - Body
@@ -247,10 +247,26 @@ struct SignedInView: View {
         }
     }
 
-    /// Bottom row with the Reconnect (when re-auth is needed) or Join/Leave
-    /// Channel button, plus a trailing Spacer. Log Out lives in `logOutSection`.
+    /// Channel action row: Reconnect (when re-auth is needed) or Join/Leave.
+    ///
+    /// Same shape as `logOutSection` below it (label and one line of detail on
+    /// the left, a small button on the right) so the two account actions scan
+    /// as a pair. Only Sign Out is red: leaving a channel is undone with one
+    /// click, so it must not look like the most dangerous thing on the pane.
     private var actionButtonsSection: some View {
-        HStack(spacing: DSSpace.s3) {
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s0) {
+                Text(channelActionTitle)
+                    .font(.system(size: DSFont.Size.sm, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text(channelActionDetail)
+                    .font(.system(size: DSFont.Size.sm))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
             if reauthNeeded {
                 Button(action: onReauth) {
                     Label("Reconnect with Twitch", systemImage: "arrow.clockwise.circle.fill")
@@ -282,23 +298,18 @@ struct SignedInView: View {
                                 .font(.system(size: DSFont.Size.body))
                         }
                     } else {
-                        Label(
-                            isChannelConnected ? "Leave Channel" : "Join Channel",
-                            systemImage: isChannelConnected
-                                ? "xmark.circle.fill" : "checkmark.circle.fill"
-                        )
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
-                        .foregroundStyle(isChannelConnected ? DSColor.error : Color.primary)
+                        Text(isChannelConnected ? "Leave Channel" : "Join Channel")
+                            .font(.system(size: DSFont.Size.body))
                     }
                 }
                 .disabled(shouldDisableConnectButton)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .stableWidth {
-                    Label("Join Channel", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
-                    Label("Leave Channel", systemImage: "xmark.circle.fill")
-                        .font(.system(size: DSFont.Size.body, weight: .medium))
+                    Text("Join Channel")
+                        .font(.system(size: DSFont.Size.body))
+                    Text("Leave Channel")
+                        .font(.system(size: DSFont.Size.body))
                     HStack(spacing: DSSpace.s1h) {
                         ProgressView()
                             .progressViewStyle(.circular)
@@ -318,8 +329,6 @@ struct SignedInView: View {
                 .accessibilityValue(isChannelConnected ? "Connected" : "Disconnected")
                 .accessibilityIdentifier("twitchConnectButton")
             }
-
-            Spacer()
         }
         .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
         .padding(.vertical, DSSpace.s4)
@@ -336,8 +345,22 @@ struct SignedInView: View {
         }
     }
 
+    /// Left-hand label for the channel action row.
+    private var channelActionTitle: String {
+        if reauthNeeded { return "Sign-in expired" }
+        return isChannelConnected ? "Leave channel" : "Join channel"
+    }
+
+    /// One line saying what the channel action's button will do.
+    private var channelActionDetail: String {
+        if reauthNeeded { return "Reconnect so chat commands keep working." }
+        return isChannelConnected
+            ? "WolfWave stops replying in this channel. You stay signed in."
+            : "WolfWave starts replying to chat commands in this channel."
+    }
+
     /// Quiet sign-out row, kept on its own line below the everyday Join/Leave
-    /// action so the destructive Log Out never shares a row with the reversible
+    /// action so the destructive Sign Out never shares a row with the reversible
     /// channel controls.
     private var logOutSection: some View {
         HStack(alignment: .center, spacing: DSSpace.s4) {
@@ -352,7 +375,7 @@ struct SignedInView: View {
 
             Spacer()
 
-            Button("Log Out") { showingLogOutConfirmation = true }
+            Button("Sign Out") { showingLogOutConfirmation = true }
                 .font(.system(size: DSFont.Size.body))
                 .buttonStyle(.bordered)
                 .tint(DSColor.error)

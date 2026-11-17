@@ -34,6 +34,11 @@ struct ToggleSettingRow: View {
     var accessibilityIdentifier: String
     /// Optional VoiceOver hint; omitted entirely when `nil`.
     var accessibilityHint: String?
+    /// Optional live state for what this switch controls (server listening,
+    /// connected, failed). Drawn as a ``StatusChip`` beside the switch, on the
+    /// row it describes, so a pane never spends a line of its own on a chip.
+    /// VoiceOver hears it as part of the switch's value.
+    var status: StatusChip.Descriptor?
     /// Called with the new value whenever `isOn` changes. Fires for any change
     /// to the binding, not only a click on this switch, so a write from
     /// elsewhere (another view, a defaults change) triggers it too.
@@ -60,26 +65,39 @@ struct ToggleSettingRow: View {
 
     // MARK: - Private Views
 
+    /// Switch position, plus the live status when the row carries one.
+    private var accessibilityValueText: String {
+        let position = isOn ? "Enabled" : "Disabled"
+        guard let status else { return position }
+        return "\(position), \(status.text)"
+    }
+
     /// Keep the label inside the native control for keyboard and VoiceOver routing.
     @ViewBuilder
     private var toggle: some View {
         let base = Toggle(isOn: $isOn) {
-            VStack(alignment: .leading, spacing: DSSpace.s0) {
-                Text(title)
-                    .font(.system(size: DSFont.Size.base, weight: .medium))
-                Text(subtitle)
-                    .font(.system(size: DSFont.Size.sm))
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .center, spacing: DSSpace.s4) {
+                VStack(alignment: .leading, spacing: DSSpace.s0) {
+                    Text(title)
+                        .font(.system(size: DSFont.Size.base, weight: .medium))
+                    Text(subtitle)
+                        .font(.system(size: DSFont.Size.sm))
+                        .foregroundStyle(.secondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let status {
+                    StatusChip(status)
+                }
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
             .toggleStyle(.switch)
             .controlSize(controlSize)
             .disabled(isDisabled)
             .accessibilityLabel(accessibilityLabel)
             .accessibilityIdentifier(accessibilityIdentifier)
-            .accessibilityValue(isOn ? "Enabled" : "Disabled")
+            .accessibilityValue(accessibilityValueText)
             .onChange(of: isOn) { _, newValue in
                 onChange?(newValue)
             }
@@ -123,6 +141,16 @@ struct ToggleSettingRow: View {
             accessibilityIdentifier: "hintedToggle",
             hint: "Commands are only accepted from this Mac.",
             hintSystemImage: "lock.fill"
+        )
+        .cardStyle()
+
+        ToggleSettingRow(
+            title: "Enable Stream Widgets",
+            subtitle: "Show live song updates in your overlay.",
+            isOn: .constant(true),
+            accessibilityLabel: "Toggle Stream Widgets",
+            accessibilityIdentifier: "statusToggle",
+            status: .init(text: "Listening", color: DSColor.success, symbol: StatusChip.StateGlyph.on)
         )
         .cardStyle()
     }

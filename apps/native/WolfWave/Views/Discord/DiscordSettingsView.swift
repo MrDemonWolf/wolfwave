@@ -98,20 +98,18 @@ struct DiscordSettingsView: View {
             connectionSection
                 .deepLinkSection("presence")
             if presenceEnabled && hasClientID {
-                // Controls on the left, live preview on the right. ResponsiveRow
-                // collapses to a single stacked column on narrow windows.
-                ResponsiveRow {
-                    VStack(alignment: .leading, spacing: DSSpace.s6) {
-                        buttonsSection
-                            .deepLinkSection("buttons")
-                        playlistSection
-                            .deepLinkSection("playlist")
-                        behaviorSection
-                            .deepLinkSection("behavior")
-                    }
-                } right: {
-                    previewSection
-                }
+                // One column, preview first. The pane is capped at 720pt, so a
+                // side-by-side split left two cramped ~350pt columns with the
+                // preview floating halfway down a much taller control column.
+                // The preview is the result of every control below it, so it
+                // sits right under the switch and the controls follow full width.
+                previewSection
+                buttonsSection
+                    .deepLinkSection("buttons")
+                playlistSection
+                    .deepLinkSection("playlist")
+                behaviorSection
+                    .deepLinkSection("behavior")
             }
         }
         .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)

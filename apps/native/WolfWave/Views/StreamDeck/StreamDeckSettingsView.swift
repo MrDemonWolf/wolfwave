@@ -130,15 +130,13 @@ struct StreamDeckSettingsView: View {
     /// draws it), and the callout sits one row gap below with its button inside.
     private var controlCard: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-            StatusChip(status)
-                .accessibilityLabel("Stream Deck status: \(status.text)")
-
             ToggleSettingRow(
                 title: "Allow Stream Deck commands",
                 subtitle: "Let a Stream Deck key skip songs, hold the queue, and toggle your overlay.",
                 isOn: $controlEnabled,
                 accessibilityLabel: "Toggle Stream Deck commands",
                 accessibilityIdentifier: "streamDeckControlEnabledToggle",
+                status: status,
                 hint: "Commands are only accepted from this Mac. A Stream Deck on another"
                     + " machine, or anything on your network, is refused.",
                 hintSystemImage: "lock.fill"

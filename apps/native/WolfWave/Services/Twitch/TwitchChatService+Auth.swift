@@ -156,7 +156,13 @@ extension TwitchChatService {
 
             guard (200..<300).contains(response.statusCode) else {
                 if response.statusCode == 401 {
-                    Log.warn("TwitchChatService: Stored OAuth token is invalid or expired", category: .twitchAuth)
+                    // Info, not a warning: access tokens expire every few
+                    // hours and the caller normally refreshes without the
+                    // user noticing. The failure that matters is logged where
+                    // the refresh itself fails.
+                    Log.info(
+                        "TwitchChatService: Saved Twitch access token has expired (401)",
+                        category: .twitchAuth)
                     return .invalid
                 } else {
                     Log.warn(

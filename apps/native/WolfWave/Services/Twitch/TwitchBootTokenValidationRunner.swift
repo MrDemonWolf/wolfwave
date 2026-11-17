@@ -133,10 +133,16 @@ nonisolated enum TwitchBootTokenValidationRunner {
                     return .invalid(credential.token)
                 }
                 didAttemptRefresh = true
+                Log.info(
+                    "TwitchTokenValidation: Access token expired; refreshing it automatically",
+                    category: .twitchAuth)
                 do {
                     switch try await refresh(credential) {
                     case .refreshed(let replacement):
                         if Task.isCancelled { return .cancelled }
+                        Log.info(
+                            "TwitchTokenValidation: Token refreshed; no sign-in needed",
+                            category: .twitchAuth)
                         // The refresh keeps the account revision; only the
                         // token rotates. Validate the replacement from scratch.
                         credential = Credential(
@@ -148,6 +154,9 @@ nonisolated enum TwitchBootTokenValidationRunner {
                         continue
                     case .invalid:
                         if Task.isCancelled { return .cancelled }
+                        Log.warn(
+                            "TwitchTokenValidation: Refresh was refused; the user must sign in to Twitch again",
+                            category: .twitchAuth)
                         return isCurrent(credential)
                             ? .invalid(credential.token)
                             : .superseded

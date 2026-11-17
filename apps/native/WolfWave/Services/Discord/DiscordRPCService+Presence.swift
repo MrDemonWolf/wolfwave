@@ -28,6 +28,7 @@ extension DiscordRPCService {
             lastPresence = nil
         }
         guard state == .connected else { return }
+        Log.info("DiscordRPCService: Clearing the profile activity", category: .discord)
 
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
@@ -144,6 +145,12 @@ extension DiscordRPCService {
         let nonce = UUID().uuidString
         lastActivityNonce = nonce
         lastActivitySentAt = Date()
+        // Success used to be silent, so a log could not answer "did WolfWave
+        // send this song to Discord?". A live progress bar needs `timestamps`;
+        // paused and idle activities leave it out.
+        let title = activity["details"] as? String ?? "(no title)"
+        let kind = activity["timestamps"] == nil ? "no progress bar (paused, idle, or unknown length)" : "playing"
+        Log.info("DiscordRPCService: Sending activity \"\(title)\": \(kind)", category: .discord)
         let payload: [String: Any] = [
             "cmd": "SET_ACTIVITY",
             "args": [
