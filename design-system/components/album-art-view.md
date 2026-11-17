@@ -31,7 +31,7 @@ AlbumArtView(size: 92)
 ## Tokens used
 - `DSColor.brand500` → `DSColor.brand800`: fallback gradient (topLeading→bottomTrailing)
 - `DSRadius.sm`–`DSRadius.lg` (4–10): radius derived as `size * 0.10` (≥4)
-- `DSMotion.Duration.base` (0.22): Artwork crossfade duration on `url` path, gated by `@Environment(\.accessibilityReduceMotion)`
+- `DSMotion.Duration.base` (0.22): Artwork crossfade duration on `url` path, applied through `.motionSafe(_:value:)` so Reduce Motion drops it
 - Hairline overlay stroke (`white opacity 0.10`, 0.5pt): separation from any background
 - Drop shadow `rgba(0,0,0,0.18)` r=2 y=1: lifts the tile
 - `WolfMark` template image, tinted white, at `size * 0.52`
