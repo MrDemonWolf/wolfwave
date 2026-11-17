@@ -127,31 +127,14 @@ struct AdvancedSettingsView: View {
                 crashRecoveryCallout
             }
 
-            // Onboarding Card
-            // One row: what it is on the left, the action on the right. A
-            // full-width button under two lines of text doubled the card's
-            // height for a single rarely-used action.
-            HStack(alignment: .center, spacing: DSSpace.s4) {
-                VStack(alignment: .leading, spacing: DSSpace.s1) {
-                    Text("Setup Wizard")
-                        .font(.system(size: DSFont.Size.base, weight: .semibold))
-
-                    Text("Walk through the setup steps again to review your connections.")
-                        .font(.system(size: DSFont.Size.body))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: DSSpace.s2)
-
-                Button("Rerun Setup…") { showingOnboardingResetAlert = true }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .pointerCursor()
-                    .accessibilityLabel("Rerun Setup Wizard")
-                    .accessibilityHint("Opens the setup wizard")
+            // Two short one-row cards: side by side in a wide window, stacked
+            // in a narrow one.
+            ResponsiveRow(floor: DSDimension.Settings.twoColumnFloor) {
+                setupWizardCard
+            } right: {
+                artworkCacheCard
+                    .deepLinkSection("artwork-cache")
             }
-            .cardStyle()
             .alert("Rerun Setup Wizard?", isPresented: $showingOnboardingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Open Wizard") {
@@ -166,10 +149,6 @@ struct AdvancedSettingsView: View {
             // Diagnostics Card
             diagnosticsCard
                 .deepLinkSection("diagnostics")
-
-            // Artwork Cache Card
-            artworkCacheCard
-                .deepLinkSection("artwork-cache")
 
             // Diagnostics & Privacy (on-device MetricKit opt-in)
             DiagnosticsShareCardView()
@@ -293,6 +272,38 @@ struct AdvancedSettingsView: View {
         .onAppear { refreshLogStats() }
     }
 
+    // MARK: - Setup Wizard Card
+
+    /// Reopens onboarding after a confirmation. Fills its row's height so it
+    /// matches the Artwork Cache card beside it in a wide window.
+    private var setupWizardCard: some View {
+        // One row: what it is on the left, the action on the right. A
+        // full-width button under two lines of text doubled the card's
+        // height for a single rarely-used action.
+        HStack(alignment: .center, spacing: DSSpace.s4) {
+            VStack(alignment: .leading, spacing: DSSpace.s1) {
+                Text("Setup Wizard")
+                    .font(.system(size: DSFont.Size.base, weight: .semibold))
+
+                Text("Walk through the setup steps again to review your connections.")
+                    .font(.system(size: DSFont.Size.body))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: DSSpace.s2)
+
+            Button("Rerun Setup…") { showingOnboardingResetAlert = true }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .pointerCursor()
+                .accessibilityLabel("Rerun Setup Wizard")
+                .accessibilityHint("Opens the setup wizard")
+        }
+        .frame(maxHeight: .infinity)
+        .cardStyle()
+    }
+
     // MARK: - Artwork Cache Card
 
     /// Artwork cache entry count + disk size with a confirmed Clear action.
@@ -324,6 +335,7 @@ struct AdvancedSettingsView: View {
                 .accessibilityLabel("Clear Artwork Cache")
                 .accessibilityIdentifier("clearArtworkCacheButton")
         }
+        .frame(maxHeight: .infinity)
         .cardStyle()
         .alert("Clear artwork cache?", isPresented: $showingClearArtworkAlert) {
             Button("Cancel", role: .cancel) {}

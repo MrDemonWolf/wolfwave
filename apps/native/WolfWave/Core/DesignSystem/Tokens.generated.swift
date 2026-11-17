@@ -314,7 +314,8 @@ nonisolated enum DSDimension {
         static let idealHeight: CGFloat = 780
         static let sidebarWidth: CGFloat = 230
         static let inlineActionsMinWidth: CGFloat = 480
-        static let maxContentWidth: CGFloat = 720
+        static let maxContentWidth: CGFloat = 960
+        static let twoColumnFloor: CGFloat = 860
         static let contentPaddingH: CGFloat = 28
         static let contentPaddingV: CGFloat = 22
         static let sectionSpacing: CGFloat = 24
@@ -379,6 +380,7 @@ nonisolated enum DSDimension {
             (name: "sidebarWidth", value: Settings.sidebarWidth),
             (name: "inlineActionsMinWidth", value: Settings.inlineActionsMinWidth),
             (name: "maxContentWidth", value: Settings.maxContentWidth),
+            (name: "twoColumnFloor", value: Settings.twoColumnFloor),
             (name: "contentPaddingH", value: Settings.contentPaddingH),
             (name: "contentPaddingV", value: Settings.contentPaddingV),
             (name: "sectionSpacing", value: Settings.sectionSpacing),

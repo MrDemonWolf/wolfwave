@@ -98,18 +98,27 @@ struct DiscordSettingsView: View {
             connectionSection
                 .deepLinkSection("presence")
             if presenceEnabled && hasClientID {
-                // One column, preview first. The pane is capped at 720pt, so a
-                // side-by-side split left two cramped ~350pt columns with the
-                // preview floating halfway down a much taller control column.
-                // The preview is the result of every control below it, so it
-                // sits right under the switch and the controls follow full width.
-                previewSection
-                buttonsSection
-                    .deepLinkSection("buttons")
-                playlistSection
-                    .deepLinkSection("playlist")
-                behaviorSection
-                    .deepLinkSection("behavior")
+                // Wide window: controls on the left, preview top-aligned on
+                // the right, each column at least ~420pt. Narrower: one column
+                // with the preview first, because it is the result of every
+                // control below it. An earlier split at any width left two
+                // cramped ~350pt columns with the preview floating halfway
+                // down a much taller control column; the floor and the top
+                // alignment are what prevent that.
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                        controlSections
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        previewSection
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                    .frame(minWidth: DSDimension.Settings.twoColumnFloor)
+
+                    VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+                        previewSection
+                        controlSections
+                    }
+                }
             }
         }
         .motionSafe(.easeInOut(duration: DSMotion.Duration.base), value: presenceEnabled)
@@ -164,6 +173,18 @@ struct DiscordSettingsView: View {
         .onChange(of: playlistStyle) { _, _ in scheduleSettingsResend() }
         .onChange(of: showIdleStatus) { _, _ in scheduleSettingsResend() }
         .onChange(of: clearWhilePaused) { _, _ in scheduleSettingsResend() }
+    }
+
+    /// Profile Buttons, Playlist, and the not-playing options, stacked.
+    private var controlSections: some View {
+        VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
+            buttonsSection
+                .deepLinkSection("buttons")
+            playlistSection
+                .deepLinkSection("playlist")
+            behaviorSection
+                .deepLinkSection("behavior")
+        }
     }
 
     // MARK: - Preview State

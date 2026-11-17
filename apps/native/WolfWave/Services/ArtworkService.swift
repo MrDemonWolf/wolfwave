@@ -128,7 +128,12 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// Second lookup, tried only when iTunes Search answers with no match.
     /// See ``appleMusicCatalogLinks(track:artist:)`` for why it exists. `nil`
     /// (the default, and what tests get) keeps a miss a miss.
-    private let catalogFallback: (@Sendable (_ track: String, _ artist: String) async -> TrackLinks?)?
+    ///
+    /// The closure returns `nil` for a real miss and **throws** when it could
+    /// not get an answer. The two must stay distinct: a miss is cached for
+    /// days, so treating a dropped connection as one would hide a track's
+    /// cover for a week.
+    private let catalogFallback: (@Sendable (_ track: String, _ artist: String) async throws -> TrackLinks?)?
 
     /// On-disk location of the persisted links cache, or nil to run memory-only.
     /// nil in tests so they never touch the shared Application Support file.
@@ -153,7 +158,7 @@ nonisolated final class ArtworkService: @unchecked Sendable {
         session: URLSession = .shared,
         persistenceURL: URL? = ArtworkService.defaultPersistenceURL(),
         now: @escaping @Sendable () -> Date = { Date() },
-        catalogFallback: (@Sendable (_ track: String, _ artist: String) async -> TrackLinks?)? = nil
+        catalogFallback: (@Sendable (_ track: String, _ artist: String) async throws -> TrackLinks?)? = nil
     ) {
         self.session = session
         self.persistenceURL = persistenceURL
@@ -343,11 +348,24 @@ nonisolated final class ArtworkService: @unchecked Sendable {
                     return
                 }
                 Task {
-                    let links = await catalogFallback(track, artist) ?? emptyLinks
-                    if links.artworkURL != nil {
-                        Log.debug("Artwork: Found \"\(track)\" in the Apple Music catalog", category: .artwork)
+                    do {
+                        let links = try await catalogFallback(track, artist) ?? emptyLinks
+                        if links.artworkURL != nil {
+                            Log.debug(
+                                "Artwork: Found \"\(track)\" in the Apple Music catalog",
+                                category: .artwork)
+                        }
+                        self.commit(links, cacheKey: cacheKey, inFlightKey: inFlightKey)
+                    } catch {
+                        // No answer is not a miss. Back off briefly and let
+                        // the next lookup try again, exactly as a failed
+                        // iTunes request does.
+                        Log.debug(
+                            "Artwork: Apple Music catalog lookup failed for \"\(track)\"",
+                            category: .artwork)
+                        self.recordTransientMiss(inFlightKey)
+                        self.finishInFlight(inFlightKey: inFlightKey, with: emptyLinks)
                     }
-                    self.commit(links, cacheKey: cacheKey, inFlightKey: inFlightKey)
                 }
                 return
             }
@@ -393,12 +411,14 @@ nonisolated final class ArtworkService: @unchecked Sendable {
     /// and the miss stands.
     ///
     /// - Returns: Links for the first result whose title and artist match, or
-    ///   `nil` when there is no access, no match, or the request fails.
-    static func appleMusicCatalogLinks(track: String, artist: String) async -> TrackLinks? {
+    ///   `nil` when there is no access or no match.
+    /// - Throws: When the catalog request itself fails, so the caller retries
+    ///   later instead of caching a miss.
+    static func appleMusicCatalogLinks(track: String, artist: String) async throws -> TrackLinks? {
         guard MusicAuthorization.currentStatus == .authorized else { return nil }
         var request = MusicCatalogSearchRequest(term: "\(track) \(artist)", types: [Song.self])
         request.limit = 5
-        guard let response = try? await request.response() else { return nil }
+        let response = try await request.response()
         guard let song = response.songs.first(where: {
             TrackTextNormalizer.title($0.title) == TrackTextNormalizer.title(track)
                 && TrackTextNormalizer.text($0.artistName) == TrackTextNormalizer.text(artist)
