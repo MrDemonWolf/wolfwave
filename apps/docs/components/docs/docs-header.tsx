@@ -48,7 +48,7 @@ export function DocsHeader(props: ComponentProps<"header">) {
           {slots.searchTrigger ? (
             <>
               <slots.searchTrigger.full hideIfDisabled className="ww-docs-search" />
-              <slots.searchTrigger.sm hideIfDisabled className="ww-docs-icon-button md:hidden" />
+              <slots.searchTrigger.sm hideIfDisabled className="ww-docs-icon-button" />
             </>
           ) : null}
           {slots.themeSwitch ? <slots.themeSwitch className="ww-docs-theme" /> : null}
@@ -60,7 +60,7 @@ export function DocsHeader(props: ComponentProps<"header">) {
             ) : null,
           )}
           {slots.sidebar ? (
-            <slots.sidebar.trigger className="ww-docs-icon-button md:hidden" aria-label="Open navigation">
+            <slots.sidebar.trigger className="ww-docs-icon-button" aria-label="Open navigation">
               <PanelLeft aria-hidden="true" />
             </slots.sidebar.trigger>
           ) : null}

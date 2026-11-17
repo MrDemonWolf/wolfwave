@@ -19,8 +19,8 @@ extension DiscordSettingsView {
     var connectionSection: some View {
         VStack(alignment: .leading, spacing: AppConstants.SettingsUI.sectionSpacing) {
             VStack(alignment: .leading, spacing: AppConstants.SettingsUI.cardRowSpacing) {
-                StatusChip(text: statusChipText, color: statusChipColor, systemImage: statusChipSymbol)
-                    .accessibilityLabel("Discord status: \(statusChipText)")
+                StatusChip(statusChip)
+                    .accessibilityLabel("Discord status: \(statusChip.text)")
 
                 ToggleSettingRow(
                     title: "Show on Discord",
