@@ -38,11 +38,11 @@ How WolfWave tracks your music and where it shows up.
 - **Sync Music.** The main switch. On by default. A row under it shows your Music access: **Music access on** (with **Recheck**), or **Allow** the first time macOS asks.
   - Access off? A banner appears. Click **Open System Settings**, turn on Music under WolfWave in Automation, then click **Try again**. **Show me how** walks you through it.
 - **Live from Apple Music.** The song, artist, album, and art WolfWave sees right now.
-- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. **Configure** jumps to that pane. Every chip reads **Paused** while Music access is missing.
+- **Integrations.** One row each for Twitch chat, Discord profile, and Stream Widgets. **Configure** jumps to that pane. Chips read **Paused** while Music access is missing, except a connected muted Twitch bot still shows **Muted**.
 
   | Row | Chips |
   |---|---|
-  | Twitch chat | **Connected**, **Disconnected** |
+  | Twitch chat | **Connected**, **Disconnected**, **Muted** |
   | Discord profile | **Connected**, **Connecting**, **Disconnected**, **Off** |
   | Stream Widgets | **Running**, **Starting**, **Couldn't start**, **Off** |
 
@@ -175,6 +175,7 @@ Connect your Twitch account and set up the chat bot.
 
 - **Bot account** shows who posts the replies.
 - **Leave Channel** disconnects the bot from your channel but keeps you signed in. It asks "Disconnect from channel?" first. To switch channels, leave, type the new name, then click **Join Channel**.
+- **Mute bot** stops all chat messages while WolfWave stays connected. Channel-point and Bits requests still work silently. Off by default.
 - **Sign Out** asks "Sign out of Twitch?" first. Chat commands stop until you sign in again.
 
 **Below the sign-in card:**

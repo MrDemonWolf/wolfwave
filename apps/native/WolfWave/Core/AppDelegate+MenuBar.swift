@@ -610,6 +610,10 @@ extension AppDelegate {
         )
     }
 
+    @objc func toggleTwitchBotMute() {
+        DefaultsStore.store.set(!FeatureFlags.twitchBotMuted, forKey: AppConstants.UserDefaults.twitchBotMuted)
+    }
+
     /// Toggles Discord Rich Presence on/off.
     @objc func toggleDiscordPresence() {
         toggleBoolSetting(

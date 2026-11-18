@@ -13,6 +13,52 @@ import Foundation
 
 /// Chat message roles, the retry-queue cap, bounded streams, and retry accounting.
 extension TwitchChatServiceTests {
+    @Test("Mute stops a rate-limited chat retry")
+    func muteStopsRateLimitedRetry() async {
+        let defaults = DefaultsStore.store
+        let key = AppConstants.UserDefaults.twitchBotMuted
+        defaults.removeObject(forKey: key)
+        defer { defaults.removeObject(forKey: key) }
+        let count = ThreadSafeBox(0)
+        let handler: MockURLProtocol.Handler = { request in
+            count.mutate { $0 += 1 }
+            DefaultsStore.store.set(true, forKey: AppConstants.UserDefaults.twitchBotMuted)
+            return (MockURLProtocol.httpResponse(for: request, status: 429), Data())
+        }
+        let service = TwitchChatService(helixHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handler: handler)))
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.sendMessage("hello")
+        #expect(count.value == 1)
+        #expect(await service.pendingMessageCount == 0)
+    }
+
+    @Test("Mute blocks replies and announcements until switched off")
+    func muteBlocksChat() async {
+        let defaults = DefaultsStore.store
+        let key = AppConstants.UserDefaults.twitchBotMuted
+        defaults.removeObject(forKey: key)
+        defer { defaults.removeObject(forKey: key) }
+        #expect(!FeatureFlags.twitchBotMuted)
+        let requests = ThreadSafeBox<[String]>([])
+        let handler: MockURLProtocol.Handler = { request in
+            requests.mutate { $0.append(request.url?.path ?? "") }
+            return (MockURLProtocol.httpResponse(for: request, status: 200),
+                    Data(#"{"data":[{"is_sent":true}]}"#.utf8))
+        }
+        let service = TwitchChatService(helixHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handler: handler)))
+        let generation = await service.configureChatSendForTesting(broadcasterID: "channel")
+        defaults.set(true, forKey: key)
+        await service.sendCommandReply("hello", replyTo: "message", generation: generation, broadcasterID: "channel")
+        let mutedAnnouncement = await service.sendAnnouncement("hello", generation: generation, broadcasterID: "channel")
+        #expect(mutedAnnouncement)
+        #expect(requests.value.isEmpty)
+        #expect(await service.pendingMessageCount == 0)
+        defaults.set(false, forKey: key)
+        await service.sendCommandReply("hello", replyTo: "message", generation: generation, broadcasterID: "channel")
+        _ = await service.sendAnnouncement("hello", generation: generation, broadcasterID: "channel")
+        #expect(requests.value == ["/helix/chat/messages", "/helix/chat/announcements"])
+    }
+
     // MARK: - Chat Message Tests
     
     @Test("ChatMessage structure stores message data correctly")

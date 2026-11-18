@@ -24,6 +24,9 @@ struct SignedInView: View {
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    @AppStorage(AppConstants.UserDefaults.twitchBotMuted)
+    private var botMuted = AppConstants.UserDefaults.Defaults.twitchBotMuted
+
     /// Signed-in login the bot posts as; empty until resolved.
     let botUsername: String
     /// Channel to join. Editable only while not joined and not expired; the
@@ -71,6 +74,17 @@ struct SignedInView: View {
             Divider()
                 .padding(.leading, AppConstants.SettingsUI.cardPadding)
             channelSection
+            Divider()
+                .padding(.leading, AppConstants.SettingsUI.cardPadding)
+            ToggleSettingRow(
+                title: "Mute bot",
+                subtitle: "WolfWave stays connected and paid requests still work.",
+                isOn: $botMuted,
+                accessibilityLabel: "Mute bot",
+                accessibilityIdentifier: "twitchMuteBotToggle"
+            )
+            .padding(.horizontal, AppConstants.SettingsUI.cardPadding)
+            .padding(.vertical, DSSpace.s4)
             Divider()
                 .padding(.leading, AppConstants.SettingsUI.cardPadding)
             actionButtonsSection

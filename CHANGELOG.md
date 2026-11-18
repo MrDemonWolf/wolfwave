@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Mute the Twitch bot.** Stop all chat messages without leaving the channel; channel-point and Bits requests still work silently. Turn it on in Twitch settings or the menu bar.
 - **Stream Deck track time.** Add a Track Time key to see playback progress; press it to switch between elapsed and remaining time. Seeking while paused updates the time too.
 - **Public release notes and design system.** The website now has dedicated Changelog and Design System pages. Unreleased notes stay in the repository until release.
 - **Sync settings with iCloud.** Turn on "Sync with iCloud" in Settings → Advanced (or during setup) and your preferences follow you to every Mac with the switch on. Sign-ins, tokens, and permissions never sync, so you still connect Twitch once per Mac. Off by default, and the newest change wins. Server switches, ports, the update channel, and diagnostics stay per Mac.
