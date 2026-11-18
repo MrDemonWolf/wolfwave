@@ -77,6 +77,10 @@ struct DebugSettingsView: View {
             }
         }
         .listStyle(.sidebar)
+        // No sidebar material: it drew a second glass panel right beside the
+        // window's real sidebar, against the flat pane next to it. Hidden,
+        // the list sits on the pane's own background and reads as part of it.
+        .scrollContentBackground(.hidden)
         .frame(width: DSDimension.Settings.navRailWidth)
         .accessibilityLabel("Debug tools")
     }

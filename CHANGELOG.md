@@ -161,6 +161,7 @@ All notable changes to this project will be documented in this file.
 
 ### Developer
 
+- **The Debug tool list is flat.** It sits on the pane's background and no longer draws a second glass sidebar beside the window's own.
 - **Debug State Inspectors are easier to read.** Build info and Keychain sit side by side, and the defaults list shows only keys that are set, with a count and a **Show unset** checkbox.
 - **One chip state, one value.** `StatusChip.Descriptor` (text, tint, glyph) replaces parallel `statusText` / `statusColor` / `statusSymbol` properties in the Stream Widgets card, Software Update, the Stream Deck pane, and the General dashboard. The granted-state **Recheck** in General now uses `AsyncActionButton`, and the remaining Reduce Motion ternaries go through `.motionSafe` / `withMotionSafeAnimation`.
 - **Agent guidance is split by area.** `CLAUDE.md` is gone. The root `AGENTS.md` holds the repo-wide rules (CI, docs sync, versioning, release), and `apps/native/`, `apps/docs/`, `apps/widget/`, `apps/streamdeck/`, and `design-system/` each carry an `AGENTS.md` with the rules for that code.
