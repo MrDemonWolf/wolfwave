@@ -31,6 +31,11 @@ struct SettingsSidebarView: View {
     /// The Debug pane's selected tool. Its tools are sub-rows under the Debug
     /// row here, so the pane needs no navigation of its own.
     @Binding var debugTool: DebugSection
+
+    /// Whether the Debug row shows its tools. Opens when Debug becomes the
+    /// pane, so the selected tool's row is always visible to carry the
+    /// highlight; the arrow closes it again.
+    @State private var debugExpanded = false
     #endif
 
     // MARK: - Selection
@@ -89,6 +94,11 @@ struct SettingsSidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        #if DEBUG
+        .onChange(of: selection, initial: true) { _, section in
+            if section == .debug { debugExpanded = true }
+        }
+        #endif
         // Keep labels readable when native layout overrides the column-width preference.
         .frame(width: AppConstants.SettingsUI.sidebarWidth)
         .accessibilityIdentifier("settings.sidebar")
@@ -98,31 +108,45 @@ struct SettingsSidebarView: View {
     /// tagged with its section so `List(selection:)` drives the binding.
     private func rows(for sections: [SettingsView.SettingsSection]) -> some View {
         ForEach(sections) { section in
-            SettingsSidebarRow(section: section)
-                .tag(Item.pane(section))
-                // Stable handle for the UI tests. The visible title is not one:
-                // several pane bodies repeat their own section's name, so a
-                // label query would match the sidebar row and the content both.
-                .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
-
             #if DEBUG
-            if section == .debug, selection == .debug {
-                debugToolRows
+            if section == .debug {
+                debugDisclosure
+            } else {
+                paneRow(section)
             }
+            #else
+            paneRow(section)
             #endif
         }
     }
 
+    /// One selectable pane row.
+    private func paneRow(_ section: SettingsView.SettingsSection) -> some View {
+        SettingsSidebarRow(section: section)
+            .tag(Item.pane(section))
+            // Stable handle for the UI tests. The visible title is not one:
+            // several pane bodies repeat their own section's name, so a
+            // label query would match the sidebar row and the content both.
+            .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
+    }
+
     #if DEBUG
-    /// The Debug pane's tools, as indented sub-rows shown while Debug is the
-    /// pane. They replace the second list the pane used to draw beside this
-    /// one, which put two sidebars (and two materials) side by side.
-    private var debugToolRows: some View {
-        ForEach(DebugSection.railGroups.flatMap(\.sections), id: \.self) { tool in
-            Label(tool.title, systemImage: tool.icon)
-                .padding(.leading, DSSpace.s6)
-                .tag(Item.debugTool(tool))
-                .accessibilityIdentifier("debugNav.\(tool.rawValue)")
+    /// The Debug row as a stock `DisclosureGroup`: the system draws the
+    /// disclosure arrow and indents the tools under it, the same outline
+    /// Finder and Xcode sidebars use. It replaces the second list the Debug
+    /// pane used to draw beside this one (two sidebars, two materials).
+    ///
+    /// Nothing here is hand-styled. No manual indent, no custom chevron: both
+    /// would drift from the system's metrics.
+    private var debugDisclosure: some View {
+        DisclosureGroup(isExpanded: $debugExpanded) {
+            ForEach(DebugSection.railGroups.flatMap(\.sections), id: \.self) { tool in
+                Label(tool.title, systemImage: tool.icon)
+                    .tag(Item.debugTool(tool))
+                    .accessibilityIdentifier("debugNav.\(tool.rawValue)")
+            }
+        } label: {
+            paneRow(.debug)
         }
     }
     #endif
