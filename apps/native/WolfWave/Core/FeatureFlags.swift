@@ -25,6 +25,10 @@ nonisolated enum FeatureFlags {
 
     // MARK: Integrations
 
+    static var twitchBotMuted: Bool {
+        Preferences.bool(AppConstants.UserDefaults.twitchBotMuted, default: AppConstants.UserDefaults.Defaults.twitchBotMuted)
+    }
+
     /// Discord Rich Presence preference. Default `false`. This is the stored
     /// setting, not whether the IPC socket is actually connected.
     static var discordEnabled: Bool {

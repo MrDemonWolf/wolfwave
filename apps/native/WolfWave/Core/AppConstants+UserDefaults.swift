@@ -456,6 +456,9 @@ extension AppConstants {
         /// UI-only redaction; does not change broadcast/chat/Discord output (Bool, default: false).
         static let streamerModeEnabled = "streamerModeEnabled"
 
+        /// Suppresses all outgoing Twitch chat messages (Bool, default: false).
+        static let twitchBotMuted = "twitchBotMuted"
+
         /// Preferred app appearance: "system", "light", or "dark" (String, default: "system").
         /// Overrides `NSApplication.appearance` app-wide; "system" follows the OS setting.
         static let appearancePreference = "appearancePreference"
@@ -615,6 +618,7 @@ extension AppConstants {
             statsCommandParts,
             historyRetentionDays,
             streamerModeEnabled,
+            twitchBotMuted,
             sponsorLinksEnabled,
             appearancePreference
         ] + debugKeys
@@ -646,6 +650,8 @@ extension AppConstants {
             static let streamDeckControlEnabled = true
 
             // MARK: Twitch chat
+
+            static let twitchBotMuted = false
 
             /// What an UNSET `!song` key reads as. Fresh installs get an explicit
             /// `true` from `FreshInstallDefaults`; this stays `false` so an install

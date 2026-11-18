@@ -61,6 +61,9 @@ extension TwitchChatService {
         }
 
         try Task.checkCancellation()
+        if (endpoint == "/chat/messages" || endpoint.hasPrefix("/chat/announcements?")), FeatureFlags.twitchBotMuted {
+            throw CancellationError()
+        }
         var (data, http) = try await helixHTTPClient.send(request)
 
         await rateLimiter.updateRateLimitState(
@@ -85,6 +88,9 @@ extension TwitchChatService {
             }
 
             try Task.checkCancellation()
+            if (endpoint == "/chat/messages" || endpoint.hasPrefix("/chat/announcements?")), FeatureFlags.twitchBotMuted {
+                throw CancellationError()
+            }
             (data, http) = try await helixHTTPClient.send(request)
             await rateLimiter.updateRateLimitState(
                 endpoint: endpoint, from: http.allHeaderFields)

@@ -25,6 +25,10 @@ struct IntegrationDashboardViewTests {
         #expect(connected.chip.text == "Connected")
         #expect(connected.subtitle.contains("@nightowlstream"))
 
+        let muted = Status.twitch(connected: true, channel: "nightowlstream", permissionPaused: false, muted: true)
+        #expect(muted.chip.text == "Muted")
+        #expect(Status.twitch(connected: false, channel: nil, permissionPaused: false, muted: true).chip.text == "Disconnected")
+
         let noChannel = Status.twitch(connected: true, channel: nil, permissionPaused: false)
         #expect(noChannel.subtitle.contains("your channel"))
 
@@ -91,6 +95,7 @@ struct IntegrationDashboardViewTests {
     func sizingLabelsCoverEveryState() {
         var rows = [
             Status.twitch(connected: true, channel: nil, permissionPaused: false),
+            Status.twitch(connected: true, channel: nil, permissionPaused: false, muted: true),
             Status.twitch(connected: false, channel: nil, permissionPaused: false),
             Status.twitch(connected: true, channel: nil, permissionPaused: true),
             Status.discord(enabled: false, state: .disconnected, permissionPaused: false)

@@ -154,6 +154,7 @@ nonisolated extension AppConstants.UserDefaults {
             AppConstants.Appearance.dark
         ]),
         portableBool(streamerModeEnabled),
+        portableBool(twitchBotMuted),
         portableBool(sponsorLinksEnabled),
         portableBool(shareDiagnosticsEnabled),
         portableBool(updateCheckEnabled),

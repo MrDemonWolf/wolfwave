@@ -51,6 +51,8 @@ installs update with `brew upgrade wolfwave`.
 
 ## Features
 
+Mute the Twitch bot from Settings or the menu bar to stop all chat messages while staying connected. Channel-point and Bits song requests still work silently.
+
 ### For Streamers
 
 **Twitch song requests**
@@ -215,6 +217,8 @@ The streamer turns each command on or off and can add aliases in
 4. **Turn on Discord.** Settings > Discord.
 5. **Add the overlay.** Settings > Stream Widgets. Turn it on, then
    add the browser source link to OBS.
+
+To stop Twitch chat messages without leaving the channel, turn on **Mute bot** in Settings > Twitch or **Mute Bot** in the menu bar. Paid song requests still work silently.
 
 ### Overlay Sizes
 

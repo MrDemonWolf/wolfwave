@@ -27,6 +27,9 @@ struct IntegrationDashboardView: View {
     @AppStorage(AppConstants.UserDefaults.streamerModeEnabled)
     private var streamerMode = false
 
+    @AppStorage(AppConstants.UserDefaults.twitchBotMuted)
+    private var twitchBotMuted = AppConstants.UserDefaults.Defaults.twitchBotMuted
+
     // MARK: - Inputs
 
     /// Whether the Twitch chat bot is connected.
@@ -215,7 +218,7 @@ struct IntegrationDashboardView: View {
     /// Twitch row status, with the channel masked for Streamer Mode.
     private var twitchStatus: Status {
         let channel = twitchChannel.map { StreamerMode.mask($0, style: .channel, isOn: streamerMode) }
-        return Status.twitch(connected: twitchConnected, channel: channel, permissionPaused: permissionPaused)
+        return Status.twitch(connected: twitchConnected, channel: channel, permissionPaused: permissionPaused, muted: twitchBotMuted)
     }
 
     /// Stream Widgets row status, with the link masked for Streamer Mode.
@@ -244,7 +247,7 @@ extension IntegrationDashboardView {
         /// Every chip label any row can show. All three rows size to the
         /// widest, so the chips line up in a column and never resize.
         static let allLabels = [
-            "Paused", "Connected", "Disconnected", "Off",
+            "Paused", "Connected", "Disconnected", "Off", "Muted",
             "Connecting", "Running", "Starting", "Couldn't start"
         ]
 
@@ -256,7 +259,8 @@ extension IntegrationDashboardView {
         ///   - connected: Whether the chat bot is connected.
         ///   - channel: Channel login, already masked for Streamer Mode.
         ///   - permissionPaused: Music Automation permission is denied.
-        static func twitch(connected: Bool, channel: String?, permissionPaused: Bool) -> Status {
+        static func twitch(connected: Bool, channel: String?, permissionPaused: Bool, muted: Bool = false) -> Status {
+            if connected && muted { return off("Muted", "Connected; paid requests still work.") }
             if permissionPaused { return paused("Will reply once Music permission is restored.") }
             guard connected else {
                 // Not "sign in": a signed-in account can still be disconnected.

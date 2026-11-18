@@ -65,6 +65,7 @@ extension TwitchChatService {
         generation: UInt64,
         broadcasterID: String
     ) async -> Bool {
+        if FeatureFlags.twitchBotMuted { return true }
         guard !Task.isCancelled,
               commandReplyIsCurrent(generation: generation, broadcasterID: broadcasterID),
               let botID, let token = oauthToken, let clientID else {
@@ -164,6 +165,7 @@ extension TwitchChatService {
         replyTo parentMessageID: String?,
         allowsRefreshRetry: Bool
     ) async -> ChatSendOutcome {
+        guard !FeatureFlags.twitchBotMuted else { return .sent }
         guard let broadcasterID,
               let botID,
               let token = oauthToken,
@@ -267,6 +269,8 @@ extension TwitchChatService {
             case .superseded:
                 return .permanentFailure
             }
+        } catch is CancellationError where FeatureFlags.twitchBotMuted {
+            return .sent
         } catch HelixRequestError.permanentHTTP(let statusCode) {
             Log.error(
                 "TwitchChatService: Chat send permanently rejected with HTTP \(statusCode)",

@@ -5,7 +5,7 @@
 ## Purpose
 Connection dashboard on the General pane. One row per integration (Twitch chat, Discord profile, Stream Widgets) with brand glyph, plain-language status subtitle, `StatusChip`, and a "Configure ›" route into the relevant settings pane. Below the row-width token, the status and action move beneath the description so compact windows retain readable labels.
 
-The rows report **connections, not what an audience sees**. A connected Discord session does not mean a song is showing, and a running widget server does not mean OBS loaded the browser source. Chip and subtitle copy must stay inside that limit.
+The Twitch row shows **Muted** while connected and muted. The other rows report **connections, not what an audience sees**. A connected Discord session does not mean a song is showing, and a running widget server does not mean OBS loaded the browser source. Chip and subtitle copy must stay inside that limit.
 
 ## API
 ```swift

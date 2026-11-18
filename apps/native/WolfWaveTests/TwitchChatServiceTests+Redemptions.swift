@@ -13,6 +13,39 @@ import Foundation
 
 /// Channel-point intake, reconciliation, and recovery.
 extension TwitchChatServiceTests {
+    @Test("Paid Bits requests enqueue while muted")
+    func mutedBitsRequestQueues() async {
+        let directory = makeIsolatedTempDirectory(prefix: "muted-bits")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let defaults = DefaultsStore.store
+        let keys = [AppConstants.UserDefaults.twitchBotMuted, AppConstants.UserDefaults.songRequestEnabled,
+                    AppConstants.UserDefaults.songRequestBitsEnabled, AppConstants.UserDefaults.songRequestBitsMinimum,
+                    AppConstants.UserDefaults.songRequestHoldEnabled]
+        defer { keys.forEach { defaults.removeObject(forKey: $0) } }
+        defaults.set(true, forKey: keys[0])
+        defaults.set(true, forKey: keys[1])
+        defaults.set(true, forKey: keys[2])
+        defaults.set(1, forKey: keys[3])
+        defaults.set(true, forKey: keys[4])
+        let messages = ThreadSafeBox(0)
+        let handler: MockURLProtocol.Handler = { request in
+            messages.mutate { $0 += 1 }
+            return (MockURLProtocol.httpResponse(for: request, status: 200), Data())
+        }
+        let service = TwitchChatService(
+            helixHTTPClient: HTTPClient(session: MockURLProtocol.makeSession(handler: handler)),
+            redemptionResolutionOutbox: TwitchRedemptionResolutionOutbox(fileURL: directory.appending(path: "outbox.json")))
+        let music = MockAppleMusicController()
+        music.stubSearchSuccess()
+        let requests = SongRequestService(musicController: music)
+        _ = await service.configureChatSendForTesting(broadcasterID: "channel")
+        await service.setSongRequestServiceReference(requests)
+        await service.handleBitsUse(Self.bitsPayload(), eventSubMessageID: "muted-bits")
+        await service.awaitPaidRedemptionTasksForTesting()
+        #expect(requests.queue.count == 1)
+        #expect(messages.value == 0)
+    }
+
     @Test("Bits storage failure uses one non-evicting process fallback")
     func testBitsStorageFailureUsesSingleProcessFallback() async {
         enum InjectedFailure: Error {
@@ -446,8 +479,10 @@ extension TwitchChatServiceTests {
         let defaults = DefaultsStore.store
         let statusKey = AppConstants.UserDefaults.songRequestRedemptionStatus
         installManagedRewardIdentity()
+        defaults.set(true, forKey: AppConstants.UserDefaults.twitchBotMuted)
         defaults.removeObject(forKey: statusKey)
         defer {
+            defaults.removeObject(forKey: AppConstants.UserDefaults.twitchBotMuted)
             clearManagedRewardIdentity()
             defaults.removeObject(forKey: statusKey)
             defaults.removeObject(forKey: AppConstants.UserDefaults.songRequestEnabled)

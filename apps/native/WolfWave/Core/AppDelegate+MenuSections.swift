@@ -177,7 +177,7 @@ extension AppDelegate {
             }
             let twitchItem = makeStatusItem(
                 title: "Twitch",
-                status: MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
+                status: connected && FeatureFlags.twitchBotMuted ? "Muted" : MenuStatusFormatter.twitchStatus(isConnected: connected, channelName: channel),
                 action: #selector(toggleTwitchConnection),
                 on: connected,
                 image: menuItemIcon(named: "TwitchLogo")
@@ -241,6 +241,11 @@ extension AppDelegate {
         )
         streamerModeItem.toolTip = "Hide channel name, overlay URL, and other sensitive details from the WolfWave UI while you're on stream."
         menu.addItem(streamerModeItem)
+
+        let muteItem = NSMenuItem(title: "Mute Bot", action: #selector(toggleTwitchBotMute), keyEquivalent: "")
+        muteItem.state = FeatureFlags.twitchBotMuted ? .on : .off
+        muteItem.image = NSImage(systemSymbolName: "speaker.slash", accessibilityDescription: "Mute Bot")
+        menu.addItem(muteItem)
 
         let widgetsEnabled = FeatureFlags.websocketEnabled
         if widgetsEnabled {
