@@ -27,6 +27,44 @@ struct SettingsSidebarView: View {
     /// Currently selected section. Bound to the parent `NavigationSplitView`.
     @Binding var selection: SettingsView.SettingsSection
 
+    #if DEBUG
+    /// The Debug pane's selected tool. Its tools are sub-rows under the Debug
+    /// row here, so the pane needs no navigation of its own.
+    @Binding var debugTool: DebugSection
+    #endif
+
+    // MARK: - Selection
+
+    /// One selectable sidebar row: a pane, or (Debug builds) a Debug tool.
+    private enum Item: Hashable {
+        case pane(SettingsView.SettingsSection)
+        #if DEBUG
+        case debugTool(DebugSection)
+        #endif
+    }
+
+    /// Maps the pane (and Debug tool) bindings onto the one value
+    /// `List(selection:)` needs. While Debug is the pane, the selected row is
+    /// its current tool, so clicking Debug lands the highlight on a sub-row.
+    private var itemSelection: Binding<Item> {
+        Binding {
+            #if DEBUG
+            if selection == .debug { return .debugTool(debugTool) }
+            #endif
+            return .pane(selection)
+        } set: { item in
+            switch item {
+            case .pane(let section):
+                selection = section
+            #if DEBUG
+            case .debugTool(let tool):
+                debugTool = tool
+                selection = .debug
+            #endif
+            }
+        }
+    }
+
     /// Grouped sidebar layout (optional header + member sections). Supplied by
     /// `SettingsView.sidebarGroups` so the order/headers stay defined in one place.
     let groups: [(title: String?, sections: [SettingsView.SettingsSection])]
@@ -34,7 +72,7 @@ struct SettingsSidebarView: View {
     // MARK: - Body
 
     var body: some View {
-        List(selection: $selection) {
+        List(selection: itemSelection) {
             ForEach(groups, id: \.sections) { group in
                 // Named groups get the native uppercase/secondary section header
                 // from `.sidebar`. The title-less group (General) renders as a
@@ -61,13 +99,33 @@ struct SettingsSidebarView: View {
     private func rows(for sections: [SettingsView.SettingsSection]) -> some View {
         ForEach(sections) { section in
             SettingsSidebarRow(section: section)
-                .tag(section)
+                .tag(Item.pane(section))
                 // Stable handle for the UI tests. The visible title is not one:
                 // several pane bodies repeat their own section's name, so a
                 // label query would match the sidebar row and the content both.
                 .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
+
+            #if DEBUG
+            if section == .debug, selection == .debug {
+                debugToolRows
+            }
+            #endif
         }
     }
+
+    #if DEBUG
+    /// The Debug pane's tools, as indented sub-rows shown while Debug is the
+    /// pane. They replace the second list the pane used to draw beside this
+    /// one, which put two sidebars (and two materials) side by side.
+    private var debugToolRows: some View {
+        ForEach(DebugSection.railGroups.flatMap(\.sections), id: \.self) { tool in
+            Label(tool.title, systemImage: tool.icon)
+                .padding(.leading, DSSpace.s6)
+                .tag(Item.debugTool(tool))
+                .accessibilityIdentifier("debugNav.\(tool.rawValue)")
+        }
+    }
+    #endif
 }
 
 // MARK: - Sidebar Row

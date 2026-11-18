@@ -22,63 +22,21 @@ struct DebugSettingsView: View {
     private var discordPresenceEnabled = AppConstants.UserDefaults.Defaults.discordPresenceEnabled
     @AppStorage(AppConstants.UserDefaults.widgetHTTPEnabled) private var widgetHTTPEnabled = false
 
-    /// The selected tool is shared by the wide list and compact picker.
-    @State private var selected: DebugSection = .inspectors
+    /// The tool on screen. Chosen from the Debug sub-rows in the settings
+    /// sidebar, so this pane draws no navigation of its own.
+    @Binding var selected: DebugSection
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                if geometry.size.width >= Self.railThreshold {
-                    toolList
-                    Divider()
-                }
-                SettingsPaneScroll {
-                    if geometry.size.width < Self.railThreshold {
-                        Picker("Tool", selection: $selected) {
-                            ForEach(DebugSection.allCases, id: \.self) { section in
-                                Label(section.title, systemImage: section.icon).tag(section)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .accessibilityIdentifier("debugToolPicker")
-                    }
-                    header
-                    if selected == .previews || selected == .controls {
-                        warningBanner
-                    }
-                    selectedTool
-                        .id(selected)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("debugTool.\(selected.rawValue)")
-                }
+        SettingsPaneScroll {
+            header
+            if selected == .previews || selected == .controls {
+                warningBanner
             }
+            selectedTool
+                .id(selected)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("debugTool.\(selected.rawValue)")
         }
-    }
-
-    /// Leaves the detail column enough space for its controls before adding a rail.
-    private static var railThreshold: CGFloat {
-        DSDimension.Settings.navRailWidth + DSDimension.Settings.inlineActionsMinWidth
-            + 2 * AppConstants.SettingsUI.contentPaddingH
-    }
-
-    private var toolList: some View {
-        List(selection: Binding<DebugSection?>(
-            get: { selected },
-            set: { if let section = $0 { selected = section } }
-        )) {
-            ForEach(DebugSection.railGroups) { group in
-                Section(group.title ?? "Tools") {
-                    ForEach(group.sections, id: \.self) { section in
-                        Label(section.title, systemImage: section.icon)
-                            .tag(section)
-                            .accessibilityIdentifier("debugNav.\(section.rawValue)")
-                    }
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .frame(width: DSDimension.Settings.navRailWidth)
-        .accessibilityLabel("Debug tools")
     }
 
     @ViewBuilder
@@ -177,7 +135,7 @@ struct DebugSettingsView: View {
 
 // MARK: - Debug Section
 
-/// Tool identity shared by the wide navigation list and compact picker.
+/// One Debug tool. Listed as sub-rows under Debug in the settings sidebar.
 enum DebugSection: String, SettingsRailSection, CaseIterable {
 
     /// Rail layout. Hand-ordered because the grouping is editorial, but
@@ -237,7 +195,8 @@ enum DebugSection: String, SettingsRailSection, CaseIterable {
 }
 
 #Preview {
-    DebugSettingsView()
+    @Previewable @State var tool: DebugSection = .inspectors
+    DebugSettingsView(selected: $tool)
         .frame(width: 820, height: 600)
 }
 #endif

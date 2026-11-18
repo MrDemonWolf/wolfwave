@@ -153,6 +153,12 @@ struct SettingsView: View {
     /// (for example "Configure" rows and `reconnectTwitch`).
     @State private var selectedSection: SettingsSection = .general
 
+    #if DEBUG
+    /// The Debug pane's tool. Lives here because the sidebar picks it (as
+    /// sub-rows under Debug) and the pane renders it.
+    @State private var debugTool: DebugSection = .inspectors
+    #endif
+
     /// In-flight deep-link scroll + flash. Replaced (and cancelled) by each
     /// new link so a slow first link can never land on top of a second one.
     @State private var deepLinkTask: Task<Void, Never>?
@@ -164,9 +170,18 @@ struct SettingsView: View {
 
     // MARK: - Body
 
+    /// The sidebar. Debug builds also hand it the Debug tool binding.
+    private var sidebar: SettingsSidebarView {
+        #if DEBUG
+        SettingsSidebarView(selection: $selectedSection, debugTool: $debugTool, groups: Self.sidebarGroups)
+        #else
+        SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
+        #endif
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SettingsSidebarView(selection: $selectedSection, groups: Self.sidebarGroups)
+            sidebar
                 // Fixed width (System Settings style). A ranged width is a trap
                 // here: NSSplitView autosaves the column frames under the scene
                 // id and restores them WITHOUT clamping to `min:`, so a stale
@@ -331,7 +346,7 @@ struct SettingsView: View {
         } else {
             #if DEBUG
             if selectedSection == .debug {
-                DebugSettingsView()
+                DebugSettingsView(selected: $debugTool)
             } else {
                 standardDetailScroll
             }
