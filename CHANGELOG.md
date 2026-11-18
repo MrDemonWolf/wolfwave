@@ -67,12 +67,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Discord settings are one clean column.** The profile preview now sits right under the switch, with the button, playlist, and behavior settings full width below it, instead of a cramped two-column split.
-- **Covers for new releases without extra permission.** If Apple's song search hasn't caught up with a new release, WolfWave now finds it through the artist's page, so the cover and song links show on Discord and your overlay.
-- **The Discord preview stays in view.** In a wide Settings window, the preview stays on screen while you scroll the settings beside it. About also puts the app details beside its quick actions.
-- **Settings use a wide window.** In a wide Settings window, Discord shows its controls beside the preview, and Advanced puts Setup Wizard and Artwork Cache side by side. Narrow windows keep one column.
+- **A clearer Discord pane.** The profile preview sits right under the switch. In a wide Settings window it moves beside the settings and stays in view while you scroll them.
+- **Covers for brand-new songs.** Apple's song search can take weeks to list a new release. WolfWave now finds the song through the artist's page too, so the cover and song links still show on Discord and your overlay.
+- **Settings use a wide window.** In a wide Settings window, Advanced puts Setup Wizard and Artwork Cache side by side and About puts the app details beside its quick actions. Narrow windows keep one column.
 - **A shorter menu bar menu.** Pause and skip now sit right under the song. Copy Song Info, Copy Song Link, and Send to Twitch Chat are in a **Share Song** submenu, and **About**, **Open Widget in Browser**, and **Restart Integrations…** moved into **Help**.
-- **Covers for brand-new songs.** When Apple's public song search hasn't caught up with a new release, WolfWave now checks the Apple Music catalog too, so the cover and song links still show on Discord and your overlay. This needs Apple Music access, which Song Requests asks for.
 - **Play and pause badge on Discord.** The small badge on your Discord status is now a play icon while a song plays and a pause icon while it's paused. It used to be the Apple Music logo while playing.
 - **Nothing jumps when a status changes.** Status chips keep one size across all their states, and buttons such as **Join Channel** keep their width while they show Connecting. The Twitch channel row drops the extra "Channel verified" line once you're connected.
 - **Settings waste less space.** Status chips sit on the same row as the switch they describe (Discord, Stream Widgets, Stream Deck), Software Update puts the version, status, and **Check Now** on one row, and Advanced uses compact buttons on the right in place of full-width ones.
