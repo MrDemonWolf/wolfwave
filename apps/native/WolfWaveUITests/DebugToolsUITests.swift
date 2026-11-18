@@ -31,14 +31,10 @@ final class DebugToolsUITests: WolfWaveUITestCase {
             XCTAssertFalse(metrics.exists)
             captureTool("inspectors", size: size)
 
-            if size == "minimum" {
-                let picker = app.popUpButtons["debugToolPicker"]
-                expect(picker, "compact tool picker")
-                picker.click()
-                app.menuItems["Performance"].click()
-            } else {
-                app.staticTexts["debugNav.metrics"].click()
-            }
+            // The tools are sub-rows under Debug in the sidebar at every size.
+            let metricsRow = app.staticTexts["debugNav.metrics"]
+            expect(metricsRow, "Performance sub-row under Debug")
+            metricsRow.click()
             expect(metrics, "selected performance tool")
             XCTAssertTrue(inspectors.waitForNonExistence(timeout: Self.timeout))
             expect(app.buttons["debugCopyDiagnostics"], "diagnostics action")
