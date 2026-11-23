@@ -62,8 +62,8 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   without stealing focus from OBS.
 - **Channel points and Bits.** WolfWave can add a "Request a Song"
   channel-point reward. A Bits cheer can request a song, or bump the
-  viewer's queued song to the front. Failed channel-point requests are
-  refunded.
+  viewer's queued song to the front. Channel points are only spent when
+  the song plays; failed or removed requests are refunded.
 - **Fix mistakes fast.** Viewers type `!wrongsong` to undo a wrong
   match. Mods remove one song with `!removesong 3` or `!removesong @name`.
   Replies say roughly when a song will play.

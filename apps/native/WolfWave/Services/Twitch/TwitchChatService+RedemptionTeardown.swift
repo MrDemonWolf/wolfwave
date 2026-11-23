@@ -165,7 +165,7 @@ extension TwitchChatService {
             redemptionResolutionTasks[item.id] = nil
             redemptionResolutionWorkerIDs[item.id] = nil
             if item.isIntake {
-                resolveUnknownRedemptionIntake(item)
+                settleIntakeForTeardown(item)
             } else {
                 startPersistedRedemptionResolution(item)
             }

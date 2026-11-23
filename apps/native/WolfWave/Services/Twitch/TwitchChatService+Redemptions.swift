@@ -429,8 +429,11 @@ extension TwitchChatService {
 
     /// Maps a request result to a chat message and a redemption resolution.
     ///
-    /// Added and sent-for-approval fulfill (points are spent); every refusal
-    /// refunds. `.cancelled` refunds with an empty message, meaning no reply.
+    /// Added and sent-for-approval map to fulfil; every refusal refunds.
+    /// `.cancelled` refunds with an empty message, meaning no reply. A song
+    /// left waiting (queued or held for approval) doesn't apply the fulfil
+    /// yet: its redemption stays open until it plays (see
+    /// `TwitchChatService+RedemptionPlayback`).
     func redemptionOutcome(
         for result: SongRequestService.RequestResult,
         username: String
@@ -444,9 +447,9 @@ extension TwitchChatService {
                 "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue\(suffix)",
                 .fulfilled)
         case let .pendingApproval(item):
-            // ponytail: fulfill on submit-to-review. A later reject can't refund
-            // points once the redemption is resolved, so approval-mode redemptions
-            // consume points on request, not on approval.
+            // The pipeline doesn't apply this `.fulfilled`: a request waiting
+            // for approval keeps its redemption open (see `waitsForPlayback`),
+            // so a decline refunds it. Only the chat message is used here.
             return (
                 "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval.",
                 .fulfilled)

@@ -583,6 +583,13 @@ actor TwitchChatService {
     /// Like bits work, these pipelines survive socket reconnects: only their
     /// chat reply is generation-bound. Deinit still cancels them.
     var redemptionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Channel-point intake items whose song is waiting in the request queue
+    /// (or the approval pen), keyed by Twitch redemption ID. They stay in the
+    /// intake phase, so Twitch keeps the redemption UNFULFILLED, until the
+    /// queue reports the song played (fulfil) or left without playing
+    /// (refund). In memory only: after a quit the queue is gone too, and the
+    /// startup replay refunds the leftover intake.
+    var queuedRedemptionIntakeIDs: [String: UUID] = [:]
     /// Bits represent an irreversible viewer payment. Their request pipeline
     /// therefore outlives EventSub socket generations; only the eventual chat
     /// reply is gated to the originating session.

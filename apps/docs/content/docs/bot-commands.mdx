@@ -99,7 +99,7 @@ Links that work:
 Got the wrong match? Type `!wrongsong`. It removes your newest request that hasn't started playing, so you can try again.
 
 - **Removed.** `Removed "…". Try again with the artist and title, or paste an Apple Music link.`
-- **Channel-point request.** `"…" was a channel-point request, so it stays. Ask a mod to remove it.`
+- **Channel-point request.** `Removed "…" and refunded your points. Try again with the artist and title, or paste an Apple Music link.`
 - **Nothing to undo.** `You don't have a request waiting to undo.`
 
 ### Vote to skip a song [#vote-skip]
@@ -124,7 +124,7 @@ Some streamers use **Twitch Polls** instead. Then only the streamer or a mod can
 
 Some channels let you request without typing a command.
 
-- **Channel points.** Redeem the **Request a Song** reward and type a song name or link in the box. If the request fails (not found, blocked, queue full), your points are refunded.
+- **Channel points.** Redeem the **Request a Song** reward and type a song name or link in the box. Your points are only spent when the song plays. If the request fails (not found, blocked, queue full) or the song is removed before it plays (`!wrongsong`, declined, removed by a mod, queue cleared), your points are refunded.
 - **Bits.** Cheer at least the streamer's minimum and add a song name in the same message. Example: `Cheer100 Howl at the Moon`. Bits can't be refunded, so double-check the song name.
 - **Bits boost.** If the streamer turned it on, a cheer moves **your** oldest queued song to the front instead of adding a new one, and the bot says `@Luna boosted "Howl at the Moon" to the front of the queue! (100 bits)`. If you have nothing queued, your cheer's song name is requested instead. With no song name either, the bot says `@Luna no song of yours to boost. Include a song name in your cheer to request one.`
 
@@ -200,7 +200,7 @@ Set this in **Settings → Song Requests → Who Can Request**. Pick a preset:
 
 Turn these on in **Settings → Song Requests → Channel Points & Bits**.
 
-- **Channel Point Requests.** WolfWave adds a **Request a Song** reward to your channel. Pick the **Reward cost**: 100, 250, 500 (default), 1000, 2500, or 5000. Failed requests are refunded automatically.
+- **Channel Point Requests.** WolfWave adds a **Request a Song** reward to your channel. Pick the **Reward cost**: 100, 250, 500 (default), 1000, 2500, or 5000. Points are only spent when the song plays. Failed requests and songs removed before they play are refunded automatically.
 - **Bit Requests.** A cheer with a song name requests it. Pick the **Minimum bits**: 1, 50, 100 (default), 200, 500, or 1000.
 - **Boost With Bits.** A cheer moves the viewer's queued song to the front instead.
 - **Managed reward ID and Repair Reward.** With channel points on, WolfWave shows the ID of the reward it looks after (hidden in Streamer Mode). If you deleted the reward on Twitch, click **Repair Reward** and confirm. WolfWave checks with Twitch and makes a fresh **Request a Song** reward if it's gone.

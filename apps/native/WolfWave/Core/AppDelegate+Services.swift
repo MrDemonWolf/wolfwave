@@ -271,6 +271,19 @@ extension AppDelegate {
             searchResolver: searchResolver
         )
 
+        // A channel-point request's redemption stays open while its song
+        // waits; the queue reports when it plays (fulfil) or leaves without
+        // playing (refund).
+        queue.onPaidRequestSettled = { [weak self] redemption, played in
+            guard let service = self?.twitchService else { return }
+            Task {
+                await service.settleQueuedRedemption(
+                    redemptionID: redemption.redemptionID,
+                    rewardID: redemption.rewardID,
+                    played: played)
+            }
+        }
+
         // Wire chat message sending for auto-advance announcements
         songRequestService?.sendChatMessage = { [weak self] message in
             guard let service = self?.twitchService else { return }

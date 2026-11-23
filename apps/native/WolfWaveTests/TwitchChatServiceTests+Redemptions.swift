@@ -521,6 +521,10 @@ extension TwitchChatServiceTests {
         await service.awaitRedemptionPipelinesForTesting()
         await service.awaitPaidRedemptionTasksForTesting()
 
+        // A queued song keeps its redemption open; its outcome write (the one
+        // that fails) happens when it plays.
+        if queueSucceeds { await playQueuedSong(service: service, outbox: outbox, writes: writes) }
+
         #expect(writes.value == 2)
         #expect(outbox.intakeStorageIsUnavailable())
         #expect(outbox.pendingItems().count == 1)
@@ -538,5 +542,18 @@ extension TwitchChatServiceTests {
                 && $0.url.contains("id=outcome-failure")
                 && $0.body.contains(queueSucceeds ? #""status":"FULFILLED""# : #""status":"CANCELED""#)
         })
+    }
+
+    /// Checks a queued channel-point song left its redemption open (one write,
+    /// still intake), then reports it played so the outcome write happens.
+    private func playQueuedSong(
+        service: TwitchChatService,
+        outbox: TwitchRedemptionResolutionOutbox,
+        writes: ThreadSafeBox<Int>
+    ) async {
+        #expect(writes.value == 1)
+        #expect(outbox.pendingItems().first?.isIntake == true)
+        await service.settleQueuedRedemption(redemptionID: "outcome-failure", rewardID: "reward", played: true)
+        await service.awaitPaidRedemptionTasksForTesting()
     }
 }

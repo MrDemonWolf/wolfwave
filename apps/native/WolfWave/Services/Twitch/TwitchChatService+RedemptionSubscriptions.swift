@@ -365,9 +365,11 @@ extension TwitchChatService {
             return nil
         }
 
+        // A redemption whose song is still waiting to play is known, not
+        // missed: it stays open and must not keep the reward paused.
         let recoveryItems = redemptionResolutionOutbox.pendingItems().filter {
             $0.broadcasterID == credentials.broadcasterID
-                && $0.rewardID == rewardID
+                && $0.rewardID == rewardID && !intakeAwaitsPlayback($0.id)
         }
         let recoveryItemIDs = Set(recoveryItems.map(\.id))
         if !recoveryItemIDs.isEmpty {

@@ -118,7 +118,8 @@ struct SongRequestRedemptionsCard: View {
                 }
                 .onChange(of: channelPointsCost) { _, _ in refresh() }
 
-                Text("Failed requests (song not found, blocked, queue full) refund the points automatically.")
+                Text("Points are spent only when the song plays. "
+                    + "Failed requests and songs removed before they play are refunded.")
                     .font(.system(size: DSFont.Size.xs))
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)

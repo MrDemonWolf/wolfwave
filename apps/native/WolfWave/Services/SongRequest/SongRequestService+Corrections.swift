@@ -58,27 +58,21 @@ extension SongRequestService {
 
     /// What `!wrongsong` did.
     enum UndoOutcome: Equatable {
-        /// The viewer's latest waiting request was removed.
+        /// The viewer's latest waiting request was removed. A channel-point
+        /// request is refunded through the queue's settlement hook.
         case removed(SongRequestItem)
-        /// Their latest request was paid with channel points, so it was left
-        /// alone (points can't be refunded once a song is added).
-        case paidRequest(SongRequestItem)
         /// They have nothing waiting to undo.
         case nothingToUndo
     }
 
     /// Removes the viewer's most recent request that hasn't started playing.
-    ///
-    /// A channel-point request is left in place and reported as
-    /// ``UndoOutcome/paidRequest(_:)``: its points were already spent, so
-    /// removing it would cost the viewer with no refund. A mod can still
-    /// remove it with `!removesong`.
+    /// Channel points spent on it are refunded (the redemption stays open
+    /// until the song plays, and the queue reports the removal).
     ///
     /// - Parameter requesterLogin: The viewer's Twitch login.
     func undoLatestRequest(requesterLogin: String) -> UndoOutcome {
-        guard let latest = queue.latestWaiting(requester: requesterLogin) else { return .nothingToUndo }
-        if latest.isChannelPointRequest { return .paidRequest(latest) }
-        guard let removed = queue.removeWaiting(id: latest.id) else { return .nothingToUndo }
+        guard let latest = queue.latestWaiting(requester: requesterLogin),
+              let removed = queue.removeWaiting(id: latest.id) else { return .nothingToUndo }
         Log.info("SongRequestService: \(requesterLogin) undid \"\(removed.title)\"", category: .songRequest)
         return .removed(removed)
     }

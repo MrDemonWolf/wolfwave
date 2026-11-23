@@ -173,9 +173,9 @@ An actor that talks to Twitch.
 Channel points and Bits go through `TwitchRedemptionResolutionOutbox`, a disk-backed outbox.
 
 1. A channel-point redemption is saved **before** any song lookup.
-2. It's replaced with the known result (fulfill or refund) **before** WolfWave tells Twitch.
+2. It's replaced with the known result (fulfill or refund) **before** WolfWave tells Twitch. A song that joins the queue keeps its redemption open: the queue reports when it plays (fulfill) or leaves without playing (refund), so points are only spent on songs that play.
 3. A qualifying Bits cheer saves its full boost or request action before touching the queue.
-4. After a crash or relaunch, unknown point redemptions are refunded and known outcomes replay.
+4. After a crash or relaunch, unknown point redemptions (including songs still waiting in the lost queue) are refunded and known outcomes replay.
 
 If the outbox can't save a channel-point redemption, WolfWave pauses the managed reward rather than take points it can't track.
 A Bits cheer is already paid, so if it can't be saved, WolfWave shows a storage warning and still runs it once from memory. It just won't survive a crash.
