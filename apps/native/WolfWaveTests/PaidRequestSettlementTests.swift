@@ -69,7 +69,8 @@ struct PaidRequestSettlementTests {
     @Test("every way a paid song leaves without playing reports a refund")
     func removalsReportRefund() throws {
         let (queue, reports) = recordingQueue()
-        for title in ["A", "B", "C", "D", "E"] { _ = queue.add(paidItem(title)) }
+        // One viewer each, so the per-viewer limit doesn't turn any away.
+        for title in ["A", "B", "C", "D", "E"] { _ = queue.add(paidItem(title, user: "viewer-\(title)")) }
         queue.addPending(paidItem("P"))
         queue.addPending(paidItem("Q"))
 
