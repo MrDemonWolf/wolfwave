@@ -16,6 +16,11 @@ final class MenuStatusFormatterTests: XCTestCase {
 
     // MARK: - Sync Music
 
+    func testApprovalLabelNamesSongAndRequester() {
+        let item = makeTestRequestItem(title: "Howl", artist: "Gray Wolf", requesterUsername: "viewer")
+        XCTAssertEqual(MenuStatusFormatter.approvalLabel(for: item), "Howl · viewer")
+    }
+
     func testMusicStatusTracking() {
         XCTAssertEqual(MenuStatusFormatter.musicStatus(trackingEnabled: true), "Tracking")
     }
