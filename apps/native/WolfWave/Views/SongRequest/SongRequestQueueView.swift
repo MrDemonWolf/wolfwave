@@ -70,6 +70,14 @@ struct SongRequestQueueView: View {
 
                 Spacer()
 
+                Button("Open in Window", systemImage: "macwindow") {
+                    appDelegate?.openRequestQueue()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Manage requests in a small window you can keep open while you stream")
+                .accessibilityIdentifier("songRequestQueue.openWindow")
+
                 if isHeld {
                     StatusChip(
                         text: "On hold",

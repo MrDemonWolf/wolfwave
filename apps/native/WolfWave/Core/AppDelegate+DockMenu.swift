@@ -90,6 +90,11 @@ extension AppDelegate {
             action: #selector(toggleSongRequestHold),
             keyEquivalent: ""
         ))
+        menu.addItem(NSMenuItem(
+            title: "Show Request Queue\u{2026}",
+            action: #selector(openRequestQueue),
+            keyEquivalent: ""
+        ))
         menu.addItem(.separator())
     }
 

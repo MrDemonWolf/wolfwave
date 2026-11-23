@@ -306,6 +306,9 @@ extension AppConstants {
         /// Whether song request auto-play is paused. Requests still queue but nothing plays (Bool, default: false)
         static let songRequestHoldEnabled = "songRequestHoldEnabled"
 
+        /// Whether the Request Queue window floats above other windows (Bool, default: false)
+        static let requestQueueWindowOnTop = "requestQueueWindowOnTop"
+
         /// Who may request via the !sr chat command: a `RequestAudience` raw value
         /// (String, default: "everyone"). Supersedes `songRequestSubscriberOnly`.
         static let songRequestChatAudience = "songRequestChatAudience"
@@ -579,6 +582,7 @@ extension AppConstants {
             songRequestApprovalRequired,
             songRequestBlocklist,
             songRequestBlockExplicit,
+            requestQueueWindowOnTop,
             songRequestMaxSongSeconds,
             srCommandEnabled,
             queueCommandEnabled,

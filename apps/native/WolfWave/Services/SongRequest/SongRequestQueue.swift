@@ -425,6 +425,42 @@ final class SongRequestQueue {
         return removed
     }
 
+    /// Reorders the live queue, as a drag in the Request Queue window does.
+    /// Offsets are 0-based indices into ``items`` (SwiftUI's `onMove` shape).
+    /// A head item mid-start that moves makes ``commitNext(id:)`` no-op, so the
+    /// service drops that start and plays the new head. Fair-share and priority
+    /// ordering apply only on insert; a manual move always wins.
+    ///
+    /// - Returns: `true` when the order changed.
+    @discardableResult
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) -> Bool {
+        let moved: Bool = lock.withLock {
+            guard let last = source.last, last < items.count, destination <= items.count else { return false }
+            let before = items.map(\.id)
+            let picked = source.map { items[$0] }
+            let insertAt = destination - source.filter { $0 < destination }.count
+            for index in source.reversed() { items.remove(at: index) }
+            items.insert(contentsOf: picked, at: insertAt)
+            return items.map(\.id) != before
+        }
+        if moved { postQueueChanged() }
+        return moved
+    }
+
+    /// Moves a live-queue request to the front ("Play Next").
+    ///
+    /// - Returns: `true` when it moved; `false` when it's already first or not queued.
+    @discardableResult
+    func moveToFront(id: UUID) -> Bool {
+        let moved: Bool = lock.withLock {
+            guard let index = items.firstIndex(where: { $0.id == id }), index > 0 else { return false }
+            items.insert(items.remove(at: index), at: 0)
+            return true
+        }
+        if moved { postQueueChanged() }
+        return moved
+    }
+
     /// Removes every queued and pending request from one requester. The
     /// now-playing song is left alone. Posts only when something was removed.
     ///
