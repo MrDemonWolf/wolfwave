@@ -368,6 +368,16 @@ final class SongRequestQueue {
         }
     }
 
+    /// A user's requests still waiting for the streamer's approval, oldest first.
+    ///
+    /// - Parameter username: The Twitch login to look up (case-insensitive).
+    /// - Returns: The matching pending items, in the order they arrived.
+    func pendingItems(for username: String) -> [SongRequestItem] {
+        lock.withLock {
+            pending.filter { $0.requesterUsername.lowercased() == username.lowercased() }
+        }
+    }
+
     /// Returns up to `limit` upcoming items in queue order, for the overlay's
     /// queue ticker. `items` is already fair-share/priority ordered by
     /// `fairShareInsertIndex(for:)` at insertion time, so this is a plain

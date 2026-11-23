@@ -268,6 +268,16 @@ extension SongRequestSetupView {
 
     // MARK: Step 5 - Done
 
+    /// One recap line for the content rules setup will leave in place.
+    private var contentRulesRecap: String {
+        let rules = SongRequestSetupViewModel.contentRulesAfterSetup()
+        let explicit = rules.blocksExplicit ? "Explicit songs blocked" : "Explicit songs allowed"
+        let length = rules.maxSeconds > 0
+            ? "max \(SongContentFilter.clock(rules.maxSeconds))"
+            : "no length limit"
+        return "\(explicit), \(length)"
+    }
+
     /// Recap of each step's outcome before the finish button.
     private var doneStep: some View {
         OnboardingStepScaffold(
@@ -290,6 +300,7 @@ extension SongRequestSetupView {
                         recapRow(viewModel.musicAuthorized, "Apple Music access allowed")
                         recapRow(viewModel.playlistReady, "\(AppConstants.Music.requestsPlaylistName) made")
                         recapRow(hasSongListLink, hasSongListLink ? "!playlist link shared" : "Song list link (skipped)")
+                        recapRow(true, contentRulesRecap)
                     }
                     .padding(DSSpace.s4)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -307,6 +318,19 @@ extension SongRequestSetupView {
                         .font(.system(size: DSFont.Size.sm))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // Link only, no legal advice: the streamer owns music rights.
+                    VStack(alignment: .leading, spacing: DSSpace.s0) {
+                        Text("You need the rights to play music on stream.")
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let url = URL(string: AppConstants.URLs.twitchMusicGuidelines) {
+                            Link("Twitch Music Guidelines", destination: url)
+                                .pointerCursor()
+                                .accessibilityLabel("Open Twitch Music Guidelines in your browser")
+                        }
+                    }
+                    .font(.system(size: DSFont.Size.sm))
                 }
             }
         )

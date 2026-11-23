@@ -126,6 +126,8 @@ struct SongRequestSettingsView: View {
                     Text("Moderation")
                         .sectionHeader()
                         .accessibilityAddTraits(.isHeader)
+                    SongRequestContentFilterCard()
+                        .deepLinkSection("content-filters")
                     SongRequestBlocklistCard(
                         blocklistProvider: { appDelegate?.songRequestService?.blocklist })
                         .deepLinkSection("blocklist")

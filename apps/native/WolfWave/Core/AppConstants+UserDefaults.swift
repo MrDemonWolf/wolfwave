@@ -232,6 +232,14 @@ extension AppConstants {
         /// Song and artist entries blocked from song requests, stored as JSON.
         static let songRequestBlocklist = "songRequestBlocklist"
 
+        /// Whether songs Apple Music marks explicit are refused (Bool, unset
+        /// reads `false`; finishing the setup wizard writes `true` when unset).
+        static let songRequestBlockExplicit = "songRequestBlockExplicit"
+
+        /// Longest song a viewer may request, in seconds (Int, `0` = no limit;
+        /// unset reads `0`; finishing the setup wizard writes 360 when unset).
+        static let songRequestMaxSongSeconds = "songRequestMaxSongSeconds"
+
         /// Whether !sr command is enabled (Bool, default: true)
         static let srCommandEnabled = "srCommandEnabled"
 
@@ -558,6 +566,8 @@ extension AppConstants {
             songRequestAutoplayWhenEmpty,
             songRequestApprovalRequired,
             songRequestBlocklist,
+            songRequestBlockExplicit,
+            songRequestMaxSongSeconds,
             srCommandEnabled,
             queueCommandEnabled,
             myQueueCommandEnabled,
@@ -644,6 +654,16 @@ extension AppConstants {
             static let songRequestFairShare = true
             static let songRequestChannelPointsCost = 500
             static let songRequestBitsMinimum = 100
+            /// What an unset explicit filter reads as. New setups get `true`
+            /// from the setup wizard, so an existing setup never changes on update.
+            static let songRequestBlockExplicit = false
+            /// What an unset max song length reads as (`0` = no limit). New
+            /// setups get ``songRequestSetupMaxSongSeconds`` from the wizard.
+            static let songRequestMaxSongSeconds = 0
+            /// The max song length the setup wizard writes for a new setup.
+            static let songRequestSetupMaxSongSeconds = 360
+            /// Max song length choices, in seconds. `0` = no limit.
+            static let songRequestMaxSongSecondsOptions = [0, 240, 300, 360, 480, 600]
             /// Must stay `true`: Stream Deck control shipped already gated by the
             /// control token, so an off default would disarm every deployed deck
             /// on the first launch after an update.

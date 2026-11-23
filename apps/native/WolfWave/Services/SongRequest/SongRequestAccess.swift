@@ -216,10 +216,12 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
 
     /// The active preset, read from the stored mode.
     ///
-    /// On a fresh install or a pre-mode upgrade (no stored value) the chat
-    /// settings are inferred so an existing config maps to a sensible chip;
-    /// a brand-new install lands on `.open`. A stored value that isn't a known
-    /// preset is treated as missing and inferred the same way.
+    /// On a fresh install or a pre-mode upgrade (no stored value) the stored
+    /// settings are inferred, and a preset is reported only when every setting
+    /// it writes already matches. Otherwise the answer is `.custom`, so the
+    /// selected chip never promises something that's off. A brand-new install
+    /// (channel points and Bits off) lands on `.custom`. A stored value that
+    /// isn't a known preset is treated as missing and inferred the same way.
     ///
     /// - Parameter defaults: Store to read. Defaults to `DefaultsStore.store`.
     static func current(in defaults: Foundation.UserDefaults = DefaultsStore.store) -> SongRequestPreset {
@@ -231,11 +233,13 @@ enum SongRequestPreset: String, CaseIterable, Identifiable {
         let srEnabled = defaults.object(forKey: AppConstants.UserDefaults.srCommandEnabled) as? Bool ?? true
         let audience = RequestAudience.current(in: defaults)
         let channelPoints = defaults.bool(forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        let bits = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        let boost = defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
 
-        if !srEnabled { return channelPoints ? .channelPointsOnly : .custom }
+        if !srEnabled { return channelPoints && !bits ? .channelPointsOnly : .custom }
         switch audience {
-        case .everyone: return .open
-        case .subscribers: return .subsOnly
+        case .everyone: return channelPoints && bits && boost ? .open : .custom
+        case .subscribers: return !channelPoints && !bits ? .subsOnly : .custom
         case .vipsAndSubs, .modsOnly: return .custom
         }
     }

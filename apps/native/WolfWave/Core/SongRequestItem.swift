@@ -106,9 +106,10 @@ extension Song {
         title: String,
         artist: String,
         album: String,
-        durationInMillis: Int = 180_000
+        durationInMillis: Int = 180_000,
+        contentRating: String? = nil
     ) -> Song {
-        let resource: [String: Any] = [
+        var resource: [String: Any] = [
             "id": id,
             "type": "songs",
             "href": "/v1/catalog/us/songs/\(id)",
@@ -125,6 +126,11 @@ extension Song {
                 "url": "https:/\("/")music.apple.com/us/album/test/1?i=\(id)"
             ] as [String: Any]
         ]
+        // Apple Music's API carries "explicit" / "clean" here; absent means unrated.
+        if let contentRating, var attributes = resource["attributes"] as? [String: Any] {
+            attributes["contentRating"] = contentRating
+            resource["attributes"] = attributes
+        }
         do {
             let data = try JSONSerialization.data(withJSONObject: resource)
             return try JSONDecoder().decode(Song.self, from: data)

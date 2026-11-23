@@ -84,6 +84,31 @@ final class MyQueueCommandTests: WolfWaveTestCase {
         XCTAssertFalse(reply.contains("Song 4"))
     }
 
+    func testReplyIncludesRequestsWaitingForApproval() async {
+        let command = MyQueueCommand()
+        let queue = makeQueueWith(users: ["alpha"])
+        _ = queue.addPending(makeTestRequestItem(
+            title: "Pending Song", artist: "Pending Artist", requesterUsername: "alpha"))
+        _ = queue.addPending(makeTestRequestItem(
+            title: "Other Pending", artist: "Other", requesterUsername: "bravo"))
+        command.getQueue = { queue }
+
+        let reply = await command.execute(
+            message: "!myqueue", context: context(username: "alpha")) ?? ""
+
+        XCTAssertEqual(
+            reply,
+            "Your requests: #1 \"Song 1\" · Artist 1, \"Pending Song\" · Pending Artist (waiting for approval)")
+    }
+
+    func testReplyWithOnlyPendingRequestsIsNotEmpty() {
+        let item = makeTestRequestItem(title: "Waiting", artist: "Band", requesterUsername: "alpha")
+
+        let reply = MyQueueCommand.reply(positions: [], pending: [item])
+
+        XCTAssertEqual(reply, "Your requests: \"Waiting\" · Band (waiting for approval)")
+    }
+
     func testMissingQueueIsSilent() async {
         let command = MyQueueCommand()
         command.getQueue = { nil }

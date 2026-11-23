@@ -457,6 +457,9 @@ extension TwitchChatService {
             return ("@\(username) that song is already queued. Refunding your points.", .canceled)
         case .blocked:
             return ("@\(username) that song is on the blocklist. Refunding your points.", .canceled)
+        case .requesterBlocked, .explicitBlocked, .tooLong:
+            let reason = SongRequestCommand.refusalReason(for: result) ?? ""
+            return ("@\(username) \(reason) Refunding your points.", .canceled)
         case let .notFound(query):
             let truncated = StringFormatting.truncatedWithEllipsis(query)
             return ("@\(username) no results for \"\(truncated)\". Refunding your points.", .canceled)
@@ -497,6 +500,8 @@ extension TwitchChatService {
             return "@\(username) that song is already in the queue."
         case .blocked:
             return "@\(username) sorry, that song/artist is on the blocklist."
+        case .requesterBlocked, .explicitBlocked, .tooLong:
+            return "@\(username) \(SongRequestCommand.refusalReason(for: result) ?? "")"
         case let .notFound(query):
             let truncated = StringFormatting.truncatedWithEllipsis(query)
             return "@\(username) no results for \"\(truncated)\"."

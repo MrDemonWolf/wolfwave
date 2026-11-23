@@ -69,7 +69,10 @@ The bot replies with one of these:
 - **No song given.** A bare `!sr` gets `Usage: !sr <song name or Apple Music, Spotify, or YouTube link>`
 - **Not ready.** `Song requests aren't available right now.` The streamer's setup needs a fix.
 - **Search down.** `Song search isn't working right now. Try again soon!` Apple Music or the link lookup didn't answer. The details go to the log, not to chat.
-- **Blocked.** `Sorry, that song/artist is on the blocklist.`
+- **Blocked song.** `Sorry, that song/artist is on the blocklist.`
+- **Blocked person.** `Sorry, you can't request songs here.`
+- **Explicit.** `That song is marked explicit. Try the clean version!` (only if the streamer blocks explicit songs)
+- **Too long.** `That song is 9:41. The max here is 6:00.` (the max is set by the streamer)
 - **Too many.** `You already have 2 songs queued. Wait for one to play!` (the number is set by the streamer)
 - **Full.** `Queue is full (10/10). Try again later!`
 - **Duplicate.** `That song is already in your queue.`
@@ -86,7 +89,7 @@ Links that work:
 | Type | What you get back |
 |---|---|
 | `!queue` (or `!songlist`, `!requests`) | The song playing now and the next 5 requests, with who asked for each |
-| `!myqueue` (or `!mysongs`) | Only your requests and their spots in line |
+| `!myqueue` (or `!mysongs`) | Only your requests and their spots in line, plus any still waiting for the streamer's approval |
 | `!playlist` | A link to the streamer's requests playlist (only if they set one up) |
 
 ### Vote to skip a song [#vote-skip]
