@@ -62,7 +62,7 @@ Type `!sr` followed by a song name or a link.
 
 The bot replies with one of these:
 
-- **Added.** `Added "Howl at the Moon" by Gray Wolf, #3 in queue`
+- **Added.** `Added "Howl at the Moon" by Gray Wolf, #3 in queue · plays in about 9 min`. The time is a rough guess: what's left of the current song plus the songs ahead. It says `up next`, `playing now`, `requests are on hold`, or `plays when the music starts` when that fits better.
 - **Waiting for the streamer.** `Sent "Howl at the Moon" by Gray Wolf to the streamer for approval.` The streamer screens requests first.
 - **Not found.** `No results for "…". Try a different search!` Try fewer words, or add the artist.
 - **Link not found.** `Couldn't find that on Apple Music. Try a song name instead!` WolfWave couldn't match the link to a song, so type the song name.
@@ -91,6 +91,16 @@ Links that work:
 | `!queue` (or `!songlist`, `!requests`) | The song playing now and the next 5 requests, with who asked for each |
 | `!myqueue` (or `!mysongs`) | Only your requests and their spots in line, plus any still waiting for the streamer's approval |
 | `!playlist` | A link to the streamer's requests playlist (only if they set one up) |
+
+`!myqueue` also shows roughly how long until each song plays.
+
+### Fix a wrong song [#wrongsong]
+
+Got the wrong match? Type `!wrongsong`. It removes your newest request that hasn't started playing, so you can try again.
+
+- **Removed.** `Removed "…". Try again with the artist and title, or paste an Apple Music link.`
+- **Channel-point request.** `"…" was a channel-point request, so it stays. Ask a mod to remove it.`
+- **Nothing to undo.** `You don't have a request waiting to undo.`
 
 ### Vote to skip a song [#vote-skip]
 
@@ -125,15 +135,16 @@ Channel points and Bits need those tools enabled on the channel and the API acce
 | Command | Who can use it |
 |---|---|
 | `!song`, `!last`, `!stats`, `!wolfwave`, `!queue`, `!myqueue`, `!playlist` | Everyone |
+| `!wrongsong` | Everyone, for their own requests |
 | `!sr` | Whoever the streamer allows: everyone, subscribers, VIPs and subscribers, or mods only. Mods and the streamer can always request. |
 | `!voteskip` | Everyone, or subscribers only if the streamer chose that. Mods and the streamer can always vote. With Twitch Polls, only mods and the streamer can start it. |
-| `!skip`, `!next`, `!clearqueue`, `!cq`, `!hold`, `!resume`, `!unhold` | Mods and the streamer only. Anyone else gets no reply. |
+| `!skip`, `!next`, `!clearqueue`, `!cq`, `!removesong`, `!hold`, `!resume`, `!unhold` | Mods and the streamer only. Anyone else gets no reply. |
 
 ### Why didn't the bot answer?
 
 - **Cooldown.** Each command has a short wait between uses, for the whole chat and for each person. The bot stays quiet until it's over. Mods and the streamer skip cooldowns.
 - **The command is off.** The streamer chose not to use it.
-- **Song Requests is off.** `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!hold`, and `!resume` all go quiet while it is.
+- **Song Requests is off.** `!sr`, `!queue`, `!myqueue`, `!wrongsong`, `!skip`, `!removesong`, `!clearqueue`, `!hold`, and `!resume` all go quiet while it is.
 - **The stream is offline.** Some streamers set every command to work only while live.
 - **It wasn't the first word.** `hey !song` won't work. `!song` will.
 
@@ -152,7 +163,7 @@ Everything below is set up in WolfWave's **Settings** window. Commands only work
 | `!song`, `!last` | On for new installs, and the setup wizard lets you switch them off. If you were already set up when you updated, they stay as you had them. | **Settings → Twitch → Bot Commands** |
 | `!wolfwave` | Off | **Settings → Twitch → Bot Commands** |
 | `!stats` | Off | **Settings → History & Stats → !stats command** (needs Listening History and **Show Stats & Charts** on) |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue` | On, but they stay quiet until Song Requests is on. | **Settings → Song Requests → Song Request Commands** |
+| `!sr`, `!queue`, `!myqueue`, `!wrongsong`, `!skip`, `!removesong`, `!clearqueue` | On, but they stay quiet until Song Requests is on. | **Settings → Song Requests → Song Request Commands** |
 | `!playlist` | Off. The guided setup turns it on when you fetch your link. With no link set, it stays quiet. | **Settings → Song Requests → Song Request Commands → !playlist Command**. Use **Manage** next to **Song list link** to set the link. |
 | `!voteskip` | On, but it stays quiet until vote-skip is on | **Settings → Song Requests → Chat Vote-Skip** |
 | `!hold`, `!resume`, `!unhold` | On whenever Song Requests is on | No switch. Mods and you only. |
@@ -165,6 +176,7 @@ Song requests have a master switch: **Enable Song Requests** in **Settings → S
 
 - **`!skip` / `!next`** plays the next request. Chat sees the new song. If the queue is empty, it says `Skipped. Queue is now empty.` If Music is busy, it says `Couldn't skip right now, try again.`
 - **`!clearqueue` / `!cq`** removes every request and empties the shared **WolfWave Requests** playlist. Songs stay in your Apple Music library; the `!playlist` link is empty until new requests arrive. Chat sees `Queue and WolfWave Requests cleared (3 songs removed)`. If WolfWave can't empty the playlist, chat sees `Queue cleared, but WolfWave Requests couldn't be cleared.` The queue is empty, but the old songs are still in the playlist, so clear it by hand in Music.
+- **`!removesong`** removes one song without clearing the rest. `!removesong 3` (or `#3`) removes the song at that spot in `!queue`. `!removesong @name` removes every waiting song from that viewer. It never touches the song playing now; use `!skip` for that. Chat sees `Removed "…" (requested by …).`
 - **`!hold`** pauses request playback. New requests still join the queue but don't play. **`!resume`** or **`!unhold`** starts them again. This is the same as the **Hold Queue** switch.
 
 ### Who can request
@@ -248,6 +260,8 @@ A cooldown is how long a command waits before it answers again.
 | `!stats` | 15s | 15s | Yes. Both 0 to 60s, in 5s steps |
 | `!sr` | 5s | 30s | Yes. Everyone 0 to 30s, per person 0 to 60s |
 | `!queue`, `!myqueue` | 10s | 15s | No |
+| `!wrongsong` | 2s | 10s | No |
+| `!removesong` | 2s | 2s | No (mods skip it anyway) |
 | `!playlist` | 15s | 15s | No |
 | `!skip`, `!hold` | 3s | 3s | No (mods skip it anyway) |
 | `!clearqueue` | 5s | 5s | No (mods skip it anyway) |
@@ -263,7 +277,7 @@ Add extra words for a built-in command. Type them comma-separated, without `!`. 
 |---|---|
 | `!song`, `!last`, `!wolfwave` | **Settings → Twitch → Bot Commands** |
 | `!stats` | **Settings → History & Stats** |
-| `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`, `!playlist`, `!voteskip` | **Settings → Song Requests** |
+| `!sr`, `!queue`, `!myqueue`, `!wrongsong`, `!skip`, `!removesong`, `!clearqueue`, `!playlist`, `!voteskip` | **Settings → Song Requests** |
 
 - Aliases follow the same on/off, cooldown, audience, and live-only rules as the command.
 - `!hold` and `!resume` have no aliases.

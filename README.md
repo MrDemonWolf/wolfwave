@@ -64,6 +64,9 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   channel-point reward. A Bits cheer can request a song, or bump the
   viewer's queued song to the front. Failed channel-point requests are
   refunded.
+- **Fix mistakes fast.** Viewers type `!wrongsong` to undo a wrong
+  match. Mods remove one song with `!removesong 3` or `!removesong @name`.
+  Replies say roughly when a song will play.
 - **Require My Approval.** Opt-in. Every request waits in the queue
   until you approve or decline it.
 - **Hold the queue.** Requests still come in, but nothing plays until
@@ -192,6 +195,7 @@ Viewers on a stream running WolfWave can type the commands in
 | `!last` `!lastsong` `!prevsong`        | Shows the previous song                     |
 | `!queue` `!songlist` `!requests`       | Shows the request queue                     |
 | `!myqueue` `!mysongs`                  | Shows only your own requests                |
+| `!wrongsong`                           | Removes your latest request (wrong match)   |
 | `!voteskip` `!vs`                      | Votes to skip the current song              |
 | `!playlist`                            | Links the streamer's request playlist       |
 | `!stats` `!musicstats`                 | Shows your listening stats                  |
@@ -206,6 +210,7 @@ The streamer turns each command on or off and can add aliases in
 | --------------------------- | ------------------------------------- |
 | `!skip` `!next`             | Skips the current request             |
 | `!hold` `!resume` `!unhold` | Holds or resumes the request queue    |
+| `!removesong 3` `!removesong @name` | Removes one song, or every waiting song from one viewer |
 | `!clearqueue` `!cq`         | Clears requests and the shared playlist; songs stay in your library |
 
 ### First-Time Setup

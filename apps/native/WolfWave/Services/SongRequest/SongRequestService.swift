@@ -31,8 +31,9 @@ final class SongRequestService {
         /// playback state. Callers deliberately keep this outcome silent.
         case cancelled
         /// Queued in the live queue. `position` is the 1-based slot from
-        /// `SongRequestQueue.add`; playback may already have started.
-        case added(item: SongRequestItem, position: Int)
+        /// `SongRequestQueue.add`; playback may already have started. `wait`
+        /// is the rough time until it plays, for the chat reply.
+        case added(item: SongRequestItem, position: Int, wait: RequestWait)
         /// Approval mode is on: the request is held for the streamer to approve or
         /// reject before it reaches the live queue.
         case pendingApproval(item: SongRequestItem)
@@ -314,6 +315,11 @@ final class SongRequestService {
     /// `AppDelegate` once `TwitchChatService` is wired up.
     var sendChatMessage: ((String) -> Void)?
 
+    /// Seconds left in the track Music is playing now, or `nil` when nothing
+    /// is playing or the length is unknown. Set by `AppDelegate` from the
+    /// playback monitor; feeds the "plays in about N min" estimate.
+    var currentTrackRemaining: (() -> TimeInterval?)?
+
     // MARK: - Init
 
     /// Creates a song request service with overridable collaborators.
@@ -413,18 +419,7 @@ final class SongRequestService {
                 return refused
             }
 
-            // Sub/VIP queue-jump perk (WW-43). Only chat requests carry badges;
-            // channel-point / bit redemptions have none, so they never gain
-            // priority. The flag rides on the item so an approved-from-pending
-            // request keeps its jump. Cooldown-skip is enforced upstream in the
-            // dispatcher, so this only cares about the queue-jump tier.
-            let isPriority: Bool
-            if case .chatCommand(let context) = source {
-                isPriority = SongRequestPriority.mode().jumpsQueue && SongRequestPriority.qualifies(context)
-            } else {
-                isPriority = false
-            }
-            let item = SongRequestItem(song: song, requesterUsername: requesterLogin, isPriority: isPriority)
+            let item = makeRequestItem(song: song, requesterLogin: requesterLogin, source: source)
 
             // Approval mode: park the resolved request in the holding pen and let
             // the streamer approve/reject it from the Queue pane. The per-user and
@@ -474,7 +469,7 @@ final class SongRequestService {
                 }
                 // else: a request is already playing, Music.app is closed, or hold is
                 // active; the request stays buffered for the poll / launch flush.
-                return .added(item: item, position: position)
+                return .added(item: item, position: position, wait: estimatedWait(for: item, position: position))
             case .queueFull(let max):
                 return .queueFull(max: max)
             case .userLimitReached(let max):
@@ -489,6 +484,28 @@ final class SongRequestService {
             return .linkNotFound
         case .error(let message):
             return lookupFailed(message)
+        }
+    }
+
+    /// Builds the queue entry for a resolved song.
+    ///
+    /// Sub/VIP queue-jump perk (WW-43): only chat requests carry badges, so
+    /// channel-point and Bits requests never gain priority. The flag rides on
+    /// the item so an approved-from-pending request keeps its jump.
+    /// Cooldown-skip is enforced upstream in the dispatcher, so this only cares
+    /// about the queue-jump tier. A channel-point request carries its
+    /// redemption so queue actions can tell it apart.
+    private func makeRequestItem(song: Song, requesterLogin: String, source: RequestSource) -> SongRequestItem {
+        switch source {
+        case .chatCommand(let context):
+            let isPriority = SongRequestPriority.mode().jumpsQueue && SongRequestPriority.qualifies(context)
+            return SongRequestItem(song: song, requesterUsername: requesterLogin, isPriority: isPriority)
+        case let .channelPoints(redemptionID, rewardID):
+            return SongRequestItem(
+                song: song, requesterUsername: requesterLogin,
+                channelPointRedemption: .init(redemptionID: redemptionID, rewardID: rewardID))
+        case .bits:
+            return SongRequestItem(song: song, requesterUsername: requesterLogin)
         }
     }
 

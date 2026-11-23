@@ -38,6 +38,10 @@ final class MyQueueCommand: AsyncBotCommand, SongRequestGatedCommand {
     /// AppDelegate ↔ command dependency cycle at startup.
     var getQueue: (() -> SongRequestQueue?)?
 
+    /// Provides the live `SongRequestService` for the wait estimate. Optional:
+    /// without it the reply simply leaves the wait out.
+    var songRequestService: (() -> SongRequestService?)?
+
     // MARK: - AsyncBotCommand
 
     /// Looks up the sender's queued songs and returns their positions.
@@ -51,9 +55,11 @@ final class MyQueueCommand: AsyncBotCommand, SongRequestGatedCommand {
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard let queue = getQueue?() else { return nil }
 
+        let service = songRequestService?()
         return Self.reply(
             positions: queue.positions(for: context.requesterLogin),
-            pending: queue.pendingItems(for: context.requesterLogin))
+            pending: queue.pendingItems(for: context.requesterLogin),
+            wait: { service?.estimatedWait(forPosition: $0) })
     }
 
     /// Formats the viewer's queued and pending requests. Pure so tests can pin it.
@@ -62,15 +68,20 @@ final class MyQueueCommand: AsyncBotCommand, SongRequestGatedCommand {
     ///   - positions: The viewer's live-queue entries with 1-based positions.
     ///   - pending: The viewer's requests waiting for approval.
     /// - Returns: The chat reply.
+    ///   - wait: The rough wait for a 1-based position, or `nil` to leave it out.
     static func reply(
         positions: [(position: Int, item: SongRequestItem)],
-        pending: [SongRequestItem]
+        pending: [SongRequestItem],
+        wait: (Int) -> SongRequestService.RequestWait? = { _ in nil }
     ) -> String {
         guard !positions.isEmpty || !pending.isEmpty else {
             return "You don't have any songs in the queue. Use !sr <song name> to request one!"
         }
 
-        let queued = positions.map { "#\($0.position) \"\($0.item.title)\" · \($0.item.artist)" }
+        let queued = positions.map { entry in
+            let suffix = wait(entry.position).map(SongRequestCommand.waitSuffix) ?? ""
+            return "#\(entry.position) \"\(entry.item.title)\" · \(entry.item.artist)\(suffix)"
+        }
         let waiting = pending.map { "\"\($0.title)\" · \($0.artist) (waiting for approval)" }
         return "Your requests: \((queued + waiting).joined(separator: ", "))"
     }

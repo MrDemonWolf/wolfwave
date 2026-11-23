@@ -141,6 +141,8 @@ final class BotCommandDispatcher {
     let holdCommand = HoldCommand()
     let voteSkipCommand = VoteSkipCommand()
     let songListCommand = SongListCommand()
+    let wrongSongCommand = WrongSongCommand()
+    let removeSongCommand = RemoveSongCommand()
 
     // MARK: - Lifecycle
 
@@ -151,7 +153,8 @@ final class BotCommandDispatcher {
 
     /// Registers the built-in command suite (`!song`, `!last`, `!stats`,
     /// `!wolfwave`, `!sr`, `!queue`, `!myqueue`, `!skip`, `!clearqueue`,
-    /// `!hold`, `!voteskip`, `!playlist`). Called once from `init`.
+    /// `!hold`, `!voteskip`, `!playlist`, `!wrongsong`, `!removesong`).
+    /// Called once from `init`.
     private func registerDefaultCommands() {
         register(songCommand)
         register(lastSongCommand)
@@ -165,6 +168,8 @@ final class BotCommandDispatcher {
         register(holdCommand)
         register(voteSkipCommand)
         register(songListCommand)
+        register(wrongSongCommand)
+        register(removeSongCommand)
     }
 
     // MARK: - Registration & Wiring
@@ -246,13 +251,17 @@ final class BotCommandDispatcher {
     // MARK: - Song Request Command Wiring
 
     /// Injects the live `SongRequestService` reference into every command
-    /// that mutates the queue (`!sr`, `!skip`, `!clearqueue`, `!hold`).
+    /// that mutates or estimates the queue (`!sr`, `!skip`, `!clearqueue`,
+    /// `!hold`, `!wrongsong`, `!removesong`, and `!myqueue`'s wait time).
     func setSongRequestService(callback: @escaping () -> SongRequestService?) {
         lock.withLock {
             srCommand.songRequestService = callback
             skipCommand.songRequestService = callback
             clearQueueCommand.songRequestService = callback
             holdCommand.songRequestService = callback
+            myQueueCommand.songRequestService = callback
+            wrongSongCommand.songRequestService = callback
+            removeSongCommand.songRequestService = callback
         }
     }
 

@@ -54,7 +54,11 @@ nonisolated enum BuiltInCommandCatalog {
         Entry(triggers: ["!voteskip", "!vs"],
               aliasesKey: AppConstants.UserDefaults.voteSkipCommandAliases),
         Entry(triggers: ["!playlist"],
-              aliasesKey: AppConstants.UserDefaults.songListCommandAliases)
+              aliasesKey: AppConstants.UserDefaults.songListCommandAliases),
+        Entry(triggers: ["!wrongsong"],
+              aliasesKey: AppConstants.UserDefaults.wrongSongCommandAliases),
+        Entry(triggers: ["!removesong"],
+              aliasesKey: AppConstants.UserDefaults.removeSongCommandAliases)
     ]
 
     /// Parses a built-in alias field: comma-separated, each entry trimmed,

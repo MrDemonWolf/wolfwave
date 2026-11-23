@@ -145,6 +145,18 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
             + "The max here is \(SongContentFilter.clock(maxSeconds))."
     }
 
+    /// The wait shown after a queue position, for example ` · plays in about 9 min`.
+    /// Shared by `!sr`, channel points, Bits, and `!myqueue`.
+    nonisolated static func waitSuffix(_ wait: SongRequestService.RequestWait) -> String {
+        switch wait {
+        case .playingNow: return " · playing now"
+        case .upNext: return " · up next"
+        case .minutes(let minutes): return " · plays in about \(minutes) min"
+        case .onHold: return " · requests are on hold"
+        case .whenMusicStarts: return " · plays when the music starts"
+        }
+    }
+
     /// The plain-words reason for a blocked requester or a content-filter
     /// refusal, shared by `!sr`, channel points, and Bits. `nil` for any other
     /// result. One helper keeps each caller's switch to a single case.
@@ -173,8 +185,8 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
         case .cancelled:
             return nil
 
-        case .added(let item, let position):
-            return "Added \"\(item.title)\" by \(item.artist), #\(position) in queue"
+        case let .added(item, position, wait):
+            return "Added \"\(item.title)\" by \(item.artist), #\(position) in queue\(waitSuffix(wait))"
 
         case .pendingApproval(let item):
             return "Sent \"\(item.title)\" by \(item.artist) to the streamer for approval."
