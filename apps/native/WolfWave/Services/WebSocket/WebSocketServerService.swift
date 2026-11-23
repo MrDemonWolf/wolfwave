@@ -521,7 +521,8 @@ actor WebSocketServerService {
                 "layout": defaults.string(forKey: AppConstants.UserDefaults.widgetLayout) ?? AppConstants.Widget.Defaults.layout,
                 "textColor": defaults.string(forKey: AppConstants.UserDefaults.widgetTextColor) ?? AppConstants.Widget.Defaults.textColor,
                 "backgroundColor": defaults.string(forKey: AppConstants.UserDefaults.widgetBackgroundColor) ?? AppConstants.Widget.Defaults.backgroundColor,
-                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily
+                "fontFamily": defaults.string(forKey: AppConstants.UserDefaults.widgetFontFamily) ?? AppConstants.Widget.Defaults.fontFamily,
+                "showUpNext": defaults.bool(forKey: AppConstants.UserDefaults.widgetShowUpNext)
             ]
         ]
     }

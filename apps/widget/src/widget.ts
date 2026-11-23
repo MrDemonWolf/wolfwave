@@ -23,7 +23,7 @@
  *    • now_playing     { track, artist, album, duration, elapsed, isPlaying, artworkURL }
  *    • progress        { elapsed, duration, isPlaying }                  // ~1Hz
  *    • playback_state  { isPlaying, track, artist, album }
- *    • widget_config   { theme, layout, textColor, backgroundColor, fontFamily }
+ *    • widget_config   { theme, layout, textColor, backgroundColor, fontFamily, showUpNext? }
  *    • overlay_visibility { visible }
  *    • queue_upcoming  { items: [{ title, requesterUsername }] }         // max 3, opt-in ticker (`?queueTicker=1`)
  *    • welcome         { server, version }  (top-level, no `data`)       // handshake ack
@@ -113,7 +113,7 @@ const hideAlbumArt = params.has("hideAlbumArt");
 // Opt-in only: no existing streamer's OBS scene should change on upgrade.
 // Ships as an independent fixed-position panel, not part of any layout.
 // Exact "1" required so `?queueTicker=0`/`=false`/bare `?queueTicker` stay off.
-const queueTickerEnabled = params.get("queueTicker") === "1";
+const queueTickerFromURL = params.get("queueTicker") === "1";
 
 // Auth token. `WidgetHTTPService` substitutes the live token for the
 // `__WOLFWAVE_TOKEN__` sentinel when it serves this file over loopback. When
@@ -262,6 +262,8 @@ interface WidgetConfig {
   textColor: string;
   backgroundColor: string;
   fontFamily: string;
+  /** "Show Up Next on Overlay" in the app's Song Requests settings. */
+  showUpNext?: boolean;
 }
 
 interface ThemePreset {
@@ -1035,16 +1037,27 @@ function buildWidget(): void {
 }
 
 /**
- * Renders the opt-in (`?queueTicker=1`) upcoming-queue panel. Deliberately
+ * Whether the upcoming-queue panel is on: the app's "Show Up Next on Overlay"
+ * switch (pushed live in `widget_config`), or the older `?queueTicker=1` link.
+ */
+function queueTickerOn(): boolean {
+  return queueTickerFromURL || widgetConfig.showUpNext === true;
+}
+
+/**
+ * Renders the opt-in upcoming-queue panel (see `queueTickerOn`). Deliberately
  * independent of `nowPlaying` - unlike `buildWidget`, this must be able to
  * show "queue open" even when nothing is currently playing. Reuses the same
  * `resolveTheme()` preset as the now-playing card so it always matches the
  * active theme with no new design tokens.
  */
 function buildQueueTicker(): void {
-  if (!queueTickerEnabled) return;
   const el = document.getElementById("queue-ticker");
   if (!el) return;
+  if (!queueTickerOn()) {
+    el.classList.add("hidden");
+    return;
+  }
 
   if (!overlayEnabled || queueUpcoming === null) {
     el.classList.add("hidden");
@@ -1350,6 +1363,7 @@ function parseMessage(raw: unknown): WSMessage | null {
         for (const key of ["theme", "layout", "textColor", "backgroundColor", "fontFamily"] as const) {
           if (typeof data[key] === "string") cfg[key] = data[key] as string;
         }
+        if (typeof data.showUpNext === "boolean") cfg.showUpNext = data.showUpNext;
         return { type: "widget_config", data: cfg };
       }
     case "overlay_visibility":

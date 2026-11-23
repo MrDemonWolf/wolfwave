@@ -84,6 +84,8 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   Paid requests that get turned away are refunded.
 - **Vote-to-skip.** Chat votes with `!voteskip`, as a chat tally or a
   native Twitch Poll.
+- **Up next on your overlay.** One switch lists the next 3 requests on
+  every connected OBS overlay.
 - **Fallback playlist.** Pick an Apple Music playlist to play when the
   queue runs dry.
 - **Apple Music AutoPlay.** Let Music choose what plays when the request
