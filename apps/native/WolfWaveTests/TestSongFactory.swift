@@ -46,14 +46,16 @@ func makeTestSong(
     title: String = "Test Song",
     artist: String = "Test Artist",
     album: String = "Test Album",
-    durationInMillis: Int = 180_000
+    durationInMillis: Int = 180_000,
+    contentRating: String? = nil
 ) -> Song {
     .debugPlaceholder(
         id: id,
         title: title,
         artist: artist,
         album: album,
-        durationInMillis: durationInMillis
+        durationInMillis: durationInMillis,
+        contentRating: contentRating
     )
 }
 

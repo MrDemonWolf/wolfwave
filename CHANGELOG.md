@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - **Links that open Settings in the right place.** `wolfwave://settings/<pane>` and `wolfwave://settings/<pane>/<section>` open a pane, scroll to the section, and highlight it, even if Settings is already open. An unknown link opens General. The full list is on the [Settings](https://wolfwave.mrdemonwolf.dev/docs/settings#deep-links) page.
 - **Five new Stream Deck keys.** Announce Song posts what's playing to chat (same wording as `!song`). Reject Request drops the current request and tells chat. Block Requester bars whoever requested the current song (hold it to use it). Request Audience cycles who can request and shows the current choice. Now Playing shows the track over its album art.
 - **Stream Deck has its own settings page.** Find it under On Stream. It holds the control token, the setup steps, and a new "Allow Stream Deck commands" switch. Turn it off to refuse every key press while your overlay keeps running. It's on by default, so nothing changes unless you change it.
+- **Content filters for song requests.** Settings → Song Requests → Content Filters can block explicit songs and set a max song length. Chat hears why a song was turned away, and channel points are refunded. New setups start with explicit songs blocked and a 6-minute max; existing setups don't change.
 - **Block people, not just songs.** Settings → Song Requests → Blocklist now takes Twitch usernames too. A blocked person's requests are turned away before WolfWave looks the song up.
 - **An optional Sponsor link.** Sponsor now appears in the menu bar's Help submenu, the Help menu, and the About pane. Turn off "Show sponsor links" in Settings → About to hide it. WolfWave is free and complete either way.
 
@@ -68,6 +69,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`!myqueue` shows requests waiting for approval.** Viewers whose song is waiting for you no longer hear that they have nothing queued.
+- **A blocked person hears the right reason.** They're told they can't request songs, instead of being told the song is blocked.
+- **Who Can Request shows your real setup.** A fresh install no longer shows Open as picked while channel points and Bits are off. You see Custom until you pick a preset.
 - **A clearer Discord pane.** The profile preview sits right under the switch. In a wide Settings window it moves beside the settings and stays in view while you scroll them.
 - **Covers for brand-new songs.** Apple's song search can take weeks to list a new release. WolfWave now finds the song through the artist's page too, so the cover and song links still show on Discord and your overlay.
 - **Settings use a wide window.** In a wide Settings window, Advanced puts Setup Wizard and Artwork Cache side by side and About puts the app details beside its quick actions. Narrow windows keep one column.

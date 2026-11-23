@@ -181,15 +181,35 @@ final class SongRequestSetupViewModel {
     /// `.playlistNotInMusic`, so the pane keeps the same warning the step showed
     /// instead of briefly claiming everything is fine.
     ///
+    /// The content rules also get their setup values (explicit songs blocked,
+    /// a 6-minute max) when the streamer never set them, so a new setup starts
+    /// safe while a re-run never overwrites a choice.
+    ///
     /// Posts `songRequestSettingChanged` (enabled) so the service starts.
     ///
     /// - Parameter defaults: Store to write to; injectable for tests.
     func complete(defaults: Foundation.UserDefaults = DefaultsStore.store) {
+        let rules = Self.contentRulesAfterSetup(defaults: defaults)
+        defaults.set(rules.blocksExplicit, forKey: AppConstants.UserDefaults.songRequestBlockExplicit)
+        defaults.set(rules.maxSeconds, forKey: AppConstants.UserDefaults.songRequestMaxSongSeconds)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestSetupComplete)
         let status: PlaylistSetupStatus = playlistMusicState == .notInMusic ? .playlistNotInMusic : .ok
         defaults.set(status.rawValue, forKey: AppConstants.UserDefaults.songRequestPlaylistStatus)
         defaults.set(true, forKey: AppConstants.UserDefaults.songRequestEnabled)
         NotificationCenter.default.postEnabled(.songRequestSettingChanged, enabled: true)
         Log.info("SongRequestSetupViewModel: Setup completed", category: .songRequest)
+    }
+
+    /// The content rules in effect once setup finishes: each stored choice is
+    /// kept, and each unset one takes its setup value (explicit blocked, 6 min).
+    ///
+    /// - Parameter defaults: Store to read; injectable for tests.
+    static func contentRulesAfterSetup(
+        defaults: Foundation.UserDefaults = DefaultsStore.store
+    ) -> SongContentFilter {
+        let blocks = defaults.object(forKey: AppConstants.UserDefaults.songRequestBlockExplicit) as? Bool ?? true
+        let maxSeconds = defaults.object(forKey: AppConstants.UserDefaults.songRequestMaxSongSeconds) as? Int
+            ?? AppConstants.UserDefaults.Defaults.songRequestSetupMaxSongSeconds
+        return SongContentFilter(blocksExplicit: blocks, maxSeconds: max(0, maxSeconds))
     }
 }

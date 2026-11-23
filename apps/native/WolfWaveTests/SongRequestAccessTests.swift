@@ -164,8 +164,25 @@ final class SongRequestPresetTests: WolfWaveTestCase {
         XCTAssertTrue(defaults.bool(forKey: AppConstants.UserDefaults.songRequestBitsEnabled))
     }
 
-    func testCurrentDefaultsToOpenWhenUnset() {
+    func testCurrentDefaultsToCustomWhenUnset() {
+        // A fresh install has channel points and Bits off, which Open would
+        // turn on, so the selected chip must not claim Open.
+        XCTAssertEqual(SongRequestPreset.current(in: defaults), .custom)
+    }
+
+    func testCurrentInfersOpenOnlyWhenPaidRequestsAreOn() {
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsEnabled)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestBitsBoostEnabled)
         XCTAssertEqual(SongRequestPreset.current(in: defaults), .open)
+    }
+
+    func testCurrentInfersCustomForSubscribersWithPaidRequestsOn() {
+        defaults.set(
+            RequestAudience.subscribers.rawValue,
+            forKey: AppConstants.UserDefaults.songRequestChatAudience)
+        defaults.set(true, forKey: AppConstants.UserDefaults.songRequestChannelPointsEnabled)
+        XCTAssertEqual(SongRequestPreset.current(in: defaults), .custom)
     }
 
     func testCurrentReadsStoredModeForEveryPreset() {

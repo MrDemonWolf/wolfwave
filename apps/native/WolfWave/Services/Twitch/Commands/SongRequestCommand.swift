@@ -133,6 +133,34 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
 
     // MARK: - Reply Formatting
 
+    /// Reply to a viewer on the requester blocklist. Shared with the paid paths.
+    nonisolated static let requesterBlockedReply = "Sorry, you can't request songs here."
+
+    /// Reply when the explicit filter refuses a song. Shared with the paid paths.
+    nonisolated static let explicitReply = "That song is marked explicit. Try the clean version!"
+
+    /// Reply when a song is over the max song length. Shared with the paid paths.
+    nonisolated static func tooLongReply(durationSeconds: Int, maxSeconds: Int) -> String {
+        "That song is \(SongContentFilter.clock(durationSeconds)). "
+            + "The max here is \(SongContentFilter.clock(maxSeconds))."
+    }
+
+    /// The plain-words reason for a blocked requester or a content-filter
+    /// refusal, shared by `!sr`, channel points, and Bits. `nil` for any other
+    /// result. One helper keeps each caller's switch to a single case.
+    nonisolated static func refusalReason(for result: SongRequestService.RequestResult) -> String? {
+        switch result {
+        case .requesterBlocked:
+            return requesterBlockedReply
+        case .explicitBlocked:
+            return explicitReply
+        case let .tooLong(durationSeconds, maxSeconds):
+            return tooLongReply(durationSeconds: durationSeconds, maxSeconds: maxSeconds)
+        default:
+            return nil
+        }
+    }
+
     /// Chat reply for a request result. Static and pure so tests can pin every
     /// reply without a live search.
     ///
@@ -162,6 +190,9 @@ final class SongRequestCommand: AsyncBotCommand, PreflightCheckedCommand {
 
         case .blocked:
             return "Sorry, that song/artist is on the blocklist."
+
+        case .requesterBlocked, .explicitBlocked, .tooLong:
+            return refusalReason(for: result)
 
         case .notFound(let query):
             let truncated = StringFormatting.truncatedWithEllipsis(query)

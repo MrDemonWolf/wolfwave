@@ -73,6 +73,8 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
 - **Sub / VIP priority.** Optional. Subs and VIPs skip the cooldown or
   jump ahead within a round. Off by default.
 - **Blocklist.** Block a song, a whole artist, or a person.
+- **Content filters.** Block explicit songs and set a max song length.
+  Paid requests that get turned away are refunded.
 - **Vote-to-skip.** Chat votes with `!voteskip`, as a chat tally or a
   native Twitch Poll.
 - **Fallback playlist.** Pick an Apple Music playlist to play when the

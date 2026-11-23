@@ -83,6 +83,10 @@ extension AppConstants {
             fallback: "https://mrdwolf.net/discord"
         )
 
+        /// Twitch's music rules for streamers. Linked from the Song Requests
+        /// setup so the streamer can read them; WolfWave gives no legal advice.
+        static let twitchMusicGuidelines = "https://legal.twitch.com/legal/music/"
+
         /// System Settings deep link to Notifications (macOS 13+).
         /// Opened from onboarding and `NotificationService` so users can grant
         /// the notification permission outside the app.

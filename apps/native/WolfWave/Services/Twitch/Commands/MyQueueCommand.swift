@@ -51,12 +51,27 @@ final class MyQueueCommand: AsyncBotCommand, SongRequestGatedCommand {
     func execute(message: String, context: BotCommandContext) async -> String? {
         guard let queue = getQueue?() else { return nil }
 
-        let positions = queue.positions(for: context.requesterLogin)
-        guard !positions.isEmpty else {
+        return Self.reply(
+            positions: queue.positions(for: context.requesterLogin),
+            pending: queue.pendingItems(for: context.requesterLogin))
+    }
+
+    /// Formats the viewer's queued and pending requests. Pure so tests can pin it.
+    ///
+    /// - Parameters:
+    ///   - positions: The viewer's live-queue entries with 1-based positions.
+    ///   - pending: The viewer's requests waiting for approval.
+    /// - Returns: The chat reply.
+    static func reply(
+        positions: [(position: Int, item: SongRequestItem)],
+        pending: [SongRequestItem]
+    ) -> String {
+        guard !positions.isEmpty || !pending.isEmpty else {
             return "You don't have any songs in the queue. Use !sr <song name> to request one!"
         }
 
-        let parts = positions.map { "#\($0.position) \"\($0.item.title)\" · \($0.item.artist)" }
-        return "Your requests: \(parts.joined(separator: ", "))"
+        let queued = positions.map { "#\($0.position) \"\($0.item.title)\" · \($0.item.artist)" }
+        let waiting = pending.map { "\"\($0.title)\" · \($0.artist) (waiting for approval)" }
+        return "Your requests: \((queued + waiting).joined(separator: ", "))"
     }
 }

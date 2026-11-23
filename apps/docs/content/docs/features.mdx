@@ -119,6 +119,13 @@ Mods and you can always request.
 - **Fallback playlist** plays an Apple Music playlist when the queue is empty. Type its name exactly as it appears in Music. Leave it blank for silence.
 - **Resume Apple Music AutoPlay** hands playback back to Music when the queue empties. Turn on AutoPlay in Music's Playing Next panel first. A fallback playlist takes priority.
 
+**Content filters** (the **Content Filters** card):
+
+- **Block Explicit Songs** turns away songs Apple Music marks explicit and tells the viewer to try the clean version.
+- **Max song length** turns away longer songs and says how long the song is and what the max is.
+- New setups start with explicit songs blocked and a 6-minute max. If you set up before these existed, both stay off until you turn them on.
+- You need the rights to play music on stream. Read the [Twitch Music Guidelines](https://legal.twitch.com/legal/music/).
+
 **Blocklist:**
 
 - Block a **Song**, an **Artist**, or a **Person**.
@@ -145,10 +152,10 @@ More: chat commands in [Bot Commands](/docs/bot-commands), every switch in [Sett
 
 These live in the **Channel Points & Bits** card. Enable the tools on Twitch, sign in with your broadcaster account, and grant the permissions WolfWave requests. Twitch must allow the API access needed for each feature; see the [FAQ](/docs/faq#requests-and-chat) for eligibility details.
 
-- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). If a request fails (not found, blocked, queue full), the points go back automatically. **Repair Reward** checks the reward with Twitch and makes a fresh one if you deleted it.
+- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). If a request fails (not found, blocked, explicit, too long, queue full), the points go back automatically. **Repair Reward** checks the reward with Twitch and makes a fresh one if you deleted it.
 - **Bit Requests.** Viewers cheer with a song name to request it. Set the **Minimum bits** (100 by default).
 - **Boost With Bits.** A cheer moves the viewer's oldest queued song to the front instead of adding a new one.
-- **Same rules as `!sr`.** Points and Bits follow your audience, limits, blocklist, approval, and hold settings.
+- **Mostly the same rules as `!sr`.** Points and Bits follow your blocklist, content filters, approval, and hold settings. **Who Can Request** applies to `!sr` only, and paid requests use the **Everyone** per-user limit.
 - **Safe across crashes.** WolfWave saves what it owes before it touches the queue. After a quit or outage it finishes the refund or the Bits action.
 
 ## Now-playing widget (OBS overlay) [#now-playing-widget]

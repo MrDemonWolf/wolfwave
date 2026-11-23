@@ -42,8 +42,14 @@ final class SongRequestService {
         case userLimitReached(max: Int)
         /// The requester already has this song queued, pending, or playing.
         case alreadyInQueue
-        /// The requester, the song, or its artist is on the blocklist.
+        /// The song or its artist is on the blocklist.
         case blocked
+        /// The requester is on the blocklist, whatever they asked for.
+        case requesterBlocked
+        /// Apple Music marks the song explicit and the explicit filter is on.
+        case explicitBlocked
+        /// The song is longer than the max song length. Both values are whole seconds.
+        case tooLong(durationSeconds: Int, maxSeconds: Int)
         /// Plain-text search found nothing.
         case notFound(query: String)
         /// A music link couldn't be matched to one catalog track.
@@ -132,6 +138,12 @@ final class SongRequestService {
     /// before they reach the live queue. Off by default: requests auto-queue.
     var isApprovalRequired: Bool {
         Preferences.bool(AppConstants.UserDefaults.songRequestApprovalRequired, default: false)
+    }
+
+    /// The streamer's explicit and max-length rules, read fresh per request so
+    /// a settings change applies to the next `!sr`.
+    var contentFilter: SongContentFilter {
+        SongContentFilter.current()
     }
 
     /// Whether Apple Music's own autoplay should keep going once the request
@@ -385,7 +397,7 @@ final class SongRequestService {
         let blockedDisplayName = await blocklist.isBlockedRequester(requesterDisplayName)
         if blockedLogin || blockedDisplayName {
             guard !Task.isCancelled else { return .cancelled }
-            return .blocked
+            return .requesterBlocked
         }
 
         guard musicController.isAuthorized || musicController.authStatus == .notDetermined else {
@@ -397,10 +409,8 @@ final class SongRequestService {
 
         switch searchResult {
         case .found(let song):
-            let isBlocked = await blocklist.isBlocked(title: song.title, artist: song.artistName)
-            guard !Task.isCancelled else { return .cancelled }
-            if isBlocked {
-                return .blocked
+            if let refused = await songRefusal(for: song) {
+                return refused
             }
 
             // Sub/VIP queue-jump perk (WW-43). Only chat requests carry badges;
@@ -479,6 +489,27 @@ final class SongRequestService {
             return .linkNotFound
         case .error(let message):
             return lookupFailed(message)
+        }
+    }
+
+    /// The result for a resolved song the streamer's rules refuse, or `nil`
+    /// when it's allowed: the song/artist blocklist first, then the explicit
+    /// filter and the max length. A cancel during the blocklist read returns
+    /// `.cancelled`, which the caller passes through like any refusal.
+    private func songRefusal(for song: Song) async -> RequestResult? {
+        let isBlocked = await blocklist.isBlocked(title: song.title, artist: song.artistName)
+        guard !Task.isCancelled else { return .cancelled }
+        if isBlocked {
+            return .blocked
+        }
+        switch contentFilter.refusal(
+            isExplicit: song.contentRating == .explicit, durationSeconds: song.duration) {
+        case .explicit:
+            return .explicitBlocked
+        case let .tooLong(durationSeconds, maxSeconds):
+            return .tooLong(durationSeconds: durationSeconds, maxSeconds: maxSeconds)
+        case nil:
+            return nil
         }
     }
 
