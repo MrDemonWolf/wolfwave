@@ -103,6 +103,8 @@ struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.myQueueCommandEnabled) private var myQueueCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.skipCommandEnabled) private var skipCommandEnabled = true
     @AppStorage(AppConstants.UserDefaults.clearQueueCommandEnabled) private var clearQueueCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.wrongSongCommandEnabled) private var wrongSongCommandEnabled = true
+    @AppStorage(AppConstants.UserDefaults.removeSongCommandEnabled) private var removeSongCommandEnabled = true
 
     // Comma-separated extra triggers per command.
     @AppStorage(AppConstants.UserDefaults.srCommandAliases) private var srAliases = ""
@@ -110,6 +112,8 @@ struct SongRequestCommandsCard: View {
     @AppStorage(AppConstants.UserDefaults.myQueueCommandAliases) private var myQueueAliases = ""
     @AppStorage(AppConstants.UserDefaults.skipCommandAliases) private var skipAliases = ""
     @AppStorage(AppConstants.UserDefaults.clearQueueCommandAliases) private var clearQueueAliases = ""
+    @AppStorage(AppConstants.UserDefaults.wrongSongCommandAliases) private var wrongSongAliases = ""
+    @AppStorage(AppConstants.UserDefaults.removeSongCommandAliases) private var removeSongAliases = ""
 
     // `!sr` cooldowns, in seconds: channel-wide and per viewer.
     @AppStorage(AppConstants.UserDefaults.songRequestGlobalCooldown) private var globalCooldown: Double = 5.0
@@ -176,6 +180,17 @@ struct SongRequestCommandsCard: View {
                 )
 
                 CommandSettingRow(
+                    title: "!wrongsong Command",
+                    triggers: "!wrongsong  ·  removes your latest request",
+                    isOn: $wrongSongCommandEnabled,
+                    accessibilityLabel: "Enable wrong song command",
+                    accessibilityIdentifier: "wrongSongCommandToggle",
+                    aliases: $wrongSongAliases,
+                    aliasPlaceholder: "e.g. undo, oops",
+                    aliasAccessibilityIdentifier: "wrongSongCommandAliases"
+                )
+
+                CommandSettingRow(
                     title: "!skip Command",
                     triggers: "!skip  ·  !next  (mod only)",
                     isOn: $skipCommandEnabled,
@@ -195,6 +210,17 @@ struct SongRequestCommandsCard: View {
                     aliases: $clearQueueAliases,
                     aliasPlaceholder: "e.g. wipe, clearsr",
                     aliasAccessibilityIdentifier: "clearQueueCommandAliases"
+                )
+
+                CommandSettingRow(
+                    title: "!removesong Command",
+                    triggers: "!removesong 3  ·  !removesong @viewer  (mod only)",
+                    isOn: $removeSongCommandEnabled,
+                    accessibilityLabel: "Enable remove song command",
+                    accessibilityIdentifier: "removeSongCommandToggle",
+                    aliases: $removeSongAliases,
+                    aliasPlaceholder: "e.g. rs, dropsong",
+                    aliasAccessibilityIdentifier: "removeSongCommandAliases"
                 )
 
                 CommandSettingRow(

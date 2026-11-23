@@ -189,6 +189,7 @@ Runs the song-request pipeline for chat, channel points, and Bits.
 - **Queue:** `SongRequestQueue`. Fair-share round-robin, Sub/VIP priority within rounds, hold mode, buffering while Music.app is closed.
 - **Playback:** `AppleMusicController` plays tracks through AppleScript and puts focus back where it was.
 - **Blocklist:** `SongBlocklist` blocks songs, artists, or requesters. An artist block also matches inside a collaboration.
+- **Corrections and wait time:** `SongRequestService+Corrections` backs `!wrongsong` and `!removesong` and estimates "plays in about N min" from the time left in the current track plus the songs ahead.
 - **Content filters:** `SongContentFilter` is the pure explicit-song and max-length rule, read fresh for every request and checked right after the blocklist.
 - **Playlist in Music:** `PlaylistVisibilityWait` re-checks every 2 seconds for about 40 seconds until Music.app sees the WolfWave Requests playlist, so iCloud sync delay is never reported as Sync Library being off. Setup and the settings health check both use it.
 - **Approval screening:** opt-in. Every request waits until the broadcaster approves or declines it.

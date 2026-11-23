@@ -277,6 +277,13 @@ extension AppDelegate {
             Task { await service.sendMessage(message) }
         }
 
+        // Time left in the track playing now, for the "plays in about N min"
+        // estimate. Polled state, so it can lag a few seconds; the reply says "about".
+        songRequestService?.currentTrackRemaining = { [weak self] in
+            guard let self, self.currentSong != nil, self.currentDuration > 0 else { return nil }
+            return max(0, self.currentDuration - self.currentElapsed)
+        }
+
         // Wire commands to the service via TwitchChatService passthroughs
         if let twitchService {
             Task { [weak self] in

@@ -255,6 +255,18 @@ extension AppConstants {
         /// Whether !clearqueue command is enabled (Bool, default: true)
         static let clearQueueCommandEnabled = "clearQueueCommandEnabled"
 
+        /// Whether !wrongsong (viewer undo) is enabled (Bool, default: true)
+        static let wrongSongCommandEnabled = "wrongSongCommandEnabled"
+
+        /// Whether !removesong (mod remove) is enabled (Bool, default: true)
+        static let removeSongCommandEnabled = "removeSongCommandEnabled"
+
+        /// Custom aliases for !wrongsong command (String, comma-separated)
+        static let wrongSongCommandAliases = "wrongSongCommandAliases"
+
+        /// Custom aliases for !removesong command (String, comma-separated)
+        static let removeSongCommandAliases = "removeSongCommandAliases"
+
         /// Custom aliases for !sr command (String, comma-separated)
         static let srCommandAliases = "srCommandAliases"
 
@@ -573,11 +585,15 @@ extension AppConstants {
             myQueueCommandEnabled,
             skipCommandEnabled,
             clearQueueCommandEnabled,
+            wrongSongCommandEnabled,
+            removeSongCommandEnabled,
             srCommandAliases,
             queueCommandAliases,
             myQueueCommandAliases,
             skipCommandAliases,
             clearQueueCommandAliases,
+            wrongSongCommandAliases,
+            removeSongCommandAliases,
             songListCommandEnabled,
             songListCommandAliases,
             songRequestSongListURL,

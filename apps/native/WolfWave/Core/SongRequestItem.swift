@@ -47,11 +47,35 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
     /// requests *within the same round*. Default `false`.
     let isPriority: Bool
 
+    /// The channel-point redemption that paid for this request, or `nil` for a
+    /// chat or Bits request. Lets queue actions tell a paid request apart.
+    let channelPointRedemption: ChannelPointRedemption?
+
+    /// The Helix identity of the redemption behind a channel-point request.
+    struct ChannelPointRedemption: Equatable, Sendable {
+        let redemptionID: String
+        let rewardID: String
+    }
+
+    /// Whether this request was paid for with channel points.
+    var isChannelPointRequest: Bool { channelPointRedemption != nil }
+
+    /// The song's length in seconds, or `nil` when Apple Music didn't say.
+    var durationSeconds: TimeInterval? {
+        guard let duration = song.duration, duration.isFinite, duration > 0 else { return nil }
+        return duration
+    }
+
     // MARK: - Initializers
 
     /// Creates a queue entry from a resolved MusicKit song, stamped now with a
     /// fresh id. A song without an album title gets "Unknown Album".
-    init(song: Song, requesterUsername: String, isPriority: Bool = false) {
+    init(
+        song: Song,
+        requesterUsername: String,
+        isPriority: Bool = false,
+        channelPointRedemption: ChannelPointRedemption? = nil
+    ) {
         self.id = UUID()
         self.title = song.title
         self.artist = song.artistName
@@ -60,6 +84,7 @@ struct SongRequestItem: Identifiable, Equatable, Sendable {
         self.requestedAt = Date()
         self.song = song
         self.isPriority = isPriority
+        self.channelPointRedemption = channelPointRedemption
     }
 
     // MARK: - Duplicate Detection

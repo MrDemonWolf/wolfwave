@@ -438,9 +438,10 @@ extension TwitchChatService {
         switch result {
         case .cancelled:
             return ("", .canceled)
-        case let .added(item, position):
+        case let .added(item, position, wait):
+            let suffix = SongRequestCommand.waitSuffix(wait)
             return (
-                "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue",
+                "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue\(suffix)",
                 .fulfilled)
         case let .pendingApproval(item):
             // ponytail: fulfill on submit-to-review. A later reject can't refund
@@ -488,8 +489,10 @@ extension TwitchChatService {
         switch result {
         case .cancelled:
             return ""
-        case let .added(item, position):
-            return "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue. Thanks for the bits!"
+        case let .added(item, position, wait):
+            let suffix = SongRequestCommand.waitSuffix(wait)
+            return "@\(username) added \"\(item.title)\" by \(item.artist), #\(position) in queue\(suffix). "
+                + "Thanks for the bits!"
         case let .pendingApproval(item):
             return "@\(username) sent \"\(item.title)\" by \(item.artist) to the streamer for approval. Thanks for the bits!"
         case let .queueFull(max):

@@ -328,6 +328,89 @@ final class SongRequestQueue {
         postQueueChanged()
     }
 
+    /// A requester's most recent request that hasn't started playing, from the
+    /// live queue or the approval pen. Ties on `requestedAt` go to the one
+    /// added later. Read-only; pair with ``removeWaiting(id:)``.
+    ///
+    /// - Parameter requester: Twitch login, compared case-insensitively.
+    func latestWaiting(requester: String) -> SongRequestItem? {
+        let lowered = requester.lowercased()
+        return lock.withLock {
+            (items + pending)
+                .filter { $0.requesterUsername.lowercased() == lowered }
+                .reduce(nil as SongRequestItem?) { latest, item in
+                    guard let latest else { return item }
+                    return item.requestedAt >= latest.requestedAt ? item : latest
+                }
+        }
+    }
+
+    /// Removes one waiting request (live queue or approval pen) by ID. The
+    /// now-playing song is never touched. A head item mid-start is safe to
+    /// remove: ``commitNext(id:)`` then no-ops and the service drops the stale
+    /// start. Posts `.songRequestQueueChanged` only when something was removed.
+    ///
+    /// - Returns: The removed item, or `nil` when the ID isn't waiting.
+    @discardableResult
+    func removeWaiting(id: UUID) -> SongRequestItem? {
+        let removed: SongRequestItem? = lock.withLock {
+            if let index = items.firstIndex(where: { $0.id == id }) { return items.remove(at: index) }
+            if let index = pending.firstIndex(where: { $0.id == id }) { return pending.remove(at: index) }
+            return nil
+        }
+        if removed != nil { postQueueChanged() }
+        return removed
+    }
+
+    /// Removes the live-queue item at a 1-based position (the `#N` that `!queue`
+    /// and `!myqueue` show). Posts `.songRequestQueueChanged` only on a removal.
+    ///
+    /// - Parameter position: 1-based position in the live queue.
+    /// - Returns: The removed item, or `nil` when the position is out of range.
+    @discardableResult
+    func remove(atPosition position: Int) -> SongRequestItem? {
+        let removed: SongRequestItem? = lock.withLock {
+            guard position >= 1, position <= items.count else { return nil }
+            return items.remove(at: position - 1)
+        }
+        if removed != nil { postQueueChanged() }
+        return removed
+    }
+
+    /// Removes every queued and pending request from one requester. The
+    /// now-playing song is left alone. Posts only when something was removed.
+    ///
+    /// - Parameter requester: Twitch login, compared case-insensitively.
+    /// - Returns: The removed items, live queue first, in queue order.
+    @discardableResult
+    func removeAll(requester: String) -> [SongRequestItem] {
+        let lowered = requester.lowercased()
+        let removed: [SongRequestItem] = lock.withLock {
+            let matches: (SongRequestItem) -> Bool = { $0.requesterUsername.lowercased() == lowered }
+            let gone = items.filter(matches) + pending.filter(matches)
+            items.removeAll(where: matches)
+            pending.removeAll(where: matches)
+            return gone
+        }
+        if !removed.isEmpty { postQueueChanged() }
+        return removed
+    }
+
+    /// Total length of the songs ahead of a 1-based live-queue position, in
+    /// seconds. A song with no known length counts as
+    /// ``assumedSongSeconds``.
+    ///
+    /// - Parameter position: 1-based position; `1` has nothing ahead of it.
+    func secondsAhead(ofPosition position: Int) -> TimeInterval {
+        lock.withLock {
+            items.prefix(max(0, position - 1))
+                .reduce(0) { $0 + ($1.durationSeconds ?? Self.assumedSongSeconds) }
+        }
+    }
+
+    /// Length assumed for a song Apple Music gave no duration for (3:30).
+    static let assumedSongSeconds: TimeInterval = 210
+
     /// Move a user's earliest pending request to the front of the queue. Used by
     /// the bit-cheer "boost" feature. Boosting the user's *oldest* queued request
     /// (the one they've waited on longest) matches "move me up" intuition better
