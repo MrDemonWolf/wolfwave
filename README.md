@@ -64,6 +64,9 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   channel-point reward. A Bits cheer can request a song, or bump the
   viewer's queued song to the front. Channel points are only spent when
   the song plays; failed or removed requests are refunded.
+- **Request Queue window.** Approve, reorder, and remove requests in a
+  small window you can keep on top while you stream. Right-click for
+  actions, drag to reorder, Delete to remove.
 - **Fix mistakes fast.** Viewers type `!wrongsong` to undo a wrong
   match. Mods remove one song with `!removesong 3` or `!removesong @name`.
   Replies say roughly when a song will play.

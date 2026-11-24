@@ -214,6 +214,7 @@ nonisolated extension AppConstants.UserDefaults {
         portableBool(songRequestApprovalRequired),
         portableData(songRequestBlocklist, format: .songRequestBlocklist),
         portableBool(songRequestBlockExplicit),
+        portableBool(requestQueueWindowOnTop),
         portableInt(songRequestMaxSongSeconds, allowedValues: Defaults.songRequestMaxSongSecondsOptions),
         portableBool(srCommandEnabled),
         portableBool(queueCommandEnabled),

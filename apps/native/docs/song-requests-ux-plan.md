@@ -1,6 +1,6 @@
 # Song Requests: UX research + plan
 
-Research date: 2026-11-21. Status: **PR 1 (quick fixes + content safety) in progress on `song-requests-content-safety`.** Refund decision: **option B** (2026-11-21).
+Research date: 2026-11-21. Refund decision: **option B** (2026-11-21). Status (2026-11-23): PR 1 merged (#560), PR 2a merged (#563), PR 2b in review (#564), PR 3 + 4 (queue window with reorder) in progress.
 
 ## What stays the same (your design)
 

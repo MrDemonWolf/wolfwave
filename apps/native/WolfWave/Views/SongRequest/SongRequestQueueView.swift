@@ -437,6 +437,16 @@ struct SongRequestQueueView: View {
             }
 
             Spacer()
+
+            // Icon-only and in this existing row, so the card's height (and
+            // everything below it) doesn't move.
+            DSIconButton(
+                systemImage: "macwindow",
+                action: { appDelegate?.openRequestQueue() },
+                accessibilityLabel: "Open the Request Queue window",
+                accessibilityIdentifier: "songRequestQueue.openWindow"
+            )
+            .help("Open in a window you can keep on top while you stream")
         }
         .disabled(isClearingRequests)
     }

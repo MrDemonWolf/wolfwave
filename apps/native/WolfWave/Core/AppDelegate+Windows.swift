@@ -48,6 +48,24 @@ extension AppDelegate {
         }
     }
 
+    /// Opens or fronts the Request Queue window (a single-instance SwiftUI
+    /// `Window` scene). Same activation dance as ``openSettings()``: menu-only
+    /// mode becomes Dock-visible while the window is open, and the window-close
+    /// observer drops back once no normal window remains.
+    @objc func openRequestQueue() {
+        statusItem?.menu?.cancelTracking()
+
+        if currentDockVisibilityMode == AppConstants.DockVisibility.menuOnly {
+            NSApp.setActivationPolicy(.regular)
+        }
+
+        RunLoop.main.perform {
+            MainActor.assumeIsolated {
+                RequestQueueWindow.shared.requestOpen()
+            }
+        }
+    }
+
     /// Opens Settings at a specific pane (and optional section). Works whether
     /// the window is closed or already open on another pane: `SettingsView`
     /// observes `SettingsNavigation.shared.pending`.

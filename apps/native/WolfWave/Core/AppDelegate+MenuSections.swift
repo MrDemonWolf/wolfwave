@@ -44,6 +44,20 @@ extension AppDelegate {
         )
         menu.addItem(holdItem)
 
+        let pendingCount = srQueue.pendingCount
+        let queueWindowItem = NSMenuItem(
+            title: pendingCount > 0
+                ? "Show Request Queue (\(pendingCount) to approve)\u{2026}"
+                : "Show Request Queue\u{2026}",
+            action: #selector(openRequestQueue),
+            keyEquivalent: ""
+        )
+        queueWindowItem.image = NSImage(
+            systemSymbolName: "list.bullet.rectangle",
+            accessibilityDescription: "Request Queue"
+        )
+        menu.addItem(queueWindowItem)
+
         let collapse = MenuStatusFormatter.shouldCollapseSongRequests(
             queueCount: queueCount,
             hasNowPlaying: hasNowPlaying

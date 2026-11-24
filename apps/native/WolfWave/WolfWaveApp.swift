@@ -30,6 +30,10 @@ struct WolfWaveApp: App {
 
     @Environment(\.openWindow) private var openWindow
 
+    /// Floats the Request Queue window above other windows when on.
+    @AppStorage(AppConstants.UserDefaults.requestQueueWindowOnTop, store: DefaultsStore.store)
+    private var requestQueueOnTop = false
+
     /// Identifier shared by the SwiftUI scene and its realized AppKit window.
     static let settingsWindowID = "wolfwave-settings"
 
@@ -44,6 +48,20 @@ struct WolfWaveApp: App {
         || ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil
 
     var body: some Scene {
+        // The live request queue, in its own small single-instance window so
+        // the streamer can manage requests mid-stream without Settings. Opened
+        // through `RequestQueueWindow.shared.requestOpen()` (menu bar, Dock,
+        // the Settings queue card). Floats when Keep on Top is on.
+        Window("Request Queue", id: RequestQueueWindow.windowID) {
+            RequestQueueWindowView()
+                .defaultAppStorage(DefaultsStore.store)
+        }
+        .defaultSize(width: 400, height: 520)
+        .windowResizability(.contentMinSize)
+        .windowLevel(requestQueueOnTop ? .floating : .normal)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+
         // Settings lives in a dedicated SwiftUI `Window` scene (NOT a `Settings`
         // scene). A real window scene is the only host where SwiftUI fully owns
         // the window chrome the way the Landmarks sample does: the
@@ -77,6 +95,11 @@ struct WolfWaveApp: App {
         .restorationBehavior(.disabled)
         .onChange(of: SettingsNavigation.shared.isOpenRequested, initial: true) { _, requested in
             if requested { openWindow(id: Self.settingsWindowID) }
+        }
+        .onChange(of: RequestQueueWindow.shared.isOpenRequested, initial: true) { _, requested in
+            guard requested, RequestQueueWindow.shared.consumeOpenRequest() else { return }
+            openWindow(id: RequestQueueWindow.windowID)
+            NSApp.activate()
         }
         // Keep native Quit, Hide, Edit, and window commands available in Dock mode.
         .commands {
