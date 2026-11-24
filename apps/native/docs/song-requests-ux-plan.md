@@ -1,6 +1,16 @@
 # Song Requests: UX research + plan
 
-Research date: 2026-11-21. Refund decision: **option B** (2026-11-21). Status (2026-11-23): PR 1 merged (#560), PR 2a merged (#563), PR 2b in review (#564), PR 3 + 4 (queue window with reorder) in progress.
+Research date: 2026-11-21. Refund decision: **option B** (2026-11-21).
+
+**Implementation status (2026-11-23).** The following changes landed on main. The findings and proposed designs below describe the app at the time of the research.
+
+- #560 added content filters and corrected request replies.
+- #563 added chat corrections and playback estimates.
+- #564 moved channel-point settlement to playback or removal during normal queue operation. Credential teardown has a separate settlement path.
+- #565 added the Request Queue window and queue reordering.
+- #566 added menu bar approval.
+- #567 added the overlay switch for the next request.
+- #568 reorganized Song Requests settings.
 
 ## What stays the same (your design)
 

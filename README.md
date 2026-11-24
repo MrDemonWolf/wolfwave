@@ -72,7 +72,7 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   Replies say roughly when a song will play.
 - **Require My Approval.** Opt-in. Every request waits in the queue
   until you approve or decline it, from the queue window or right in
-  the menu bar.
+  the menu bar. If the queue is full, the request keeps its place in the approval list.
 - **Hold the queue.** Requests still come in, but nothing plays until
   you resume.
 - **Fair-share order.** Everyone's first request plays before anyone's

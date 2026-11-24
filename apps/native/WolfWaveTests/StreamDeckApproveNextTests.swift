@@ -10,7 +10,7 @@ import XCTest
 @testable import WolfWave
 
 /// The Stream Deck "Approve Next" key must report what actually happened. When
-/// the live queue is full, `approve(id:)` puts the request back in pending, so
+/// the live queue is full, `approve(id:)` leaves the request in pending, so
 /// the key has to fail instead of flashing success.
 @MainActor
 final class StreamDeckApproveNextTests: WolfWaveTestCase {

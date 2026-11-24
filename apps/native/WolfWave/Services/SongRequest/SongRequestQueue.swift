@@ -228,6 +228,20 @@ final class SongRequestQueue {
         return result
     }
 
+    /// Transfers a held request only when the live queue has room, preserving
+    /// its position and redemption when the streamer lowers the queue limit.
+    func approvePending(id: UUID) -> (item: SongRequestItem, added: Bool)? {
+        let result: (item: SongRequestItem, added: Bool)? = lock.withLock {
+            guard let index = pending.firstIndex(where: { $0.id == id }) else { return nil }
+            let item = pending[index]
+            guard case .added = insertRespectingCapacity(item) else { return (item, false) }
+            pending.remove(at: index)
+            return (item, true)
+        }
+        if result?.added == true { postQueueChanged() }
+        return result
+    }
+
     /// Remove and return a pending item by ID (used when approving or declining
     /// it). Posts `.songRequestQueueChanged` only when something was removed.
     func takePending(id: UUID) -> SongRequestItem? {
