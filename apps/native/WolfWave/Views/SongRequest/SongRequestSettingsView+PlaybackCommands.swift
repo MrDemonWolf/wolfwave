@@ -12,7 +12,8 @@ import SwiftUI
 
 // MARK: - Playback
 
-/// Hold, auto-advance, autoplay-when-empty, and the fallback playlist.
+/// Auto-advance, the overlay's up-next list, and what plays when the queue
+/// empties. Hold lives on the queue itself (card, window, menu bar), not here.
 struct SongRequestPlaybackCard: View {
     /// Play the next request when a song ends. Changes ask the service to
     /// start or stop its playback monitor.
@@ -27,10 +28,12 @@ struct SongRequestPlaybackCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestFallbackPlaylist)
     private var fallbackPlaylist = ""
 
-    /// Hold mode. Mirrors the queue view's Hold / Resume; changes go through
-    /// `SongRequestService.setHold(_:)`.
-    @AppStorage(AppConstants.UserDefaults.songRequestHoldEnabled)
-    private var holdEnabled = false
+    /// The picker's choice, seeded from the two stored settings on appear.
+    @State private var emptyBehavior: QueueEmptyBehavior = .autoPlay
+
+    /// The playlist name being typed. Kept while another choice is picked, so
+    /// switching back restores it.
+    @State private var playlistDraft = ""
 
     /// Shows the next few requests on the OBS overlay. Pushed live to every
     /// connected overlay, so existing OBS links pick it up.
@@ -43,19 +46,6 @@ struct SongRequestPlaybackCard: View {
                 .font(.system(size: DSFont.Size.base, weight: .semibold))
 
             ToggleSettingRow(
-                title: "Hold Queue",
-                subtitle: "Requests still queue, but nothing plays until you resume",
-                isOn: $holdEnabled,
-                accessibilityLabel: "Hold the request queue",
-                accessibilityIdentifier: "songRequests.holdEnabled",
-                onChange: { enabled in
-                    if let service = AppDelegate.shared?.songRequestService {
-                        Task { await service.setHold(enabled) }
-                    }
-                }
-            )
-
-            ToggleSettingRow(
                 title: "Auto-Advance Queue",
                 subtitle: "Automatically play the next request when a song ends",
                 isOn: $autoAdvance,
@@ -64,15 +54,6 @@ struct SongRequestPlaybackCard: View {
                 onChange: { _ in
                     AppDelegate.shared?.songRequestService?.reconcilePlaybackMonitoring()
                 }
-            )
-
-            ToggleSettingRow(
-                title: "Resume Apple Music AutoPlay",
-                subtitle: "Hands playback back to Music when the queue empties. "
-                    + "Enable AutoPlay in Playing Next; a fallback playlist takes priority.",
-                isOn: $autoplayWhenEmpty,
-                accessibilityLabel: "Resume Apple Music AutoPlay when queue is empty",
-                accessibilityIdentifier: "songRequests.autoplayWhenEmpty"
             )
 
             ToggleSettingRow(
@@ -90,22 +71,49 @@ struct SongRequestPlaybackCard: View {
             Divider()
 
             VStack(alignment: .leading, spacing: DSSpace.s1h) {
-                Text("Fallback playlist")
-                    .font(.system(size: DSFont.Size.body, weight: .medium))
-                TextField("e.g. Gaming Vibes", text: $fallbackPlaylist)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: DSFont.Size.body))
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("Plays an Apple Music playlist when the queue is empty.")
-                    Text("Type the playlist name exactly as it appears in Music.")
-                    Text("Leave blank for silence.")
+                HStack {
+                    Text("When the queue empties")
+                        .font(.system(size: DSFont.Size.body))
+                    Spacer()
+                    Picker("When the queue empties", selection: $emptyBehavior) {
+                        ForEach(QueueEmptyBehavior.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    .accessibilityIdentifier("songRequests.queueEmptyBehavior")
                 }
-                .font(.system(size: DSFont.Size.xs))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(emptyBehavior.summary)
+                    .font(.system(size: DSFont.Size.xs))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if emptyBehavior == .playlist {
+                    TextField("Playlist name, e.g. Gaming Vibes", text: $playlistDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: DSFont.Size.body))
+                        .accessibilityIdentifier("songRequests.fallbackPlaylist")
+                }
             }
         }
+        .onAppear {
+            emptyBehavior = QueueEmptyBehavior.resolve(
+                autoplayWhenEmpty: autoplayWhenEmpty, fallbackPlaylist: fallbackPlaylist)
+            playlistDraft = fallbackPlaylist
+        }
+        .onChange(of: emptyBehavior) { storeEmptyBehavior() }
+        .onChange(of: playlistDraft) { storeEmptyBehavior() }
         .cardStyle()
+    }
+}
+
+// MARK: - Playback Helpers
+
+extension SongRequestPlaybackCard {
+    /// Writes the picker's choice into the two settings the service reads.
+    private func storeEmptyBehavior() {
+        let values = emptyBehavior.storedValues(playlistName: playlistDraft)
+        if autoplayWhenEmpty != values.autoplayWhenEmpty { autoplayWhenEmpty = values.autoplayWhenEmpty }
+        if fallbackPlaylist != values.fallbackPlaylist { fallbackPlaylist = values.fallbackPlaylist }
     }
 }
 

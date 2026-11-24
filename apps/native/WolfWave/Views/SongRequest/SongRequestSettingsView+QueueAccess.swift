@@ -174,38 +174,44 @@ struct SongRequestQueueConfigCard: View {
                 selection: everyoneSelection,
                 options: SongRequestLimits.roleLimitValues,
                 id: "everyone")
-            limitRow(
-                "Subscribers", selection: roleSelection($subLimit),
-                options: roleOptions, label: roleLabel, id: "subscriber")
-            limitRow(
-                "VIPs", selection: roleSelection($vipLimit),
-                options: roleOptions, label: roleLabel, id: "vip")
-            limitRow(
-                "Moderators", selection: roleSelection($modLimit),
-                options: roleOptions, label: roleLabel, id: "moderator")
+            DisclosureGroup("Limits by role") {
+                VStack(alignment: .leading, spacing: DSSpace.s4) {
+                    limitRow(
+                        "Subscribers", selection: roleSelection($subLimit),
+                        options: roleOptions, label: roleLabel, id: "subscriber")
+                    limitRow(
+                        "VIPs", selection: roleSelection($vipLimit),
+                        options: roleOptions, label: roleLabel, id: "vip")
+                    limitRow(
+                        "Moderators", selection: roleSelection($modLimit),
+                        options: roleOptions, label: roleLabel, id: "moderator")
 
-            Divider()
+                    Divider()
 
-            HStack {
-                VStack(alignment: .leading, spacing: DSSpace.s0) {
-                    Text("When a viewer has more than one role")
-                        .font(.system(size: DSFont.Size.body))
-                    Text(stackMode.summary)
-                        .font(.system(size: DSFont.Size.xs))
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-                Picker("How role limits combine", selection: $stackMode) {
-                    ForEach(QueueLimitMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
+                    HStack {
+                        VStack(alignment: .leading, spacing: DSSpace.s0) {
+                            Text("When a viewer has more than one role")
+                                .font(.system(size: DSFont.Size.body))
+                            Text(stackMode.summary)
+                                .font(.system(size: DSFont.Size.xs))
+                                .foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Picker("How role limits combine", selection: $stackMode) {
+                            ForEach(QueueLimitMode.allCases) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 130)
+                        .accessibilityIdentifier("songRequests.limitStackMode")
                     }
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(width: 130)
-                .accessibilityIdentifier("songRequests.limitStackMode")
+                .padding(.top, DSSpace.s2)
             }
+            .accessibilityIdentifier("songRequests.roleLimits")
         }
         .cardStyle()
     }

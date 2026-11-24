@@ -86,11 +86,8 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   native Twitch Poll.
 - **Up next on your overlay.** One switch lists the next 3 requests on
   every connected OBS overlay.
-- **Fallback playlist.** Pick an Apple Music playlist to play when the
-  queue runs dry.
-- **Apple Music AutoPlay.** Let Music choose what plays when the request
-  queue empties. Turn on AutoPlay in Music's Playing Next panel; a fallback
-  playlist takes priority.
+- **When the queue empties.** One choice: Apple Music AutoPlay (turn
+  it on in Music's Playing Next panel), a playlist you name, or stop.
 - **Clear requests.** Clear the queue and the shared **WolfWave Requests**
   playlist together. When the queue is already empty, Music keeps playing.
   The songs stay in your Apple Music library.
