@@ -85,10 +85,8 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
         XCTAssertEqual(queue.pendingCount, 0)
     }
 
-    func testApproveRePendsWhenLiveQueueFull() async {
-        // Live queue capped at 1 and already full; approving a pending item must
-        // keep it in the pending pen rather than dropping it.
-        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+    func testFullQueuePreservesPendingOrderAfterLimitIsLowered() async {
+        DefaultsStore.store.set(2, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
         let service = SongRequestService(
             queue: queue,
             musicController: MockAppleMusicController()
@@ -97,10 +95,14 @@ final class SongRequestQueuePendingTests: WolfWaveTestCase {
         let held = makeTestRequestItem(title: "Waiting", artist: "Wolf", requesterUsername: "v2")
         _ = queue.addPending(held)
 
+        let next = makeTestRequestItem(title: "Next", artist: "Wolf", requesterUsername: "v3")
+        _ = queue.addPending(next)
+        DefaultsStore.store.set(1, forKey: AppConstants.UserDefaults.songRequestMaxQueueSize)
+
         let approved = await service.approve(id: held.id)
         XCTAssertNil(approved, "approve must fail when the queue is full")
         XCTAssertEqual(queue.count, 1, "live queue unchanged")
-        XCTAssertEqual(queue.pendingCount, 1, "held request restored to pending")
+        XCTAssertEqual(queue.pending.map(\.id), [held.id, next.id])
     }
 
     func testTakePendingUnknownIDReturnsNil() {
