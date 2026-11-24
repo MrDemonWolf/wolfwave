@@ -19,10 +19,8 @@ extension TwitchChatService {
         // A credential transition must wake items that were sleeping while no
         // matching account was available. Disk is authoritative, so replacing
         // the in-memory workers cannot lose work.
-        redemptionResolutionTasks.values.forEach { $0.cancel() }
-        redemptionResolutionTasks.removeAll()
-        redemptionResolutionWorkerIDs.removeAll()
         for item in redemptionResolutionOutbox.pendingItems() {
+            guard prepareRedemptionReplay(item.id) else { continue }
             if item.isIntake {
                 // Never race a live queue pipeline with a refund. Its owner will
                 // persist the real outcome or leave intake for a later replay.
@@ -32,6 +30,15 @@ extension TwitchChatService {
                 startPersistedRedemptionResolution(item)
             }
         }
+    }
+
+    /// Wakes a sleeping worker while preserving the owner of an outstanding
+    /// HTTP request. Cancellation cannot recall a refund already sent to Twitch.
+    func prepareRedemptionReplay(_ id: UUID) -> Bool {
+        guard !inFlightRedemptionPatches.contains(id) else { return false }
+        redemptionResolutionTasks.removeValue(forKey: id)?.cancel()
+        redemptionResolutionWorkerIDs[id] = nil
+        return true
     }
 
     /// Starts a worker that applies a persisted fulfill / refund, unless one
@@ -94,6 +101,8 @@ extension TwitchChatService {
             )
 
             do {
+                inFlightRedemptionPatches.insert(item.id)
+                defer { inFlightRedemptionPatches.remove(item.id) }
                 try await channelPointsService.resolveRedemptionWithMetadata(
                     credentials: credentials,
                     rewardID: item.rewardID,

@@ -609,6 +609,9 @@ actor TwitchChatService {
     /// deleting a newer replay task for the same persisted item.
     var redemptionResolutionWorkerIDs: [UUID: UUID] = [:]
 
+    /// Workers awaiting a Twitch response must finish before replay can replace them.
+    var inFlightRedemptionPatches: Set<UUID> = []
+
     // MARK: - AsyncStream Outputs
 
     /// Stream of chat messages received via EventSub `channel.chat.message`.
