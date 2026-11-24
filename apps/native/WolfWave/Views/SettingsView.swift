@@ -702,6 +702,16 @@ struct SettingsView: View {
 /// Chrome and the initial sidebar width are configured; `styleMask` is left to SwiftUI,
 /// so SwiftUI retains ownership of the window's native behavior.
 struct SettingsWindowConfigurator: NSViewRepresentable {
+    /// A user explicitly opened Settings. Menu-only activation can still be
+    /// transferring from Finder when the scene attaches, so order the window
+    /// above other normal windows even during that transition.
+    static func bringToFront(_ window: NSWindow) {
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
     /// Includes ordered-out and minimized Settings without matching another window.
     static func settingsWindow(in windows: [NSWindow] = NSApp.windows) -> NSWindow? {
         windows.first { $0.identifier?.rawValue == WolfWaveApp.settingsWindowID }
@@ -755,9 +765,7 @@ struct SettingsWindowConfigurator: NSViewRepresentable {
             guard let window else { return }
             window.identifier = NSUserInterfaceItemIdentifier(WolfWaveApp.settingsWindowID)
             if SettingsNavigation.shared.consumeOpenRequest() {
-                if window.isMiniaturized { window.deminiaturize(nil) }
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate()
+                SettingsWindowConfigurator.bringToFront(window)
             }
             if window.titleVisibility != .visible { window.titleVisibility = .visible }
             if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }

@@ -76,6 +76,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Opening Settings from the menu bar brings the window in front of other apps while WolfWave switches out of menu-only mode.
+
 - **`!myqueue` shows requests waiting for approval.** Viewers whose song is waiting for you no longer hear that they have nothing queued.
 - **A blocked person hears the right reason.** They're told they can't request songs, instead of being told the song is blocked.
 - **Who Can Request shows your real setup.** A fresh install no longer shows Open as picked while channel points and Bits are off. You see Custom until you pick a preset.

@@ -90,7 +90,10 @@ final class SettingsUITests: WolfWaveUITestCase {
     func testMenuOnlySettingsReopensInFrontOfAnotherApp() throws {
         let window = openSettings()
         select("General")
-        let hostPID = try XCTUnwrap(NSWorkspace.shared.frontmostApplication).processIdentifier
+        let hostName = app.label
+        let hosts = NSWorkspace.shared.runningApplications.filter { $0.localizedName == hostName }
+        XCTAssertEqual(hosts.count, 1, "Expected one running test host named \(hostName)")
+        let hostPID = try XCTUnwrap(hosts.first).processIdentifier
         let mode = app.radioButtons["dockVisibility_menuOnly"]
         for _ in 0..<4 where !mode.isHittable {
             app.scrollViews["settings.pane.General"].swipeUp()
@@ -115,6 +118,7 @@ final class SettingsUITests: WolfWaveUITestCase {
         expect(window, "menu-only Settings reopened from behind Finder")
         // WindowServer lists on-screen windows front to back. Check the two
         // actual windows even if another process briefly takes global focus.
+        var lastOrder: [pid_t] = []
         let inFront = NSPredicate { _, _ in
             let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
             guard let windows = list as? [[String: Any]] else { return false }
@@ -122,12 +126,14 @@ final class SettingsUITests: WolfWaveUITestCase {
                 guard info[kCGWindowLayer as String] as? Int == 0 else { return nil }
                 return info[kCGWindowOwnerPID as String] as? pid_t
             }
+            lastOrder = owners
             guard let settings = owners.firstIndex(of: hostPID),
                   let finder = owners.firstIndex(of: finderPID) else { return false }
             return settings < finder
         }
         let ordered = expectation(for: inFront, evaluatedWith: nil)
-        wait(for: [ordered], timeout: Self.timeout)
+        let result = XCTWaiter.wait(for: [ordered], timeout: Self.timeout)
+        XCTAssertEqual(result, .completed, "Window order \(lastOrder), Settings \(hostPID), Finder \(finderPID)")
         XCTAssertTrue(window.isHittable)
     }
 
