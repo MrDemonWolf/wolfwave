@@ -689,6 +689,7 @@ final class TwitchViewModel {
     /// - Returns: `true` when the account was fully signed out.
     @discardableResult
     func clearCredentials(
+        refundWaitingRequests: Bool = false,
         discardOpaqueRedemptionRecovery: Bool = false
     ) async -> Bool {
         guard !isAccountTeardownInProgress else { return false }
@@ -706,6 +707,7 @@ final class TwitchViewModel {
         oauthCredentialRevision = nil
         oauthGrantCommitted = false
         let service = twitchService
+        if refundWaitingRequests { await service?.refundWaitingRequestsForSignOut() }
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(
             service,

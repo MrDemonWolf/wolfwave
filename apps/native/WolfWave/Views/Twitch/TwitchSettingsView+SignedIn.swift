@@ -390,7 +390,7 @@ struct SignedInView: View {
                 Text("Sign out")
                     .font(.system(size: DSFont.Size.sm, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text("Chat commands stop until you sign in again.")
+                Text("Waiting channel-point requests will be removed and refunded. Chat commands stop until you sign in again.")
                     .font(.system(size: DSFont.Size.sm))
                     .foregroundStyle(.tertiary)
             }
@@ -419,7 +419,7 @@ struct SignedInView: View {
                 .accessibilityIdentifier("twitchConfirmSignOutButton")
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Chat commands stop until you sign in again.")
+            Text("Waiting channel-point requests will be removed and refunded. Chat commands stop until you sign in again.")
         }
     }
 

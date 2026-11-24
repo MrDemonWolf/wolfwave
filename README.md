@@ -63,7 +63,7 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
 - **Channel points and Bits.** WolfWave can add a "Request a Song"
   channel-point reward. A Bits cheer can request a song, or bump the
   viewer's queued song to the front. Channel points are only spent when
-  the song plays; failed or removed requests are refunded.
+  the song plays; failed or removed requests are refunded. Signing out from Twitch settings refunds waiting channel-point requests.
 - **Request Queue window.** Approve, reorder, and remove requests in a
   small window you can keep on top while you stream. Right-click for
   actions, drag to reorder, Delete to remove.

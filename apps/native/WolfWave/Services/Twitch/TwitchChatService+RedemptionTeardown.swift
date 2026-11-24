@@ -165,7 +165,9 @@ extension TwitchChatService {
             redemptionResolutionTasks[item.id] = nil
             redemptionResolutionWorkerIDs[item.id] = nil
             if item.isIntake {
-                settleIntakeForTeardown(item)
+                // Playback or explicit removal owns a waiting song. Keep its
+                // credentials until the queue reports which outcome won.
+                if !intakeAwaitsPlayback(item.id) { resolveUnknownRedemptionIntake(item) }
             } else {
                 startPersistedRedemptionResolution(item)
             }

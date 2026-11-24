@@ -60,15 +60,21 @@ extension TwitchChatService {
         }
     }
 
-    /// Resolves an intake item before credentials go away. A waiting song
-    /// stays queued and will still play, but these credentials can't settle
-    /// it later, so it's fulfilled now; any other intake is unknown and refunded.
-    func settleIntakeForTeardown(_ item: TwitchRedemptionResolutionOutbox.Item) {
-        if intakeAwaitsPlayback(item.id) {
-            releasePlaybackHold(for: item)
-            finalizeRedemptionIntake(item, as: .fulfilled)
-        } else {
-            resolveUnknownRedemptionIntake(item)
+    /// Removes only waiting songs covered by the sign-out confirmation. The
+    /// queue decides whether removal or a concurrent playback commit won.
+    func refundWaitingRequestsForSignOut() async {
+        guard let service = songRequestService else { return }
+        let held = queuedRedemptionIntakeIDs
+        let removed = await MainActor.run {
+            let queue = service.queue
+            return (queue.items + queue.pending).compactMap { item -> SongRequestItem.ChannelPointRedemption? in
+                guard let redemption = item.channelPointRedemption,
+                      held[redemption.redemptionID] != nil else { return nil }
+                return queue.removeWaiting(id: item.id)?.channelPointRedemption
+            }
+        }
+        for redemption in removed {
+            settleQueuedRedemption(redemptionID: redemption.redemptionID, rewardID: redemption.rewardID, played: false)
         }
     }
 
