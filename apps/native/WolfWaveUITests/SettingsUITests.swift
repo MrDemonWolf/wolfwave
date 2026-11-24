@@ -90,9 +90,7 @@ final class SettingsUITests: WolfWaveUITestCase {
     func testMenuOnlySettingsReopensInFrontOfAnotherApp() throws {
         let window = openSettings()
         select("General")
-        // select(_:) activates this exact test host before clicking its sidebar.
-        let host = try XCTUnwrap(NSWorkspace.shared.frontmostApplication)
-        let processID = host.processIdentifier
+        let hostPID = try XCTUnwrap(NSWorkspace.shared.frontmostApplication).processIdentifier
         let mode = app.radioButtons["dockVisibility_menuOnly"]
         for _ in 0..<4 where !mode.isHittable {
             app.scrollViews["settings.pane.General"].swipeUp()
@@ -104,16 +102,32 @@ final class SettingsUITests: WolfWaveUITestCase {
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         XCTAssertTrue(finder.wait(for: .runningForeground, timeout: Self.timeout))
-        try openStatusMenuWithoutActivating()
+        // Give Finder a normal window to cover. Its desktop is below every
+        // normal window and would make the stacking assertion meaningless.
+        finder.typeKey("n", modifierFlags: .command)
+        let finderWindow = finder.windows.firstMatch
+        XCTAssertTrue(finderWindow.waitForExistence(timeout: Self.timeout))
+        let finderPID = try XCTUnwrap(NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.finder").first).processIdentifier
+        defer { finderWindow.buttons[XCUIIdentifierCloseWindow].click() }
+        app.statusItems.firstMatch.click()
         app.menuItems["openSettings"].click()
         expect(window, "menu-only Settings reopened from behind Finder")
-        // Menu-only mode changes activation policy as Settings opens. Observe
-        // the process that owns keyboard focus directly through Workspace.
-        let frontmost = NSPredicate { _, _ in
-            NSWorkspace.shared.frontmostApplication?.processIdentifier == processID
+        // WindowServer lists on-screen windows front to back. Check the two
+        // actual windows even if another process briefly takes global focus.
+        let inFront = NSPredicate { _, _ in
+            let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+            guard let windows = list as? [[String: Any]] else { return false }
+            let owners = windows.compactMap { info -> pid_t? in
+                guard info[kCGWindowLayer as String] as? Int == 0 else { return nil }
+                return info[kCGWindowOwnerPID as String] as? pid_t
+            }
+            guard let settings = owners.firstIndex(of: hostPID),
+                  let finder = owners.firstIndex(of: finderPID) else { return false }
+            return settings < finder
         }
-        let focused = expectation(for: frontmost, evaluatedWith: nil)
-        wait(for: [focused], timeout: Self.timeout)
+        let ordered = expectation(for: inFront, evaluatedWith: nil)
+        wait(for: [ordered], timeout: Self.timeout)
         XCTAssertTrue(window.isHittable)
     }
 
@@ -413,21 +427,6 @@ final class SettingsUITests: WolfWaveUITestCase {
     }
 
     // MARK: - Helpers
-
-    /// XCTest activates an element's owner before clicking. A physical click
-    /// preserves Finder's foreground ownership while the status menu opens.
-    private func openStatusMenuWithoutActivating() throws {
-        let element = app.statusItems.firstMatch
-        XCTAssertTrue(element.waitForExistence(timeout: Self.timeout))
-        let frame = element.frame
-        XCTAssertFalse(frame.isEmpty)
-        let point = CGPoint(x: frame.midX, y: frame.midY)
-        for type: CGEventType in [.mouseMoved, .leftMouseDown, .leftMouseUp] {
-            let event = try XCTUnwrap(CGEvent(
-                mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left))
-            event.post(tap: .cghidEventTap)
-        }
-    }
 
     /// Clicks one sidebar row, activating first.
     ///
