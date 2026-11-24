@@ -404,7 +404,7 @@ struct TwitchSettingsView: View {
                 }
             },
             onClearCredentials: {
-                Task { @MainActor in await viewModel.clearCredentials() }
+                Task { @MainActor in await viewModel.clearCredentials(refundWaitingRequests: true) }
             },
             onJoinChannel: { viewModel.joinChannel() },
             onLeaveChannel: { viewModel.leaveChannel() },

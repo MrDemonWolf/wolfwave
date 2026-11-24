@@ -161,11 +161,11 @@ extension TwitchChatService {
             $0.broadcasterID == broadcasterID
         }
         for item in replayItems {
-            redemptionResolutionTasks[item.id]?.cancel()
-            redemptionResolutionTasks[item.id] = nil
-            redemptionResolutionWorkerIDs[item.id] = nil
+            guard prepareRedemptionReplay(item.id) else { continue }
             if item.isIntake {
-                settleIntakeForTeardown(item)
+                // Playback or explicit removal owns a waiting song. Keep its
+                // credentials until the queue reports which outcome won.
+                if !intakeAwaitsPlayback(item.id) { resolveUnknownRedemptionIntake(item) }
             } else {
                 startPersistedRedemptionResolution(item)
             }

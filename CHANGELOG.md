@@ -76,6 +76,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Signing out from Twitch settings removes and refunds waiting channel-point requests. Songs that already started keep their normal settlement.
 - Held requests keep their place when you try to approve one while the queue is full, even after lowering the queue limit.
 
 - **`!myqueue` shows requests waiting for approval.** Viewers whose song is waiting for you no longer hear that they have nothing queued.

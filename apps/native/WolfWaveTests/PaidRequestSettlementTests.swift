@@ -223,8 +223,32 @@ struct PaidRequestSettlementTests {
         #expect(patches.value.isEmpty)
     }
 
-    @Test("signing out fulfils a waiting song's redemption, since the song still plays")
-    func teardownFulfilsWaitingSong() async throws {
+    @Test("confirmed sign-out refunds a held reward and preserves chat requests")
+    func signOutRemovesOnlyPaidRequests() async throws {
+        installManagedRewardIdentity()
+        defer { clearManagedRewardIdentity() }
+        let harness = try await makeTwitch(prefix: "paid-sign-out")
+        defer { try? FileManager.default.removeItem(at: harness.directory) }
+        let queue = SongRequestQueue()
+        let songs = SongRequestService(queue: queue, musicController: MockAppleMusicController())
+        await harness.service.setSongRequestServiceReference(songs)
+        queue.addPending(paidItem("A"))
+        let chat = makeTestRequestItem(title: "Chat", artist: "Artist", requesterUsername: "other")
+        _ = queue.add(chat)
+        let intake = try harness.outbox.enqueueIntake(
+            broadcasterID: "broadcaster", rewardID: "reward", redemptionID: "r-A").item
+        await harness.service.holdRedemptionUntilPlayback(intake)
+
+        await harness.service.refundWaitingRequestsForSignOut()
+        await harness.service.refundWaitingRequestsForSignOut()
+        #expect(await harness.service.settleRedemptionWorkBeforeCredentialTeardown(broadcasterID: "broadcaster"))
+        #expect(queue.pending.isEmpty)
+        #expect(queue.items.map(\.id) == [chat.id])
+        #expect(harness.patches.value.filter { $0.contains(#""status":"CANCELED""#) }.count == 1)
+    }
+
+    @Test("credential teardown preserves intake while a song still waits")
+    func teardownPreservesWaitingSong() async throws {
         installManagedRewardIdentity()
         defer { clearManagedRewardIdentity() }
         let harness = try await makeTwitch(prefix: "paid-teardown")
@@ -236,9 +260,9 @@ struct PaidRequestSettlementTests {
 
         let settled = await service.settleRedemptionWorkBeforeCredentialTeardown(broadcasterID: "broadcaster")
 
-        #expect(settled)
-        #expect(outbox.pendingItems().isEmpty)
-        #expect(patches.value.contains { $0.contains(#""status":"FULFILLED""#) })
-        #expect(!(await service.intakeAwaitsPlayback(intake.id)))
+        #expect(!settled)
+        #expect(outbox.pendingItems().first?.isIntake == true)
+        #expect(patches.value.isEmpty)
+        #expect(await service.intakeAwaitsPlayback(intake.id))
     }
 }
