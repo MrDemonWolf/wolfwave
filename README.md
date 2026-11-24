@@ -71,7 +71,8 @@ Mute the Twitch bot from Settings or the menu bar to stop all chat messages whil
   match. Mods remove one song with `!removesong 3` or `!removesong @name`.
   Replies say roughly when a song will play.
 - **Require My Approval.** Opt-in. Every request waits in the queue
-  until you approve or decline it.
+  until you approve or decline it, from the queue window or right in
+  the menu bar.
 - **Hold the queue.** Requests still come in, but nothing plays until
   you resume.
 - **Fair-share order.** Everyone's first request plays before anyone's

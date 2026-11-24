@@ -58,6 +58,10 @@ extension AppDelegate {
         )
         menu.addItem(queueWindowItem)
 
+        if pendingCount > 0 {
+            menu.addItem(buildApprovalMenuItem(pending: srQueue.pending))
+        }
+
         let collapse = MenuStatusFormatter.shouldCollapseSongRequests(
             queueCount: queueCount,
             hasNowPlaying: hasNowPlaying
@@ -102,6 +106,55 @@ extension AppDelegate {
         }
 
         menu.addItem(.separator())
+    }
+
+    /// Most waiting requests listed in the Needs Approval submenu; the rest are
+    /// reachable in the Request Queue window.
+    static let maxApprovalMenuItems = 10
+
+    /// "Needs Approval (N)": one entry per waiting request (oldest first, up
+    /// to ``maxApprovalMenuItems``), each with Approve and Decline, so the
+    /// streamer can act without opening a window.
+    private func buildApprovalMenuItem(pending: [SongRequestItem]) -> NSMenuItem {
+        let parent = NSMenuItem(title: "Needs Approval (\(pending.count))", action: nil, keyEquivalent: "")
+        parent.image = NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: "Needs approval")
+        let submenu = NSMenu()
+        for item in pending.prefix(Self.maxApprovalMenuItems) {
+            let label = MenuStatusFormatter.approvalLabel(for: item)
+            let entry = NSMenuItem(title: MenuTitleFormatting.clamped(label), action: nil, keyEquivalent: "")
+            entry.toolTip = MenuTitleFormatting.tooltip(for: label)
+            let actions = NSMenu()
+            let approve = NSMenuItem(title: "Approve", action: #selector(approvePendingRequest(_:)), keyEquivalent: "")
+            approve.representedObject = item.id
+            let decline = NSMenuItem(title: "Decline", action: #selector(declinePendingRequest(_:)), keyEquivalent: "")
+            decline.representedObject = item.id
+            actions.addItem(approve)
+            actions.addItem(decline)
+            entry.submenu = actions
+            submenu.addItem(entry)
+        }
+        if pending.count > Self.maxApprovalMenuItems {
+            submenu.addItem(.separator())
+            submenu.addItem(NSMenuItem(
+                title: "Show All in Request Queue\u{2026}",
+                action: #selector(openRequestQueue),
+                keyEquivalent: ""))
+        }
+        parent.submenu = submenu
+        return parent
+    }
+
+    /// Approves the waiting request whose ID rides on the menu item.
+    @objc func approvePendingRequest(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID else { return }
+        Task { _ = await songRequestService?.approve(id: id) }
+    }
+
+    /// Declines the waiting request whose ID rides on the menu item. A
+    /// channel-point request is refunded.
+    @objc func declinePendingRequest(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID else { return }
+        _ = songRequestService?.reject(id: id)
     }
 
     /// Builds the collapsed "Song Requests (N)" submenu: the playing request,

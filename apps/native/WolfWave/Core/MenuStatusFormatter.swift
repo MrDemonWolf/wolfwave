@@ -93,4 +93,9 @@ enum MenuStatusFormatter {
         if hasNowPlaying && queueCount >= 1 { return true }
         return false
     }
+
+    /// Menu title for a request waiting for approval: "Title · requester".
+    static func approvalLabel(for item: SongRequestItem) -> String {
+        "\(item.title) · \(item.requesterUsername)"
+    }
 }
