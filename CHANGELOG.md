@@ -76,6 +76,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Held requests keep their place when you try to approve one while the queue is full, even after lowering the queue limit.
+
 - **`!myqueue` shows requests waiting for approval.** Viewers whose song is waiting for you no longer hear that they have nothing queued.
 - **A blocked person hears the right reason.** They're told they can't request songs, instead of being told the song is blocked.
 - **Who Can Request shows your real setup.** A fresh install no longer shows Open as picked while channel points and Bits are off. You see Custom until you pick a preset.
