@@ -110,7 +110,7 @@ extension TwitchChatService {
             // A live pipeline owns intake until it records the queue outcome.
             // Otherwise this is a duplicate delivery after a crash/cancel: an
             // unknown outcome must refund, while a known outcome can resume.
-            guard redemptionTasks[intake.id] == nil else { return }
+            guard !intakeIsOwned(intake.id) else { return }
             if intake.isIntake {
                 resolveUnknownRedemptionIntake(intake)
             } else {
@@ -190,10 +190,16 @@ extension TwitchChatService {
             source: .channelPoints(redemptionID: redemptionID, rewardID: rewardID),
             displayName: userName)
         let (message, resolution) = redemptionOutcome(for: result, username: userName)
-        // Record the queue outcome before another suspension. If the process
-        // exits while sending chat, replay still knows whether to fulfil or
-        // refund instead of guessing from volatile queue state.
-        finalizeRedemptionIntake(intake, as: resolution)
+        // Record the queue outcome before another suspension. A queued song
+        // keeps its redemption open until it plays or leaves the queue; every
+        // other outcome is final now. If the process exits while sending chat,
+        // replay refunds anything still open instead of guessing from volatile
+        // queue state.
+        if Self.waitsForPlayback(result) {
+            holdRedemptionUntilPlayback(intake)
+        } else {
+            finalizeRedemptionIntake(intake, as: resolution)
+        }
         if !message.isEmpty {
             await sendSessionBoundMessage(
                 message,

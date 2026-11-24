@@ -26,7 +26,7 @@ extension TwitchChatService {
             if item.isIntake {
                 // Never race a live queue pipeline with a refund. Its owner will
                 // persist the real outcome or leave intake for a later replay.
-                guard redemptionTasks[item.id] == nil else { continue }
+                guard !intakeIsOwned(item.id) else { continue }
                 resolveUnknownRedemptionIntake(item)
             } else {
                 startPersistedRedemptionResolution(item)

@@ -58,10 +58,11 @@ final class WrongSongCommand: AsyncBotCommand, SongRequestGatedCommand {
     /// Chat reply for an undo outcome. Pure so tests can pin it.
     static func reply(for outcome: SongRequestService.UndoOutcome) -> String {
         switch outcome {
+        case .removed(let item) where item.isChannelPointRequest:
+            return "Removed \"\(item.title)\" and refunded your points. "
+                + "Try again with the artist and title, or paste an Apple Music link."
         case .removed(let item):
             return "Removed \"\(item.title)\". Try again with the artist and title, or paste an Apple Music link."
-        case .paidRequest(let item):
-            return "\"\(item.title)\" was a channel-point request, so it stays. Ask a mod to remove it."
         case .nothingToUndo:
             return "You don't have a request waiting to undo."
         }

@@ -116,20 +116,26 @@ struct SongRequestCorrectionsTests {
         #expect(queue.items.map(\.title) == ["A", "B"])
     }
 
-    @Test("!wrongsong leaves a channel-point request in place")
-    func undoKeepsPaidRequest() {
+    @Test("!wrongsong removes a channel-point request and reports it for a refund")
+    func undoRefundsPaidRequest() {
         let queue = makeQueue([("A", "alice")])
         _ = queue.add(paidItem(title: "Paid", user: "alice"))
+        let settled = ThreadSafeBox<[(String, Bool)]>([])
+        queue.onPaidRequestSettled = { redemption, played in
+            settled.mutate { $0.append((redemption.redemptionID, played)) }
+        }
         let service = makeService(queue: queue)
 
         let outcome = service.undoLatestRequest(requesterLogin: "alice")
 
-        guard case .paidRequest(let item) = outcome else {
-            Issue.record("Expected .paidRequest, got \(outcome)")
+        guard case .removed(let item) = outcome else {
+            Issue.record("Expected .removed, got \(outcome)")
             return
         }
         #expect(item.title == "Paid")
-        #expect(queue.count == 2)
+        #expect(queue.count == 1)
+        #expect(settled.value.map(\.0) == ["r-Paid"])
+        #expect(settled.value.map(\.1) == [false])
     }
 
     @Test("!wrongsong with nothing waiting says so")
@@ -144,8 +150,13 @@ struct SongRequestCorrectionsTests {
 
         #expect(WrongSongCommand.reply(for: .removed(item))
             == "Removed \"Wrong One\". Try again with the artist and title, or paste an Apple Music link.")
-        #expect(WrongSongCommand.reply(for: .paidRequest(item))
-            == "\"Wrong One\" was a channel-point request, so it stays. Ask a mod to remove it.")
+        let paid = SongRequestItem(
+            song: makeTestSong(id: "paid", title: "Paid One"),
+            requesterUsername: "alice",
+            channelPointRedemption: .init(redemptionID: "r", rewardID: "reward"))
+        #expect(WrongSongCommand.reply(for: .removed(paid))
+            == "Removed \"Paid One\" and refunded your points. "
+                + "Try again with the artist and title, or paste an Apple Music link.")
         #expect(WrongSongCommand.reply(for: .nothingToUndo) == "You don't have a request waiting to undo.")
     }
 

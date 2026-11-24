@@ -297,7 +297,7 @@ extension SongRequestService {
     /// Returns the removed item, or `nil` when the ID is unknown.
     @discardableResult
     func reject(id: UUID) -> SongRequestItem? {
-        guard let item = queue.takePending(id: id) else { return nil }
+        guard let item = queue.declinePending(id: id) else { return nil }
         sendChatMessage?("Request declined: \"\(item.title)\" (\(item.requesterUsername))")
         return item
     }

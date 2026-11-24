@@ -38,6 +38,22 @@ final class SongRequestQueue {
     /// Lock for thread-safe access to queue state.
     private let lock = NSLock()
 
+    /// Called once for each channel-point request when its fate is known:
+    /// `played` is `true` when it starts playing, `false` when it leaves the
+    /// queue or the approval pen without playing (undo, remove, decline,
+    /// clear, unplayable). Wired by `AppDelegate` so the redemption is
+    /// fulfilled or refunded. Always called after the lock is released.
+    var onPaidRequestSettled: ((SongRequestItem.ChannelPointRedemption, _ played: Bool) -> Void)?
+
+    /// Reports each paid item in `items` to ``onPaidRequestSettled``.
+    private func settlePaid(_ items: [SongRequestItem], played: Bool) {
+        for item in items {
+            if let redemption = item.channelPointRedemption {
+                onPaidRequestSettled?(redemption, played)
+            }
+        }
+    }
+
     /// Maximum number of items allowed in the queue. Read from preferences on
     /// every access, so a settings change applies to the next add. The same
     /// cap applies separately to the approval pen.
@@ -251,7 +267,10 @@ final class SongRequestQueue {
             nowPlaying = item
             return item
         }
-        if item != nil { postQueueChanged() }
+        if let item {
+            postQueueChanged()
+            settlePaid([item], played: true)
+        }
         return item
     }
 
@@ -267,7 +286,10 @@ final class SongRequestQueue {
             guard items.first?.id == id else { return nil }
             return items.removeFirst()
         }
-        if item != nil { postQueueChanged() }
+        if let item {
+            postQueueChanged()
+            settlePaid([item], played: false)
+        }
         return item
     }
 
@@ -297,7 +319,10 @@ final class SongRequestQueue {
             nowPlaying = item
             return item
         }
-        if item != nil { postQueueChanged() }
+        if let item {
+            postQueueChanged()
+            settlePaid([item], played: true)
+        }
         return item
     }
 
@@ -307,14 +332,16 @@ final class SongRequestQueue {
     ///   now-playing slot are cleared but not counted.
     @discardableResult
     func clear() -> Int {
-        let count: Int = lock.withLock {
+        let (count, dropped): (Int, [SongRequestItem]) = lock.withLock {
             let count = items.count
+            let dropped = items + pending
             items.removeAll()
             pending.removeAll()
             nowPlaying = nil
-            return count
+            return (count, dropped)
         }
         postQueueChanged()
+        settlePaid(dropped, played: false)
         return count
     }
 
@@ -322,10 +349,25 @@ final class SongRequestQueue {
     /// now-playing are not searched. Posts `.songRequestQueueChanged` even when
     /// the ID was not found.
     func remove(id: UUID) {
-        lock.withLock {
+        let removed: [SongRequestItem] = lock.withLock {
+            let gone = items.filter { $0.id == id }
             items.removeAll { $0.id == id }
+            return gone
         }
         postQueueChanged()
+        settlePaid(removed, played: false)
+    }
+
+    /// Declines a request in the approval pen: removes it and reports a paid
+    /// one as not played, so its points are refunded. Unlike
+    /// ``takePending(id:)``, which approval also uses, this is final.
+    ///
+    /// - Returns: The declined item, or `nil` when the ID isn't pending.
+    @discardableResult
+    func declinePending(id: UUID) -> SongRequestItem? {
+        let item = takePending(id: id)
+        if let item { settlePaid([item], played: false) }
+        return item
     }
 
     /// A requester's most recent request that hasn't started playing, from the
@@ -358,7 +400,10 @@ final class SongRequestQueue {
             if let index = pending.firstIndex(where: { $0.id == id }) { return pending.remove(at: index) }
             return nil
         }
-        if removed != nil { postQueueChanged() }
+        if let removed {
+            postQueueChanged()
+            settlePaid([removed], played: false)
+        }
         return removed
     }
 
@@ -373,7 +418,10 @@ final class SongRequestQueue {
             guard position >= 1, position <= items.count else { return nil }
             return items.remove(at: position - 1)
         }
-        if removed != nil { postQueueChanged() }
+        if let removed {
+            postQueueChanged()
+            settlePaid([removed], played: false)
+        }
         return removed
     }
 
@@ -392,7 +440,10 @@ final class SongRequestQueue {
             pending.removeAll(where: matches)
             return gone
         }
-        if !removed.isEmpty { postQueueChanged() }
+        if !removed.isEmpty {
+            postQueueChanged()
+            settlePaid(removed, played: false)
+        }
         return removed
     }
 

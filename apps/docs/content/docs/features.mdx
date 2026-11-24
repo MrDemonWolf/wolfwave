@@ -152,11 +152,11 @@ More: chat commands in [Bot Commands](/docs/bot-commands), every switch in [Sett
 
 These live in the **Channel Points & Bits** card. Enable the tools on Twitch, sign in with your broadcaster account, and grant the permissions WolfWave requests. Twitch must allow the API access needed for each feature; see the [FAQ](/docs/faq#requests-and-chat) for eligibility details.
 
-- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). If a request fails (not found, blocked, explicit, too long, queue full), the points go back automatically. **Repair Reward** checks the reward with Twitch and makes a fresh one if you deleted it.
+- **Channel Point Requests.** WolfWave makes a "Request a Song" reward for you (500 points by default). Points are only spent when the song plays. If a request fails (not found, blocked, explicit, too long, queue full) or the song is removed before it plays (`!wrongsong`, declined, removed, queue cleared, can't play), the points go back automatically. **Repair Reward** checks the reward with Twitch and makes a fresh one if you deleted it.
 - **Bit Requests.** Viewers cheer with a song name to request it. Set the **Minimum bits** (100 by default).
 - **Boost With Bits.** A cheer moves the viewer's oldest queued song to the front instead of adding a new one.
 - **Mostly the same rules as `!sr`.** Points and Bits follow your blocklist, content filters, approval, and hold settings. **Who Can Request** applies to `!sr` only, and paid requests use the **Everyone** per-user limit.
-- **Safe across crashes.** WolfWave saves what it owes before it touches the queue. After a quit or outage it finishes the refund or the Bits action.
+- **Safe across crashes.** WolfWave saves what it owes before it touches the queue. After a quit or outage it finishes the refund or the Bits action. The queue doesn't survive a quit, so channel-point songs that hadn't played yet are refunded on the next launch. If you sign out of Twitch while paid songs are waiting, they stay queued and the points are spent.
 
 ## Now-playing widget (OBS overlay) [#now-playing-widget]
 
