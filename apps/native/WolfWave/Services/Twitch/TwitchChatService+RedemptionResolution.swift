@@ -101,15 +101,7 @@ extension TwitchChatService {
             )
 
             do {
-                inFlightRedemptionPatches.insert(item.id)
-                defer { inFlightRedemptionPatches.remove(item.id) }
-                try await channelPointsService.resolveRedemptionWithMetadata(
-                    credentials: credentials,
-                    rewardID: item.rewardID,
-                    redemptionID: item.redemptionID,
-                    as: resolution
-                )
-                acknowledgeRedemptionResolution(item)
+                try await sendAndAcknowledge(item, as: resolution, credentials: credentials)
                 return
             } catch is CancellationError {
                 return
@@ -154,6 +146,21 @@ extension TwitchChatService {
                 return
             }
         }
+    }
+
+    /// Holds the worker's ownership through both the PATCH and its local
+    /// acknowledgement, so a concurrent replay cannot send the same outcome.
+    private func sendAndAcknowledge(
+        _ item: TwitchRedemptionResolutionOutbox.Item,
+        as resolution: TwitchChannelPointsService.Resolution,
+        credentials: TwitchChannelPointsService.Credentials
+    ) async throws {
+        try Task.checkCancellation()
+        inFlightRedemptionPatches.insert(item.id)
+        defer { inFlightRedemptionPatches.remove(item.id) }
+        try await channelPointsService.resolveRedemptionWithMetadata(
+            credentials: credentials, rewardID: item.rewardID, redemptionID: item.redemptionID, as: resolution)
+        acknowledgeRedemptionResolution(item)
     }
 
     /// Decides what to do after a fulfill / refund PATCH failed with `status`.
