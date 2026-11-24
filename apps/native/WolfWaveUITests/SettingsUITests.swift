@@ -100,11 +100,18 @@ final class SettingsUITests: WolfWaveUITestCase {
 
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
+        XCTAssertTrue(finder.wait(for: .runningForeground, timeout: Self.timeout))
         app.statusItems.firstMatch.click()
         app.menuItems["openSettings"].click()
         expect(window, "menu-only Settings reopened from behind Finder")
-        // Activation can land a beat after the window appears, so wait for it.
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: Self.timeout))
+        // Menu-only mode changes activation policy as Settings opens. Observe
+        // the process that owns keyboard focus directly through Workspace.
+        let processID = app.processID
+        let frontmost = NSPredicate { _, _ in
+            NSWorkspace.shared.frontmostApplication?.processIdentifier == processID
+        }
+        let focused = expectation(for: frontmost, evaluatedWith: nil)
+        wait(for: [focused], timeout: Self.timeout)
         XCTAssertTrue(window.isHittable)
     }
 
