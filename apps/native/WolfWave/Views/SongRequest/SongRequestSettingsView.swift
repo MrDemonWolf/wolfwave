@@ -91,11 +91,6 @@ struct SongRequestSettingsView: View {
                 onSetUp: { openSetup(at: .intro) }
             )
 
-            // Vote-skip works without a request queue, so it stays reachable
-            // whether or not song requests are on.
-            VoteSkipCard()
-                .deepLinkSection("vote-skip")
-
             // The configuration cards only appear once setup is finished and
             // the feature is on. Apple Music access is handled inside the
             // setup sheet, so there's no inline auth card here anymore.
@@ -133,6 +128,12 @@ struct SongRequestSettingsView: View {
                         .deepLinkSection("blocklist")
                 }
             }
+
+            // Vote-skip works without a request queue, so it stays reachable
+            // whether or not song requests are on. It sits after the request
+            // settings so the master switch leads straight into them.
+            VoteSkipCard()
+                .deepLinkSection("vote-skip")
         }
         .onAppear {
             refreshTwitchState()
