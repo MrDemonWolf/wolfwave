@@ -70,14 +70,6 @@ struct SongRequestQueueView: View {
 
                 Spacer()
 
-                Button("Open in Window", systemImage: "macwindow") {
-                    appDelegate?.openRequestQueue()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Manage requests in a small window you can keep open while you stream")
-                .accessibilityIdentifier("songRequestQueue.openWindow")
-
                 if isHeld {
                     StatusChip(
                         text: "On hold",
@@ -445,6 +437,16 @@ struct SongRequestQueueView: View {
             }
 
             Spacer()
+
+            // Icon-only and in this existing row, so the card's height (and
+            // everything below it) doesn't move.
+            DSIconButton(
+                systemImage: "macwindow",
+                action: { appDelegate?.openRequestQueue() },
+                accessibilityLabel: "Open the Request Queue window",
+                accessibilityIdentifier: "songRequestQueue.openWindow"
+            )
+            .help("Open in a window you can keep on top while you stream")
         }
         .disabled(isClearingRequests)
     }
