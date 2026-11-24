@@ -90,9 +90,8 @@ final class SettingsUITests: WolfWaveUITestCase {
     func testMenuOnlySettingsReopensInFrontOfAnotherApp() throws {
         let window = openSettings()
         select("General")
-        let hostName = app.label
-        let hosts = NSWorkspace.shared.runningApplications.filter { $0.localizedName == hostName }
-        XCTAssertEqual(hosts.count, 1, "Expected one running test host named \(hostName)")
+        let hosts = NSRunningApplication.runningApplications(withBundleIdentifier: "com.mrdemonwolf.wolfwave.dev")
+        XCTAssertEqual(hosts.count, 1, "Expected one WolfWave Dev test host")
         let hostPID = try XCTUnwrap(hosts.first).processIdentifier
         let mode = app.radioButtons["dockVisibility_menuOnly"]
         for _ in 0..<4 where !mode.isHittable {
