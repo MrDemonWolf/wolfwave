@@ -104,8 +104,8 @@ final class SettingsUITests: WolfWaveUITestCase {
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         XCTAssertTrue(finder.wait(for: .runningForeground, timeout: Self.timeout))
-        try clickWithoutActivating(app.statusItems.firstMatch)
-        try clickWithoutActivating(app.menuItems["openSettings"])
+        try openStatusMenuWithoutActivating()
+        app.menuItems["openSettings"].click()
         expect(window, "menu-only Settings reopened from behind Finder")
         // Menu-only mode changes activation policy as Settings opens. Observe
         // the process that owns keyboard focus directly through Workspace.
@@ -416,7 +416,8 @@ final class SettingsUITests: WolfWaveUITestCase {
 
     /// XCTest activates an element's owner before clicking. A physical click
     /// preserves Finder's foreground ownership while the status menu opens.
-    private func clickWithoutActivating(_ element: XCUIElement) throws {
+    private func openStatusMenuWithoutActivating() throws {
+        let element = app.statusItems.firstMatch
         XCTAssertTrue(element.waitForExistence(timeout: Self.timeout))
         let frame = element.frame
         XCTAssertFalse(frame.isEmpty)
