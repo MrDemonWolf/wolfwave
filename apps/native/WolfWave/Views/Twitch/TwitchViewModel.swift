@@ -698,15 +698,12 @@ final class TwitchViewModel {
         cancelTokenValidationSchedule()
         // Cancel task/UI owners synchronously, but do not supersede the
         // credential revision until the old service transport is fully gone.
-        joinGeneration &+= 1
-        joinTask?.cancel()
-        joinTask = nil
+        let service = cancelJoinForAccountTransition()
         oauthGeneration &+= 1
         oAuthTask?.cancel()
         oAuthTask = nil
         oauthCredentialRevision = nil
         oauthGrantCommitted = false
-        let service = twitchService
         if refundWaitingRequests { await service?.refundWaitingRequestsForSignOut() }
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(
