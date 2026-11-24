@@ -32,6 +32,11 @@ struct SongRequestPlaybackCard: View {
     @AppStorage(AppConstants.UserDefaults.songRequestHoldEnabled)
     private var holdEnabled = false
 
+    /// Shows the next few requests on the OBS overlay. Pushed live to every
+    /// connected overlay, so existing OBS links pick it up.
+    @AppStorage(AppConstants.UserDefaults.widgetShowUpNext)
+    private var showUpNext = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpace.s4) {
             Text("Playback")
@@ -68,6 +73,18 @@ struct SongRequestPlaybackCard: View {
                 isOn: $autoplayWhenEmpty,
                 accessibilityLabel: "Resume Apple Music AutoPlay when queue is empty",
                 accessibilityIdentifier: "songRequests.autoplayWhenEmpty"
+            )
+
+            ToggleSettingRow(
+                title: "Show Up Next on Overlay",
+                subtitle: "Lists the next 3 requests and who asked, under the now-playing card",
+                isOn: $showUpNext,
+                accessibilityLabel: "Show up next on the overlay",
+                accessibilityIdentifier: "songRequests.showUpNext",
+                onChange: { _ in
+                    let server = AppDelegate.shared?.websocketServer
+                    Task { await server?.broadcastWidgetConfig() }
+                }
             )
 
             Divider()

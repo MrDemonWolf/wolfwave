@@ -202,6 +202,7 @@ nonisolated extension AppConstants.UserDefaults {
         portableString(widgetTextColor),
         portableString(widgetBackgroundColor),
         portableString(widgetFontFamily),
+        portableBool(widgetShowUpNext),
         // Song requests
         portableBool(songRequestEnabled),
         portableInt(songRequestMaxQueueSize, allowedValues: [5, 10, 15, 20, 25, 50]),

@@ -248,6 +248,37 @@ describe("hostile input", () => {
   });
 });
 
+describe("up next panel", () => {
+  const upcoming = {
+    type: "queue_upcoming",
+    data: { items: [{ title: "Howl", requesterUsername: "viewer" }] },
+  };
+  const ticker = () => document.getElementById("queue-ticker") as HTMLElement;
+
+  test("stays hidden until the app turns it on", async () => {
+    await boot();
+    send(upcoming);
+    expect(ticker().classList.contains("hidden")).toBe(true);
+  });
+
+  test("the app's showUpNext switch turns it on and off live", async () => {
+    await boot();
+    send(upcoming);
+    send({ type: "widget_config", data: { showUpNext: true } });
+    expect(ticker().classList.contains("hidden")).toBe(false);
+    expect(ticker().textContent).toContain("Howl");
+    send({ type: "widget_config", data: { showUpNext: false } });
+    expect(ticker().classList.contains("hidden")).toBe(true);
+  });
+
+  test("a non-boolean showUpNext is ignored", async () => {
+    await boot();
+    send(upcoming);
+    send({ type: "widget_config", data: { showUpNext: "yes" } });
+    expect(ticker().classList.contains("hidden")).toBe(true);
+  });
+});
+
 describe("websocket", () => {
   test("connects to the default port", async () => {
     await boot();

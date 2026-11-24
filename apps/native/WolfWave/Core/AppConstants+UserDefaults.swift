@@ -194,6 +194,10 @@ extension AppConstants {
         /// Widget font family (String, default: "System Default")
         static let widgetFontFamily = "widgetFontFamily"
 
+        /// Whether the overlay shows the "up next" request list (Bool, default: false).
+        /// Pushed live in `widget_config` as `showUpNext`.
+        static let widgetShowUpNext = "widgetShowUpNext"
+
         /// Widget HTTP server port number (UInt16, default: 8766)
         static let widgetPort = "widgetPort"
 
@@ -569,6 +573,7 @@ extension AppConstants {
             widgetTextColor,
             widgetBackgroundColor,
             widgetFontFamily,
+            widgetShowUpNext,
             widgetPort,
             widgetHTTPEnabled,
             songRequestEnabled,

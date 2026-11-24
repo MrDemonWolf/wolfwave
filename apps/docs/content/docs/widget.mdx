@@ -63,7 +63,7 @@ coordinated change.
 | `progress` | `{ elapsed, duration, isPlaying }` | About once a second while playing (every 3 s in Low Power Mode or when the Mac runs hot) |
 | `playback_state` | `{ isPlaying, track?, artist?, album? }` | Playback stops or clears. Also on connect when nothing is loaded |
 | `overlay_visibility` | `{ visible }` | On connect, and on each Stream Deck visibility toggle |
-| `widget_config` | `{ theme, layout, textColor, backgroundColor, fontFamily }` | On connect, and when you click **Apply** in Widget Appearance |
+| `widget_config` | `{ theme, layout, textColor, backgroundColor, fontFamily, showUpNext }` | On connect, when you click **Apply** in Widget Appearance, and when you flip **Show Up Next on Overlay** |
 | `queue_upcoming` | `{ items: [{ title, requesterUsername }] }` (max 3) | On connect, and on queue change |
 
 The browser widget never sends back. The native app pushes, the browser renders.
@@ -159,9 +159,12 @@ macOS **Widget Appearance** preview drives the real renderer this way.
 
 ## Queue ticker
 
-**Off by default, opt-in per Browser Source.** Add `?queueTicker=1` to your
-widget URL to show a small panel listing the next 3 song requests (title +
-requester). It's a separate fixed-position panel in the bottom-right corner of
+**Off by default.** Turn on **Show Up Next on Overlay** in
+**Settings → Song Requests → Playback** to show a small panel listing the next 3
+song requests (title + requester). The switch is pushed live in `widget_config`
+(`showUpNext`), so every connected overlay follows it without a new link. The
+older per-Browser-Source switch still works: add `?queueTicker=1` to the widget
+URL to show the panel on that source whatever the app setting says. It's a separate fixed-position panel in the bottom-right corner of
 the Browser Source, not part of the now-playing card or any layout, so turning
 it on never changes an existing Browser Source's size or position. When the
 queue is empty it shows "Queue open — !sr to join" instead of disappearing, so
