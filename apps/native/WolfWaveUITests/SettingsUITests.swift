@@ -87,9 +87,12 @@ final class SettingsUITests: WolfWaveUITestCase {
         XCTAssertEqual(app.windows.matching(identifier: Self.settingsWindowTitle).count, 1)
     }
 
-    func testMenuOnlySettingsReopensInFrontOfAnotherApp() {
+    func testMenuOnlySettingsReopensInFrontOfAnotherApp() throws {
         let window = openSettings()
         select("General")
+        // select(_:) activates this exact test host before clicking its sidebar.
+        let host = try XCTUnwrap(NSWorkspace.shared.frontmostApplication)
+        let processID = host.processIdentifier
         let mode = app.radioButtons["dockVisibility_menuOnly"]
         for _ in 0..<4 where !mode.isHittable {
             app.scrollViews["settings.pane.General"].swipeUp()
@@ -106,7 +109,6 @@ final class SettingsUITests: WolfWaveUITestCase {
         expect(window, "menu-only Settings reopened from behind Finder")
         // Menu-only mode changes activation policy as Settings opens. Observe
         // the process that owns keyboard focus directly through Workspace.
-        let processID = app.processID
         let frontmost = NSPredicate { _, _ in
             NSWorkspace.shared.frontmostApplication?.processIdentifier == processID
         }
