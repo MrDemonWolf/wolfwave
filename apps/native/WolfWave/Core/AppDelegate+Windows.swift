@@ -38,9 +38,7 @@ extension AppDelegate {
         RunLoop.main.perform {
             MainActor.assumeIsolated {
                 if let window = SettingsWindowConfigurator.settingsWindow() {
-                    if window.isMiniaturized { window.deminiaturize(nil) }
-                    window.makeKeyAndOrderFront(nil)
-                    NSApp.activate()
+                    SettingsWindowConfigurator.bringToFront(window)
                 } else {
                     SettingsNavigation.shared.requestOpen()
                 }
