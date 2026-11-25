@@ -689,6 +689,7 @@ final class TwitchViewModel {
     /// - Returns: `true` when the account was fully signed out.
     @discardableResult
     func clearCredentials(
+        refundWaitingRequests: Bool = false,
         discardOpaqueRedemptionRecovery: Bool = false
     ) async -> Bool {
         guard !isAccountTeardownInProgress else { return false }
@@ -697,15 +698,13 @@ final class TwitchViewModel {
         cancelTokenValidationSchedule()
         // Cancel task/UI owners synchronously, but do not supersede the
         // credential revision until the old service transport is fully gone.
-        joinGeneration &+= 1
-        joinTask?.cancel()
-        joinTask = nil
+        let service = cancelJoinForAccountTransition()
         oauthGeneration &+= 1
         oAuthTask?.cancel()
         oAuthTask = nil
         oauthCredentialRevision = nil
         oauthGrantCommitted = false
-        let service = twitchService
+        if refundWaitingRequests { await service?.refundWaitingRequestsForSignOut() }
         await TwitchTokenRefresher.invalidateSession()
         guard await leaveServiceForAccountTransition(
             service,

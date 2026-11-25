@@ -19,10 +19,8 @@ extension TwitchChatService {
         // A credential transition must wake items that were sleeping while no
         // matching account was available. Disk is authoritative, so replacing
         // the in-memory workers cannot lose work.
-        redemptionResolutionTasks.values.forEach { $0.cancel() }
-        redemptionResolutionTasks.removeAll()
-        redemptionResolutionWorkerIDs.removeAll()
         for item in redemptionResolutionOutbox.pendingItems() {
+            guard prepareRedemptionReplay(item.id) else { continue }
             if item.isIntake {
                 // Never race a live queue pipeline with a refund. Its owner will
                 // persist the real outcome or leave intake for a later replay.
@@ -32,6 +30,15 @@ extension TwitchChatService {
                 startPersistedRedemptionResolution(item)
             }
         }
+    }
+
+    /// Wakes a sleeping worker while preserving the owner of an outstanding
+    /// HTTP request. Cancellation cannot recall a refund already sent to Twitch.
+    func prepareRedemptionReplay(_ id: UUID) -> Bool {
+        guard !inFlightRedemptionPatches.contains(id) else { return false }
+        redemptionResolutionTasks.removeValue(forKey: id)?.cancel()
+        redemptionResolutionWorkerIDs[id] = nil
+        return true
     }
 
     /// Starts a worker that applies a persisted fulfill / refund, unless one
@@ -94,13 +101,7 @@ extension TwitchChatService {
             )
 
             do {
-                try await channelPointsService.resolveRedemptionWithMetadata(
-                    credentials: credentials,
-                    rewardID: item.rewardID,
-                    redemptionID: item.redemptionID,
-                    as: resolution
-                )
-                acknowledgeRedemptionResolution(item)
+                try await sendAndAcknowledge(item, as: resolution, credentials: credentials)
                 return
             } catch is CancellationError {
                 return
@@ -145,6 +146,21 @@ extension TwitchChatService {
                 return
             }
         }
+    }
+
+    /// Holds the worker's ownership through both the PATCH and its local
+    /// acknowledgement, so a concurrent replay cannot send the same outcome.
+    private func sendAndAcknowledge(
+        _ item: TwitchRedemptionResolutionOutbox.Item,
+        as resolution: TwitchChannelPointsService.Resolution,
+        credentials: TwitchChannelPointsService.Credentials
+    ) async throws {
+        try Task.checkCancellation()
+        inFlightRedemptionPatches.insert(item.id)
+        defer { inFlightRedemptionPatches.remove(item.id) }
+        try await channelPointsService.resolveRedemptionWithMetadata(
+            credentials: credentials, rewardID: item.rewardID, redemptionID: item.redemptionID, as: resolution)
+        acknowledgeRedemptionResolution(item)
     }
 
     /// Decides what to do after a fulfill / refund PATCH failed with `status`.

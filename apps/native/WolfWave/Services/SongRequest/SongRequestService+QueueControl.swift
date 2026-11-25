@@ -273,15 +273,12 @@ extension SongRequestService {
     /// Approve a held request: move it into the live queue and start it if idle.
     /// No-op (returns `nil`) when the ID is unknown or the queue is full.
     ///
-    /// On a full queue the request goes back into the pending pen and chat is
+    /// On a full queue the request stays in the pending pen and chat is
     /// told it's still pending. On success chat gets an "Approved" line.
     @discardableResult
     func approve(id: UUID) async -> SongRequestItem? {
-        guard let item = queue.takePending(id: id) else { return nil }
-        guard case .added = queue.addApproved(item) else {
-            // Live queue is full: put the request back in the pending pen so the
-            // streamer can retry once a slot frees up, instead of losing it.
-            queue.addPending(item)
+        guard let (item, added) = queue.approvePending(id: id) else { return nil }
+        guard added else {
             sendChatMessage?("Couldn't queue \"\(item.title)\". The queue is full. Still pending; approve again once there's room.")
             return nil
         }
